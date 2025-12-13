@@ -324,10 +324,16 @@ fun RsvpScreen(
                     if (isPositioningMode) {
                         // Exit positioning mode on tap.
                         finishPositioning()
+                    } else if (showQuickSettings) {
+                        // Don't accidentally pause/resume while the user is adjusting settings.
+                        showQuickSettings = false
                     } else {
-                        // Tapping pauses and shows controls
-                        isPlaying = false
-                        showControls = true
+                        // Toggle playback: tap to pause, tap again to resume.
+                        if (!completed) {
+                            isPlaying = !isPlaying
+                            showWpmIndicator = false
+                            showControls = !isPlaying
+                        }
                     }
                 },
                 onLongClick = {
