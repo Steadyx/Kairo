@@ -1,0 +1,20 @@
+package com.example.kairo.data.preferences
+
+import com.example.kairo.core.model.RsvpConfig
+import com.example.kairo.core.model.RsvpFontFamily
+import com.example.kairo.core.model.RsvpFontWeight
+import com.example.kairo.core.model.UserPreferences
+import kotlinx.coroutines.flow.Flow
+
+interface PreferencesRepository {
+    val preferences: Flow<UserPreferences>
+    suspend fun updateRsvpConfig(updater: (RsvpConfig) -> RsvpConfig)
+    suspend fun updateFontSize(size: Float)
+    suspend fun updateTheme(theme: String)
+    suspend fun updateInvertedScroll(enabled: Boolean)
+    suspend fun updateRsvpFontSize(size: Float)
+    suspend fun updateRsvpFontWeight(weight: RsvpFontWeight)
+    suspend fun updateRsvpFontFamily(family: RsvpFontFamily)
+    suspend fun updateRsvpVerticalBias(bias: Float)
+    suspend fun reset()
+}

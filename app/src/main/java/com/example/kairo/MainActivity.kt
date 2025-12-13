@@ -1,0 +1,334 @@
+package com.example.kairo
+
+import android.net.Uri
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import android.widget.Toast
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.kairo.core.model.BookId
+import com.example.kairo.ui.reader.ReaderViewModel
+import com.example.kairo.core.model.ReadingPosition
+import com.example.kairo.core.model.UserPreferences
+import com.example.kairo.core.model.nearestWordIndex
+import com.example.kairo.ui.library.LibraryScreen
+import com.example.kairo.ui.reader.ReaderScreen
+import com.example.kairo.ui.rsvp.RsvpScreen
+import com.example.kairo.ui.settings.SettingsScreen
+import com.example.kairo.ui.theme.KairoTheme
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val container = (application as KairoApplication).container
+
+        setContent {
+            val prefs by container.preferencesRepository.preferences.collectAsState(
+                initial = UserPreferences()
+            )
+
+            KairoTheme(readerTheme = prefs.readerTheme) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    KairoNavHost(container, prefs)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KairoNavHost(
+    container: AppContainer,
+    prefs: UserPreferences
+) {
+    val navController = rememberNavController()
+    val context = LocalContext.current
+    val libraryFlow = container.libraryRepository.observeLibrary()
+    val books by libraryFlow.collectAsState(initial = emptyList())
+    val coroutineScope = rememberCoroutineScope()
+
+    NavHost(navController = navController, startDestination = "library") {
+        composable("library") {
+            LibraryScreen(
+                books = books,
+                onOpen = { book ->
+                    // Navigate to reader - saved position will be restored there
+                    navController.navigate("reader/${book.id.value}")
+                },
+                onImportFile = { uri ->
+                    coroutineScope.launch {
+                        try {
+                            val book = container.libraryRepository.import(uri)
+                            Toast.makeText(
+                                context,
+                                "Imported: ${book.title} (${book.chapters.size} chapters)",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } catch (e: Exception) {
+                            e.printStackTrace()  // Log for debugging
+                            Toast.makeText(
+                                context,
+                                "Import failed: ${e.message ?: "Unknown error"}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                },
+                onSettings = { navController.navigate("settings") },
+                onDelete = { book ->
+                    coroutineScope.launch { container.libraryRepository.delete(book.id.value) }
+                }
+            )
+        }
+
+        composable(
+            route = "reader/{bookId}",
+            arguments = listOf(
+                navArgument("bookId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getString("bookId") ?: return@composable
+
+            // Load book once
+            val bookState = produceState<com.example.kairo.core.model.Book?>(
+                initialValue = null,
+                bookId
+            ) {
+                value = runCatching { container.bookRepository.getBook(BookId(bookId)) }.getOrNull()
+            }
+            val book = bookState.value ?: return@composable
+
+            // Use ViewModel for chapter caching and preloading
+            val readerViewModel: ReaderViewModel = viewModel()
+            val uiState by readerViewModel.uiState.collectAsState()
+
+            // Resume index returned from RSVP. Use it immediately to avoid focus "jump".
+            val rsvpResultFlow = remember(backStackEntry) {
+                backStackEntry.savedStateHandle.getStateFlow("rsvp_result_token_index", -1)
+            }
+            val rsvpResultIndex by rsvpResultFlow.collectAsState(initial = -1)
+            val safeRsvpResultIndex = if (rsvpResultIndex >= 0) {
+                val tokens = uiState.chapterData?.tokens
+                if (tokens != null && tokens.isNotEmpty()) {
+                    tokens.nearestWordIndex(rsvpResultIndex)
+                } else {
+                    rsvpResultIndex
+                }
+            } else {
+                rsvpResultIndex
+            }
+            val effectiveUiState =
+                if (safeRsvpResultIndex >= 0) uiState.copy(focusIndex = safeRsvpResultIndex) else uiState
+
+            LaunchedEffect(safeRsvpResultIndex) {
+                if (safeRsvpResultIndex >= 0) {
+                    if (safeRsvpResultIndex != uiState.focusIndex) {
+                        readerViewModel.setFocusIndex(safeRsvpResultIndex)
+                    }
+                    backStackEntry.savedStateHandle["rsvp_result_token_index"] = -1
+                }
+            }
+
+            // Track if we've done initial load
+            var hasInitialized by rememberSaveable { mutableStateOf(false) }
+
+            // Load book with saved position on first entry
+            LaunchedEffect(book) {
+                if (!hasInitialized) {
+                    val savedPosition = container.readingPositionRepository.getPosition(BookId(bookId))
+                    val initialChapter = savedPosition?.chapterIndex ?: 0
+                    val initialFocus = savedPosition?.tokenIndex ?: 0
+                    readerViewModel.loadBook(book, initialChapter, initialFocus)
+                    hasInitialized = true
+                }
+            }
+
+            // Sync focus from storage when returning from RSVP (lifecycle resumes)
+            val lifecycleOwner = LocalLifecycleOwner.current
+            val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
+
+            LaunchedEffect(lifecycleState) {
+                if (lifecycleState == Lifecycle.State.RESUMED && hasInitialized) {
+                    // If a resume index from RSVP is pending, don't overwrite it.
+                    if (safeRsvpResultIndex >= 0) return@LaunchedEffect
+                    val savedPosition = container.readingPositionRepository.getPosition(BookId(bookId))
+                    if (savedPosition != null && savedPosition.chapterIndex == uiState.chapterIndex) {
+                        val tokens = uiState.chapterData?.tokens
+                        if (tokens != null && savedPosition.tokenIndex != uiState.focusIndex) {
+                            readerViewModel.setFocusIndex(savedPosition.tokenIndex.coerceIn(0, tokens.lastIndex))
+                        }
+                    }
+                }
+            }
+
+            ReaderScreen(
+                book = book,
+                uiState = effectiveUiState,
+                fontSizeSp = prefs.readerFontSizeSp,
+                invertedScroll = prefs.invertedScroll,
+                onFocusChange = { newFocusIndex ->
+                    readerViewModel.setFocusIndex(newFocusIndex)
+                    // Save position when focus changes
+                    coroutineScope.launch {
+                        container.readingPositionRepository.savePosition(
+                            ReadingPosition(BookId(bookId), uiState.chapterIndex, newFocusIndex)
+                        )
+                    }
+                },
+                onStartRsvp = { start ->
+                    // Save current position before navigating to RSVP
+                    coroutineScope.launch {
+                        container.readingPositionRepository.savePosition(
+                            ReadingPosition(BookId(bookId), uiState.chapterIndex, start)
+                        )
+                    }
+                    navController.navigate("rsvp/$bookId/${uiState.chapterIndex}/$start")
+                },
+                onChapterChange = { newIndex ->
+                    readerViewModel.loadChapter(newIndex)
+                }
+            )
+        }
+
+        composable(
+            route = "rsvp/{bookId}/{chapterIndex}/{tokenIndex}",
+            arguments = listOf(
+                navArgument("bookId") { type = NavType.StringType },
+                navArgument("chapterIndex") { type = NavType.IntType },
+                navArgument("tokenIndex") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getString("bookId") ?: return@composable
+            val chapterIndex = backStackEntry.arguments?.getInt("chapterIndex") ?: 0
+            val startIndex = backStackEntry.arguments?.getInt("tokenIndex") ?: 0
+
+            val tokensState = produceState(initialValue = emptyList<com.example.kairo.core.model.Token>(), bookId, chapterIndex) {
+                value = runCatching { container.tokenRepository.getTokens(BookId(bookId), chapterIndex) }
+                    .getOrElse { emptyList() }
+            }
+            val tokens = tokensState.value
+
+            RsvpScreen(
+                tokens = tokens,
+                startIndex = startIndex.coerceAtLeast(0),
+                config = prefs.rsvpConfig,
+                engine = container.rsvpEngine,
+                fontSizeSp = prefs.rsvpFontSizeSp,
+                fontFamily = prefs.rsvpFontFamily,
+                fontWeight = prefs.rsvpFontWeight,
+                verticalBias = prefs.rsvpVerticalBias,
+                onFinished = { lastIndex ->
+                    val resumeIndex = if (tokens.isNotEmpty()) {
+                        lastIndex.coerceIn(0, tokens.lastIndex)
+                    } else {
+                        lastIndex.coerceAtLeast(0)
+                    }
+                    coroutineScope.launch {
+                        container.readingPositionRepository.savePosition(
+                            ReadingPosition(BookId(bookId), chapterIndex, resumeIndex)
+                        )
+                    }
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("rsvp_result_token_index", resumeIndex)
+                    navController.popBackStack()
+                },
+                onPositionChanged = { currentIndex ->
+                    // Save position (called on dispose, no navigation)
+                    // Use GlobalScope so save completes even when navigating away
+                    val safeIndex = if (tokens.isNotEmpty()) {
+                        currentIndex.coerceIn(0, tokens.lastIndex)
+                    } else {
+                        0
+                    }
+                    GlobalScope.launch {
+                        container.readingPositionRepository.savePosition(
+                            ReadingPosition(BookId(bookId), chapterIndex, safeIndex)
+                        )
+                    }
+                },
+                onWpmChange = { newWpm ->
+                    coroutineScope.launch {
+                        container.preferencesRepository.updateRsvpConfig { it.copy(baseWpm = newWpm) }
+                    }
+                },
+                onVerticalBiasChange = { bias ->
+                    coroutineScope.launch {
+                        container.preferencesRepository.updateRsvpVerticalBias(bias)
+                    }
+                },
+                onExit = { index ->
+                    val resumeIndex = if (tokens.isNotEmpty()) {
+                        index.coerceIn(0, tokens.lastIndex)
+                    } else {
+                        index.coerceAtLeast(0)
+                    }
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("rsvp_result_token_index", resumeIndex)
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable("settings") {
+            SettingsScreen(
+                preferences = prefs,
+                onRsvpConfigChange = { config ->
+                    coroutineScope.launch { container.preferencesRepository.updateRsvpConfig { config } }
+                },
+                onFontSizeChange = { size ->
+                    coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
+                },
+                onThemeChange = { theme ->
+                    coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
+                },
+                onInvertedScrollChange = { enabled ->
+                    coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
+                },
+                onRsvpFontSizeChange = { size ->
+                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontSize(size) }
+                },
+                onRsvpFontWeightChange = { weight ->
+                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontWeight(weight) }
+                },
+                onRsvpFontFamilyChange = { family ->
+                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontFamily(family) }
+                },
+                onRsvpVerticalBiasChange = { bias ->
+                    coroutineScope.launch { container.preferencesRepository.updateRsvpVerticalBias(bias) }
+                },
+                onReset = { coroutineScope.launch { container.preferencesRepository.reset() } },
+                onClose = { navController.popBackStack() }
+            )
+        }
+    }
+}

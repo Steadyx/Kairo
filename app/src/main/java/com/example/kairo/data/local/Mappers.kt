@@ -1,0 +1,49 @@
+package com.example.kairo.data.local
+
+import com.example.kairo.core.model.Book
+import com.example.kairo.core.model.BookId
+import com.example.kairo.core.model.Chapter
+
+fun Book.toEntity(): BookEntity = BookEntity(
+    id = id.value,
+    title = title,
+    authors = authors,
+    coverImage = coverImage
+)
+
+fun Chapter.toEntity(bookId: BookId): ChapterEntity = ChapterEntity(
+    bookId = bookId.value,
+    index = index,
+    title = title,
+    htmlContent = htmlContent,
+    plainText = plainText
+)
+
+fun BookEntity.toDomain(chapters: List<ChapterEntity>): Book = Book(
+    id = BookId(id),
+    title = title,
+    authors = authors,
+    coverImage = coverImage,
+    chapters = chapters.sortedBy { it.index }.map { it.toDomain() }
+)
+
+fun ChapterEntity.toDomain(): Chapter = Chapter(
+    index = index,
+    title = title,
+    htmlContent = htmlContent,
+    plainText = plainText
+)
+
+fun ReadingPositionEntity.toDomain(): com.example.kairo.core.model.ReadingPosition =
+    com.example.kairo.core.model.ReadingPosition(
+        bookId = BookId(bookId),
+        chapterIndex = chapterIndex,
+        tokenIndex = tokenIndex
+    )
+
+fun com.example.kairo.core.model.ReadingPosition.toEntity(): ReadingPositionEntity =
+    ReadingPositionEntity(
+        bookId = bookId.value,
+        chapterIndex = chapterIndex,
+        tokenIndex = tokenIndex
+    )
