@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -58,6 +59,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
+import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.model.RsvpFontFamily
 import com.example.kairo.core.model.RsvpFontWeight
@@ -78,6 +80,7 @@ fun RsvpScreen(
     startIndex: Int,
     config: RsvpConfig,
     engine: RsvpEngine,
+    readerTheme: ReaderTheme,
     fontSizeSp: Float = 44f,
     fontFamily: RsvpFontFamily = RsvpFontFamily.INTER,
     fontWeight: RsvpFontWeight = RsvpFontWeight.LIGHT,
@@ -85,6 +88,8 @@ fun RsvpScreen(
     onFinished: (Int) -> Unit,
     onPositionChanged: (Int) -> Unit,  // Called to save position (no navigation)
     onWpmChange: (Int) -> Unit,  // Called when WPM is adjusted via swipe
+    onRsvpFontSizeChange: (Float) -> Unit, // Called when RSVP font size is adjusted
+    onThemeChange: (ReaderTheme) -> Unit, // Called when theme is changed
     onVerticalBiasChange: (Float) -> Unit, // Called when vertical position is adjusted
     onExit: (Int) -> Unit  // Called to navigate back with resume index
 ) {
@@ -103,9 +108,11 @@ fun RsvpScreen(
     // WPM adjustment state - use local state to avoid recomposition from config changes
     var currentWpm by remember { mutableStateOf(config.baseWpm) }
     var showWpmIndicator by remember { mutableStateOf(false) }
+    var showFontSizeIndicator by remember { mutableStateOf(false) }
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
     var dragStartWpm by remember { mutableStateOf(config.baseWpm) }
     var currentVerticalBias by remember { mutableStateOf(verticalBias) }
+    var currentFontSizeSp by rememberSaveable { mutableFloatStateOf(fontSizeSp) }
 
     // Create a local config copy that uses currentWpm for frame generation
     // This prevents frames from regenerating when only WPM changes
@@ -191,6 +198,8 @@ fun RsvpScreen(
         completed = false
         // Initialize WPM from config when starting a new RSVP session
         currentWpm = config.baseWpm
+        // Initialize RSVP font size from prefs on new session
+        currentFontSizeSp = fontSizeSp
         // Initialize vertical bias from prefs on new session
         currentVerticalBias = verticalBias
         // Clear transient UI modes on new session
@@ -213,6 +222,14 @@ fun RsvpScreen(
         if (showWpmIndicator) {
             delay(1500)
             showWpmIndicator = false
+        }
+    }
+
+    // Auto-hide font-size indicator after a short delay
+    LaunchedEffect(showFontSizeIndicator) {
+        if (showFontSizeIndicator) {
+            delay(1500)
+            showFontSizeIndicator = false
         }
     }
 
@@ -332,6 +349,7 @@ fun RsvpScreen(
                         if (!completed) {
                             isPlaying = !isPlaying
                             showWpmIndicator = false
+                            showFontSizeIndicator = false
                             showControls = !isPlaying
                         }
                     }
@@ -367,7 +385,7 @@ fun RsvpScreen(
                     textColor = MaterialTheme.colorScheme.onBackground,
                     bracketColor = bracketColor,
                     pivotLineColor = pivotLineColor,
-                    fontSizeSp = fontSizeSp,
+                    fontSizeSp = currentFontSizeSp,
                     fontFamily = resolvedFontFamily,
                     fontWeight = resolvedFontWeight
                 )
@@ -467,6 +485,30 @@ fun RsvpScreen(
             }
         }
 
+        // Font size indicator - shows when adjusting via quick settings
+        AnimatedVisibility(
+            visible = showFontSizeIndicator,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 112.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "${currentFontSizeSp.toInt()}sp",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         // Positioning mode indicator
         AnimatedVisibility(
             visible = isPositioningMode,
@@ -518,6 +560,35 @@ fun RsvpScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
+                // Theme selector (applies immediately)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Theme",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ReaderTheme.entries.forEach { theme ->
+                            OutlinedButton(
+                                onClick = { onThemeChange(theme) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = theme.name.lowercase().replaceFirstChar { it.titlecase() },
+                                    color = if (theme == readerTheme) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Positioning mode toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -538,6 +609,31 @@ fun RsvpScreen(
                                 finishPositioning(resumeIfWasPlaying = false)
                             }
                         }
+                    )
+                }
+
+                // RSVP font size slider (live preview)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Text: ${currentFontSizeSp.toInt()}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.width(90.dp)
+                    )
+                    Slider(
+                        value = currentFontSizeSp,
+                        onValueChange = {
+                            currentFontSizeSp = it.coerceIn(28f, 80f)
+                            showFontSizeIndicator = true
+                        },
+                        onValueChangeFinished = {
+                            onRsvpFontSizeChange(currentFontSizeSp)
+                        },
+                        valueRange = 28f..80f,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -562,7 +658,7 @@ fun RsvpScreen(
                 }
 
                 Text(
-                    "Swipe up/down to adjust WPM\nEnable Positioning mode to swipe text\nLong press to exit",
+                    "Swipe up/down to adjust WPM\nUse sliders to preview changes\nEnable Positioning mode to swipe text\nLong press to exit",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
