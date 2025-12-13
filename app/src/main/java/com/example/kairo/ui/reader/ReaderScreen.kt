@@ -1,5 +1,8 @@
 package com.example.kairo.ui.reader
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -12,22 +15,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -36,10 +38,12 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,16 +54,16 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.kairo.core.model.Book
-import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.ui.theme.MerriweatherFontFamily
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 // Opening quotes/brackets attach to the NEXT word (no space after them)
 private val openingQuotes = setOf('"', '\u201C', '\u2018', '(', '[', '{')
@@ -94,7 +98,6 @@ fun ReaderScreen(
     onStartRsvp: (Int) -> Unit,
     onChapterChange: (Int) -> Unit
 ) {
-    val context = LocalContext.current
     val chapterIndex = uiState.chapterIndex
     val focusIndex = uiState.focusIndex
     val chapter = book.chapters.getOrNull(chapterIndex)
@@ -163,89 +166,126 @@ fun ReaderScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Header with book info and navigation
-        ReaderHeader(
-            book = book,
-            chapterIndex = chapterIndex,
-            chapterTitle = chapter?.title,
-            onShowChapterList = { showChapterList = true },
-            onChapterChange = onChapterChange
-        )
+    val coroutineScope = rememberCoroutineScope()
+    val isRsvpEnabled = !uiState.isLoading && firstWordIndex != -1 && tokens.isNotEmpty()
+    val progressPercent = remember(tokens, focusIndex) {
+        if (tokens.size < 2) 0
+        else {
+            val safeFocus = tokens.nearestWordIndex(focusIndex).coerceIn(0, tokens.lastIndex)
+            ((safeFocus.toFloat() / tokens.lastIndex.toFloat()) * 100f).roundToInt().coerceIn(0, 100)
+        }
+    }
+    val progressFraction by remember(progressPercent) {
+        derivedStateOf { (progressPercent / 100f).coerceIn(0f, 1f) }
+    }
 
-        Spacer(modifier = Modifier.height(12.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            // Header with book info and navigation
+            ReaderHeader(
+                book = book,
+                chapterIndex = chapterIndex,
+                chapterTitle = chapter?.title,
+                onShowChapterList = { showChapterList = true },
+                onChapterChange = onChapterChange
+            )
 
-        // Show loading indicator or content
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else if (paragraphs.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No content in this chapter",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            // LAZY paragraph-based rendering
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(18.dp) // Paragraph spacing
-            ) {
-                itemsIndexed(
-                    items = paragraphs,
-                    key = { index, paragraph -> "${chapterIndex}_${paragraph.startIndex}" }
-                ) { paragraphIndex, paragraph ->
-                    ParagraphText(
-                        paragraph = paragraph,
-                        focusIndex = focusIndex,
-                        fontSizeSp = fontSizeSp,
-                        onFocusChange = onSafeFocusChange,
-                        onStartRsvp = { tokenIndex ->
-                            if (firstWordIndex == -1) return@ParagraphText
-                            val safeIndex = tokens.nearestWordIndex(tokenIndex)
-                            onStartRsvp(safeIndex)
-                        }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Show loading indicator or content
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (paragraphs.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No content in this chapter",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            } else {
+                // LAZY paragraph-based rendering
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(18.dp) // Paragraph spacing
+                ) {
+                    itemsIndexed(
+                        items = paragraphs,
+                        key = { _, paragraph -> "${chapterIndex}_${paragraph.startIndex}" }
+                    ) { _, paragraph ->
+                        ParagraphText(
+                            paragraph = paragraph,
+                            focusIndex = focusIndex,
+                            fontSizeSp = fontSizeSp,
+                            onFocusChange = onSafeFocusChange,
+                            onStartRsvp = { tokenIndex ->
+                                if (!isRsvpEnabled) return@ParagraphText
+                                onStartRsvp(tokens.nearestWordIndex(tokenIndex))
+                            }
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = {
-                if (firstWordIndex == -1) {
-                    Toast.makeText(context, "No readable words in this chapter yet.", Toast.LENGTH_SHORT).show()
-                    return@Button
-                }
-                val safeIndex = tokens.nearestWordIndex(focusIndex)
-                onStartRsvp(safeIndex)
-            },
-            enabled = !uiState.isLoading && firstWordIndex != -1
+        AnimatedVisibility(
+            visible = isRsvpEnabled,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
         ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Start RSVP at focus word")
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.pointerInput(focusParagraphIndex) {
+                    detectTapGestures(
+                        onLongPress = {
+                            coroutineScope.launch {
+                                listState.animateScrollToItem(focusParagraphIndex)
+                            }
+                        }
+                    )
+                }
+            ) {
+                CircularProgressIndicator(
+                    progress = { progressFraction },
+                    modifier = Modifier.size(76.dp),
+                    strokeWidth = 4.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.60f),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f)
+                )
+                FloatingActionButton(
+                    onClick = {
+                        val safeIndex = tokens.nearestWordIndex(focusIndex)
+                        onStartRsvp(safeIndex)
+                    },
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = "Start RSVP")
+                }
+            }
         }
     }
 }
