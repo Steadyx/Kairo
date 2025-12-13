@@ -286,6 +286,11 @@ private fun KairoNavHost(
                         container.preferencesRepository.updateRsvpFontSize(size)
                     }
                 },
+                onRsvpFontWeightChange = { weight ->
+                    coroutineScope.launch {
+                        container.preferencesRepository.updateRsvpFontWeight(weight)
+                    }
+                },
                 onThemeChange = { theme ->
                     coroutineScope.launch {
                         container.preferencesRepository.updateTheme(theme.name)

@@ -89,6 +89,7 @@ fun RsvpScreen(
     onPositionChanged: (Int) -> Unit,  // Called to save position (no navigation)
     onWpmChange: (Int) -> Unit,  // Called when WPM is adjusted via swipe
     onRsvpFontSizeChange: (Float) -> Unit, // Called when RSVP font size is adjusted
+    onRsvpFontWeightChange: (RsvpFontWeight) -> Unit, // Called when RSVP font weight is adjusted
     onThemeChange: (ReaderTheme) -> Unit, // Called when theme is changed
     onVerticalBiasChange: (Float) -> Unit, // Called when vertical position is adjusted
     onExit: (Int) -> Unit  // Called to navigate back with resume index
@@ -99,12 +100,6 @@ fun RsvpScreen(
         RsvpFontFamily.ROBOTO -> RobotoFontFamily
     }
 
-    // Resolve font weight
-    val resolvedFontWeight: FontWeight = when (fontWeight) {
-        RsvpFontWeight.LIGHT -> FontWeight.Light
-        RsvpFontWeight.NORMAL -> FontWeight.Normal
-        RsvpFontWeight.MEDIUM -> FontWeight.Medium
-    }
     // WPM adjustment state - use local state to avoid recomposition from config changes
     var currentWpm by remember { mutableStateOf(config.baseWpm) }
     var showWpmIndicator by remember { mutableStateOf(false) }
@@ -113,6 +108,14 @@ fun RsvpScreen(
     var dragStartWpm by remember { mutableStateOf(config.baseWpm) }
     var currentVerticalBias by remember { mutableStateOf(verticalBias) }
     var currentFontSizeSp by rememberSaveable { mutableFloatStateOf(fontSizeSp) }
+    var currentFontWeight by remember { mutableStateOf(fontWeight) }
+
+    // Resolve font weight (live)
+    val resolvedFontWeight: FontWeight = when (currentFontWeight) {
+        RsvpFontWeight.LIGHT -> FontWeight.Light
+        RsvpFontWeight.NORMAL -> FontWeight.Normal
+        RsvpFontWeight.MEDIUM -> FontWeight.Medium
+    }
 
     // Create a local config copy that uses currentWpm for frame generation
     // This prevents frames from regenerating when only WPM changes
@@ -200,6 +203,8 @@ fun RsvpScreen(
         currentWpm = config.baseWpm
         // Initialize RSVP font size from prefs on new session
         currentFontSizeSp = fontSizeSp
+        // Initialize RSVP font weight from prefs on new session
+        currentFontWeight = fontWeight
         // Initialize vertical bias from prefs on new session
         currentVerticalBias = verticalBias
         // Clear transient UI modes on new session
@@ -635,6 +640,38 @@ fun RsvpScreen(
                         valueRange = 28f..80f,
                         modifier = Modifier.weight(1f)
                     )
+                }
+
+                // RSVP font weight (live preview)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Weight",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        RsvpFontWeight.entries.forEach { weight ->
+                            OutlinedButton(
+                                onClick = {
+                                    currentFontWeight = weight
+                                    onRsvpFontWeightChange(weight)
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = weight.name.lowercase().replaceFirstChar { it.titlecase() },
+                                    color = if (weight == currentFontWeight) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // WPM slider
