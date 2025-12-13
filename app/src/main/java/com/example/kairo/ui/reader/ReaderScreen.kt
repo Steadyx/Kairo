@@ -2,11 +2,10 @@ package com.example.kairo.ui.reader
 
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -46,7 +44,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -101,6 +103,13 @@ fun ReaderScreen(
     val paragraphs = uiState.chapterData?.paragraphs ?: emptyList()
     val tokens = uiState.chapterData?.tokens ?: emptyList()
     val firstWordIndex = uiState.chapterData?.firstWordIndex ?: -1
+    val onSafeFocusChange = remember(tokens, onFocusChange) {
+        { index: Int ->
+            if (tokens.isNotEmpty()) {
+                onFocusChange(tokens.nearestWordIndex(index))
+            }
+        }
+    }
 
     // Find which paragraph contains the focus index
     val focusParagraphIndex = remember(focusIndex, paragraphs) {
@@ -206,13 +215,13 @@ fun ReaderScreen(
                     items = paragraphs,
                     key = { index, paragraph -> "${chapterIndex}_${paragraph.startIndex}" }
                 ) { paragraphIndex, paragraph ->
-                    ParagraphRow(
+                    ParagraphText(
                         paragraph = paragraph,
                         focusIndex = focusIndex,
                         fontSizeSp = fontSizeSp,
-                        onFocusChange = onFocusChange,
+                        onFocusChange = onSafeFocusChange,
                         onStartRsvp = { tokenIndex ->
-                            if (firstWordIndex == -1) return@ParagraphRow
+                            if (firstWordIndex == -1) return@ParagraphText
                             val safeIndex = tokens.nearestWordIndex(tokenIndex)
                             onStartRsvp(safeIndex)
                         }
@@ -309,105 +318,96 @@ private fun ReaderHeader(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ParagraphRow(
+private fun ParagraphText(
     paragraph: Paragraph,
     focusIndex: Int,
     fontSizeSp: Float,
     onFocusChange: (Int) -> Unit,
     onStartRsvp: (Int) -> Unit
 ) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start
-    ) {
-        paragraph.tokens.forEachIndexed { localIndex, token ->
-            val globalIndex = paragraph.startIndex + localIndex
-            
-            // Spacing logic
-            val prevToken = if (localIndex > 0) paragraph.tokens[localIndex - 1] else null
-            val prevWasOpeningQuote = prevToken?.type == TokenType.PUNCTUATION &&
-                prevToken.text.length == 1 &&
-                openingQuotes.contains(prevToken.text[0])
-
-            val isOpeningPunct = token.type == TokenType.PUNCTUATION &&
-                token.text.length == 1 &&
-                openingQuotes.contains(token.text[0])
-            val isClosingPunct = token.type == TokenType.PUNCTUATION &&
-                token.text.length == 1 &&
-                closingPunctuation.contains(token.text[0])
-
-            val needsSpaceBefore = when {
-                localIndex == 0 -> false
-                isClosingPunct -> false
-                isOpeningPunct -> true
-                prevWasOpeningQuote -> false
-                else -> true
-            }
-
-            TokenChip(
-                token = token,
-                isFocus = globalIndex == focusIndex,
-                fontSizeSp = fontSizeSp,
-                needsSpaceBefore = needsSpaceBefore,
-                onClick = { onFocusChange(globalIndex) },
-                onStartRsvp = { onStartRsvp(globalIndex) }
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun TokenChip(
-    token: Token,
-    isFocus: Boolean,
-    fontSizeSp: Float,
-    needsSpaceBefore: Boolean,
-    onClick: () -> Unit,
-    onStartRsvp: () -> Unit
-) {
     val baseStyle = TextStyle(
         fontFamily = MerriweatherFontFamily,
         fontSize = fontSizeSp.sp,
         color = MaterialTheme.colorScheme.onBackground
     )
-    // Focus word: same size, just different color and underline for clean alignment
-    val style = if (isFocus) {
-        baseStyle.copy(
+    val primary = MaterialTheme.colorScheme.primary
+    val focusStyle = remember(primary) {
+        SpanStyle(
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary
+            color = primary,
+            textDecoration = TextDecoration.Underline
         )
-    } else {
-        baseStyle
     }
 
-    Row {
-        if (needsSpaceBefore) {
-            Spacer(modifier = Modifier.width(4.dp))
-        }
+    val annotated = remember(paragraph.tokens, paragraph.startIndex, focusIndex, primary) {
+        buildAnnotatedString {
+            paragraph.tokens.forEachIndexed { localIndex, token ->
+                if (token.type == TokenType.PARAGRAPH_BREAK) return@forEachIndexed
+                val globalIndex = paragraph.startIndex + localIndex
 
-        Text(
-            text = token.text,
-            style = style,
-            textDecoration = if (isFocus) TextDecoration.Underline else TextDecoration.None,
-            modifier = Modifier
-                .combinedClickable(
-                    onClick = {
-                        // Tap on non-focus word: select it
-                        // Tap on focus word: start RSVP (keep existing behavior)
-                        if (isFocus) onStartRsvp() else onClick()
+                val prevToken = if (localIndex > 0) paragraph.tokens[localIndex - 1] else null
+                val prevWasOpeningQuote = prevToken?.type == TokenType.PUNCTUATION &&
+                    prevToken.text.length == 1 &&
+                    openingQuotes.contains(prevToken.text[0])
+
+                val isOpeningPunct = token.type == TokenType.PUNCTUATION &&
+                    token.text.length == 1 &&
+                    openingQuotes.contains(token.text[0])
+                val isClosingPunct = token.type == TokenType.PUNCTUATION &&
+                    token.text.length == 1 &&
+                    closingPunctuation.contains(token.text[0])
+
+                val needsSpaceBefore = when {
+                    localIndex == 0 -> false
+                    isClosingPunct -> false
+                    isOpeningPunct -> true
+                    prevWasOpeningQuote -> false
+                    else -> true
+                }
+
+                if (needsSpaceBefore) append(" ")
+
+                val start = length
+                append(token.text)
+                val end = length
+
+                addStringAnnotation(tag = "tokenIndex", annotation = globalIndex.toString(), start = start, end = end)
+                if (globalIndex == focusIndex) addStyle(focusStyle, start, end)
+            }
+        }
+    }
+
+    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    Text(
+        text = annotated,
+        style = baseStyle,
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(annotated, focusIndex) {
+                detectTapGestures(
+                    onTap = { position ->
+                        val layout = layoutResult ?: return@detectTapGestures
+                        val offset = layout.getOffsetForPosition(position).coerceIn(0, (annotated.length - 1).coerceAtLeast(0))
+                        val hit = annotated.getStringAnnotations("tokenIndex", offset, offset).firstOrNull()
+                            ?: return@detectTapGestures
+                        val tokenIndex = hit.item.toIntOrNull() ?: return@detectTapGestures
+                        if (tokenIndex == focusIndex) onStartRsvp(tokenIndex) else onFocusChange(tokenIndex)
                     },
-                    onLongClick = {
-                        // Long press on any word: select it and start RSVP
-                        if (!isFocus) onClick()
-                        onStartRsvp()
+                    onLongPress = { position ->
+                        val layout = layoutResult ?: return@detectTapGestures
+                        val offset = layout.getOffsetForPosition(position).coerceIn(0, (annotated.length - 1).coerceAtLeast(0))
+                        val hit = annotated.getStringAnnotations("tokenIndex", offset, offset).firstOrNull()
+                            ?: return@detectTapGestures
+                        val tokenIndex = hit.item.toIntOrNull() ?: return@detectTapGestures
+                        if (tokenIndex != focusIndex) onFocusChange(tokenIndex)
+                        onStartRsvp(tokenIndex)
                     }
                 )
-                .padding(vertical = 2.dp)
-        )
-    }
+            },
+        onTextLayout = { layoutResult = it }
+    )
 }
 
 /**
