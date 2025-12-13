@@ -6,6 +6,7 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
+        android:maxAspectRatio="2.4"
         android:name=".KairoApplication"
         android:icon="@android:drawable/sym_def_app_icon"
         android:label="@string/app_name"
@@ -15,6 +16,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:resizeableActivity="true"
             android:theme="@style/Theme.Kairo">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

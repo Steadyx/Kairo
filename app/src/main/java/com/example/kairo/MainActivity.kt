@@ -22,9 +22,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import android.widget.Toast
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -33,7 +35,9 @@ import com.example.kairo.ui.reader.ReaderViewModel
 import com.example.kairo.core.model.ReadingPosition
 import com.example.kairo.core.model.UserPreferences
 import com.example.kairo.core.model.nearestWordIndex
+import com.example.kairo.ui.focus.SystemBarsStyleSideEffect
 import com.example.kairo.ui.library.LibraryScreen
+import com.example.kairo.ui.focus.FocusModeSideEffects
 import com.example.kairo.ui.reader.ReaderScreen
 import com.example.kairo.ui.rsvp.RsvpScreen
 import com.example.kairo.ui.settings.SettingsScreen
@@ -44,6 +48,7 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         val container = (application as KairoApplication).container
 
@@ -53,6 +58,7 @@ class MainActivity : ComponentActivity() {
             )
 
             KairoTheme(readerTheme = prefs.readerTheme) {
+                SystemBarsStyleSideEffect(readerTheme = prefs.readerTheme)
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -74,6 +80,20 @@ private fun KairoNavHost(
     val libraryFlow = container.libraryRepository.observeLibrary()
     val books by libraryFlow.collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
+
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
+    val focusEnabledForRoute = prefs.focusModeEnabled && when (currentRoute) {
+        "settings" -> true
+        "reader/{bookId}" -> prefs.focusApplyInReader
+        "rsvp/{bookId}/{chapterIndex}/{tokenIndex}" -> prefs.focusApplyInRsvp
+        else -> false
+    }
+    FocusModeSideEffects(
+        enabled = focusEnabledForRoute,
+        hideStatusBar = prefs.focusHideStatusBar,
+        pauseNotifications = prefs.focusPauseNotifications
+    )
 
     NavHost(navController = navController, startDestination = "library") {
         composable("library") {
@@ -189,11 +209,25 @@ private fun KairoNavHost(
                 }
             }
 
+            val focusEnabledInReader = prefs.focusModeEnabled && prefs.focusApplyInReader
             ReaderScreen(
                 book = book,
                 uiState = effectiveUiState,
                 fontSizeSp = prefs.readerFontSizeSp,
                 invertedScroll = prefs.invertedScroll,
+                focusModeEnabled = focusEnabledInReader,
+                onFocusModeEnabledChange = { enabled ->
+                    coroutineScope.launch {
+                        if (enabled) {
+                            if (!prefs.focusModeEnabled) {
+                                container.preferencesRepository.updateFocusModeEnabled(true)
+                            }
+                            container.preferencesRepository.updateFocusApplyInReader(true)
+                        } else {
+                            container.preferencesRepository.updateFocusApplyInReader(false)
+                        }
+                    }
+                },
                 onFocusChange = { newFocusIndex ->
                     readerViewModel.setFocusIndex(newFocusIndex)
                     // Save position when focus changes
@@ -236,12 +270,26 @@ private fun KairoNavHost(
             }
             val tokens = tokensState.value
 
+            val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
             RsvpScreen(
                 tokens = tokens,
                 startIndex = startIndex.coerceAtLeast(0),
                 config = prefs.rsvpConfig,
                 engine = container.rsvpEngine,
                 readerTheme = prefs.readerTheme,
+                focusModeEnabled = focusEnabledInRsvp,
+                onFocusModeEnabledChange = { enabled ->
+                    coroutineScope.launch {
+                        if (enabled) {
+                            if (!prefs.focusModeEnabled) {
+                                container.preferencesRepository.updateFocusModeEnabled(true)
+                            }
+                            container.preferencesRepository.updateFocusApplyInRsvp(true)
+                        } else {
+                            container.preferencesRepository.updateFocusApplyInRsvp(false)
+                        }
+                    }
+                },
                 fontSizeSp = prefs.rsvpFontSizeSp,
                 fontFamily = prefs.rsvpFontFamily,
                 fontWeight = prefs.rsvpFontWeight,
@@ -341,6 +389,21 @@ private fun KairoNavHost(
                 },
                 onRsvpVerticalBiasChange = { bias ->
                     coroutineScope.launch { container.preferencesRepository.updateRsvpVerticalBias(bias) }
+                },
+                onFocusModeEnabledChange = { enabled ->
+                    coroutineScope.launch { container.preferencesRepository.updateFocusModeEnabled(enabled) }
+                },
+                onFocusHideStatusBarChange = { enabled ->
+                    coroutineScope.launch { container.preferencesRepository.updateFocusHideStatusBar(enabled) }
+                },
+                onFocusPauseNotificationsChange = { enabled ->
+                    coroutineScope.launch { container.preferencesRepository.updateFocusPauseNotifications(enabled) }
+                },
+                onFocusApplyInReaderChange = { enabled ->
+                    coroutineScope.launch { container.preferencesRepository.updateFocusApplyInReader(enabled) }
+                },
+                onFocusApplyInRsvpChange = { enabled ->
+                    coroutineScope.launch { container.preferencesRepository.updateFocusApplyInRsvp(enabled) }
                 },
                 onReset = { coroutineScope.launch { container.preferencesRepository.reset() } },
                 onClose = { navController.popBackStack() }

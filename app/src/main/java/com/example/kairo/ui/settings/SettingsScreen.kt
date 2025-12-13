@@ -1,19 +1,28 @@
 package com.example.kairo.ui.settings
 
+import android.app.NotificationManager
+import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -34,12 +43,22 @@ fun SettingsScreen(
     onRsvpFontWeightChange: (RsvpFontWeight) -> Unit,
     onRsvpFontFamilyChange: (RsvpFontFamily) -> Unit,
     onRsvpVerticalBiasChange: (Float) -> Unit,
+    onFocusModeEnabledChange: (Boolean) -> Unit,
+    onFocusHideStatusBarChange: (Boolean) -> Unit,
+    onFocusPauseNotificationsChange: (Boolean) -> Unit,
+    onFocusApplyInReaderChange: (Boolean) -> Unit,
+    onFocusApplyInRsvpChange: (Boolean) -> Unit,
     onReset: () -> Unit,
     onClose: () -> Unit
 ) {
+    val context = LocalContext.current
+    val hasDndAccess = (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+        .isNotificationPolicyAccessGranted
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -102,6 +121,106 @@ fun SettingsScreen(
             onThemeChange = onThemeChange
         )
 
+        // Focus Mode
+        Text("Focus Mode", style = MaterialTheme.typography.titleMedium)
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Enable focus mode", style = MaterialTheme.typography.titleMedium)
+                Text("Hide system chrome while reading.", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(
+                checked = preferences.focusModeEnabled,
+                onCheckedChange = onFocusModeEnabledChange
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Hide status bar", style = MaterialTheme.typography.titleMedium)
+                Text("Hides the top bar (time, notifications).", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(
+                checked = preferences.focusHideStatusBar,
+                onCheckedChange = onFocusHideStatusBarChange,
+                enabled = preferences.focusModeEnabled
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Pause notifications", style = MaterialTheme.typography.titleMedium)
+                Text("Uses Do Not Disturb while focus mode is active.", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(
+                checked = preferences.focusPauseNotifications,
+                onCheckedChange = onFocusPauseNotificationsChange,
+                enabled = preferences.focusModeEnabled
+            )
+        }
+
+        if (preferences.focusModeEnabled && preferences.focusPauseNotifications && !hasDndAccess) {
+            Text(
+                "Grant Do Not Disturb access to pause notifications.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
+            ) {
+                Text("Open DND access settings")
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Apply in Reader", style = MaterialTheme.typography.titleMedium)
+                Text("Use focus mode in the scroll reader.", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(
+                checked = preferences.focusApplyInReader,
+                onCheckedChange = onFocusApplyInReaderChange,
+                enabled = preferences.focusModeEnabled
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Apply in RSVP", style = MaterialTheme.typography.titleMedium)
+                Text("Use focus mode in RSVP playback.", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(
+                checked = preferences.focusApplyInRsvp,
+                onCheckedChange = onFocusApplyInRsvpChange,
+                enabled = preferences.focusModeEnabled
+            )
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -111,7 +230,7 @@ fun SettingsScreen(
                 Text("Invert vertical swipe", style = MaterialTheme.typography.titleMedium)
                 Text("Swipe up to move down, swipe down to move up.", style = MaterialTheme.typography.bodySmall)
             }
-            androidx.compose.material3.Switch(
+            Switch(
                 checked = preferences.invertedScroll,
                 onCheckedChange = onInvertedScrollChange
             )

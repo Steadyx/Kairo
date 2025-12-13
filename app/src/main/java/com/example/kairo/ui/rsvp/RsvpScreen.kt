@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,6 +83,8 @@ fun RsvpScreen(
     config: RsvpConfig,
     engine: RsvpEngine,
     readerTheme: ReaderTheme,
+    focusModeEnabled: Boolean,
+    onFocusModeEnabledChange: (Boolean) -> Unit,
     fontSizeSp: Float = 44f,
     fontFamily: RsvpFontFamily = RsvpFontFamily.INTER,
     fontWeight: RsvpFontWeight = RsvpFontWeight.LIGHT,
@@ -426,6 +430,7 @@ fun RsvpScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
                 .height(3.dp),
             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
             trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
@@ -435,6 +440,7 @@ fun RsvpScreen(
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
+                .statusBarsPadding()
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -552,6 +558,7 @@ fun RsvpScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .background(
                         MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                         RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
@@ -592,6 +599,23 @@ fun RsvpScreen(
                             }
                         }
                     }
+                }
+
+                // Focus mode toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Focus mode",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Switch(
+                        checked = focusModeEnabled,
+                        onCheckedChange = onFocusModeEnabledChange
+                    )
                 }
 
                 // Positioning mode toggle
@@ -712,6 +736,7 @@ fun RsvpScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally

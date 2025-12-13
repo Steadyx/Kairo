@@ -52,7 +52,12 @@ class PreferencesRepositoryImpl(
             rsvpFontFamily = prefs[keys.rsvpFontFamily]?.let { value ->
                 runCatching { RsvpFontFamily.valueOf(value) }.getOrNull()
             } ?: UserPreferences().rsvpFontFamily,
-            rsvpVerticalBias = prefs[keys.rsvpVerticalBias] ?: UserPreferences().rsvpVerticalBias
+            rsvpVerticalBias = prefs[keys.rsvpVerticalBias] ?: UserPreferences().rsvpVerticalBias,
+            focusModeEnabled = prefs[keys.focusModeEnabled] ?: UserPreferences().focusModeEnabled,
+            focusHideStatusBar = prefs[keys.focusHideStatusBar] ?: UserPreferences().focusHideStatusBar,
+            focusPauseNotifications = prefs[keys.focusPauseNotifications] ?: UserPreferences().focusPauseNotifications,
+            focusApplyInReader = prefs[keys.focusApplyInReader] ?: UserPreferences().focusApplyInReader,
+            focusApplyInRsvp = prefs[keys.focusApplyInRsvp] ?: UserPreferences().focusApplyInRsvp
         )
     }
 
@@ -101,6 +106,26 @@ class PreferencesRepositoryImpl(
         }
     }
 
+    override suspend fun updateFocusModeEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[keys.focusModeEnabled] = enabled }
+    }
+
+    override suspend fun updateFocusHideStatusBar(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[keys.focusHideStatusBar] = enabled }
+    }
+
+    override suspend fun updateFocusPauseNotifications(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[keys.focusPauseNotifications] = enabled }
+    }
+
+    override suspend fun updateFocusApplyInReader(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[keys.focusApplyInReader] = enabled }
+    }
+
+    override suspend fun updateFocusApplyInRsvp(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[keys.focusApplyInRsvp] = enabled }
+    }
+
     override suspend fun reset() {
         context.dataStore.edit { it.clear() }
     }
@@ -135,4 +160,9 @@ private object PrefKeys {
     val rsvpFontWeight = stringPreferencesKey("rsvp_font_weight")
     val rsvpFontFamily = stringPreferencesKey("rsvp_font_family")
     val rsvpVerticalBias = floatPreferencesKey("rsvp_vertical_bias")
+    val focusModeEnabled = booleanPreferencesKey("focus_mode_enabled")
+    val focusHideStatusBar = booleanPreferencesKey("focus_hide_status_bar")
+    val focusPauseNotifications = booleanPreferencesKey("focus_pause_notifications")
+    val focusApplyInReader = booleanPreferencesKey("focus_apply_in_reader")
+    val focusApplyInRsvp = booleanPreferencesKey("focus_apply_in_rsvp")
 }
