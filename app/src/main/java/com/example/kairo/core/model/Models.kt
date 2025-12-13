@@ -73,6 +73,12 @@ data class UserPreferences(
      * Default is slightly above center to match prior layout.
      */
     val rsvpVerticalBias: Float = -0.15f,
+    /**
+     * Horizontal bias for RSVP ORP display.
+     * -1f = left, 0f = center, 1f = right.
+     * Default is slightly left to give long words more right-side space.
+     */
+    val rsvpHorizontalBias: Float = -0.12f,
     // Focus mode
     val focusModeEnabled: Boolean = false,
     val focusHideStatusBar: Boolean = true,
