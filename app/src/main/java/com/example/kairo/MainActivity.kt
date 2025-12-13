@@ -294,6 +294,7 @@ private fun KairoNavHost(
                 fontFamily = prefs.rsvpFontFamily,
                 fontWeight = prefs.rsvpFontWeight,
                 verticalBias = prefs.rsvpVerticalBias,
+                horizontalBias = prefs.rsvpHorizontalBias,
                 onFinished = { lastIndex ->
                     val resumeIndex = if (tokens.isNotEmpty()) {
                         lastIndex.coerceIn(0, tokens.lastIndex)
@@ -349,6 +350,11 @@ private fun KairoNavHost(
                         container.preferencesRepository.updateRsvpVerticalBias(bias)
                     }
                 },
+                onHorizontalBiasChange = { bias ->
+                    coroutineScope.launch {
+                        container.preferencesRepository.updateRsvpHorizontalBias(bias)
+                    }
+                },
                 onExit = { index ->
                     val resumeIndex = if (tokens.isNotEmpty()) {
                         index.coerceIn(0, tokens.lastIndex)
@@ -389,6 +395,9 @@ private fun KairoNavHost(
                 },
                 onRsvpVerticalBiasChange = { bias ->
                     coroutineScope.launch { container.preferencesRepository.updateRsvpVerticalBias(bias) }
+                },
+                onRsvpHorizontalBiasChange = { bias ->
+                    coroutineScope.launch { container.preferencesRepository.updateRsvpHorizontalBias(bias) }
                 },
                 onFocusModeEnabledChange = { enabled ->
                     coroutineScope.launch { container.preferencesRepository.updateFocusModeEnabled(enabled) }

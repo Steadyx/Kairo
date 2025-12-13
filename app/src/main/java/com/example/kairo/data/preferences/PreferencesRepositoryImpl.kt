@@ -53,6 +53,7 @@ class PreferencesRepositoryImpl(
                 runCatching { RsvpFontFamily.valueOf(value) }.getOrNull()
             } ?: UserPreferences().rsvpFontFamily,
             rsvpVerticalBias = prefs[keys.rsvpVerticalBias] ?: UserPreferences().rsvpVerticalBias,
+            rsvpHorizontalBias = prefs[keys.rsvpHorizontalBias] ?: UserPreferences().rsvpHorizontalBias,
             focusModeEnabled = prefs[keys.focusModeEnabled] ?: UserPreferences().focusModeEnabled,
             focusHideStatusBar = prefs[keys.focusHideStatusBar] ?: UserPreferences().focusHideStatusBar,
             focusPauseNotifications = prefs[keys.focusPauseNotifications] ?: UserPreferences().focusPauseNotifications,
@@ -103,6 +104,12 @@ class PreferencesRepositoryImpl(
     override suspend fun updateRsvpVerticalBias(bias: Float) {
         context.dataStore.edit { prefs ->
             prefs[keys.rsvpVerticalBias] = bias.coerceIn(-0.7f, 0.7f)
+        }
+    }
+
+    override suspend fun updateRsvpHorizontalBias(bias: Float) {
+        context.dataStore.edit { prefs ->
+            prefs[keys.rsvpHorizontalBias] = bias.coerceIn(-0.7f, 0.7f)
         }
     }
 
@@ -160,6 +167,7 @@ private object PrefKeys {
     val rsvpFontWeight = stringPreferencesKey("rsvp_font_weight")
     val rsvpFontFamily = stringPreferencesKey("rsvp_font_family")
     val rsvpVerticalBias = floatPreferencesKey("rsvp_vertical_bias")
+    val rsvpHorizontalBias = floatPreferencesKey("rsvp_horizontal_bias")
     val focusModeEnabled = booleanPreferencesKey("focus_mode_enabled")
     val focusHideStatusBar = booleanPreferencesKey("focus_hide_status_bar")
     val focusPauseNotifications = booleanPreferencesKey("focus_pause_notifications")

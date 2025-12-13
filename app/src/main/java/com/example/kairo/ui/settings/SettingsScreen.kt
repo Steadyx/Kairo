@@ -4,6 +4,8 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,6 +45,7 @@ fun SettingsScreen(
     onRsvpFontWeightChange: (RsvpFontWeight) -> Unit,
     onRsvpFontFamilyChange: (RsvpFontFamily) -> Unit,
     onRsvpVerticalBiasChange: (Float) -> Unit,
+    onRsvpHorizontalBiasChange: (Float) -> Unit,
     onFocusModeEnabledChange: (Boolean) -> Unit,
     onFocusHideStatusBarChange: (Boolean) -> Unit,
     onFocusPauseNotificationsChange: (Boolean) -> Unit,
@@ -52,6 +55,7 @@ fun SettingsScreen(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
     val hasDndAccess = (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
         .isNotificationPolicyAccessGranted
 
@@ -59,6 +63,7 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
+            .verticalScroll(scrollState)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -113,6 +118,16 @@ fun SettingsScreen(
         Slider(
             value = preferences.rsvpVerticalBias,
             onValueChange = onRsvpVerticalBiasChange,
+            valueRange = -0.6f..0.6f
+        )
+
+        Text(
+            "RSVP left bias: ${(preferences.rsvpHorizontalBias * 100).toInt()}%",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Slider(
+            value = preferences.rsvpHorizontalBias,
+            onValueChange = onRsvpHorizontalBiasChange,
             valueRange = -0.6f..0.6f
         )
 

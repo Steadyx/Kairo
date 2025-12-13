@@ -13,10 +13,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -51,14 +53,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import com.example.kairo.core.model.ReaderTheme
@@ -89,6 +97,7 @@ fun RsvpScreen(
     fontFamily: RsvpFontFamily = RsvpFontFamily.INTER,
     fontWeight: RsvpFontWeight = RsvpFontWeight.LIGHT,
     verticalBias: Float = -0.15f,
+    horizontalBias: Float = -0.12f,
     onFinished: (Int) -> Unit,
     onPositionChanged: (Int) -> Unit,  // Called to save position (no navigation)
     onWpmChange: (Int) -> Unit,  // Called when WPM is adjusted via swipe
@@ -96,6 +105,7 @@ fun RsvpScreen(
     onRsvpFontWeightChange: (RsvpFontWeight) -> Unit, // Called when RSVP font weight is adjusted
     onThemeChange: (ReaderTheme) -> Unit, // Called when theme is changed
     onVerticalBiasChange: (Float) -> Unit, // Called when vertical position is adjusted
+    onHorizontalBiasChange: (Float) -> Unit, // Called when left-bias is adjusted
     onExit: (Int) -> Unit  // Called to navigate back with resume index
 ) {
     // Resolve font family
@@ -111,6 +121,7 @@ fun RsvpScreen(
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
     var dragStartWpm by remember { mutableStateOf(config.baseWpm) }
     var currentVerticalBias by remember { mutableStateOf(verticalBias) }
+    var currentHorizontalBias by remember { mutableStateOf(horizontalBias) }
     var currentFontSizeSp by rememberSaveable { mutableFloatStateOf(fontSizeSp) }
     var currentFontWeight by remember { mutableStateOf(fontWeight) }
 
@@ -211,6 +222,8 @@ fun RsvpScreen(
         currentFontWeight = fontWeight
         // Initialize vertical bias from prefs on new session
         currentVerticalBias = verticalBias
+        // Initialize horizontal bias from prefs on new session
+        currentHorizontalBias = horizontalBias
         // Clear transient UI modes on new session
         isPositioningMode = false
         isAdjustingPosition = false
@@ -373,7 +386,6 @@ fun RsvpScreen(
         // Main focus word display with ORP guide
         val currentFrame = frames.getOrNull(frameIndex)
         val pivotColor = MaterialTheme.colorScheme.primary
-        val bracketColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
         // Subtle line color - less vibrant than the pivot character
         val pivotLineColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.15f)
 
@@ -392,11 +404,11 @@ fun RsvpScreen(
                     tokens = frame.tokens,
                     pivotColor = pivotColor,
                     textColor = MaterialTheme.colorScheme.onBackground,
-                    bracketColor = bracketColor,
                     pivotLineColor = pivotLineColor,
                     fontSizeSp = currentFontSizeSp,
                     fontFamily = resolvedFontFamily,
-                    fontWeight = resolvedFontWeight
+                    fontWeight = resolvedFontWeight,
+                    horizontalBias = currentHorizontalBias
                 )
             }
         }
@@ -666,6 +678,26 @@ fun RsvpScreen(
                     )
                 }
 
+                // Left bias slider
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Left: ${(currentHorizontalBias * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.width(90.dp)
+                    )
+                    Slider(
+                        value = currentHorizontalBias,
+                        onValueChange = { currentHorizontalBias = it.coerceIn(-0.6f, 0.6f) },
+                        onValueChangeFinished = { onHorizontalBiasChange(currentHorizontalBias) },
+                        valueRange = -0.6f..0.6f,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
                 // RSVP font weight (live preview)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -838,11 +870,11 @@ private fun OrpAlignedText(
     tokens: List<Token>,
     pivotColor: Color,
     textColor: Color,
-    bracketColor: Color,
     pivotLineColor: Color,
     fontSizeSp: Float = 44f,
     fontFamily: FontFamily = InterFontFamily,
-    fontWeight: FontWeight = FontWeight.Light
+    fontWeight: FontWeight = FontWeight.Light,
+    horizontalBias: Float = -0.12f
 ) {
     // Build the display string with sections
     val firstWord = tokens.firstOrNull { it.type == TokenType.WORD }
@@ -877,17 +909,14 @@ private fun OrpAlignedText(
         }
     }
 
-    // Calculate the pivot position in the full string
-    val pivotPosition = if (firstWord != null) {
-        val wordStart = fullText.indexOf(firstWord.text)
-        if (wordStart >= 0) wordStart + orpIndex else orpIndex
+    // Calculate the pivot position in the full string (constrained to the first WORD token).
+    val wordStart = if (firstWord != null) fullText.indexOf(firstWord.text) else -1
+    val wordEndExclusive = if (firstWord != null && wordStart >= 0) wordStart + firstWord.text.length else -1
+    val pivotPosition = if (firstWord != null && wordStart >= 0) {
+        (wordStart + orpIndex).coerceIn(wordStart, (wordEndExclusive - 1).coerceAtLeast(wordStart))
     } else {
         0
     }
-
-    val beforePivot = if (pivotPosition > 0) fullText.substring(0, pivotPosition) else ""
-    val pivotChar = if (pivotPosition < fullText.length) fullText[pivotPosition].toString() else ""
-    val afterPivot = if (pivotPosition + 1 < fullText.length) fullText.substring(pivotPosition + 1) else ""
 
     // Use fixed font size for consistent visual experience
     // Long words will naturally fit due to the ORP centering and padding
@@ -898,30 +927,122 @@ private fun OrpAlignedText(
         letterSpacing = 0.5.sp
     )
 
-    // Pad both sides to equal length so pivot stays centered
-    val maxSideLength = maxOf(beforePivot.length, afterPivot.length)
-    val paddedBefore = beforePivot.padStart(maxSideLength)
-    val paddedAfter = afterPivot.padEnd(maxSideLength)
-
-    // Build annotated string with pivot highlighted
-    val annotatedText = buildAnnotatedString {
-        withStyle(SpanStyle(color = textColor)) {
-            append(paddedBefore)
-        }
-        withStyle(SpanStyle(color = pivotColor)) {
-            append(pivotChar)
-        }
-        withStyle(SpanStyle(color = textColor)) {
-            append(paddedAfter)
-        }
+    val clampedBias = horizontalBias.coerceIn(-0.6f, 0.6f)
+    val density = LocalDensity.current
+    val safePivotIndex = remember(fullText, pivotPosition) {
+        if (fullText.isEmpty()) 0 else pivotPosition.coerceIn(0, fullText.lastIndex)
     }
+    val baseAnnotatedText = remember(fullText) { buildAnnotatedString { append(fullText) } }
+    val textMeasurer = rememberTextMeasurer()
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp)
     ) {
+        val maxWidthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
+        val rawFraction = ((clampedBias + 1f) / 2f).coerceIn(0.05f, 0.95f)
+        val baseEdgePx = with(density) { 24.dp.toPx() }
+        val extraEdgePx = with(density) { 14.dp.toPx() }
+        val biasFromCenter = rawFraction - 0.5f
+        val leftExtraFactor = (biasFromCenter / 0.5f).coerceAtLeast(0f).coerceIn(0f, 1f)
+        val rightExtraFactor = (-biasFromCenter / 0.5f).coerceAtLeast(0f).coerceIn(0f, 1f)
+        val safeLeftPx = baseEdgePx + (leftExtraFactor * extraEdgePx)
+        val safeRightPx = baseEdgePx + (rightExtraFactor * extraEdgePx)
+
+        val minFraction = (safeLeftPx / maxWidthPx).coerceIn(0.05f, 0.45f)
+        val maxFraction = 1f - (safeRightPx / maxWidthPx).coerceIn(0.05f, 0.45f)
+        val desiredFraction = rawFraction.coerceIn(minFraction, maxFraction)
+        val desiredPivotX = (maxWidthPx * desiredFraction).coerceIn(safeLeftPx, maxWidthPx - safeRightPx)
+        val guideBias = ((desiredPivotX / maxWidthPx) * 2f) - 1f
+
+        val measured = remember(baseAnnotatedText, textStyle) {
+            textMeasurer.measure(
+                text = baseAnnotatedText,
+                style = textStyle,
+                overflow = TextOverflow.Clip,
+                softWrap = false,
+                maxLines = 1,
+                constraints = Constraints(maxWidth = Int.MAX_VALUE)
+            )
+        }
+        val measuredWidthPx = measured.size.width.toFloat()
+
+        val minTranslationX = safeLeftPx
+        val maxTranslationX = maxWidthPx - safeRightPx - measuredWidthPx
+
+        val pivotCandidateStart = if (wordStart >= 0) wordStart else 0
+        val pivotCandidateEnd = if (wordEndExclusive > 0) wordEndExclusive - 1 else (fullText.lastIndex).coerceAtLeast(0)
+
+        fun pivotCenterX(index: Int): Float {
+            val safeIndex = index.coerceIn(0, (fullText.lastIndex).coerceAtLeast(0))
+            val box = measured.getBoundingBox(safeIndex)
+            return box.left + (box.width / 2f)
+        }
+
+        val pivotIndex: Int
+        val translationX: Float
+        if (maxTranslationX < minTranslationX) {
+            // Word is wider than the safe area; center it to reduce perceived edge-hugging.
+            pivotIndex = safePivotIndex.coerceIn(pivotCandidateStart, pivotCandidateEnd)
+            translationX = (maxWidthPx - measuredWidthPx) / 2f
+        } else {
+            // Choose a pivot index within the word that maximizes "comfort" margins
+            // while keeping the pivot as close as possible to the computed ORP.
+            val basePivotIndex = safePivotIndex.coerceIn(pivotCandidateStart, pivotCandidateEnd)
+            var bestIndex = basePivotIndex
+            var bestClampDelta = Float.POSITIVE_INFINITY
+            var bestMinExtra = Float.NEGATIVE_INFINITY
+            var bestPivotPenalty = Int.MAX_VALUE
+
+            for (i in pivotCandidateStart..pivotCandidateEnd) {
+                val rawTranslation = desiredPivotX - pivotCenterX(i)
+                val clampedTranslation = rawTranslation.coerceIn(minTranslationX, maxTranslationX)
+                val clampDelta = kotlin.math.abs(clampedTranslation - rawTranslation)
+
+                val leftMargin = clampedTranslation
+                val rightMargin = maxWidthPx - (clampedTranslation + measuredWidthPx)
+                val minExtra = kotlin.math.min(leftMargin - safeLeftPx, rightMargin - safeRightPx)
+                val pivotPenalty = kotlin.math.abs(i - basePivotIndex)
+
+                val isBetter = when {
+                    clampDelta < bestClampDelta - 0.5f -> true
+                    kotlin.math.abs(clampDelta - bestClampDelta) <= 0.5f && minExtra > bestMinExtra + 0.5f -> true
+                    kotlin.math.abs(clampDelta - bestClampDelta) <= 0.5f &&
+                        kotlin.math.abs(minExtra - bestMinExtra) <= 0.5f &&
+                        pivotPenalty < bestPivotPenalty -> true
+                    else -> false
+                }
+
+                if (isBetter) {
+                    bestIndex = i
+                    bestClampDelta = clampDelta
+                    bestMinExtra = minExtra
+                    bestPivotPenalty = pivotPenalty
+                }
+            }
+
+            pivotIndex = bestIndex
+            translationX = (desiredPivotX - pivotCenterX(pivotIndex)).coerceIn(minTranslationX, maxTranslationX)
+        }
+
+        val annotatedText = remember(fullText, pivotIndex, pivotColor) {
+            buildAnnotatedString {
+                append(fullText)
+                if (fullText.isNotEmpty()) {
+                    val safeIndex = pivotIndex.coerceIn(0, fullText.lastIndex)
+                    addStyle(
+                        style = SpanStyle(color = pivotColor),
+                        start = safeIndex,
+                        end = (safeIndex + 1).coerceAtMost(fullText.length)
+                    )
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
         // Top static line
         Box(
             modifier = Modifier
@@ -930,35 +1051,62 @@ private fun OrpAlignedText(
                 .background(pivotLineColor)
         )
 
-        // Vertical pointer down
+        // Vertical pointer down (biased)
         Box(
             modifier = Modifier
-                .width(2.dp)
+                .fillMaxWidth()
                 .height(12.dp)
-                .background(pivotLineColor)
-        )
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(BiasAlignment(horizontalBias = guideBias, verticalBias = 0f))
+                    .width(2.dp)
+                    .fillMaxHeight()
+                    .background(pivotLineColor)
+            )
+        }
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Single text element - no layout shifts, no jitter
-        Text(
-            text = annotatedText,
-            style = textStyle,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.fillMaxWidth()
-        )
+            // ORP-aligned text rendered as a single Text for correct kerning/spacing.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clipToBounds()
+            ) {
+                Text(
+                    text = annotatedText,
+                    style = textStyle,
+                    color = textColor,
+                    textAlign = TextAlign.Start,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            transformOrigin = TransformOrigin(0f, 0.5f)
+                            this.translationX = translationX
+                        }
+                )
+            }
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Vertical pointer up
+        // Vertical pointer up (biased)
         Box(
             modifier = Modifier
-                .width(2.dp)
+                .fillMaxWidth()
                 .height(12.dp)
-                .background(pivotLineColor)
-        )
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(BiasAlignment(horizontalBias = guideBias, verticalBias = 0f))
+                    .width(2.dp)
+                    .fillMaxHeight()
+                    .background(pivotLineColor)
+            )
+        }
 
         // Bottom static line
         Box(
@@ -967,5 +1115,6 @@ private fun OrpAlignedText(
                 .height(2.dp)
                 .background(pivotLineColor)
         )
+        }
     }
 }
