@@ -6,16 +6,21 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -32,15 +37,17 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -94,6 +101,8 @@ fun ReaderScreen(
     uiState: ReaderUiState,
     fontSizeSp: Float,
     invertedScroll: Boolean,
+    focusModeEnabled: Boolean,
+    onFocusModeEnabledChange: (Boolean) -> Unit,
     onFocusChange: (Int) -> Unit,
     onStartRsvp: (Int) -> Unit,
     onChapterChange: (Int) -> Unit
@@ -135,24 +144,20 @@ fun ReaderScreen(
         )
     }
 
-    // Track previous values to detect user-initiated changes vs initial load
-    var lastScrolledFocus by remember { mutableStateOf(focusParagraphIndex) }
-
     // Scroll instantly when focus changes (e.g., returning from RSVP)
     LaunchedEffect(focusParagraphIndex, listStateKey) {
-        if (focusParagraphIndex != lastScrolledFocus && paragraphs.isNotEmpty()) {
+        if (paragraphs.isNotEmpty() && listState.firstVisibleItemIndex != focusParagraphIndex) {
             listState.scrollToItem(focusParagraphIndex)
-            lastScrolledFocus = focusParagraphIndex
         }
     }
 
     // Chapter list bottom sheet state
-    var showChapterList by remember { mutableStateOf(false) }
+    val showChapterList = remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
-    if (showChapterList) {
+    if (showChapterList.value) {
         ModalBottomSheet(
-            onDismissRequest = { showChapterList = false },
+            onDismissRequest = { showChapterList.value = false },
             sheetState = sheetState
         ) {
             ChapterListSheet(
@@ -160,7 +165,7 @@ fun ReaderScreen(
                 currentChapterIndex = chapterIndex,
                 onChapterSelected = { index ->
                     onChapterChange(index)
-                    showChapterList = false
+                    showChapterList.value = false
                 }
             )
         }
@@ -183,6 +188,7 @@ fun ReaderScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(16.dp)
         ) {
             // Header with book info and navigation
@@ -190,7 +196,9 @@ fun ReaderScreen(
                 book = book,
                 chapterIndex = chapterIndex,
                 chapterTitle = chapter?.title,
-                onShowChapterList = { showChapterList = true },
+                focusModeEnabled = focusModeEnabled,
+                onFocusModeEnabledChange = onFocusModeEnabledChange,
+                onShowChapterList = { showChapterList.value = true },
                 onChapterChange = onChapterChange
             )
 
@@ -253,19 +261,54 @@ fun ReaderScreen(
             exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
                 .padding(16.dp)
         ) {
+            var dragAccumulator by remember { mutableFloatStateOf(0f) }
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.pointerInput(focusParagraphIndex) {
-                    detectTapGestures(
-                        onLongPress = {
-                            coroutineScope.launch {
-                                listState.animateScrollToItem(focusParagraphIndex)
+                modifier = Modifier
+                    .pointerInput(focusParagraphIndex) {
+                        detectTapGestures(
+                            onLongPress = {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(focusParagraphIndex)
+                                }
                             }
-                        }
-                    )
-                }
+                        )
+                    }
+                    .pointerInput(tokens, focusIndex, invertedScroll) {
+                        val thresholdPx = 22f
+                        var gestureFocusIndex = 0
+                        detectVerticalDragGestures(
+                            onDragStart = {
+                                dragAccumulator = 0f
+                                gestureFocusIndex = if (tokens.isNotEmpty()) {
+                                    tokens.nearestWordIndex(focusIndex).coerceIn(0, tokens.lastIndex)
+                                } else {
+                                    0
+                                }
+                            },
+                            onDragEnd = { dragAccumulator = 0f },
+                            onVerticalDrag = { change, dragAmount ->
+                                change.consume()
+                                if (tokens.isEmpty()) return@detectVerticalDragGestures
+                                dragAccumulator += dragAmount
+                                val steps = (dragAccumulator / thresholdPx).toInt()
+                                if (steps == 0) return@detectVerticalDragGestures
+
+                                // Swipe up (negative drag) moves forward by default.
+                                val rawDirection = -steps
+                                val effectiveDirection = if (invertedScroll) -rawDirection else rawDirection
+                                val next = tokens.nearestWordIndex(
+                                    (gestureFocusIndex + effectiveDirection).coerceIn(0, tokens.lastIndex)
+                                )
+                                gestureFocusIndex = next
+                                onFocusChange(next)
+                                dragAccumulator -= steps * thresholdPx
+                            }
+                        )
+                    }
             ) {
                 CircularProgressIndicator(
                     progress = { progressFraction },
@@ -295,6 +338,8 @@ private fun ReaderHeader(
     book: Book,
     chapterIndex: Int,
     chapterTitle: String?,
+    focusModeEnabled: Boolean,
+    onFocusModeEnabledChange: (Boolean) -> Unit,
     onShowChapterList: () -> Unit,
     onChapterChange: (Int) -> Unit
 ) {
@@ -325,15 +370,26 @@ private fun ReaderHeader(
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            IconButton(onClick = { onFocusModeEnabledChange(!focusModeEnabled) }) {
+                Icon(
+                    Icons.Default.CenterFocusStrong,
+                    contentDescription = "Focus mode",
+                    tint = if (focusModeEnabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    }
+                )
+            }
             IconButton(onClick = onShowChapterList) {
-                Icon(Icons.Default.List, contentDescription = "Chapter List")
+                Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Chapter List")
             }
             IconButton(
                 onClick = { onChapterChange((chapterIndex - 1).coerceAtLeast(0)) },
                 enabled = chapterIndex > 0
             ) {
                 Icon(
-                    Icons.Default.ArrowBack,
+                    Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Previous Chapter",
                     tint = if (chapterIndex > 0)
                         MaterialTheme.colorScheme.onSurface
@@ -346,7 +402,7 @@ private fun ReaderHeader(
                 enabled = chapterIndex < book.chapters.lastIndex
             ) {
                 Icon(
-                    Icons.Default.ArrowForward,
+                    Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "Next Chapter",
                     tint = if (chapterIndex < book.chapters.lastIndex)
                         MaterialTheme.colorScheme.onSurface

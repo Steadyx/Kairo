@@ -72,7 +72,13 @@ data class UserPreferences(
      * -1f = top, 0f = center, 1f = bottom.
      * Default is slightly above center to match prior layout.
      */
-    val rsvpVerticalBias: Float = -0.15f
+    val rsvpVerticalBias: Float = -0.15f,
+    // Focus mode
+    val focusModeEnabled: Boolean = false,
+    val focusHideStatusBar: Boolean = true,
+    val focusPauseNotifications: Boolean = false,
+    val focusApplyInReader: Boolean = true,
+    val focusApplyInRsvp: Boolean = true
 )
 
 enum class ReaderTheme { LIGHT, DARK, SEPIA }

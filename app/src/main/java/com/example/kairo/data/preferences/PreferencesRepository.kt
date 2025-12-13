@@ -16,5 +16,10 @@ interface PreferencesRepository {
     suspend fun updateRsvpFontWeight(weight: RsvpFontWeight)
     suspend fun updateRsvpFontFamily(family: RsvpFontFamily)
     suspend fun updateRsvpVerticalBias(bias: Float)
+    suspend fun updateFocusModeEnabled(enabled: Boolean)
+    suspend fun updateFocusHideStatusBar(enabled: Boolean)
+    suspend fun updateFocusPauseNotifications(enabled: Boolean)
+    suspend fun updateFocusApplyInReader(enabled: Boolean)
+    suspend fun updateFocusApplyInRsvp(enabled: Boolean)
     suspend fun reset()
 }
