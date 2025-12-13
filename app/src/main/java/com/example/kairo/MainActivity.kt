@@ -241,6 +241,7 @@ private fun KairoNavHost(
                 startIndex = startIndex.coerceAtLeast(0),
                 config = prefs.rsvpConfig,
                 engine = container.rsvpEngine,
+                readerTheme = prefs.readerTheme,
                 fontSizeSp = prefs.rsvpFontSizeSp,
                 fontFamily = prefs.rsvpFontFamily,
                 fontWeight = prefs.rsvpFontWeight,
@@ -278,6 +279,21 @@ private fun KairoNavHost(
                 onWpmChange = { newWpm ->
                     coroutineScope.launch {
                         container.preferencesRepository.updateRsvpConfig { it.copy(baseWpm = newWpm) }
+                    }
+                },
+                onRsvpFontSizeChange = { size ->
+                    coroutineScope.launch {
+                        container.preferencesRepository.updateRsvpFontSize(size)
+                    }
+                },
+                onRsvpFontWeightChange = { weight ->
+                    coroutineScope.launch {
+                        container.preferencesRepository.updateRsvpFontWeight(weight)
+                    }
+                },
+                onThemeChange = { theme ->
+                    coroutineScope.launch {
+                        container.preferencesRepository.updateTheme(theme.name)
                     }
                 },
                 onVerticalBiasChange = { bias ->
