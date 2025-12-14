@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -93,6 +94,8 @@ fun RsvpScreen(
     readerTheme: ReaderTheme,
     focusModeEnabled: Boolean,
     onFocusModeEnabledChange: (Boolean) -> Unit,
+    onAddBookmark: (tokenIndex: Int, previewText: String) -> Unit,
+    onOpenBookmarks: () -> Unit,
     fontSizeSp: Float = 44f,
     fontFamily: RsvpFontFamily = RsvpFontFamily.INTER,
     fontWeight: RsvpFontWeight = RsvpFontWeight.LIGHT,
@@ -194,6 +197,15 @@ fun RsvpScreen(
 
     BackHandler {
         exitAndSavePosition()
+    }
+
+    fun addBookmarkNow() {
+        if (tokens.isEmpty()) return
+        val currentIndex = getCurrentTokenIndex()
+        val safeIndex = tokens.nearestWordIndex(currentIndex).coerceIn(0, tokens.lastIndex)
+        val preview = tokens.getOrNull(safeIndex)?.text ?: ""
+        onAddBookmark(safeIndex, preview)
+        showQuickSettings = false
     }
 
     // Save position whenever frame changes (so it's always up to date)
@@ -627,6 +639,50 @@ fun RsvpScreen(
                     Switch(
                         checked = focusModeEnabled,
                         onCheckedChange = onFocusModeEnabledChange
+                    )
+                }
+
+                // Bookmark current position
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { addBookmarkNow() }
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Add bookmark",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                // Open bookmarks list
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            showQuickSettings = false
+                            onOpenBookmarks()
+                        }
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Bookmarks",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Icon(
+                        Icons.Default.SkipNext,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
 

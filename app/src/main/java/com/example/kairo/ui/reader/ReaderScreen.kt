@@ -143,6 +143,8 @@ fun ReaderScreen(
     invertedScroll: Boolean,
     focusModeEnabled: Boolean,
     onFocusModeEnabledChange: (Boolean) -> Unit,
+    onAddBookmark: (chapterIndex: Int, tokenIndex: Int, previewText: String) -> Unit,
+    onOpenBookmarks: () -> Unit,
     onFocusChange: (Int) -> Unit,
     onStartRsvp: (Int) -> Unit,
     onChapterChange: (Int) -> Unit
@@ -361,6 +363,17 @@ fun ReaderScreen(
             ReaderMenuOverlay(
                 focusModeEnabled = focusModeEnabled,
                 onFocusModeEnabledChange = onFocusModeEnabledChange,
+                onAddBookmark = {
+                    if (tokens.isEmpty()) return@ReaderMenuOverlay
+                    val safeTokenIndex = tokens.nearestWordIndex(focusIndex).coerceIn(0, tokens.lastIndex)
+                    val preview = tokens.getOrNull(safeTokenIndex)?.text ?: ""
+                    onAddBookmark(chapterIndex, safeTokenIndex, preview)
+                    showReaderMenu = false
+                },
+                onOpenBookmarks = {
+                    showReaderMenu = false
+                    onOpenBookmarks()
+                },
                 onShowToc = {
                     showReaderMenu = false
                     showChapterList.value = true
@@ -564,6 +577,8 @@ private fun ReaderHeader(
 private fun ReaderMenuOverlay(
     focusModeEnabled: Boolean,
     onFocusModeEnabledChange: (Boolean) -> Unit,
+    onAddBookmark: () -> Unit,
+    onOpenBookmarks: () -> Unit,
     onShowToc: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -612,6 +627,23 @@ private fun ReaderMenuOverlay(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
+                        .clickable { onAddBookmark() }
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Add bookmark",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable { onShowToc() }
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
                         .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -620,6 +652,28 @@ private fun ReaderMenuOverlay(
                 ) {
                     Text(
                         "Table of contents",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onOpenBookmarks() }
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Bookmarks",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
