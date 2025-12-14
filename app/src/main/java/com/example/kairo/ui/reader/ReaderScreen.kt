@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
@@ -66,8 +68,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -241,6 +246,12 @@ fun ReaderScreen(
 
     val coroutineScope = rememberCoroutineScope()
     val isRsvpEnabled = !uiState.isLoading && firstWordIndex != -1 && tokens.isNotEmpty()
+    val canSwipePrevChapter = chapterIndex > 0
+    val canSwipeNextChapter = chapterIndex < book.chapters.lastIndex
+    val touchSlop = LocalViewConfiguration.current.touchSlop
+    val minChapterSwipePx = with(LocalDensity.current) { 72.dp.toPx() }
+    val chapterSwipeRatio = 1.25f
+    val minChapterSwipeFlingVelocityPxPerSec = 900f
     val progressPercent = remember(tokens, focusIndex) {
         if (tokens.size < 2) 0
         else {
@@ -340,6 +351,79 @@ fun ReaderScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
+                        .pointerInput(
+                            chapterIndex,
+                            canSwipePrevChapter,
+                            canSwipeNextChapter,
+                            touchSlop,
+                            minChapterSwipePx,
+                            chapterSwipeRatio,
+                            minChapterSwipeFlingVelocityPxPerSec,
+                            showReaderMenu,
+                            showChapterList.value
+                        ) {
+                            if (showReaderMenu || showChapterList.value) return@pointerInput
+
+                            awaitEachGesture {
+                                val down = awaitFirstDown(pass = PointerEventPass.Initial)
+                                val pointerId = down.id
+                                val velocityTracker = VelocityTracker().apply {
+                                    addPosition(down.uptimeMillis, down.position)
+                                }
+
+                                var totalDx = 0f
+                                var totalDy = 0f
+                                var committedToHorizontal = false
+
+                                while (true) {
+                                    val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                                    val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                                    if (!change.pressed) break
+
+                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+
+                                    val deltaX = change.position.x - change.previousPosition.x
+                                    val deltaY = change.position.y - change.previousPosition.y
+                                    if (deltaX == 0f && deltaY == 0f) continue
+
+                                    totalDx += deltaX
+                                    totalDy += deltaY
+
+                                    if (!committedToHorizontal) {
+                                        val movedEnough = abs(totalDx) > touchSlop || abs(totalDy) > touchSlop
+                                        val isClearlyHorizontal =
+                                            abs(totalDx) > abs(totalDy) * chapterSwipeRatio
+                                        if (movedEnough && isClearlyHorizontal) {
+                                            committedToHorizontal = true
+                                        }
+                                    }
+
+                                    if (committedToHorizontal) {
+                                        // Only consume once we've committed to a horizontal swipe, so vertical scrolling
+                                        // (and other child gestures) keep working normally.
+                                        change.consume()
+                                    }
+                                }
+
+                                val velocity = velocityTracker.calculateVelocity()
+                                val vx = velocity.x
+                                val vy = velocity.y
+
+                                val isHorizontalDistanceSwipe =
+                                    abs(totalDx) > minChapterSwipePx &&
+                                        abs(totalDx) > abs(totalDy) * chapterSwipeRatio
+                                val isHorizontalFling =
+                                    abs(vx) > minChapterSwipeFlingVelocityPxPerSec &&
+                                        abs(vx) > abs(vy) * 1.1f
+
+                                if (!isHorizontalDistanceSwipe && !isHorizontalFling) return@awaitEachGesture
+
+                                when {
+                                    totalDx < 0f && canSwipeNextChapter -> onChapterChange(chapterIndex + 1)
+                                    totalDx > 0f && canSwipePrevChapter -> onChapterChange(chapterIndex - 1)
+                                }
+                            }
+                        }
                         .then(
                             if (!invertedScroll) {
                                 Modifier
