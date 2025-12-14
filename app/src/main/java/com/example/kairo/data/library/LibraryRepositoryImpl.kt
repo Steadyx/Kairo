@@ -1,5 +1,6 @@
 package com.example.kairo.data.library
 
+import android.content.Context
 import android.net.Uri
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
@@ -8,12 +9,14 @@ import com.example.kairo.data.local.BookDao
 import com.example.kairo.data.local.BookmarkDao
 import com.example.kairo.data.local.ReadingPositionDao
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 
 class LibraryRepositoryImpl(
     private val bookRepository: BookRepository,
     private val bookDao: BookDao,
     private val positionDao: ReadingPositionDao,
-    private val bookmarkDao: BookmarkDao
+    private val bookmarkDao: BookmarkDao,
+    private val appContext: Context
 ) : LibraryRepository {
     override fun observeLibrary(): Flow<List<Book>> = bookRepository.observeBooks()
 
@@ -27,5 +30,12 @@ class LibraryRepositoryImpl(
         bookDao.deleteBook(bookId)
         positionDao.deleteForBook(bookId)
         bookmarkDao.deleteForBook(bookId)
+        deleteBookAssets(bookId)
+    }
+
+    private fun deleteBookAssets(bookId: String) {
+        runCatching {
+            File(appContext.filesDir, "kairo_epub_assets/$bookId").deleteRecursively()
+        }
     }
 }

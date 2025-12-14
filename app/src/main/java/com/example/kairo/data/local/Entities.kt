@@ -18,7 +18,8 @@ data class ChapterEntity(
     val index: Int,
     val title: String?,
     val htmlContent: String,
-    val plainText: String
+    val plainText: String,
+    val imagePaths: String = ""
 )
 
 @Entity(tableName = "reading_positions")

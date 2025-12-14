@@ -1,6 +1,8 @@
 package com.example.kairo.data.books
 
 import android.net.Uri
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Chapter
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.ByteArrayOutputStream
 
 class BookRepositoryImpl(
     private val bookDao: BookDao,
@@ -29,7 +32,8 @@ class BookRepositoryImpl(
             ?: throw IllegalArgumentException("No parser found for .$extension files")
 
         // Parse the book - let errors propagate for proper error handling
-        val book = parser.parse(appContext, uri)
+        val parsedBook = parser.parse(appContext, uri)
+        val book = parsedBook.copy(coverImage = optimizeCoverForDb(parsedBook.coverImage))
 
         // Save to database
         bookDao.insertBook(book.toEntity(), book.chapters.map { it.toEntity(book.id) })
@@ -90,5 +94,64 @@ class BookRepositoryImpl(
             val chapters = bookDao.getChapters(bookEntity.id)
             bookEntity.toDomain(chapters)
         }
+    }
+
+    private fun optimizeCoverForDb(coverImage: ByteArray?): ByteArray? {
+        if (coverImage == null || coverImage.isEmpty()) return coverImage
+
+        // CursorWindow on many devices is ~2MB; keep cover comfortably under that.
+        if (coverImage.size <= MAX_COVER_DB_BYTES) return coverImage
+
+        return runCatching {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size, bounds)
+
+            val width = bounds.outWidth
+            val height = bounds.outHeight
+            if (width <= 0 || height <= 0) return@runCatching null
+
+            val sampleSize = calculateInSampleSize(width, height, COVER_MAX_DIM_PX)
+            val decode = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            val bitmap = BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size, decode) ?: return@runCatching null
+
+            try {
+                val out = ByteArrayOutputStream()
+                var quality = 90
+                var encoded: ByteArray
+                do {
+                    out.reset()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
+                    encoded = out.toByteArray()
+                    quality -= 10
+                } while (encoded.size > MAX_COVER_DB_BYTES && quality >= MIN_COVER_JPEG_QUALITY)
+                encoded
+            } finally {
+                bitmap.recycle()
+            }
+        }.getOrNull() ?: run {
+            // If we can't safely shrink it, drop the cover rather than crash on read.
+            null
+        }
+    }
+
+    private fun calculateInSampleSize(width: Int, height: Int, maxDimPx: Int): Int {
+        var sampleSize = 1
+        var w = width
+        var h = height
+        while (w > maxDimPx || h > maxDimPx) {
+            w /= 2
+            h /= 2
+            sampleSize *= 2
+        }
+        return sampleSize.coerceAtLeast(1)
+    }
+
+    private companion object {
+        private const val MAX_COVER_DB_BYTES = 512 * 1024
+        private const val COVER_MAX_DIM_PX = 1200
+        private const val MIN_COVER_JPEG_QUALITY = 60
     }
 }

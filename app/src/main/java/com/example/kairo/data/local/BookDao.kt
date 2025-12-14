@@ -21,19 +21,63 @@ interface BookDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChapters(chapters: List<ChapterEntity>)
 
-    @Query("SELECT * FROM books")
+    @Query(
+        """
+        SELECT id, title, authors,
+               CASE
+                   WHEN coverImage IS NOT NULL AND length(coverImage) <= 1900000 THEN coverImage
+                   ELSE NULL
+               END AS coverImage
+        FROM books
+        """
+    )
     fun getBooks(): Flow<List<BookEntity>>
 
-    @Query("SELECT * FROM books WHERE id = :bookId LIMIT 1")
+    @Query(
+        """
+        SELECT id, title, authors,
+               CASE
+                   WHEN coverImage IS NOT NULL AND length(coverImage) <= 1900000 THEN coverImage
+                   ELSE NULL
+               END AS coverImage
+        FROM books
+        WHERE id = :bookId
+        LIMIT 1
+        """
+    )
     suspend fun getBook(bookId: String): BookEntity?
 
-    @Query("SELECT * FROM books LIMIT 1")
+    @Query(
+        """
+        SELECT id, title, authors,
+               CASE
+                   WHEN coverImage IS NOT NULL AND length(coverImage) <= 1900000 THEN coverImage
+                   ELSE NULL
+               END AS coverImage
+        FROM books
+        LIMIT 1
+        """
+    )
     suspend fun peekBook(): BookEntity?
 
-    @Query("SELECT * FROM chapters WHERE bookId = :bookId ORDER BY `index`")
+    @Query(
+        """
+        SELECT bookId, `index`, title, '' AS htmlContent, plainText, imagePaths
+        FROM chapters
+        WHERE bookId = :bookId
+        ORDER BY `index`
+        """
+    )
     suspend fun getChapters(bookId: String): List<ChapterEntity>
 
-    @Query("SELECT * FROM chapters WHERE bookId = :bookId AND `index` = :index LIMIT 1")
+    @Query(
+        """
+        SELECT bookId, `index`, title, '' AS htmlContent, plainText, imagePaths
+        FROM chapters
+        WHERE bookId = :bookId AND `index` = :index
+        LIMIT 1
+        """
+    )
     suspend fun getChapter(bookId: String, index: Int): ChapterEntity?
 
     @Query("DELETE FROM chapters WHERE bookId = :bookId")
