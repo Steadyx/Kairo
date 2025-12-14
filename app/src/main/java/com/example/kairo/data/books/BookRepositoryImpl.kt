@@ -99,9 +99,6 @@ class BookRepositoryImpl(
     private fun optimizeCoverForDb(coverImage: ByteArray?): ByteArray? {
         if (coverImage == null || coverImage.isEmpty()) return coverImage
 
-        // CursorWindow on many devices is ~2MB; keep cover comfortably under that.
-        if (coverImage.size <= MAX_COVER_DB_BYTES) return coverImage
-
         return runCatching {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size, bounds)
@@ -110,12 +107,19 @@ class BookRepositoryImpl(
             val height = bounds.outHeight
             if (width <= 0 || height <= 0) return@runCatching null
 
+            // CursorWindow on many devices is ~2MB; keep cover comfortably under that, and also
+            // cap pixel dimensions so first-time decode/render is fast.
+            val shouldOptimize =
+                coverImage.size > MAX_COVER_DB_BYTES || width > COVER_MAX_DIM_PX || height > COVER_MAX_DIM_PX
+            if (!shouldOptimize) return@runCatching coverImage
+
             val sampleSize = calculateInSampleSize(width, height, COVER_MAX_DIM_PX)
             val decode = BitmapFactory.Options().apply {
                 inSampleSize = sampleSize
                 inPreferredConfig = Bitmap.Config.ARGB_8888
             }
-            val bitmap = BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size, decode) ?: return@runCatching null
+            val bitmap = BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size, decode)
+                ?: return@runCatching null
 
             try {
                 val out = ByteArrayOutputStream()
@@ -131,10 +135,7 @@ class BookRepositoryImpl(
             } finally {
                 bitmap.recycle()
             }
-        }.getOrNull() ?: run {
-            // If we can't safely shrink it, drop the cover rather than crash on read.
-            null
-        }
+        }.getOrNull() ?: null
     }
 
     private fun calculateInSampleSize(width: Int, height: Int, maxDimPx: Int): Int {
@@ -150,8 +151,8 @@ class BookRepositoryImpl(
     }
 
     private companion object {
-        private const val MAX_COVER_DB_BYTES = 512 * 1024
-        private const val COVER_MAX_DIM_PX = 1200
+        private const val MAX_COVER_DB_BYTES = 256 * 1024
+        private const val COVER_MAX_DIM_PX = 1080
         private const val MIN_COVER_JPEG_QUALITY = 60
     }
 }
