@@ -1,6 +1,7 @@
 package com.example.kairo.ui.reader
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.Chapter
@@ -8,6 +9,7 @@ import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.core.tokenization.Tokenizer
+import com.example.kairo.data.books.BookRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +22,9 @@ import kotlinx.coroutines.withContext
  * ViewModel for the Reader screen.
  * Handles chapter loading, tokenization, and paragraph computation off the main thread.
  */
-class ReaderViewModel : ViewModel() {
+class ReaderViewModel(
+    private val bookRepository: BookRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
@@ -90,7 +94,11 @@ class ReaderViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-            val result = processChapter(book.chapters[chapterIndex])
+            val chapter = runCatching {
+                withContext(Dispatchers.IO) { bookRepository.getChapter(book.id, chapterIndex) }
+            }.getOrNull()
+
+            val result = chapter?.let { processChapter(it) }
 
             // Cache the result
             result?.let { chapterCache[chapterIndex] = it }
@@ -152,9 +160,11 @@ class ReaderViewModel : ViewModel() {
                 .filter { it in book.chapters.indices }
                 .filter { it !in chapterCache }
                 .forEach { index ->
-                    processChapter(book.chapters[index])?.let { data ->
-                        chapterCache[index] = data
-                    }
+                    val chapter = runCatching {
+                        withContext(Dispatchers.IO) { bookRepository.getChapter(book.id, index) }
+                    }.getOrNull() ?: return@forEach
+
+                    processChapter(chapter)?.let { data -> chapterCache[index] = data }
                 }
         }
     }
@@ -184,6 +194,19 @@ class ReaderViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         chapterCache.clear()
+    }
+
+    companion object {
+        fun factory(bookRepository: BookRepository): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    if (modelClass.isAssignableFrom(ReaderViewModel::class.java)) {
+                        return ReaderViewModel(bookRepository) as T
+                    }
+                    throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+                }
+            }
     }
 }
 

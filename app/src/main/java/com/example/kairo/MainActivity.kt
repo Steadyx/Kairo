@@ -4,7 +4,9 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -17,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
@@ -206,7 +209,7 @@ private fun KairoNavHost(
             )
         }
 
-	        composable(
+        composable(
 	            route = "reader/{bookId}",
 	            arguments = listOf(
 	                navArgument("bookId") { type = NavType.StringType }
@@ -221,10 +224,17 @@ private fun KairoNavHost(
             ) {
                 value = runCatching { container.bookRepository.getBook(BookId(bookId)) }.getOrNull()
             }
-            val book = bookState.value ?: return@composable
+            val book = bookState.value
+            if (book == null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                return@composable
+            }
 
             // Use ViewModel for chapter caching and preloading
-            val readerViewModel: ReaderViewModel = viewModel()
+            val readerViewModel: ReaderViewModel =
+                viewModel(factory = ReaderViewModel.factory(container.bookRepository))
             val uiState by readerViewModel.uiState.collectAsState()
 
             // Resume index returned from RSVP. Use it immediately to avoid focus "jump".
@@ -366,9 +376,16 @@ private fun KairoNavHost(
 	            ) {
 	                value = runCatching { container.bookRepository.getBook(BookId(bookId)) }.getOrNull()
 	            }
-	            val book = bookState.value ?: return@composable
+	            val book = bookState.value
+                if (book == null) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                    return@composable
+                }
 
-		            val readerViewModel: ReaderViewModel = viewModel()
+		            val readerViewModel: ReaderViewModel =
+                        viewModel(factory = ReaderViewModel.factory(container.bookRepository))
 		            val uiState by readerViewModel.uiState.collectAsState()
 
 		            // Resume index returned from RSVP. Use it immediately to avoid focus "jump".

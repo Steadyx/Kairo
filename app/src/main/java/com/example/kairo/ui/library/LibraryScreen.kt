@@ -1,10 +1,8 @@
 package com.example.kairo.ui.library
 
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,11 +47,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookmarkItem
 import kotlin.math.roundToInt
@@ -220,6 +220,7 @@ private fun LibraryCard(
             BookCover(
                 coverImage = book.coverImage,
                 title = book.title,
+                cacheKey = book.id.value,
                 modifier = Modifier.size(width = 60.dp, height = 90.dp)
             )
 
@@ -279,6 +280,7 @@ private fun BookmarkBookHeader(book: Book, bookmarkCount: Int) {
             BookCover(
                 coverImage = book.coverImage,
                 title = book.title,
+                cacheKey = book.id.value,
                 modifier = Modifier.size(width = 44.dp, height = 44.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -373,22 +375,23 @@ private fun BookmarkRow(
 private fun BookCover(
     coverImage: ByteArray?,
     title: String,
+    cacheKey: String,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     if (coverImage != null && coverImage.isNotEmpty()) {
-        val bitmap = remember(coverImage) {
-            BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size)
-        }
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Cover of $title",
-                modifier = modifier.clip(RoundedCornerShape(4.dp)),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            PlaceholderCover(title = title, modifier = modifier)
-        }
+        AsyncImage(
+            model = remember(coverImage, cacheKey) {
+                ImageRequest.Builder(context)
+                    .data(coverImage)
+                    .memoryCacheKey("book_cover_$cacheKey")
+                    .crossfade(false)
+                    .build()
+            },
+            contentDescription = "Cover of $title",
+            modifier = modifier.clip(RoundedCornerShape(4.dp)),
+            contentScale = ContentScale.Crop
+        )
     } else {
         PlaceholderCover(title = title, modifier = modifier)
     }

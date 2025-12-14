@@ -1,12 +1,10 @@
 package com.example.kairo.ui.reader
 
-import android.graphics.BitmapFactory
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -14,6 +12,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -65,7 +64,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -85,6 +83,7 @@ import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.ui.theme.MerriweatherFontFamily
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -284,13 +283,44 @@ fun ReaderScreen(
 
             // Show loading indicator or content
             if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+                val isCoverChapter = chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
+                if (isCoverChapter) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val context = LocalContext.current
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            tonalElevation = 2.dp,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            AsyncImage(
+                                model = remember(coverImage, book.id.value) {
+                                    ImageRequest.Builder(context)
+                                        .data(coverImage)
+                                        .memoryCacheKey("book_cover_full_${book.id.value}")
+                                        .crossfade(false)
+                                        .build()
+                                },
+                                contentDescription = "Cover of ${book.title}",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
             } else if (paragraphs.isEmpty()) {
                 Box(
@@ -306,12 +336,10 @@ fun ReaderScreen(
                     )
                 }
             } else {
-                // LAZY paragraph-based rendering
-	                LazyColumn(
-	                    state = listState,
-	                    modifier = Modifier
-	                        .weight(1f)
-	                        .fillMaxWidth()
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
                         .then(
                             if (!invertedScroll) {
                                 Modifier
@@ -338,29 +366,64 @@ fun ReaderScreen(
                                     )
                                 }
                             }
-                        ),
-	                    userScrollEnabled = !invertedScroll,
-	                    verticalArrangement = Arrangement.spacedBy(18.dp) // Paragraph spacing
-	                ) {
-	                    if (imagePaths.isNotEmpty()) {
-	                        item(key = "chapter_images_$chapterIndex") {
-	                            ChapterImages(imagePaths = imagePaths)
-	                        }
-	                    }
-	                    itemsIndexed(
-	                        items = paragraphs,
-	                        key = { _, paragraph -> "${chapterIndex}_${paragraph.startIndex}" }
-	                    ) { _, paragraph ->
-                        ParagraphText(
-                            paragraph = paragraph,
-                            focusIndex = focusIndex,
-                            fontSizeSp = fontSizeSp,
-                            onFocusChange = onSafeFocusChange,
-                            onStartRsvp = { tokenIndex ->
-                                if (!isRsvpEnabled) return@ParagraphText
-                                onStartRsvp(tokens.nearestWordIndex(tokenIndex))
-                            }
                         )
+                ) {
+                    val viewportHeight = maxHeight
+
+                    // LAZY paragraph-based rendering
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = !invertedScroll,
+                        verticalArrangement = Arrangement.spacedBy(18.dp) // Paragraph spacing
+                    ) {
+                        val isCoverChapter = chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
+                        if (isCoverChapter) {
+                            item(key = "book_cover_full_${book.id.value}") {
+                                val context = LocalContext.current
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    tonalElevation = 2.dp,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(viewportHeight)
+                                        .clip(RoundedCornerShape(14.dp))
+                                ) {
+                                    AsyncImage(
+                                        model = remember(coverImage, book.id.value) {
+                                            ImageRequest.Builder(context)
+                                                .data(coverImage)
+                                                .memoryCacheKey("book_cover_full_${book.id.value}")
+                                                .crossfade(false)
+                                                .build()
+                                        },
+                                        contentDescription = "Cover of ${book.title}",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                            }
+                        }
+                        if (imagePaths.isNotEmpty() && !isCoverChapter) {
+                            item(key = "chapter_images_$chapterIndex") {
+                                ChapterImages(imagePaths = imagePaths)
+                            }
+                        }
+                        itemsIndexed(
+                            items = paragraphs,
+                            key = { _, paragraph -> "${chapterIndex}_${paragraph.startIndex}" }
+                        ) { _, paragraph ->
+                            ParagraphText(
+                                paragraph = paragraph,
+                                focusIndex = focusIndex,
+                                fontSizeSp = fontSizeSp,
+                                onFocusChange = onSafeFocusChange,
+                                onStartRsvp = { tokenIndex ->
+                                    if (!isRsvpEnabled) return@ParagraphText
+                                    onStartRsvp(tokens.nearestWordIndex(tokenIndex))
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -535,6 +598,7 @@ private fun ReaderHeader(
     onNextChapter: () -> Unit,
     onShowMenu: () -> Unit
 ) {
+    val context = LocalContext.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -545,20 +609,21 @@ private fun ReaderHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (coverImage != null && coverImage.isNotEmpty()) {
-                val bitmap = remember(coverImage) {
-                    BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size)
-                }
-                if (bitmap != null) {
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(width = 44.dp, height = 56.dp)
-                            .clip(RoundedCornerShape(10.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
+                AsyncImage(
+                    model = remember(coverImage, book.id.value) {
+                        ImageRequest.Builder(context)
+                            .data(coverImage)
+                            .memoryCacheKey("book_cover_thumb_${book.id.value}")
+                            .crossfade(false)
+                            .build()
+                    },
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(width = 44.dp, height = 56.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(12.dp))
             }
 
             Column {
@@ -735,37 +800,29 @@ private fun ReaderMenuOverlay(
 @Composable
 private fun ChapterImages(imagePaths: List<String>) {
     val context = LocalContext.current
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            text = "Images",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(items = imagePaths, key = { it }) { relativePath ->
-                val file = remember(relativePath) { File(context.filesDir, relativePath) }
-                if (file.exists()) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        tonalElevation = 2.dp,
-                        modifier = Modifier
-                            .size(width = 220.dp, height = 160.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                    ) {
-                        AsyncImage(
-                            model = file,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(items = imagePaths, key = { it }) { relativePath ->
+            val file = remember(relativePath) { File(context.filesDir, relativePath) }
+            if (file.exists()) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    tonalElevation = 2.dp,
+                    modifier = Modifier
+                        .size(width = 220.dp, height = 160.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                ) {
+                    AsyncImage(
+                        model = file,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
                 }
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     }
 }
 

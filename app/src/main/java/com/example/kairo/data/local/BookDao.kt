@@ -62,7 +62,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, plainText, imagePaths
+        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths
         FROM chapters
         WHERE bookId = :bookId
         ORDER BY `index`
