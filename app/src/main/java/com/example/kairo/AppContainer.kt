@@ -2,6 +2,8 @@ package com.example.kairo
 
 import android.content.Context
 import androidx.room.Room
+import com.example.kairo.data.bookmarks.BookmarkRepository
+import com.example.kairo.data.bookmarks.BookmarkRepositoryImpl
 import com.example.kairo.core.rsvp.DefaultRsvpEngine
 import com.example.kairo.core.rsvp.RsvpEngine
 import com.example.kairo.core.tokenization.Tokenizer
@@ -12,6 +14,8 @@ import com.example.kairo.data.books.MobiBookParser
 import com.example.kairo.data.library.LibraryRepository
 import com.example.kairo.data.library.LibraryRepositoryImpl
 import com.example.kairo.data.local.KairoDatabase
+import com.example.kairo.data.local.MIGRATION_1_2
+import com.example.kairo.data.local.MIGRATION_2_3
 import com.example.kairo.data.preferences.PreferencesRepository
 import com.example.kairo.data.preferences.PreferencesRepositoryImpl
 import com.example.kairo.data.reading.ReadingPositionRepository
@@ -25,7 +29,9 @@ class AppContainer(private val context: Context) {
         context.applicationContext,
         KairoDatabase::class.java,
         "kairo.db"
-    ).build()
+    )
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .build()
 
     private val parsers = listOf(EpubBookParser(), MobiBookParser())
     private val tokenizer = Tokenizer()
@@ -36,9 +42,11 @@ class AppContainer(private val context: Context) {
         TokenRepositoryImpl(bookRepository, tokenizer)
     val readingPositionRepository: ReadingPositionRepository =
         ReadingPositionRepositoryImpl(database.readingPositionDao())
+    val bookmarkRepository: BookmarkRepository =
+        BookmarkRepositoryImpl(database.bookmarkDao())
     val preferencesRepository: PreferencesRepository = PreferencesRepositoryImpl(context)
     val libraryRepository: LibraryRepository =
-        LibraryRepositoryImpl(bookRepository, database.bookDao(), database.readingPositionDao())
+        LibraryRepositoryImpl(bookRepository, database.bookDao(), database.readingPositionDao(), database.bookmarkDao())
     val rsvpEngine: RsvpEngine = DefaultRsvpEngine()
     val sampleSeeder = SampleSeeder(database.bookDao())
 }

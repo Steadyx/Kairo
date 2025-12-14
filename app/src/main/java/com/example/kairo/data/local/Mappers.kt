@@ -2,6 +2,8 @@ package com.example.kairo.data.local
 
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
+import com.example.kairo.core.model.Bookmark
+import com.example.kairo.core.model.BookmarkItem
 import com.example.kairo.core.model.Chapter
 
 fun Book.toEntity(): BookEntity = BookEntity(
@@ -46,4 +48,30 @@ fun com.example.kairo.core.model.ReadingPosition.toEntity(): ReadingPositionEnti
         bookId = bookId.value,
         chapterIndex = chapterIndex,
         tokenIndex = tokenIndex
+    )
+
+fun BookmarkEntity.toDomain(): Bookmark =
+    Bookmark(
+        id = id,
+        bookId = BookId(bookId),
+        chapterIndex = chapterIndex,
+        tokenIndex = tokenIndex,
+        previewText = previewText,
+        createdAt = createdAt
+    )
+
+fun Bookmark.toEntity(): BookmarkEntity =
+    BookmarkEntity(
+        id = id,
+        bookId = bookId.value,
+        chapterIndex = chapterIndex,
+        tokenIndex = tokenIndex,
+        previewText = previewText,
+        createdAt = createdAt
+    )
+
+fun BookmarkWithBookEntity.toDomain(): BookmarkItem =
+    BookmarkItem(
+        bookmark = bookmark.toDomain(),
+        book = book.toDomain(chapters = emptyList())
     )

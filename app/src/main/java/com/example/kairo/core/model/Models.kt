@@ -23,6 +23,20 @@ data class ReadingPosition(
     val tokenIndex: Int
 )
 
+data class Bookmark(
+    val id: String,
+    val bookId: BookId,
+    val chapterIndex: Int,
+    val tokenIndex: Int,
+    val previewText: String,
+    val createdAt: Long
+)
+
+data class BookmarkItem(
+    val bookmark: Bookmark,
+    val book: Book
+)
+
 enum class TokenType { WORD, PUNCTUATION, PARAGRAPH_BREAK }
 
 data class Token(

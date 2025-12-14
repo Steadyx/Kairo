@@ -31,12 +31,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.kairo.core.model.BookId
+import com.example.kairo.core.model.Bookmark
 import com.example.kairo.ui.reader.ReaderViewModel
 import com.example.kairo.core.model.ReadingPosition
 import com.example.kairo.core.model.UserPreferences
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.ui.focus.SystemBarsStyleSideEffect
 import com.example.kairo.ui.library.LibraryScreen
+import com.example.kairo.ui.library.LibraryTab
 import com.example.kairo.ui.focus.FocusModeSideEffects
 import com.example.kairo.ui.reader.ReaderScreen
 import com.example.kairo.ui.rsvp.RsvpScreen
@@ -79,6 +81,8 @@ private fun KairoNavHost(
     val context = LocalContext.current
     val libraryFlow = container.libraryRepository.observeLibrary()
     val books by libraryFlow.collectAsState(initial = emptyList())
+    val bookmarksFlow = container.bookmarkRepository.observeBookmarks()
+    val bookmarks by bookmarksFlow.collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -86,6 +90,7 @@ private fun KairoNavHost(
     val focusEnabledForRoute = prefs.focusModeEnabled && when (currentRoute) {
         "settings" -> true
         "reader/{bookId}" -> prefs.focusApplyInReader
+        "reader/{bookId}/{chapterIndex}/{tokenIndex}" -> prefs.focusApplyInReader
         "rsvp/{bookId}/{chapterIndex}/{tokenIndex}" -> prefs.focusApplyInRsvp
         else -> false
     }
@@ -99,9 +104,17 @@ private fun KairoNavHost(
         composable("library") {
             LibraryScreen(
                 books = books,
+                bookmarks = bookmarks,
+                initialTab = LibraryTab.Library,
                 onOpen = { book ->
                     // Navigate to reader - saved position will be restored there
                     navController.navigate("reader/${book.id.value}")
+                },
+                onOpenBookmark = { bookId, chapterIndex, tokenIndex ->
+                    navController.navigate("reader/$bookId/$chapterIndex/$tokenIndex")
+                },
+                onDeleteBookmark = { bookmarkId ->
+                    coroutineScope.launch { container.bookmarkRepository.delete(bookmarkId) }
                 },
                 onImportFile = { uri ->
                     coroutineScope.launch {
@@ -130,11 +143,65 @@ private fun KairoNavHost(
         }
 
         composable(
-            route = "reader/{bookId}",
+            route = "library?tab={tab}",
             arguments = listOf(
-                navArgument("bookId") { type = NavType.StringType }
+                navArgument("tab") {
+                    type = NavType.StringType
+                    defaultValue = "library"
+                }
             )
         ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getString("tab") ?: "library"
+            val initialTab = if (tab.lowercase() == "bookmarks") {
+                LibraryTab.Bookmarks
+            } else {
+                LibraryTab.Library
+            }
+            LibraryScreen(
+                books = books,
+                bookmarks = bookmarks,
+                initialTab = initialTab,
+                onOpen = { book ->
+                    navController.navigate("reader/${book.id.value}")
+                },
+                onOpenBookmark = { bookId, chapterIndex, tokenIndex ->
+                    navController.navigate("reader/$bookId/$chapterIndex/$tokenIndex")
+                },
+                onDeleteBookmark = { bookmarkId ->
+                    coroutineScope.launch { container.bookmarkRepository.delete(bookmarkId) }
+                },
+                onImportFile = { uri ->
+                    coroutineScope.launch {
+                        try {
+                            val book = container.libraryRepository.import(uri)
+                            Toast.makeText(
+                                context,
+                                "Imported: ${book.title} (${book.chapters.size} chapters)",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } catch (e: Exception) {
+                            e.printStackTrace()  // Log for debugging
+                            Toast.makeText(
+                                context,
+                                "Import failed: ${e.message ?: "Unknown error"}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                },
+                onSettings = { navController.navigate("settings") },
+                onDelete = { book ->
+                    coroutineScope.launch { container.libraryRepository.delete(book.id.value) }
+                }
+            )
+        }
+
+	        composable(
+	            route = "reader/{bookId}",
+	            arguments = listOf(
+	                navArgument("bookId") { type = NavType.StringType }
+	            )
+	        ) { backStackEntry ->
             val bookId = backStackEntry.arguments?.getString("bookId") ?: return@composable
 
             // Load book once
@@ -210,29 +277,48 @@ private fun KairoNavHost(
             }
 
             val focusEnabledInReader = prefs.focusModeEnabled && prefs.focusApplyInReader
-            ReaderScreen(
-                book = book,
-                uiState = effectiveUiState,
-                fontSizeSp = prefs.readerFontSizeSp,
-                invertedScroll = prefs.invertedScroll,
-                focusModeEnabled = focusEnabledInReader,
-                onFocusModeEnabledChange = { enabled ->
-                    coroutineScope.launch {
-                        if (enabled) {
-                            if (!prefs.focusModeEnabled) {
-                                container.preferencesRepository.updateFocusModeEnabled(true)
-                            }
-                            container.preferencesRepository.updateFocusApplyInReader(true)
-                        } else {
-                            container.preferencesRepository.updateFocusApplyInReader(false)
-                        }
-                    }
-                },
-                onFocusChange = { newFocusIndex ->
-                    readerViewModel.setFocusIndex(newFocusIndex)
-                    // Save position when focus changes
-                    coroutineScope.launch {
-                        container.readingPositionRepository.savePosition(
+	            ReaderScreen(
+	                book = book,
+	                uiState = effectiveUiState,
+	                fontSizeSp = prefs.readerFontSizeSp,
+	                invertedScroll = prefs.invertedScroll,
+	                focusModeEnabled = focusEnabledInReader,
+	                onFocusModeEnabledChange = { enabled ->
+	                    coroutineScope.launch {
+	                        if (enabled) {
+	                            if (!prefs.focusModeEnabled) {
+	                                container.preferencesRepository.updateFocusModeEnabled(true)
+	                            }
+	                            container.preferencesRepository.updateFocusApplyInReader(true)
+	                        } else {
+	                            container.preferencesRepository.updateFocusApplyInReader(false)
+	                        }
+	                    }
+	                },
+	                onAddBookmark = { chapterIndex, tokenIndex, previewText ->
+	                    coroutineScope.launch {
+	                        val id = "$bookId:$chapterIndex:$tokenIndex"
+	                        container.bookmarkRepository.add(
+	                            Bookmark(
+	                                id = id,
+	                                bookId = BookId(bookId),
+	                                chapterIndex = chapterIndex,
+	                                tokenIndex = tokenIndex,
+	                                previewText = previewText,
+	                                createdAt = System.currentTimeMillis()
+	                            )
+	                        )
+	                        Toast.makeText(context, "Bookmark added", Toast.LENGTH_SHORT).show()
+	                    }
+	                },
+	                onOpenBookmarks = {
+	                    navController.navigate("library?tab=bookmarks")
+	                },
+	                onFocusChange = { newFocusIndex ->
+	                    readerViewModel.setFocusIndex(newFocusIndex)
+	                    // Save position when focus changes
+	                    coroutineScope.launch {
+	                        container.readingPositionRepository.savePosition(
                             ReadingPosition(BookId(bookId), uiState.chapterIndex, newFocusIndex)
                         )
                     }
@@ -246,16 +332,134 @@ private fun KairoNavHost(
                     }
                     navController.navigate("rsvp/$bookId/${uiState.chapterIndex}/$start")
                 },
-                onChapterChange = { newIndex ->
-                    readerViewModel.loadChapter(newIndex)
-                }
-            )
-        }
+	                onChapterChange = { newIndex ->
+	                    readerViewModel.loadChapter(newIndex)
+	                }
+	            )
+	        }
 
-        composable(
-            route = "rsvp/{bookId}/{chapterIndex}/{tokenIndex}",
-            arguments = listOf(
-                navArgument("bookId") { type = NavType.StringType },
+	        composable(
+	            route = "reader/{bookId}/{chapterIndex}/{tokenIndex}",
+	            arguments = listOf(
+	                navArgument("bookId") { type = NavType.StringType },
+	                navArgument("chapterIndex") { type = NavType.IntType },
+	                navArgument("tokenIndex") { type = NavType.IntType }
+	            )
+	        ) { backStackEntry ->
+	            val bookId = backStackEntry.arguments?.getString("bookId") ?: return@composable
+	            val initialChapterIndex = backStackEntry.arguments?.getInt("chapterIndex") ?: 0
+	            val initialTokenIndex = backStackEntry.arguments?.getInt("tokenIndex") ?: 0
+
+	            val bookState = produceState<com.example.kairo.core.model.Book?>(
+	                initialValue = null,
+	                bookId
+	            ) {
+	                value = runCatching { container.bookRepository.getBook(BookId(bookId)) }.getOrNull()
+	            }
+	            val book = bookState.value ?: return@composable
+
+		            val readerViewModel: ReaderViewModel = viewModel()
+		            val uiState by readerViewModel.uiState.collectAsState()
+
+		            // Resume index returned from RSVP. Use it immediately to avoid focus "jump".
+		            val rsvpResultFlow = remember(backStackEntry) {
+		                backStackEntry.savedStateHandle.getStateFlow("rsvp_result_token_index", -1)
+		            }
+		            val rsvpResultIndex by rsvpResultFlow.collectAsState(initial = -1)
+		            val safeRsvpResultIndex = if (rsvpResultIndex >= 0) {
+		                val tokens = uiState.chapterData?.tokens
+		                if (tokens != null && tokens.isNotEmpty()) {
+		                    tokens.nearestWordIndex(rsvpResultIndex)
+		                } else {
+		                    rsvpResultIndex
+		                }
+		            } else {
+		                rsvpResultIndex
+		            }
+		            val effectiveUiState =
+		                if (safeRsvpResultIndex >= 0) uiState.copy(focusIndex = safeRsvpResultIndex) else uiState
+
+		            LaunchedEffect(safeRsvpResultIndex) {
+		                if (safeRsvpResultIndex >= 0) {
+		                    if (safeRsvpResultIndex != uiState.focusIndex) {
+		                        readerViewModel.setFocusIndex(safeRsvpResultIndex)
+		                    }
+		                    backStackEntry.savedStateHandle["rsvp_result_token_index"] = -1
+		                }
+		            }
+
+		            var hasInitialized by rememberSaveable { mutableStateOf(false) }
+		            LaunchedEffect(book) {
+		                if (!hasInitialized) {
+		                    readerViewModel.loadBook(book, initialChapterIndex, initialTokenIndex)
+		                    hasInitialized = true
+		                }
+		            }
+
+	            val focusEnabledInReader = prefs.focusModeEnabled && prefs.focusApplyInReader
+		            ReaderScreen(
+		                book = book,
+		                uiState = effectiveUiState,
+		                fontSizeSp = prefs.readerFontSizeSp,
+		                invertedScroll = prefs.invertedScroll,
+		                focusModeEnabled = focusEnabledInReader,
+		                onFocusModeEnabledChange = { enabled ->
+	                    coroutineScope.launch {
+	                        if (enabled) {
+	                            if (!prefs.focusModeEnabled) {
+	                                container.preferencesRepository.updateFocusModeEnabled(true)
+	                            }
+	                            container.preferencesRepository.updateFocusApplyInReader(true)
+	                        } else {
+	                            container.preferencesRepository.updateFocusApplyInReader(false)
+	                        }
+	                    }
+	                },
+	                onAddBookmark = { chapterIndex, tokenIndex, previewText ->
+	                    coroutineScope.launch {
+	                        val id = "$bookId:$chapterIndex:$tokenIndex"
+	                        container.bookmarkRepository.add(
+	                            Bookmark(
+	                                id = id,
+	                                bookId = BookId(bookId),
+	                                chapterIndex = chapterIndex,
+	                                tokenIndex = tokenIndex,
+	                                previewText = previewText,
+	                                createdAt = System.currentTimeMillis()
+	                            )
+	                        )
+	                        Toast.makeText(context, "Bookmark added", Toast.LENGTH_SHORT).show()
+	                    }
+	                },
+	                onOpenBookmarks = {
+	                    navController.navigate("library?tab=bookmarks")
+	                },
+	                onFocusChange = { newFocusIndex ->
+	                    readerViewModel.setFocusIndex(newFocusIndex)
+	                    coroutineScope.launch {
+	                        container.readingPositionRepository.savePosition(
+	                            ReadingPosition(BookId(bookId), uiState.chapterIndex, newFocusIndex)
+	                        )
+	                    }
+	                },
+	                onStartRsvp = { start ->
+	                    coroutineScope.launch {
+	                        container.readingPositionRepository.savePosition(
+	                            ReadingPosition(BookId(bookId), uiState.chapterIndex, start)
+	                        )
+	                    }
+	                    navController.navigate("rsvp/$bookId/${uiState.chapterIndex}/$start")
+	                },
+	                onChapterChange = { newIndex ->
+	                    readerViewModel.loadChapter(newIndex)
+	                }
+	            )
+	        }
+
+	        composable(
+	            route = "rsvp/{bookId}/{chapterIndex}/{tokenIndex}",
+	            arguments = listOf(
+	                navArgument("bookId") { type = NavType.StringType },
                 navArgument("chapterIndex") { type = NavType.IntType },
                 navArgument("tokenIndex") { type = NavType.IntType }
             )
@@ -271,29 +475,50 @@ private fun KairoNavHost(
             val tokens = tokensState.value
 
             val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
-            RsvpScreen(
-                tokens = tokens,
-                startIndex = startIndex.coerceAtLeast(0),
-                config = prefs.rsvpConfig,
-                engine = container.rsvpEngine,
-                readerTheme = prefs.readerTheme,
-                focusModeEnabled = focusEnabledInRsvp,
-                onFocusModeEnabledChange = { enabled ->
-                    coroutineScope.launch {
-                        if (enabled) {
-                            if (!prefs.focusModeEnabled) {
-                                container.preferencesRepository.updateFocusModeEnabled(true)
-                            }
-                            container.preferencesRepository.updateFocusApplyInRsvp(true)
-                        } else {
-                            container.preferencesRepository.updateFocusApplyInRsvp(false)
-                        }
-                    }
-                },
-                fontSizeSp = prefs.rsvpFontSizeSp,
-                fontFamily = prefs.rsvpFontFamily,
-                fontWeight = prefs.rsvpFontWeight,
-                verticalBias = prefs.rsvpVerticalBias,
+	            RsvpScreen(
+	                tokens = tokens,
+	                startIndex = startIndex.coerceAtLeast(0),
+	                config = prefs.rsvpConfig,
+	                engine = container.rsvpEngine,
+	                readerTheme = prefs.readerTheme,
+	                focusModeEnabled = focusEnabledInRsvp,
+	                onFocusModeEnabledChange = { enabled ->
+	                    coroutineScope.launch {
+	                        if (enabled) {
+	                            if (!prefs.focusModeEnabled) {
+	                                container.preferencesRepository.updateFocusModeEnabled(true)
+	                            }
+	                            container.preferencesRepository.updateFocusApplyInRsvp(true)
+	                        } else {
+	                            container.preferencesRepository.updateFocusApplyInRsvp(false)
+	                        }
+	                    }
+	                },
+	                onAddBookmark = { tokenIndex, previewText ->
+	                    coroutineScope.launch {
+	                        val id = "$bookId:$chapterIndex:$tokenIndex"
+	                        container.bookmarkRepository.add(
+	                            Bookmark(
+	                                id = id,
+	                                bookId = BookId(bookId),
+	                                chapterIndex = chapterIndex,
+	                                tokenIndex = tokenIndex,
+	                                previewText = previewText,
+	                                createdAt = System.currentTimeMillis()
+	                            )
+	                        )
+	                        Toast.makeText(context, "Bookmark added", Toast.LENGTH_SHORT).show()
+	                    }
+	                },
+	                onOpenBookmarks = {
+	                    navController.navigate("library?tab=bookmarks") {
+	                        popUpTo("library") { inclusive = false }
+	                    }
+	                },
+	                fontSizeSp = prefs.rsvpFontSizeSp,
+	                fontFamily = prefs.rsvpFontFamily,
+	                fontWeight = prefs.rsvpFontWeight,
+	                verticalBias = prefs.rsvpVerticalBias,
                 horizontalBias = prefs.rsvpHorizontalBias,
                 onFinished = { lastIndex ->
                     val resumeIndex = if (tokens.isNotEmpty()) {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,6 +32,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -38,6 +42,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,11 +55,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.kairo.core.model.Book
+import com.example.kairo.core.model.BookmarkItem
 
 @Composable
 fun LibraryScreen(
     books: List<Book>,
+    bookmarks: List<BookmarkItem>,
+    initialTab: LibraryTab = LibraryTab.Library,
     onOpen: (Book) -> Unit,
+    onOpenBookmark: (bookId: String, chapterIndex: Int, tokenIndex: Int) -> Unit,
+    onDeleteBookmark: (bookmarkId: String) -> Unit,
     onImportFile: (Uri) -> Unit,
     onSettings: () -> Unit,
     onDelete: (Book) -> Unit
@@ -62,10 +75,12 @@ fun LibraryScreen(
     ) { uri: Uri? ->
         uri?.let { onImportFile(it) }
     }
+    var selectedTab by rememberSaveable(initialTab) { mutableIntStateOf(initialTab.ordinal) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -87,33 +102,78 @@ fun LibraryScreen(
             }
         }
 
-        // Import button
-        Button(
-            onClick = {
-                filePickerLauncher.launch(arrayOf(
-                    "application/epub+zip",
-                    "application/x-mobipocket-ebook",
-                    "application/octet-stream",
-                    "*/*"
-                ))
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Import Book")
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(
+                selected = selectedTab == LibraryTab.Library.ordinal,
+                onClick = { selectedTab = LibraryTab.Library.ordinal },
+                text = { Text("Library") }
+            )
+            Tab(
+                selected = selectedTab == LibraryTab.Bookmarks.ordinal,
+                onClick = { selectedTab = LibraryTab.Bookmarks.ordinal },
+                text = { Text("Bookmarks") }
+            )
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(books, key = { it.id.value }) { book ->
-                LibraryCard(book = book, onOpen = onOpen, onDelete = onDelete)
+        if (selectedTab == LibraryTab.Library.ordinal) {
+            // Import button
+            Button(
+                onClick = {
+                    filePickerLauncher.launch(
+                        arrayOf(
+                            "application/epub+zip",
+                            "application/x-mobipocket-ebook",
+                            "application/octet-stream",
+                            "*/*"
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Import Book")
+            }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(books, key = { it.id.value }) { book ->
+                    LibraryCard(book = book, onOpen = onOpen, onDelete = onDelete)
+                }
+            }
+        } else {
+            if (bookmarks.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No bookmarks yet",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(bookmarks, key = { it.bookmark.id }) { item ->
+                        BookmarkCard(
+                            item = item,
+                            onOpenBookmark = onOpenBookmark,
+                            onDeleteBookmark = onDeleteBookmark
+                        )
+                    }
+                }
             }
         }
     }
 }
+
+enum class LibraryTab { Library, Bookmarks }
 
 @Composable
 private fun LibraryCard(
@@ -175,6 +235,90 @@ private fun LibraryCard(
                     Icons.Default.Delete,
                     contentDescription = "Delete",
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookmarkCard(
+    item: BookmarkItem,
+    onOpenBookmark: (bookId: String, chapterIndex: Int, tokenIndex: Int) -> Unit,
+    onDeleteBookmark: (bookmarkId: String) -> Unit
+) {
+    val bookmark = item.bookmark
+    val book = item.book
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                onOpenBookmark(book.id.value, bookmark.chapterIndex, bookmark.tokenIndex)
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val coverImage = remember(book.coverImage) {
+                book.coverImage?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }?.asImageBitmap()
+            }
+            if (coverImage != null) {
+                Image(
+                    bitmap = coverImage,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Book,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = book.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "Chapter ${bookmark.chapterIndex + 1} • ${bookmark.previewText}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            IconButton(onClick = { onDeleteBookmark(bookmark.id) }) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete bookmark",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
