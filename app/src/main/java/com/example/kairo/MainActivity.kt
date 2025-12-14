@@ -44,7 +44,7 @@ import com.example.kairo.ui.reader.ReaderScreen
 import com.example.kairo.ui.rsvp.RsvpScreen
 import com.example.kairo.ui.settings.SettingsScreen
 import com.example.kairo.ui.theme.KairoTheme
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -102,17 +102,22 @@ private fun KairoNavHost(
 
     NavHost(navController = navController, startDestination = "library") {
         composable("library") {
-            LibraryScreen(
-                books = books,
-                bookmarks = bookmarks,
-                initialTab = LibraryTab.Library,
+	            LibraryScreen(
+	                books = books,
+	                bookmarks = bookmarks,
+	                initialTab = LibraryTab.Library,
                 onOpen = { book ->
                     // Navigate to reader - saved position will be restored there
                     navController.navigate("reader/${book.id.value}")
                 },
-                onOpenBookmark = { bookId, chapterIndex, tokenIndex ->
-                    navController.navigate("reader/$bookId/$chapterIndex/$tokenIndex")
-                },
+	                onOpenBookmark = { bookId, chapterIndex, tokenIndex ->
+	                    coroutineScope.launch(Dispatchers.IO) {
+	                        container.readingPositionRepository.savePosition(
+	                            ReadingPosition(BookId(bookId), chapterIndex, tokenIndex)
+	                        )
+	                    }
+	                    navController.navigate("reader/$bookId/$chapterIndex/$tokenIndex")
+	                },
                 onDeleteBookmark = { bookmarkId ->
                     coroutineScope.launch { container.bookmarkRepository.delete(bookmarkId) }
                 },
@@ -157,16 +162,21 @@ private fun KairoNavHost(
             } else {
                 LibraryTab.Library
             }
-            LibraryScreen(
-                books = books,
-                bookmarks = bookmarks,
-                initialTab = initialTab,
+	            LibraryScreen(
+	                books = books,
+	                bookmarks = bookmarks,
+	                initialTab = initialTab,
                 onOpen = { book ->
                     navController.navigate("reader/${book.id.value}")
                 },
-                onOpenBookmark = { bookId, chapterIndex, tokenIndex ->
-                    navController.navigate("reader/$bookId/$chapterIndex/$tokenIndex")
-                },
+	                onOpenBookmark = { bookId, chapterIndex, tokenIndex ->
+	                    coroutineScope.launch(Dispatchers.IO) {
+	                        container.readingPositionRepository.savePosition(
+	                            ReadingPosition(BookId(bookId), chapterIndex, tokenIndex)
+	                        )
+	                    }
+	                    navController.navigate("reader/$bookId/$chapterIndex/$tokenIndex")
+	                },
                 onDeleteBookmark = { bookmarkId ->
                     coroutineScope.launch { container.bookmarkRepository.delete(bookmarkId) }
                 },
@@ -536,20 +546,19 @@ private fun KairoNavHost(
                         ?.set("rsvp_result_token_index", resumeIndex)
                     navController.popBackStack()
                 },
-                onPositionChanged = { currentIndex ->
-                    // Save position (called on dispose, no navigation)
-                    // Use GlobalScope so save completes even when navigating away
-                    val safeIndex = if (tokens.isNotEmpty()) {
-                        currentIndex.coerceIn(0, tokens.lastIndex)
-                    } else {
-                        0
-                    }
-                    GlobalScope.launch {
-                        container.readingPositionRepository.savePosition(
-                            ReadingPosition(BookId(bookId), chapterIndex, safeIndex)
-                        )
-                    }
-                },
+	                onPositionChanged = { currentIndex ->
+	                    // Save position (called on dispose, no navigation)
+	                    val safeIndex = if (tokens.isNotEmpty()) {
+	                        currentIndex.coerceIn(0, tokens.lastIndex)
+	                    } else {
+	                        0
+	                    }
+	                    coroutineScope.launch(Dispatchers.IO) {
+	                        container.readingPositionRepository.savePosition(
+	                            ReadingPosition(BookId(bookId), chapterIndex, safeIndex)
+	                        )
+	                    }
+	                },
                 onWpmChange = { newWpm ->
                     coroutineScope.launch {
                         container.preferencesRepository.updateRsvpConfig { it.copy(baseWpm = newWpm) }
@@ -580,18 +589,23 @@ private fun KairoNavHost(
                         container.preferencesRepository.updateRsvpHorizontalBias(bias)
                     }
                 },
-                onExit = { index ->
-                    val resumeIndex = if (tokens.isNotEmpty()) {
-                        index.coerceIn(0, tokens.lastIndex)
-                    } else {
-                        index.coerceAtLeast(0)
-                    }
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("rsvp_result_token_index", resumeIndex)
-                    navController.popBackStack()
-                }
-            )
+	                onExit = { index ->
+	                    val resumeIndex = if (tokens.isNotEmpty()) {
+	                        index.coerceIn(0, tokens.lastIndex)
+	                    } else {
+	                        index.coerceAtLeast(0)
+	                    }
+	                    coroutineScope.launch(Dispatchers.IO) {
+	                        container.readingPositionRepository.savePosition(
+	                            ReadingPosition(BookId(bookId), chapterIndex, resumeIndex)
+	                        )
+	                    }
+	                    navController.previousBackStackEntry
+	                        ?.savedStateHandle
+	                        ?.set("rsvp_result_token_index", resumeIndex)
+	                    navController.popBackStack()
+	                }
+	            )
         }
 
         composable("settings") {

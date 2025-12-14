@@ -34,7 +34,8 @@ data class Bookmark(
 
 data class BookmarkItem(
     val bookmark: Bookmark,
-    val book: Book
+    val book: Book,
+    val chapterCount: Int
 )
 
 enum class TokenType { WORD, PUNCTUATION, PARAGRAPH_BREAK }

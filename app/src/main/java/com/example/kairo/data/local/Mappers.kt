@@ -73,5 +73,6 @@ fun Bookmark.toEntity(): BookmarkEntity =
 fun BookmarkWithBookEntity.toDomain(): BookmarkItem =
     BookmarkItem(
         bookmark = bookmark.toDomain(),
-        book = book.toDomain(chapters = emptyList())
+        book = book.toDomain(chapters = emptyList()),
+        chapterCount = chapterCount
     )

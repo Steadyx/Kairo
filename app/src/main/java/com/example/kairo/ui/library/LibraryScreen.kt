@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookmarkItem
+import kotlin.math.roundToInt
 
 @Composable
 fun LibraryScreen(
@@ -156,16 +157,37 @@ fun LibraryScreen(
                     )
                 }
             } else {
+                val grouped = remember(bookmarks) {
+                    bookmarks
+                        .groupBy { it.book.id.value }
+                        .values
+                        .map { group ->
+                            val first = group.first()
+                            group.sortedByDescending { it.bookmark.createdAt } to first
+                        }
+                        .sortedBy { (_, first) -> first.book.title.lowercase() }
+                }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(bookmarks, key = { it.bookmark.id }) { item ->
-                        BookmarkCard(
-                            item = item,
-                            onOpenBookmark = onOpenBookmark,
-                            onDeleteBookmark = onDeleteBookmark
-                        )
+                    grouped.forEach { (group, first) ->
+                        item(key = "header_${first.book.id.value}") {
+                            BookmarkBookHeader(
+                                book = first.book,
+                                bookmarkCount = group.size
+                            )
+                        }
+                        items(
+                            items = group,
+                            key = { it.bookmark.id }
+                        ) { item ->
+                            BookmarkRow(
+                                item = item,
+                                onOpenBookmark = onOpenBookmark,
+                                onDeleteBookmark = onDeleteBookmark
+                            )
+                        }
                     }
                 }
             }
@@ -242,61 +264,24 @@ private fun LibraryCard(
 }
 
 @Composable
-private fun BookmarkCard(
-    item: BookmarkItem,
-    onOpenBookmark: (bookId: String, chapterIndex: Int, tokenIndex: Int) -> Unit,
-    onDeleteBookmark: (bookmarkId: String) -> Unit
-) {
-    val bookmark = item.bookmark
-    val book = item.book
-
+private fun BookmarkBookHeader(book: Book, bookmarkCount: Int) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onOpenBookmark(book.id.value, bookmark.chapterIndex, bookmark.tokenIndex)
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+        shape = RoundedCornerShape(14.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val coverImage = remember(book.coverImage) {
-                book.coverImage?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }?.asImageBitmap()
-            }
-            if (coverImage != null) {
-                Image(
-                    bitmap = coverImage,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Book,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-                }
-            }
-
+            BookCover(
+                coverImage = book.coverImage,
+                title = book.title,
+                modifier = Modifier.size(width = 44.dp, height = 44.dp)
+            )
             Spacer(modifier = Modifier.width(12.dp))
-
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = book.title,
@@ -305,10 +290,69 @@ private fun BookmarkCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (book.authors.isNotEmpty()) {
+                    Text(
+                        text = book.authors.joinToString(", "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
                 Text(
-                    text = "Chapter ${bookmark.chapterIndex + 1} • ${bookmark.previewText}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "$bookmarkCount",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookmarkRow(
+    item: BookmarkItem,
+    onOpenBookmark: (bookId: String, chapterIndex: Int, tokenIndex: Int) -> Unit,
+    onDeleteBookmark: (bookmarkId: String) -> Unit
+) {
+    val bookmark = item.bookmark
+    val book = item.book
+    val chapterCount = item.chapterCount.coerceAtLeast(1)
+    val percent = remember(bookmark.chapterIndex, chapterCount) {
+        (((bookmark.chapterIndex + 1).toFloat() / chapterCount.toFloat()) * 100f)
+            .roundToInt()
+            .coerceIn(0, 100)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenBookmark(book.id.value, bookmark.chapterIndex, bookmark.tokenIndex) },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Chapter ${bookmark.chapterIndex + 1} / $chapterCount • $percent%",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = bookmark.previewText,
+                    style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
