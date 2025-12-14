@@ -14,7 +14,8 @@ data class Chapter(
     val index: Int,
     val title: String?,
     val htmlContent: String,
-    val plainText: String
+    val plainText: String,
+    val imagePaths: List<String> = emptyList()
 )
 
 data class ReadingPosition(

@@ -1,10 +1,12 @@
 package com.example.kairo.ui.reader
 
+import android.graphics.BitmapFactory
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -24,10 +26,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,8 +65,11 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -76,11 +84,13 @@ import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.ui.theme.MerriweatherFontFamily
+import coil.compose.AsyncImage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.roundToInt
@@ -152,11 +162,13 @@ fun ReaderScreen(
     val chapterIndex = uiState.chapterIndex
     val focusIndex = uiState.focusIndex
     val chapter = book.chapters.getOrNull(chapterIndex)
+    val coverImage = book.coverImage
 
     // Get paragraphs from pre-computed ChapterData (already done off-thread)
     val paragraphs = uiState.chapterData?.paragraphs ?: emptyList()
     val tokens = uiState.chapterData?.tokens ?: emptyList()
     val firstWordIndex = uiState.chapterData?.firstWordIndex ?: -1
+    val imagePaths = uiState.chapterData?.imagePaths ?: emptyList()
     val onSafeFocusChange = remember(tokens, onFocusChange) {
         { index: Int ->
             if (tokens.isNotEmpty()) {
@@ -174,6 +186,9 @@ fun ReaderScreen(
         }.coerceAtLeast(0)
     }
 
+    val listHeaderCount = remember(imagePaths) { if (imagePaths.isNotEmpty()) 1 else 0 }
+    val focusListIndex = remember(focusParagraphIndex, listHeaderCount) { focusParagraphIndex + listHeaderCount }
+
     // Use a key that changes when we need to reset the list position
     // This forces a new LazyListState with the correct initial position
     val listStateKey = remember(chapterIndex, uiState.chapterData) {
@@ -182,7 +197,7 @@ fun ReaderScreen(
 
     val listState = key(listStateKey) {
         rememberLazyListState(
-            initialFirstVisibleItemIndex = focusParagraphIndex
+            initialFirstVisibleItemIndex = focusListIndex
         )
     }
 
@@ -215,9 +230,9 @@ fun ReaderScreen(
     }
 
     // Scroll instantly when focus changes (e.g., returning from RSVP)
-    LaunchedEffect(focusParagraphIndex, listStateKey) {
-        if (paragraphs.isNotEmpty() && listState.firstVisibleItemIndex != focusParagraphIndex) {
-            listState.scrollToItem(focusParagraphIndex)
+    LaunchedEffect(focusListIndex, listStateKey) {
+        if (paragraphs.isNotEmpty() && listState.firstVisibleItemIndex != focusListIndex) {
+            listState.scrollToItem(focusListIndex)
         }
     }
 
@@ -257,6 +272,7 @@ fun ReaderScreen(
                 book = book,
                 chapterIndex = chapterIndex,
                 chapterTitle = chapter?.title,
+                coverImage = coverImage,
                 canGoPrevChapter = chapterIndex > 0,
                 canGoNextChapter = chapterIndex < book.chapters.lastIndex,
                 onPrevChapter = { onChapterChange((chapterIndex - 1).coerceAtLeast(0)) },
@@ -291,11 +307,11 @@ fun ReaderScreen(
                 }
             } else {
                 // LAZY paragraph-based rendering
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
+	                LazyColumn(
+	                    state = listState,
+	                    modifier = Modifier
+	                        .weight(1f)
+	                        .fillMaxWidth()
                         .then(
                             if (!invertedScroll) {
                                 Modifier
@@ -323,13 +339,18 @@ fun ReaderScreen(
                                 }
                             }
                         ),
-                    userScrollEnabled = !invertedScroll,
-                    verticalArrangement = Arrangement.spacedBy(18.dp) // Paragraph spacing
-                ) {
-                    itemsIndexed(
-                        items = paragraphs,
-                        key = { _, paragraph -> "${chapterIndex}_${paragraph.startIndex}" }
-                    ) { _, paragraph ->
+	                    userScrollEnabled = !invertedScroll,
+	                    verticalArrangement = Arrangement.spacedBy(18.dp) // Paragraph spacing
+	                ) {
+	                    if (imagePaths.isNotEmpty()) {
+	                        item(key = "chapter_images_$chapterIndex") {
+	                            ChapterImages(imagePaths = imagePaths)
+	                        }
+	                    }
+	                    itemsIndexed(
+	                        items = paragraphs,
+	                        key = { _, paragraph -> "${chapterIndex}_${paragraph.startIndex}" }
+	                    ) { _, paragraph ->
                         ParagraphText(
                             paragraph = paragraph,
                             focusIndex = focusIndex,
@@ -389,20 +410,20 @@ fun ReaderScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp)
-        ) {
-            var dragAccumulator by remember { mutableFloatStateOf(0f) }
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .pointerInput(focusParagraphIndex) {
-                        detectTapGestures(
-                            onLongPress = {
-                                coroutineScope.launch {
-                                    listState.animateScrollToItem(focusParagraphIndex)
-                                }
-                            }
-                        )
-                    }
+	        ) {
+	            var dragAccumulator by remember { mutableFloatStateOf(0f) }
+	            Box(
+	                contentAlignment = Alignment.Center,
+	                modifier = Modifier
+	                    .pointerInput(focusListIndex) {
+	                        detectTapGestures(
+	                            onLongPress = {
+	                                coroutineScope.launch {
+	                                    listState.animateScrollToItem(focusListIndex)
+	                                }
+	                            }
+	                        )
+	                    }
                     .pointerInput(tokens, focusIndex, invertedScroll) {
                         val thresholdPx = 22f
                         var gestureFocusIndex = 0
@@ -507,6 +528,7 @@ private fun ReaderHeader(
     book: Book,
     chapterIndex: Int,
     chapterTitle: String?,
+    coverImage: ByteArray?,
     canGoPrevChapter: Boolean,
     canGoNextChapter: Boolean,
     onPrevChapter: () -> Unit,
@@ -518,26 +540,48 @@ private fun ReaderHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = book.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = chapterTitle ?: "Chapter ${chapterIndex + 1}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = "Chapter ${chapterIndex + 1} of ${book.chapters.size}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.secondary
-            )
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (coverImage != null && coverImage.isNotEmpty()) {
+                val bitmap = remember(coverImage) {
+                    BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size)
+                }
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(width = 44.dp, height = 56.dp)
+                            .clip(RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+            }
+
+            Column {
+                Text(
+                    text = book.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = chapterTitle ?: "Chapter ${chapterIndex + 1}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "Chapter ${chapterIndex + 1} of ${book.chapters.size}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             IconButton(onClick = onPrevChapter, enabled = canGoPrevChapter) {
@@ -685,6 +729,43 @@ private fun ReaderMenuOverlay(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChapterImages(imagePaths: List<String>) {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = "Images",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(items = imagePaths, key = { it }) { relativePath ->
+                val file = remember(relativePath) { File(context.filesDir, relativePath) }
+                if (file.exists()) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        tonalElevation = 2.dp,
+                        modifier = Modifier
+                            .size(width = 220.dp, height = 160.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    ) {
+                        AsyncImage(
+                            model = file,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     }
 }
 

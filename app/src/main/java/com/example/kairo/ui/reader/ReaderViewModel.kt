@@ -135,7 +135,8 @@ class ReaderViewModel : ViewModel() {
             ChapterData(
                 tokens = tokens,
                 paragraphs = paragraphs,
-                firstWordIndex = firstWordIndex
+                firstWordIndex = firstWordIndex,
+                imagePaths = chapter.imagePaths
             )
         }
     }
@@ -200,7 +201,8 @@ data class ReaderUiState(
 data class ChapterData(
     val tokens: List<Token>,
     val paragraphs: List<Paragraph>,
-    val firstWordIndex: Int
+    val firstWordIndex: Int,
+    val imagePaths: List<String>
 )
 
 /**
@@ -245,3 +247,5 @@ fun List<Token>.toParagraphs(): List<Paragraph> {
 
     return paragraphs
 }
+
+ 

@@ -8,8 +8,8 @@ import com.example.kairo.core.model.Chapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.xml.sax.InputSource
-import java.io.ByteArrayInputStream
 import java.io.StringReader
+import java.io.File
 import java.util.UUID
 import java.util.zip.ZipInputStream
 import javax.xml.parsers.DocumentBuilderFactory
@@ -27,58 +27,42 @@ import javax.xml.parsers.DocumentBuilderFactory
 class EpubBookParser : BookParser {
 
     companion object {
-        // Max size per entry (5 MB) to prevent OOM on large embedded files
+        // Max size per text entry (5 MB) to prevent OOM on large embedded files
         private const val MAX_ENTRY_SIZE = 5 * 1024 * 1024
-        // Max total size for all text entries (50 MB) - images are skipped except cover
-        private const val MAX_TOTAL_SIZE = 50 * 1024 * 1024
+        // Max size per image entry (2 MB)
+        private const val MAX_IMAGE_ENTRY_SIZE = 2 * 1024 * 1024
+        // Max size for cover image entry (6 MB)
+        private const val MAX_COVER_IMAGE_ENTRY_SIZE = 6 * 1024 * 1024
+        // Max total size for extracted images (25 MB)
+        private const val MAX_TOTAL_IMAGE_SIZE = 25 * 1024 * 1024
         // Buffer size for reading entries
         private const val BUFFER_SIZE = 8192
-        // Max cover image size (1 MB)
-        private const val MAX_COVER_SIZE = 1 * 1024 * 1024
     }
 
     override suspend fun parse(context: Context, uri: Uri): Book = withContext(Dispatchers.IO) {
-        val zipEntries = mutableMapOf<String, ByteArray>()
-        var totalSize = 0L
+        val bookId = BookId(UUID.randomUUID().toString())
+        val zipTextEntries = mutableMapOf<String, ByteArray>() // key = lowercased path
 
-        // Extract files from the EPUB ZIP with size limits
-        // We only keep text/XML files and a single cover image to save memory
+        // Pass 1: read only text/XML resources (OPF, XHTML, container.xml) so we can discover
+        // the cover and referenced images without keeping all binary assets in memory.
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
             ZipInputStream(inputStream).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory) {
-                        val name = entry.name.lowercase()
-                        val isTextFile = name.endsWith(".xml") ||
-                                        name.endsWith(".xhtml") ||
-                                        name.endsWith(".html") ||
-                                        name.endsWith(".htm") ||
-                                        name.endsWith(".opf") ||
-                                        name.endsWith(".ncx")
-                        val isCoverImage = name.contains("cover") &&
-                                          (name.endsWith(".jpg") || name.endsWith(".jpeg") ||
-                                           name.endsWith(".png") || name.endsWith(".gif"))
+                        val nameLower = entry.name.lowercase()
+                        val isTextFile = nameLower.endsWith(".xml") ||
+                            nameLower.endsWith(".xhtml") ||
+                            nameLower.endsWith(".html") ||
+                            nameLower.endsWith(".htm") ||
+                            nameLower.endsWith(".opf") ||
+                            nameLower.endsWith(".ncx")
 
-                        // Skip non-essential files (CSS, fonts, non-cover images)
-                        if (!isTextFile && !isCoverImage) {
-                            zip.closeEntry()
-                            entry = zip.nextEntry
-                            continue
-                        }
-
-                        // Read entry with size limit using buffered approach
-                        val maxSize = if (isCoverImage) MAX_COVER_SIZE else MAX_ENTRY_SIZE
-                        val bytes = readEntryWithLimit(zip, maxSize)
-
-                        if (bytes != null) {
-                            totalSize += bytes.size
-
-                            // Stop if we've exceeded total size limit
-                            if (totalSize > MAX_TOTAL_SIZE) {
-                                break
+                        if (isTextFile) {
+                            val bytes = readEntryWithLimit(zip, MAX_ENTRY_SIZE)
+                            if (bytes != null) {
+                                zipTextEntries[entry.name.lowercase()] = bytes
                             }
-
-                            zipEntries[entry.name] = bytes
                         }
                     }
                     zip.closeEntry()
@@ -87,23 +71,22 @@ class EpubBookParser : BookParser {
             }
         } ?: throw IllegalArgumentException("Unable to read EPUB file")
 
-        // Debug: check what files we found
-        if (zipEntries.isEmpty()) {
+        if (zipTextEntries.isEmpty()) {
             throw IllegalArgumentException("EPUB file appears to be empty or corrupted")
         }
 
         // Parse container.xml to find the OPF file location
-        val containerXml = zipEntries["META-INF/container.xml"]
+        val containerXml = zipTextEntries["meta-inf/container.xml"]
 
         val opfPath = if (containerXml != null) {
             parseContainerXml(String(containerXml))
         } else {
             // Fallback: search for OPF file directly
-            zipEntries.keys.find { it.endsWith(".opf", ignoreCase = true) }
+            zipTextEntries.keys.find { it.endsWith(".opf", ignoreCase = true) }
                 ?: throw IllegalArgumentException("Invalid EPUB: cannot find OPF file")
         }
 
-        val opfContent = zipEntries[opfPath]
+        val opfContent = zipTextEntries[opfPath.lowercase()]
             ?: throw IllegalArgumentException("Invalid EPUB: missing OPF file at $opfPath")
 
         // Get the base directory of the OPF file for resolving relative paths
@@ -112,21 +95,94 @@ class EpubBookParser : BookParser {
         // Parse the OPF file
         val opfData = parseOpfFile(String(opfContent))
 
-        // Extract cover image if available
-        val coverImage = opfData.coverHref?.let { coverHref ->
-            val coverPath = resolvePath(opfDir, coverHref)
-            zipEntries[coverPath]
+        val coverPathLower = opfData.coverHref?.let { resolvePath(opfDir, it).lowercase() }
+
+        // Determine which image assets we need (cover + any chapter <img> references).
+        val neededImagePathsLower = mutableSetOf<String>()
+        coverPathLower?.let { neededImagePathsLower.add(it) }
+
+        val spineChapterPathsLower = opfData.spineItems.mapNotNull { spineItem ->
+            val href = opfData.manifest[spineItem.idref] ?: return@mapNotNull null
+            resolvePath(opfDir, href).lowercase()
+        }
+
+        spineChapterPathsLower.forEach { chapterPathLower ->
+            val chapterBytes = zipTextEntries[chapterPathLower] ?: return@forEach
+            val html = String(chapterBytes, Charsets.UTF_8)
+            val chapterDir = chapterPathLower.substringBeforeLast('/', "")
+            extractImageSrcs(html).forEach { rawSrc ->
+                val src = sanitizeSrc(rawSrc)
+                if (src.isBlank()) return@forEach
+                if (src.startsWith("data:", ignoreCase = true)) return@forEach
+                if (src.startsWith("http://", ignoreCase = true) || src.startsWith("https://", ignoreCase = true)) return@forEach
+                neededImagePathsLower.add(resolvePath(chapterDir, src).lowercase())
+            }
+        }
+
+        // Pass 2: extract the needed image bytes from the ZIP and persist them as files.
+        // This avoids storing large base64 blobs in the DB (which can crash CursorWindow).
+        val imageRelativePathByEpubPathLower = mutableMapOf<String, String>()
+        var totalImageBytes = 0L
+        var coverImage: ByteArray? = null
+
+        val imageDir = File(context.filesDir, "kairo_epub_assets/${bookId.value}/images")
+        val canWriteImages = runCatching { imageDir.mkdirs() || imageDir.exists() }.getOrDefault(false)
+
+        if (neededImagePathsLower.isNotEmpty()) {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                ZipInputStream(inputStream).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        if (!entry.isDirectory) {
+                            val nameLower = entry.name.lowercase()
+                            if (neededImagePathsLower.contains(nameLower)) {
+                                val maxEntrySize =
+                                    if (nameLower == coverPathLower) MAX_COVER_IMAGE_ENTRY_SIZE else MAX_IMAGE_ENTRY_SIZE
+                                val bytes = readEntryWithLimit(zip, maxEntrySize)
+                                if (bytes != null) {
+                                    totalImageBytes += bytes.size
+                                    if (totalImageBytes > MAX_TOTAL_IMAGE_SIZE) break
+                                    if (nameLower == coverPathLower) {
+                                        coverImage = bytes
+                                    }
+
+                                    if (canWriteImages) {
+                                        val fileName = buildImageFileName(nameLower)
+                                        val file = File(imageDir, fileName)
+                                        val wrote = runCatching {
+                                            file.outputStream().use { it.write(bytes) }
+                                            true
+                                        }.getOrDefault(false)
+                                        if (wrote) {
+                                            imageRelativePathByEpubPathLower[nameLower] =
+                                                "kairo_epub_assets/${bookId.value}/images/$fileName"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        zip.closeEntry()
+                        entry = zip.nextEntry
+                    }
+                }
+            }
         }
 
         // Parse chapters from spine
         val chapters = opfData.spineItems.mapIndexedNotNull { index, spineItem ->
             val href = opfData.manifest[spineItem.idref] ?: return@mapIndexedNotNull null
             val chapterPath = resolvePath(opfDir, href)
-            val chapterContent = zipEntries[chapterPath] ?: return@mapIndexedNotNull null
+            val chapterContent = zipTextEntries[chapterPath.lowercase()] ?: return@mapIndexedNotNull null
 
-            val htmlContent = String(chapterContent, Charsets.UTF_8)
-            val plainText = extractPlainText(htmlContent)
-            val title = extractChapterTitle(htmlContent) ?: spineItem.idref
+            val originalHtml = String(chapterContent, Charsets.UTF_8)
+            val chapterDir = chapterPath.substringBeforeLast('/', "")
+            val imagePaths = buildChapterImagePaths(
+                html = originalHtml,
+                baseDir = chapterDir,
+                imageRelativePathByEpubPathLower = imageRelativePathByEpubPathLower
+            )
+            val plainText = extractPlainText(originalHtml)
+            val title = extractChapterTitle(originalHtml) ?: spineItem.idref
 
             // Skip empty chapters
             if (plainText.isBlank()) return@mapIndexedNotNull null
@@ -134,8 +190,9 @@ class EpubBookParser : BookParser {
             Chapter(
                 index = index,
                 title = title,
-                htmlContent = htmlContent,
-                plainText = plainText
+                htmlContent = originalHtml,
+                plainText = plainText,
+                imagePaths = imagePaths
             )
         }.mapIndexed { newIndex, chapter ->
             // Re-index after filtering out empty chapters
@@ -148,12 +205,13 @@ class EpubBookParser : BookParser {
                 index = 0,
                 title = "Content",
                 htmlContent = "<p>No readable content found in this EPUB.</p>",
-                plainText = "No readable content found in this EPUB."
+                plainText = "No readable content found in this EPUB.",
+                imagePaths = emptyList()
             ))
         }
 
         Book(
-            id = BookId(UUID.randomUUID().toString()),
+            id = bookId,
             title = opfData.title ?: uri.lastPathSegment?.substringBeforeLast('.') ?: "Unknown Book",
             authors = opfData.authors,
             coverImage = coverImage,
@@ -243,16 +301,23 @@ class EpubBookParser : BookParser {
                 val mediaType = item.attributes.getNamedItem("media-type")?.nodeValue
 
                 manifest[id] = href
+                val isImage = mediaType?.startsWith("image/") == true ||
+                    href.endsWith(".jpg", ignoreCase = true) ||
+                    href.endsWith(".jpeg", ignoreCase = true) ||
+                    href.endsWith(".png", ignoreCase = true) ||
+                    href.endsWith(".gif", ignoreCase = true) ||
+                    href.endsWith(".webp", ignoreCase = true) ||
+                    href.endsWith(".svg", ignoreCase = true)
 
                 // Check if this is the cover image
-                if (id == coverId || (coverHref == null && mediaType?.startsWith("image/") == true &&
+                if ((id == coverId && isImage) || (coverHref == null && isImage &&
                         (id.contains("cover", ignoreCase = true) || href.contains("cover", ignoreCase = true)))) {
                     coverHref = href
                 }
 
                 // Method 2: Look for properties="cover-image" (EPUB 3)
                 val properties = item.attributes.getNamedItem("properties")?.nodeValue
-                if (properties?.contains("cover-image") == true) {
+                if (properties?.contains("cover-image") == true && isImage) {
                     coverHref = href
                 }
             }
@@ -297,6 +362,48 @@ class EpubBookParser : BookParser {
         }
 
         return baseParts.joinToString("/")
+    }
+
+    private fun extractImageSrcs(html: String): List<String> {
+        val regex = Regex("<img[^>]+?src\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>", RegexOption.IGNORE_CASE)
+        return regex.findAll(html).map { it.groupValues[1] }.toList()
+    }
+
+    private fun sanitizeSrc(src: String): String {
+        val trimmed = src.trim()
+        if (trimmed.isBlank()) return ""
+        return trimmed
+            .substringBefore('#')
+            .substringBefore('?')
+            .trim()
+    }
+
+    private fun buildChapterImagePaths(
+        html: String,
+        baseDir: String,
+        imageRelativePathByEpubPathLower: Map<String, String>
+    ): List<String> {
+        val unique = LinkedHashSet<String>(8)
+        val chapterSrcs = extractImageSrcs(html)
+        for (rawSrc in chapterSrcs) {
+            if (unique.size >= 6) break
+            val src = sanitizeSrc(rawSrc)
+            if (src.isBlank()) continue
+            if (src.startsWith("data:", ignoreCase = true)) continue
+            if (src.startsWith("http://", ignoreCase = true) || src.startsWith("https://", ignoreCase = true)) continue
+
+            val resolvedLower = resolvePath(baseDir, src).lowercase()
+            val relativePath = imageRelativePathByEpubPathLower[resolvedLower] ?: continue
+            unique.add(relativePath)
+        }
+        return unique.toList()
+    }
+
+    private fun buildImageFileName(epubPathLower: String): String {
+        val extRaw = epubPathLower.substringAfterLast('.', missingDelimiterValue = "")
+        val ext = extRaw.take(10).filter { it.isLetterOrDigit() }
+        val base = UUID.nameUUIDFromBytes(epubPathLower.toByteArray(Charsets.UTF_8)).toString()
+        return if (ext.isNotEmpty()) "img_$base.$ext" else "img_$base"
     }
 
     /**

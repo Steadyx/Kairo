@@ -6,6 +6,18 @@ import com.example.kairo.core.model.Bookmark
 import com.example.kairo.core.model.BookmarkItem
 import com.example.kairo.core.model.Chapter
 
+private const val IMAGE_PATHS_DELIMITER = "|||"
+
+private fun encodeImagePaths(paths: List<String>): String =
+    paths.asSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinct()
+        .joinToString(IMAGE_PATHS_DELIMITER)
+
+private fun decodeImagePaths(raw: String): List<String> =
+    if (raw.isBlank()) emptyList() else raw.split(IMAGE_PATHS_DELIMITER).filter { it.isNotBlank() }
+
 fun Book.toEntity(): BookEntity = BookEntity(
     id = id.value,
     title = title,
@@ -18,7 +30,8 @@ fun Chapter.toEntity(bookId: BookId): ChapterEntity = ChapterEntity(
     index = index,
     title = title,
     htmlContent = htmlContent,
-    plainText = plainText
+    plainText = plainText,
+    imagePaths = encodeImagePaths(imagePaths)
 )
 
 fun BookEntity.toDomain(chapters: List<ChapterEntity>): Book = Book(
@@ -33,7 +46,8 @@ fun ChapterEntity.toDomain(): Chapter = Chapter(
     index = index,
     title = title,
     htmlContent = htmlContent,
-    plainText = plainText
+    plainText = plainText,
+    imagePaths = decodeImagePaths(imagePaths)
 )
 
 fun ReadingPositionEntity.toDomain(): com.example.kairo.core.model.ReadingPosition =
