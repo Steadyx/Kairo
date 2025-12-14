@@ -7,12 +7,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -68,6 +69,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -81,6 +83,7 @@ import androidx.compose.ui.unit.sp
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
+import com.example.kairo.core.model.shouldInsertSpaceBeforeToken
 import com.example.kairo.ui.theme.MerriweatherFontFamily
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -94,15 +97,12 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.roundToInt
 
-// Opening quotes/brackets attach to the NEXT word (no space after them)
-private val openingQuotes = setOf('"', '\u201C', '\u2018', '(', '[', '{')
-// Closing punctuation attaches to the PREVIOUS word (no space before them)
-private val closingPunctuation = setOf('.', ',', ';', ':', '!', '?', '"', '\u201D', '\u2019', ')', ']', '}', '\u2014', '\u2013', '\u2026')
-
 private sealed interface InvertedScrollCommand {
     data class Drag(val dy: Float) : InvertedScrollCommand
     data class Fling(val velocityY: Float) : InvertedScrollCommand
 }
+
+private enum class Axis { Horizontal, Vertical }
 
 private suspend fun performInvertedFling(
     listState: androidx.compose.foundation.lazy.LazyListState,
@@ -214,7 +214,6 @@ fun ReaderScreen(
             when (command) {
                 is InvertedScrollCommand.Drag -> {
                     flingJob?.cancel()
-                    flingJob = null
                     listState.scrollBy(command.dy)
                 }
 
@@ -336,39 +335,82 @@ fun ReaderScreen(
                     )
                 }
             } else {
-                BoxWithConstraints(
+                val gestureModifier = Modifier.pointerInput(listStateKey, invertedScroll, chapterIndex) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val pointerId = down.id
+
+                        val touchSlop = viewConfiguration.touchSlop
+                        val swipeThreshold = touchSlop * 4f
+
+                        var totalX = 0f
+                        var totalY = 0f
+                        var axis: Axis? = null
+
+                        var tracker = VelocityTracker()
+                        tracker.addPosition(SystemClock.uptimeMillis(), down.position)
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                            if (!change.pressed) break
+
+                            val dx = change.position.x - change.previousPosition.x
+                            val dy = change.position.y - change.previousPosition.y
+                            totalX += dx
+                            totalY += dy
+
+                            if (axis == null) {
+                                val absX = abs(totalX)
+                                val absY = abs(totalY)
+                                if (absX > touchSlop || absY > touchSlop) {
+                                    axis = if (absX > absY) Axis.Horizontal else Axis.Vertical
+                                } else {
+                                    continue
+                                }
+                            }
+
+                            when (axis) {
+                                Axis.Horizontal -> Unit // wait for drag end to switch chapter
+                                Axis.Vertical -> {
+                                    if (!invertedScroll) {
+                                        // Let LazyColumn handle normal vertical scrolling.
+                                        break
+                                    }
+                                    tracker.addPosition(SystemClock.uptimeMillis(), change.position)
+                                    invertedScrollCommands.tryEmit(InvertedScrollCommand.Drag(dy))
+                                }
+                                null -> Unit
+                            }
+                        }
+
+                        when (axis) {
+                            Axis.Horizontal -> {
+                                when {
+                                    totalX <= -swipeThreshold -> onChapterChange((chapterIndex + 1).coerceAtMost(book.chapters.lastIndex))
+                                    totalX >= swipeThreshold -> onChapterChange((chapterIndex - 1).coerceAtLeast(0))
+                                }
+                            }
+                            Axis.Vertical -> {
+                                if (invertedScroll) {
+                                    val velocity = tracker.calculateVelocity().y
+                                    if (abs(velocity) > 200f) {
+                                        invertedScrollCommands.tryEmit(InvertedScrollCommand.Fling(velocity))
+                                    }
+                                }
+                            }
+                            null -> Unit
+                        }
+                    }
+                }
+
+                Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .then(
-                            if (!invertedScroll) {
-                                Modifier
-                            } else {
-                                Modifier.pointerInput(listStateKey, invertedScroll) {
-                                    var tracker = VelocityTracker()
-                                    detectVerticalDragGestures(
-                                        onDragStart = { offset ->
-                                            tracker = VelocityTracker()
-                                            tracker.addPosition(SystemClock.uptimeMillis(), offset)
-                                        },
-                                        onVerticalDrag = { change, dragAmount ->
-                                            change.consume()
-                                            tracker.addPosition(SystemClock.uptimeMillis(), change.position)
-                                            // Inverted scroll: apply drag delta directly (normal scroll uses -dy).
-                                            invertedScrollCommands.tryEmit(InvertedScrollCommand.Drag(dragAmount))
-                                        },
-                                        onDragEnd = {
-                                            val velocity = tracker.calculateVelocity().y
-                                            if (abs(velocity) > 200f) {
-                                                invertedScrollCommands.tryEmit(InvertedScrollCommand.Fling(velocity))
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        )
+                        .then(gestureModifier)
                 ) {
-                    val viewportHeight = maxHeight
+                    val viewportHeight = LocalConfiguration.current.screenHeightDp.dp
 
                     // LAZY paragraph-based rendering
                     LazyColumn(
@@ -501,7 +543,6 @@ fun ReaderScreen(
                             },
                             onDragEnd = { dragAccumulator = 0f },
                             onVerticalDrag = { change, dragAmount ->
-                                change.consume()
                                 if (tokens.isEmpty()) return@detectVerticalDragGestures
                                 dragAccumulator += dragAmount
                                 val steps = (dragAccumulator / thresholdPx).toInt()
@@ -855,24 +896,7 @@ private fun ParagraphText(
                 val globalIndex = paragraph.startIndex + localIndex
 
                 val prevToken = if (localIndex > 0) paragraph.tokens[localIndex - 1] else null
-                val prevWasOpeningQuote = prevToken?.type == TokenType.PUNCTUATION &&
-                    prevToken.text.length == 1 &&
-                    openingQuotes.contains(prevToken.text[0])
-
-                val isOpeningPunct = token.type == TokenType.PUNCTUATION &&
-                    token.text.length == 1 &&
-                    openingQuotes.contains(token.text[0])
-                val isClosingPunct = token.type == TokenType.PUNCTUATION &&
-                    token.text.length == 1 &&
-                    closingPunctuation.contains(token.text[0])
-
-                val needsSpaceBefore = when {
-                    localIndex == 0 -> false
-                    isClosingPunct -> false
-                    isOpeningPunct -> true
-                    prevWasOpeningQuote -> false
-                    else -> true
-                }
+                val needsSpaceBefore = shouldInsertSpaceBeforeToken(token, prevToken, localIndex)
 
                 if (needsSpaceBefore) append(" ")
 
