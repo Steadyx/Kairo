@@ -185,7 +185,53 @@ fun ReaderScreen(
         }.coerceAtLeast(0)
     }
 
-    val listHeaderCount = remember(imagePaths) { if (imagePaths.isNotEmpty()) 1 else 0 }
+    val isCoverChapter = chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
+    val wordCount = remember(tokens) { tokens.count { it.type == TokenType.WORD } }
+
+    val fullScreenTitlePageImagePath = remember(chapterIndex, isCoverChapter, imagePaths, wordCount) {
+        if (imagePaths.isEmpty()) return@remember null
+
+        when {
+            // If we already render a metadata cover image, the first extracted image in chapter 0 is often a duplicate
+            // cover. Prefer the second image as the title page (do not fall back to the first, to avoid rendering the
+            // same cover twice).
+            chapterIndex == 0 && isCoverChapter -> imagePaths.getOrNull(1)
+
+            // Some EPUBs store the title page as a single-image chapter (often chapter 1).
+            chapterIndex == 1 && imagePaths.size == 1 -> imagePaths.first()
+
+            // If we don't have a metadata cover, chapter 0's first image is usually the title page.
+            chapterIndex == 0 && !isCoverChapter -> imagePaths.first()
+
+            // Fallback: if the chapter has no words and only a single image, treat it as a full-page image chapter.
+            imagePaths.size == 1 && wordCount == 0 -> imagePaths.first()
+
+            else -> null
+        }
+    }
+
+    val headerCarouselImages = remember(chapterIndex, isCoverChapter, fullScreenTitlePageImagePath, imagePaths) {
+        if (imagePaths.isEmpty()) return@remember emptyList()
+
+        when {
+            chapterIndex == 0 && isCoverChapter -> {
+                val skip = when {
+                    fullScreenTitlePageImagePath == null -> 1
+                    imagePaths.size >= 2 -> 2
+                    else -> 1
+                }
+                imagePaths.drop(skip)
+            }
+            fullScreenTitlePageImagePath != null -> imagePaths.drop(1)
+            else -> imagePaths
+        }
+    }
+
+    val listHeaderCount = remember(isCoverChapter, fullScreenTitlePageImagePath, headerCarouselImages) {
+        (if (isCoverChapter) 1 else 0) +
+            (if (fullScreenTitlePageImagePath != null) 1 else 0) +
+            (if (headerCarouselImages.isNotEmpty()) 1 else 0)
+    }
     val focusListIndex = remember(focusParagraphIndex, listHeaderCount) { focusParagraphIndex + listHeaderCount }
 
     // Use a key that changes when we need to reset the list position
@@ -321,7 +367,7 @@ fun ReaderScreen(
                         CircularProgressIndicator()
                     }
                 }
-            } else if (paragraphs.isEmpty()) {
+            } else if (paragraphs.isEmpty() && !isCoverChapter && fullScreenTitlePageImagePath == null && headerCarouselImages.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -419,7 +465,6 @@ fun ReaderScreen(
                         userScrollEnabled = !invertedScroll,
                         verticalArrangement = Arrangement.spacedBy(18.dp) // Paragraph spacing
                     ) {
-                        val isCoverChapter = chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
                         if (isCoverChapter) {
                             item(key = "book_cover_full_${book.id.value}") {
                                 val context = LocalContext.current
@@ -446,9 +491,32 @@ fun ReaderScreen(
                                 }
                             }
                         }
-                        if (imagePaths.isNotEmpty() && !isCoverChapter) {
+                        if (fullScreenTitlePageImagePath != null) {
+                            item(key = "title_page_full_${book.id.value}_$fullScreenTitlePageImagePath") {
+                                val context = LocalContext.current
+                                val file = remember(fullScreenTitlePageImagePath) { File(context.filesDir, fullScreenTitlePageImagePath) }
+                                if (file.exists()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        tonalElevation = 2.dp,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(viewportHeight)
+                                            .clip(RoundedCornerShape(14.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = file,
+                                            contentDescription = "Title page of ${book.title}",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        if (headerCarouselImages.isNotEmpty()) {
                             item(key = "chapter_images_$chapterIndex") {
-                                ChapterImages(imagePaths = imagePaths)
+                                ChapterImages(imagePaths = headerCarouselImages)
                             }
                         }
                         itemsIndexed(
