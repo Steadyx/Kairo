@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.example.kairo.data.bookmarks.BookmarkRepository
 import com.example.kairo.data.bookmarks.BookmarkRepositoryImpl
-import com.example.kairo.core.rsvp.DefaultRsvpEngine
+import com.example.kairo.core.rsvp.ComprehensionRsvpEngine
 import com.example.kairo.core.rsvp.RsvpEngine
 import com.example.kairo.core.tokenization.Tokenizer
 import com.example.kairo.data.books.BookRepository
@@ -54,6 +54,6 @@ class AppContainer(private val context: Context) {
             database.bookmarkDao(),
             context.applicationContext
         )
-    val rsvpEngine: RsvpEngine = DefaultRsvpEngine()
+    val rsvpEngine: RsvpEngine = ComprehensionRsvpEngine()
     val sampleSeeder = SampleSeeder(database.bookDao())
 }

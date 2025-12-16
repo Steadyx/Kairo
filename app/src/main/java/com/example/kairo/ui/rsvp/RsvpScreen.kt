@@ -79,7 +79,6 @@ import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.core.rsvp.RsvpEngine
-import com.example.kairo.core.rsvp.RsvpPacing
 import com.example.kairo.ui.theme.InterFontFamily
 import com.example.kairo.ui.theme.RobotoFontFamily
 import kotlinx.coroutines.delay
@@ -91,6 +90,8 @@ fun RsvpScreen(
     tokens: List<Token>,
     startIndex: Int,
     config: RsvpConfig,
+    extremeSpeedUnlocked: Boolean,
+    onExtremeSpeedUnlockedChange: (Boolean) -> Unit,
     engine: RsvpEngine,
     readerTheme: ReaderTheme,
     focusModeEnabled: Boolean,
@@ -104,7 +105,7 @@ fun RsvpScreen(
     horizontalBias: Float = -0.12f,
     onFinished: (Int) -> Unit,
     onPositionChanged: (Int) -> Unit,  // Called to save position (no navigation)
-    onWpmChange: (Int) -> Unit,  // Called when WPM is adjusted via swipe
+    onTempoChange: (Long) -> Unit,  // Called when tempo is adjusted via swipe/slider
     onRsvpFontSizeChange: (Float) -> Unit, // Called when RSVP font size is adjusted
     onRsvpFontWeightChange: (RsvpFontWeight) -> Unit, // Called when RSVP font weight is adjusted
     onThemeChange: (ReaderTheme) -> Unit, // Called when theme is changed
@@ -112,18 +113,23 @@ fun RsvpScreen(
     onHorizontalBiasChange: (Float) -> Unit, // Called when left-bias is adjusted
     onExit: (Int) -> Unit  // Called to navigate back with resume index
 ) {
+    val safeMinTempoMsPerWord = 30L
+    val extremeMinTempoMsPerWord = 10L
+    val minTempoMsPerWord = if (extremeSpeedUnlocked) extremeMinTempoMsPerWord else safeMinTempoMsPerWord
+    val maxTempoMsPerWord = 240L
+
     // Resolve font family
     val resolvedFontFamily: FontFamily = when (fontFamily) {
         RsvpFontFamily.INTER -> InterFontFamily
         RsvpFontFamily.ROBOTO -> RobotoFontFamily
     }
 
-    // WPM adjustment state - use local state to avoid recomposition from config changes
-    var currentWpm by remember { mutableStateOf(config.baseWpm) }
-    var showWpmIndicator by remember { mutableStateOf(false) }
+    // Tempo adjustment state - use local state to avoid recomposition from config changes
+    var currentTempoMsPerWord by remember { mutableStateOf(config.tempoMsPerWord) }
+    var showTempoIndicator by remember { mutableStateOf(false) }
     var showFontSizeIndicator by remember { mutableStateOf(false) }
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
-    var dragStartWpm by remember { mutableStateOf(config.baseWpm) }
+    var dragStartTempoMsPerWord by remember { mutableStateOf(config.tempoMsPerWord) }
     var currentVerticalBias by remember { mutableStateOf(verticalBias) }
     var currentHorizontalBias by remember { mutableStateOf(horizontalBias) }
     var currentFontSizeSp by rememberSaveable { mutableFloatStateOf(fontSizeSp) }
@@ -136,17 +142,16 @@ fun RsvpScreen(
         RsvpFontWeight.MEDIUM -> FontWeight.Medium
     }
 
-    // Create a local config copy that uses currentWpm for frame generation
-    // This prevents frames from regenerating when only WPM changes
-    val localConfig = remember(config) { config }.copy(baseWpm = currentWpm)
-
-    // Only regenerate frames when tokens or startIndex change, NOT when WPM changes
-    // WPM only affects timing, which is computed per-frame during playback
-    val frames = remember(tokens, startIndex, config.wordsPerFrame, config.maxChunkLength) {
-        runCatching { engine.generateFrames(tokens, startIndex, config) }.getOrElse { emptyList() }
+    val effectiveConfig = remember(config, currentTempoMsPerWord) {
+        val derivedWpm = (60_000.0 / currentTempoMsPerWord.toDouble()).toInt().coerceAtLeast(1)
+        config.copy(tempoMsPerWord = currentTempoMsPerWord, baseWpm = derivedWpm)
+    }
+    val frames = remember(tokens, startIndex, effectiveConfig) {
+        runCatching { engine.generateFrames(tokens, startIndex, effectiveConfig) }.getOrElse { emptyList() }
     }
 
     var frameIndex by rememberSaveable { mutableStateOf(0) }
+    var currentTokenIndex by rememberSaveable { mutableStateOf(startIndex) }
     var isPlaying by rememberSaveable { mutableStateOf(true) }
     var completed by rememberSaveable { mutableStateOf(false) }
     var showControls by remember { mutableStateOf(false) }
@@ -181,7 +186,7 @@ fun RsvpScreen(
         isPlaying = false
         showControls = false
         showQuickSettings = false
-        showWpmIndicator = false
+        showTempoIndicator = false
         isPositioningMode = true
         isAdjustingPosition = true
     }
@@ -213,6 +218,7 @@ fun RsvpScreen(
     LaunchedEffect(frameIndex) {
         if (frames.isNotEmpty()) {
             val currentIndex = getCurrentTokenIndex()
+            currentTokenIndex = currentIndex
             val safeIndex = if (tokens.isNotEmpty()) {
                 tokens.nearestWordIndex(currentIndex)
             } else {
@@ -222,13 +228,22 @@ fun RsvpScreen(
         }
     }
 
-    // Reset state only when tokens or startIndex change (not when config/WPM changes)
+    // Keep the current frame aligned when frames are regenerated (e.g., tempo/profile changes).
+    LaunchedEffect(frames) {
+        if (frames.isEmpty()) return@LaunchedEffect
+        val target = currentTokenIndex
+        val idx = frames.indexOfLast { it.originalTokenIndex <= target }.let { if (it == -1) 0 else it }
+        frameIndex = idx.coerceIn(0, frames.lastIndex)
+    }
+
+    // Reset state only when tokens or startIndex change (not when config/tempo changes)
     LaunchedEffect(tokens, startIndex) {
         frameIndex = 0
+        currentTokenIndex = startIndex
         isPlaying = true
         completed = false
-        // Initialize WPM from config when starting a new RSVP session
-        currentWpm = config.baseWpm
+        // Initialize tempo from config when starting a new RSVP session
+        currentTempoMsPerWord = config.tempoMsPerWord
         // Initialize RSVP font size from prefs on new session
         currentFontSizeSp = fontSizeSp
         // Initialize RSVP font weight from prefs on new session
@@ -252,11 +267,11 @@ fun RsvpScreen(
         }
     }
 
-    // Auto-hide WPM indicator after a short delay
-    LaunchedEffect(showWpmIndicator) {
-        if (showWpmIndicator) {
+    // Auto-hide tempo indicator after a short delay
+    LaunchedEffect(showTempoIndicator) {
+        if (showTempoIndicator) {
             delay(1500)
-            showWpmIndicator = false
+            showTempoIndicator = false
         }
     }
 
@@ -287,13 +302,12 @@ fun RsvpScreen(
         return
     }
 
-    // RSVP playback logic with dynamic WPM adjustment
-    LaunchedEffect(isPlaying, frameIndex, completed, currentWpm) {
+    // RSVP playback logic
+    LaunchedEffect(isPlaying, frameIndex, completed, frames) {
         if (!isPlaying || completed) return@LaunchedEffect
         if (frameIndex >= frames.size) return@LaunchedEffect
         val frame = frames[frameIndex]
-        val playbackConfig = config.copy(baseWpm = currentWpm)
-        delay(RsvpPacing.playbackDelayMs(frames, frameIndex, playbackConfig))
+        delay(frame.durationMs.coerceAtLeast(30L))
         if (frameIndex == frames.lastIndex) {
             completed = true
             // Move to next token after the last frame's original token
@@ -311,19 +325,25 @@ fun RsvpScreen(
 
     val interactionSource = remember { MutableInteractionSource() }
 
-    // Swipe threshold for WPM adjustment (pixels needed for 10 WPM change)
-    val wpmSwipeThreshold = 30f
+    // Swipe threshold for tempo adjustment (pixels per 5ms change)
+    val tempoSwipeThreshold = 30f
+
+    val estimatedWpmForCurrentFrames = remember(frames) {
+        val wordCount = frames.sumOf { frame -> frame.tokens.count { it.type == TokenType.WORD } }.coerceAtLeast(1)
+        val totalMs = frames.sumOf { it.durationMs }.coerceAtLeast(1L)
+        ((wordCount * 60_000.0) / totalMs.toDouble()).toInt().coerceAtLeast(1)
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            // Restart gesture handler when persisted WPM changes, so we don't use stale config.
-            .pointerInput(config.baseWpm, isPositioningMode) {
+            // Restart gesture handler when persisted tempo changes, so we don't use stale config.
+            .pointerInput(config.tempoMsPerWord, isPositioningMode) {
                 detectVerticalDragGestures(
                     onDragStart = {
                         dragAccumulator = 0f
-                        dragStartWpm = currentWpm
+                        dragStartTempoMsPerWord = currentTempoMsPerWord
                         dragStartBias = currentVerticalBias
                     },
                     onDragEnd = {
@@ -332,9 +352,9 @@ fun RsvpScreen(
                                 onVerticalBiasChange(currentVerticalBias)
                             }
                         } else {
-                            // Persist the WPM change when drag ends
-                            if (currentWpm != dragStartWpm) {
-                                onWpmChange(currentWpm)
+                            // Persist the tempo change when drag ends
+                            if (currentTempoMsPerWord != dragStartTempoMsPerWord) {
+                                onTempoChange(currentTempoMsPerWord)
                             }
                         }
                         dragAccumulator = 0f
@@ -348,13 +368,14 @@ fun RsvpScreen(
                             isAdjustingPosition = true
                         } else {
                             dragAccumulator += dragAmount
-                            // Calculate WPM change: swipe up = decrease WPM, swipe down = increase WPM
-                            val wpmDelta = -(dragAccumulator / wpmSwipeThreshold).toInt() * 10
-                            if (wpmDelta != 0) {
-                                val newWpm = (dragStartWpm + wpmDelta).coerceIn(100, 800)
-                                if (newWpm != currentWpm) {
-                                    currentWpm = newWpm
-                                    showWpmIndicator = true
+                            // Swipe up = faster (lower tempo). Swipe down = slower (higher tempo).
+                            val tempoDeltaMs = (dragAccumulator / tempoSwipeThreshold).toInt() * 5L
+                            if (tempoDeltaMs != 0L) {
+                                val newTempo =
+                                    (dragStartTempoMsPerWord + tempoDeltaMs).coerceIn(minTempoMsPerWord, maxTempoMsPerWord)
+                                if (newTempo != currentTempoMsPerWord) {
+                                    currentTempoMsPerWord = newTempo
+                                    showTempoIndicator = true
                                 }
                             }
                         }
@@ -375,7 +396,7 @@ fun RsvpScreen(
                         // Toggle playback: tap to pause, tap again to resume.
                         if (!completed) {
                             isPlaying = !isPlaying
-                            showWpmIndicator = false
+                            showTempoIndicator = false
                             showFontSizeIndicator = false
                             showControls = !isPlaying
                         }
@@ -489,9 +510,9 @@ fun RsvpScreen(
             }
         }
 
-        // WPM indicator - shows when adjusting via swipe
+        // Pace indicator - shows when adjusting via swipe
         AnimatedVisibility(
-            visible = showWpmIndicator,
+            visible = showTempoIndicator,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter)
@@ -506,7 +527,7 @@ fun RsvpScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "$currentWpm WPM",
+                    text = "~$estimatedWpmForCurrentFrames WPM",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -779,28 +800,59 @@ fun RsvpScreen(
                     }
                 }
 
-                // WPM slider
+                // Tempo slider (speed)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        "WPM: $currentWpm",
+                        "Tempo: ${currentTempoMsPerWord}ms",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.width(90.dp)
                     )
                     Slider(
-                        value = currentWpm.toFloat(),
-                        onValueChange = { currentWpm = it.toInt() },
-                        onValueChangeFinished = { onWpmChange(currentWpm) },
-                        valueRange = 100f..800f,
+                        value = currentTempoMsPerWord.toFloat(),
+                        onValueChange = {
+                            currentTempoMsPerWord = it.toLong().coerceIn(minTempoMsPerWord, maxTempoMsPerWord)
+                        },
+                        onValueChangeFinished = { onTempoChange(currentTempoMsPerWord) },
+                        valueRange = minTempoMsPerWord.toFloat()..maxTempoMsPerWord.toFloat(),
                         modifier = Modifier.weight(1f)
                     )
                 }
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Unlock extreme speeds",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Allows down to ${extremeMinTempoMsPerWord}ms (can become unreadable).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = extremeSpeedUnlocked,
+                        onCheckedChange = { enabled ->
+                            onExtremeSpeedUnlockedChange(enabled)
+                            if (!enabled && currentTempoMsPerWord < safeMinTempoMsPerWord) {
+                                currentTempoMsPerWord = safeMinTempoMsPerWord
+                                onTempoChange(currentTempoMsPerWord)
+                            }
+                        }
+                    )
+                }
+
                 Text(
-                    "Swipe up/down to adjust WPM\nUse sliders to preview changes\nEnable Positioning mode to swipe text\nLong press to exit",
+                    "Swipe up/down to adjust speed\nUse sliders to preview changes\nEnable Positioning mode to swipe text\nLong press to exit",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

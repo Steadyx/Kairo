@@ -3,6 +3,7 @@
 .gradle-home/
 .gradle-user/
 .gradle-user-home/
+.gradle_user_home/
 /local.properties
 /.idea/caches
 /.idea/libraries
