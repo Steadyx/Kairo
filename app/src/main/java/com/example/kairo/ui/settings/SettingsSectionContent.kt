@@ -27,9 +27,11 @@ import com.example.kairo.core.rsvp.RsvpPaceEstimator
 fun ReaderSettingsContent(
     fontSizeSp: Float,
     readerTheme: ReaderTheme,
+    textBrightness: Float,
     invertedScroll: Boolean,
     onFontSizeChange: (Float) -> Unit,
     onThemeChange: (ReaderTheme) -> Unit,
+    onTextBrightnessChange: (Float) -> Unit,
     onInvertedScrollChange: (Boolean) -> Unit
 ) {
     SettingsSliderRow(
@@ -41,6 +43,15 @@ fun ReaderSettingsContent(
     )
 
     ThemeSelector(selected = readerTheme, onThemeChange = onThemeChange)
+
+    SettingsSliderRow(
+        title = "Text brightness",
+        subtitle = "Dims the reader text without changing the theme.",
+        valueLabel = "${(textBrightness.coerceIn(0.55f, 1.0f) * 100).toInt()}%",
+        value = textBrightness.coerceIn(0.55f, 1.0f),
+        onValueChange = { onTextBrightnessChange(it.coerceIn(0.55f, 1.0f)) },
+        valueRange = 0.55f..1.0f
+    )
 
     Text("Scrolling", style = MaterialTheme.typography.titleMedium)
     SettingsSwitchRow(
@@ -133,6 +144,7 @@ fun RsvpSettingsContent(
     config: RsvpConfig,
     unlockExtremeSpeed: Boolean,
     rsvpFontSizeSp: Float,
+    rsvpTextBrightness: Float,
     rsvpFontFamily: RsvpFontFamily,
     rsvpFontWeight: RsvpFontWeight,
     rsvpVerticalBias: Float,
@@ -140,6 +152,7 @@ fun RsvpSettingsContent(
     onConfigChange: (RsvpConfig) -> Unit,
     onUnlockExtremeSpeedChange: (Boolean) -> Unit,
     onRsvpFontSizeChange: (Float) -> Unit,
+    onRsvpTextBrightnessChange: (Float) -> Unit,
     onRsvpFontWeightChange: (RsvpFontWeight) -> Unit,
     onRsvpFontFamilyChange: (RsvpFontFamily) -> Unit,
     onRsvpVerticalBiasChange: (Float) -> Unit,
@@ -362,6 +375,15 @@ fun RsvpSettingsContent(
         value = rsvpFontSizeSp,
         onValueChange = { onRsvpFontSizeChange(it.coerceIn(28f, 64f)) },
         valueRange = 28f..64f
+    )
+
+    SettingsSliderRow(
+        title = "Text brightness",
+        subtitle = "Dims the RSVP word display without changing the theme.",
+        valueLabel = "${(rsvpTextBrightness.coerceIn(0.55f, 1.0f) * 100).toInt()}%",
+        value = rsvpTextBrightness.coerceIn(0.55f, 1.0f),
+        onValueChange = { onRsvpTextBrightnessChange(it.coerceIn(0.55f, 1.0f)) },
+        valueRange = 0.55f..1.0f
     )
 
     RsvpFontFamilySelector(selected = rsvpFontFamily, onFontFamilyChange = onRsvpFontFamilyChange)

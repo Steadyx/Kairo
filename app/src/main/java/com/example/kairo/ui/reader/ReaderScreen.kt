@@ -158,8 +158,10 @@ fun ReaderScreen(
     fontSizeSp: Float,
     invertedScroll: Boolean,
     readerTheme: ReaderTheme,
+    textBrightness: Float,
     onFontSizeChange: (Float) -> Unit,
     onThemeChange: (ReaderTheme) -> Unit,
+    onTextBrightnessChange: (Float) -> Unit,
     onInvertedScrollChange: (Boolean) -> Unit,
     focusModeEnabled: Boolean,
     onFocusModeEnabledChange: (Boolean) -> Unit,
@@ -538,6 +540,7 @@ fun ReaderScreen(
                                 paragraph = paragraph,
                                 focusIndex = focusIndex,
                                 fontSizeSp = fontSizeSp,
+                                textBrightness = textBrightness,
                                 onFocusChange = onSafeFocusChange,
                                 onStartRsvp = { tokenIndex ->
                                     if (!isRsvpEnabled) return@ParagraphText
@@ -568,9 +571,11 @@ fun ReaderScreen(
             ReaderMenuOverlay(
                 fontSizeSp = fontSizeSp,
                 readerTheme = readerTheme,
+                textBrightness = textBrightness,
                 invertedScroll = invertedScroll,
                 onFontSizeChange = onFontSizeChange,
                 onThemeChange = onThemeChange,
+                onTextBrightnessChange = onTextBrightnessChange,
                 onInvertedScrollChange = onInvertedScrollChange,
                 focusModeEnabled = focusModeEnabled,
                 onFocusModeEnabledChange = onFocusModeEnabledChange,
@@ -812,9 +817,11 @@ private fun ReaderHeader(
 private fun ReaderMenuOverlay(
     fontSizeSp: Float,
     readerTheme: ReaderTheme,
+    textBrightness: Float,
     invertedScroll: Boolean,
     onFontSizeChange: (Float) -> Unit,
     onThemeChange: (ReaderTheme) -> Unit,
+    onTextBrightnessChange: (Float) -> Unit,
     onInvertedScrollChange: (Boolean) -> Unit,
     focusModeEnabled: Boolean,
     onFocusModeEnabledChange: (Boolean) -> Unit,
@@ -903,9 +910,11 @@ private fun ReaderMenuOverlay(
                     ReaderSettingsContent(
                         fontSizeSp = fontSizeSp,
                         readerTheme = readerTheme,
+                        textBrightness = textBrightness,
                         invertedScroll = invertedScroll,
                         onFontSizeChange = onFontSizeChange,
                         onThemeChange = onThemeChange,
+                        onTextBrightnessChange = onTextBrightnessChange,
                         onInvertedScrollChange = onInvertedScrollChange
                     )
                 }
@@ -948,13 +957,14 @@ private fun ParagraphText(
     paragraph: Paragraph,
     focusIndex: Int,
     fontSizeSp: Float,
+    textBrightness: Float,
     onFocusChange: (Int) -> Unit,
     onStartRsvp: (Int) -> Unit
 ) {
     val baseStyle = TextStyle(
         fontFamily = MerriweatherFontFamily,
         fontSize = fontSizeSp.sp,
-        color = MaterialTheme.colorScheme.onBackground
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = textBrightness.coerceIn(0.55f, 1.0f))
     )
     val primary = MaterialTheme.colorScheme.primary
     val focusStyle = remember(primary) {

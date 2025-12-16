@@ -66,7 +66,7 @@ fun SystemBarsStyleSideEffect(
             window.isNavigationBarContrastEnforced = false
         }
 
-        val useDarkIcons = readerTheme != ReaderTheme.DARK
+        val useDarkIcons = readerTheme == ReaderTheme.LIGHT || readerTheme == ReaderTheme.SEPIA
         controller.isAppearanceLightStatusBars = useDarkIcons
         controller.isAppearanceLightNavigationBars = useDarkIcons
         onDispose { }

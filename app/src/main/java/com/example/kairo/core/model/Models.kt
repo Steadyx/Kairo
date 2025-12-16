@@ -164,9 +164,11 @@ data class UserPreferences(
     val rsvpConfig: RsvpConfig = RsvpConfig(),
     val readerFontSizeSp: Float = 20f,
     val readerTheme: ReaderTheme = ReaderTheme.SEPIA,
+    val readerTextBrightness: Float = 0.88f,
     val invertedScroll: Boolean = false,
     // RSVP-specific font settings (decoupled from reader)
     val rsvpFontSizeSp: Float = 44f,
+    val rsvpTextBrightness: Float = 0.88f,
     val rsvpFontWeight: RsvpFontWeight = RsvpFontWeight.LIGHT,
     val rsvpFontFamily: RsvpFontFamily = RsvpFontFamily.INTER,
     /**
@@ -190,7 +192,7 @@ data class UserPreferences(
     val focusApplyInRsvp: Boolean = true
 )
 
-enum class ReaderTheme { LIGHT, DARK, SEPIA }
+enum class ReaderTheme { LIGHT, DARK, SEPIA, NORD, CYBERPUNK, FOREST }
 
 enum class RsvpFontFamily { INTER, ROBOTO }
 

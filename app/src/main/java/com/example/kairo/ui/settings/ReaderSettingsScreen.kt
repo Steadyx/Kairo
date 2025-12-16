@@ -16,6 +16,7 @@ fun ReaderSettingsScreen(
     preferences: UserPreferences,
     onFontSizeChange: (Float) -> Unit,
     onThemeChange: (ReaderTheme) -> Unit,
+    onTextBrightnessChange: (Float) -> Unit,
     onInvertedScrollChange: (Boolean) -> Unit,
     onBack: () -> Unit
 ) {
@@ -31,9 +32,11 @@ fun ReaderSettingsScreen(
             ReaderSettingsContent(
                 fontSizeSp = preferences.readerFontSizeSp,
                 readerTheme = preferences.readerTheme,
+                textBrightness = preferences.readerTextBrightness,
                 invertedScroll = preferences.invertedScroll,
                 onFontSizeChange = onFontSizeChange,
                 onThemeChange = onThemeChange,
+                onTextBrightnessChange = onTextBrightnessChange,
                 onInvertedScrollChange = onInvertedScrollChange
             )
         }

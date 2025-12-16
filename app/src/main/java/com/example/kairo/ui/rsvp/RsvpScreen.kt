@@ -110,6 +110,7 @@ fun RsvpScreen(
     fontSizeSp: Float = 44f,
     fontFamily: RsvpFontFamily = RsvpFontFamily.INTER,
     fontWeight: RsvpFontWeight = RsvpFontWeight.LIGHT,
+    textBrightness: Float = 0.88f,
     verticalBias: Float = -0.15f,
     horizontalBias: Float = -0.12f,
     onFinished: (Int) -> Unit,
@@ -117,6 +118,7 @@ fun RsvpScreen(
     onTempoChange: (Long) -> Unit,  // Called when tempo is adjusted via swipe/slider
     onRsvpConfigChange: (RsvpConfig) -> Unit, // Called when RSVP timing profile settings change
     onRsvpFontSizeChange: (Float) -> Unit, // Called when RSVP font size is adjusted
+    onRsvpTextBrightnessChange: (Float) -> Unit, // Called when RSVP text brightness is adjusted
     onRsvpFontWeightChange: (RsvpFontWeight) -> Unit, // Called when RSVP font weight is adjusted
     onRsvpFontFamilyChange: (RsvpFontFamily) -> Unit, // Called when RSVP font family is adjusted
     onThemeChange: (ReaderTheme) -> Unit, // Called when theme is changed
@@ -132,6 +134,11 @@ fun RsvpScreen(
     var currentFontFamily by remember { mutableStateOf(fontFamily) }
     LaunchedEffect(fontFamily) {
         currentFontFamily = fontFamily
+    }
+
+    var currentTextBrightness by remember { mutableStateOf(textBrightness) }
+    LaunchedEffect(textBrightness) {
+        currentTextBrightness = textBrightness
     }
 
     // Resolve font family
@@ -270,6 +277,8 @@ fun RsvpScreen(
         currentFontWeight = fontWeight
         // Initialize RSVP font family from prefs on new session
         currentFontFamily = fontFamily
+        // Initialize RSVP text brightness from prefs on new session
+        currentTextBrightness = textBrightness
         // Initialize vertical bias from prefs on new session
         currentVerticalBias = verticalBias
         // Initialize horizontal bias from prefs on new session
@@ -435,7 +444,10 @@ fun RsvpScreen(
         val currentFrame = frames.getOrNull(frameIndex)
         val pivotColor = MaterialTheme.colorScheme.primary
         // Subtle line color - less vibrant than the pivot character
-        val pivotLineColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.15f)
+        val pivotLineColor = MaterialTheme.colorScheme.onBackground.copy(
+            alpha = (0.15f * currentTextBrightness.coerceIn(0.55f, 1.0f)).coerceIn(0f, 1f)
+        )
+        val rsvpTextColor = MaterialTheme.colorScheme.onBackground.copy(alpha = currentTextBrightness.coerceIn(0.55f, 1.0f))
 
         // The focus word(s) - rendered with ORP alignment and pivot markers
         // Offset upward by ~20% from center using padding
@@ -448,15 +460,15 @@ fun RsvpScreen(
                     verticalBias = currentVerticalBias.coerceIn(-0.7f, 0.7f)
                 )
             ) {
-                OrpAlignedText(
-                    tokens = frame.tokens,
-                    pivotColor = pivotColor,
-                    textColor = MaterialTheme.colorScheme.onBackground,
-                    pivotLineColor = pivotLineColor,
-                    fontSizeSp = currentFontSizeSp,
-                    fontFamily = resolvedFontFamily,
-                    fontWeight = resolvedFontWeight,
-                    horizontalBias = currentHorizontalBias
+                    OrpAlignedText(
+                        tokens = frame.tokens,
+                        pivotColor = pivotColor,
+                        textColor = rsvpTextColor,
+                        pivotLineColor = pivotLineColor,
+                        fontSizeSp = currentFontSizeSp,
+                        fontFamily = resolvedFontFamily,
+                        fontWeight = resolvedFontWeight,
+                        horizontalBias = currentHorizontalBias
                 )
             }
         }
@@ -751,6 +763,7 @@ fun RsvpScreen(
                         config = configForSettings,
                         unlockExtremeSpeed = extremeSpeedUnlocked,
                         rsvpFontSizeSp = currentFontSizeSp,
+                        rsvpTextBrightness = currentTextBrightness,
                         rsvpFontFamily = currentFontFamily,
                         rsvpFontWeight = currentFontWeight,
                         rsvpVerticalBias = currentVerticalBias,
@@ -764,6 +777,10 @@ fun RsvpScreen(
                             currentFontSizeSp = size
                             showFontSizeIndicator = true
                             onRsvpFontSizeChange(size)
+                        },
+                        onRsvpTextBrightnessChange = { brightness ->
+                            currentTextBrightness = brightness
+                            onRsvpTextBrightnessChange(brightness)
                         },
                         onRsvpFontWeightChange = { weight ->
                             currentFontWeight = weight

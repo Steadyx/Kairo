@@ -48,6 +48,7 @@ class PreferencesRepositoryImpl(
             }
         }
         .map { prefs ->
+        val defaults = UserPreferences()
         val derivedTempoMs = (prefs[keys.tempoMsPerWord] ?: run {
             val legacyWpm = prefs[legacyBaseWpmKey]
             when {
@@ -99,26 +100,28 @@ class PreferencesRepositoryImpl(
                 punctuationPauseFactor = prefs[keys.punctuationPause] ?: RsvpConfig().punctuationPauseFactor,
                 longWordMultiplier = prefs[keys.longWordMultiplier] ?: RsvpConfig().longWordMultiplier
             ),
-            readerFontSizeSp = prefs[keys.readerFontSize] ?: UserPreferences().readerFontSizeSp,
+            readerFontSizeSp = prefs[keys.readerFontSize] ?: defaults.readerFontSizeSp,
             readerTheme = prefs[keys.readerTheme]?.let { value ->
                 runCatching { ReaderTheme.valueOf(value) }.getOrNull()
-            } ?: UserPreferences().readerTheme,
-            invertedScroll = prefs[keys.invertedScroll] ?: UserPreferences().invertedScroll,
-            rsvpFontSizeSp = prefs[keys.rsvpFontSize] ?: UserPreferences().rsvpFontSizeSp,
+            } ?: defaults.readerTheme,
+            readerTextBrightness = (prefs[keys.readerTextBrightness] ?: defaults.readerTextBrightness).coerceIn(0.55f, 1.0f),
+            invertedScroll = prefs[keys.invertedScroll] ?: defaults.invertedScroll,
+            rsvpFontSizeSp = prefs[keys.rsvpFontSize] ?: defaults.rsvpFontSizeSp,
+            rsvpTextBrightness = (prefs[keys.rsvpTextBrightness] ?: defaults.rsvpTextBrightness).coerceIn(0.55f, 1.0f),
             rsvpFontWeight = prefs[keys.rsvpFontWeight]?.let { value ->
                 runCatching { RsvpFontWeight.valueOf(value) }.getOrNull()
-            } ?: UserPreferences().rsvpFontWeight,
+            } ?: defaults.rsvpFontWeight,
             rsvpFontFamily = prefs[keys.rsvpFontFamily]?.let { value ->
                 runCatching { RsvpFontFamily.valueOf(value) }.getOrNull()
-            } ?: UserPreferences().rsvpFontFamily,
-            rsvpVerticalBias = prefs[keys.rsvpVerticalBias] ?: UserPreferences().rsvpVerticalBias,
-            rsvpHorizontalBias = prefs[keys.rsvpHorizontalBias] ?: UserPreferences().rsvpHorizontalBias,
+            } ?: defaults.rsvpFontFamily,
+            rsvpVerticalBias = prefs[keys.rsvpVerticalBias] ?: defaults.rsvpVerticalBias,
+            rsvpHorizontalBias = prefs[keys.rsvpHorizontalBias] ?: defaults.rsvpHorizontalBias,
             unlockExtremeSpeed = prefs[keys.unlockExtremeSpeed] ?: (derivedTempoMs < 30L),
-            focusModeEnabled = prefs[keys.focusModeEnabled] ?: UserPreferences().focusModeEnabled,
-            focusHideStatusBar = prefs[keys.focusHideStatusBar] ?: UserPreferences().focusHideStatusBar,
-            focusPauseNotifications = prefs[keys.focusPauseNotifications] ?: UserPreferences().focusPauseNotifications,
-            focusApplyInReader = prefs[keys.focusApplyInReader] ?: UserPreferences().focusApplyInReader,
-            focusApplyInRsvp = prefs[keys.focusApplyInRsvp] ?: UserPreferences().focusApplyInRsvp
+            focusModeEnabled = prefs[keys.focusModeEnabled] ?: defaults.focusModeEnabled,
+            focusHideStatusBar = prefs[keys.focusHideStatusBar] ?: defaults.focusHideStatusBar,
+            focusPauseNotifications = prefs[keys.focusPauseNotifications] ?: defaults.focusPauseNotifications,
+            focusApplyInReader = prefs[keys.focusApplyInReader] ?: defaults.focusApplyInReader,
+            focusApplyInRsvp = prefs[keys.focusApplyInRsvp] ?: defaults.focusApplyInRsvp
         )
     }
 
@@ -173,6 +176,12 @@ class PreferencesRepositoryImpl(
         context.dataStore.edit { prefs -> prefs[keys.readerFontSize] = size }
     }
 
+    override suspend fun updateReaderTextBrightness(brightness: Float) {
+        context.dataStore.edit { prefs ->
+            prefs[keys.readerTextBrightness] = brightness.coerceIn(0.55f, 1.0f)
+        }
+    }
+
     override suspend fun updateTheme(theme: String) {
         context.dataStore.edit { prefs -> prefs[keys.readerTheme] = theme }
     }
@@ -183,6 +192,12 @@ class PreferencesRepositoryImpl(
 
     override suspend fun updateRsvpFontSize(size: Float) {
         context.dataStore.edit { prefs -> prefs[keys.rsvpFontSize] = size }
+    }
+
+    override suspend fun updateRsvpTextBrightness(brightness: Float) {
+        context.dataStore.edit { prefs ->
+            prefs[keys.rsvpTextBrightness] = brightness.coerceIn(0.55f, 1.0f)
+        }
     }
 
     override suspend fun updateRsvpFontWeight(weight: RsvpFontWeight) {
@@ -321,8 +336,10 @@ private object PrefKeys {
     val rampDownFrames = intPreferencesKey("ramp_down_frames")
     val readerFontSize = floatPreferencesKey("reader_font_size")
     val readerTheme = stringPreferencesKey("reader_theme")
+    val readerTextBrightness = floatPreferencesKey("reader_text_brightness")
     val invertedScroll = booleanPreferencesKey("inverted_scroll")
     val rsvpFontSize = floatPreferencesKey("rsvp_font_size")
+    val rsvpTextBrightness = floatPreferencesKey("rsvp_text_brightness")
     val rsvpFontWeight = stringPreferencesKey("rsvp_font_weight")
     val rsvpFontFamily = stringPreferencesKey("rsvp_font_family")
     val rsvpVerticalBias = floatPreferencesKey("rsvp_vertical_bias")
