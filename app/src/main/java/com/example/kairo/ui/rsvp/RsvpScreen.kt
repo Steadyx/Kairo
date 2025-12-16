@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -36,6 +38,8 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -79,6 +83,11 @@ import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.core.rsvp.RsvpEngine
+import com.example.kairo.ui.settings.RsvpSettingsContent
+import com.example.kairo.ui.settings.SettingsNavRow
+import com.example.kairo.ui.settings.SettingsSliderRow
+import com.example.kairo.ui.settings.SettingsSwitchRow
+import com.example.kairo.ui.settings.ThemeSelector
 import com.example.kairo.ui.theme.InterFontFamily
 import com.example.kairo.ui.theme.RobotoFontFamily
 import kotlinx.coroutines.delay
@@ -106,8 +115,10 @@ fun RsvpScreen(
     onFinished: (Int) -> Unit,
     onPositionChanged: (Int) -> Unit,  // Called to save position (no navigation)
     onTempoChange: (Long) -> Unit,  // Called when tempo is adjusted via swipe/slider
+    onRsvpConfigChange: (RsvpConfig) -> Unit, // Called when RSVP timing profile settings change
     onRsvpFontSizeChange: (Float) -> Unit, // Called when RSVP font size is adjusted
     onRsvpFontWeightChange: (RsvpFontWeight) -> Unit, // Called when RSVP font weight is adjusted
+    onRsvpFontFamilyChange: (RsvpFontFamily) -> Unit, // Called when RSVP font family is adjusted
     onThemeChange: (ReaderTheme) -> Unit, // Called when theme is changed
     onVerticalBiasChange: (Float) -> Unit, // Called when vertical position is adjusted
     onHorizontalBiasChange: (Float) -> Unit, // Called when left-bias is adjusted
@@ -118,8 +129,13 @@ fun RsvpScreen(
     val minTempoMsPerWord = if (extremeSpeedUnlocked) extremeMinTempoMsPerWord else safeMinTempoMsPerWord
     val maxTempoMsPerWord = 240L
 
+    var currentFontFamily by remember { mutableStateOf(fontFamily) }
+    LaunchedEffect(fontFamily) {
+        currentFontFamily = fontFamily
+    }
+
     // Resolve font family
-    val resolvedFontFamily: FontFamily = when (fontFamily) {
+    val resolvedFontFamily: FontFamily = when (currentFontFamily) {
         RsvpFontFamily.INTER -> InterFontFamily
         RsvpFontFamily.ROBOTO -> RobotoFontFamily
     }
@@ -134,6 +150,10 @@ fun RsvpScreen(
     var currentHorizontalBias by remember { mutableStateOf(horizontalBias) }
     var currentFontSizeSp by rememberSaveable { mutableFloatStateOf(fontSizeSp) }
     var currentFontWeight by remember { mutableStateOf(fontWeight) }
+
+    LaunchedEffect(config.tempoMsPerWord) {
+        currentTempoMsPerWord = config.tempoMsPerWord
+    }
 
     // Resolve font weight (live)
     val resolvedFontWeight: FontWeight = when (currentFontWeight) {
@@ -248,6 +268,8 @@ fun RsvpScreen(
         currentFontSizeSp = fontSizeSp
         // Initialize RSVP font weight from prefs on new session
         currentFontWeight = fontWeight
+        // Initialize RSVP font family from prefs on new session
+        currentFontFamily = fontFamily
         // Initialize vertical bias from prefs on new session
         currentVerticalBias = verticalBias
         // Initialize horizontal bias from prefs on new session
@@ -596,122 +618,61 @@ fun RsvpScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .fillMaxHeight(0.85f)
                     .navigationBarsPadding()
                     .background(
                         MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                         RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                     )
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    "Quick Settings",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                var showRsvpSettings by remember { mutableStateOf(false) }
 
-                // Theme selector (applies immediately)
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!showRsvpSettings) {
                     Text(
-                        "Theme",
-                        style = MaterialTheme.typography.bodyMedium,
+                        "Quick Settings",
+                        style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ReaderTheme.entries.forEach { theme ->
-                            OutlinedButton(
-                                onClick = { onThemeChange(theme) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(
-                                    text = theme.name.lowercase().replaceFirstChar { it.titlecase() },
-                                    color = if (theme == readerTheme) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
 
-                // Focus mode toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Focus mode",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Switch(
-                        checked = focusModeEnabled,
-                        onCheckedChange = onFocusModeEnabledChange
-                    )
-                }
-
-                // Bookmark current position
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { addBookmarkNow() }
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Add bookmark",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                // Open bookmarks list
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable {
+                    SettingsNavRow(
+                        title = "Bookmarks",
+                        subtitle = "Open saved bookmarks",
+                        icon = Icons.Default.Bookmark,
+                        onClick = {
                             showQuickSettings = false
                             onOpenBookmarks()
                         }
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Bookmarks",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Icon(
-                        Icons.Default.SkipNext,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    SettingsNavRow(
+                        title = "Add bookmark",
+                        subtitle = "Save this position",
+                        icon = Icons.Default.Bookmark,
+                        showChevron = false,
+                        onClick = { addBookmarkNow() }
                     )
-                }
 
-                // Positioning mode toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Positioning mode",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                    SettingsNavRow(
+                        title = "RSVP settings",
+                        subtitle = "Timing profile, readability, display",
+                        icon = Icons.Default.Settings,
+                        onClick = { showRsvpSettings = true }
                     )
-                    Switch(
+
+                    ThemeSelector(selected = readerTheme, onThemeChange = onThemeChange)
+
+                    SettingsSwitchRow(
+                        title = "Focus mode",
+                        subtitle = "Hide system chrome while reading.",
+                        checked = focusModeEnabled,
+                        onCheckedChange = onFocusModeEnabledChange
+                    )
+
+                    SettingsSwitchRow(
+                        title = "Positioning mode",
+                        subtitle = "Swipe to adjust text position.",
                         checked = isPositioningMode,
                         onCheckedChange = { enabled ->
                             if (enabled) {
@@ -721,125 +682,28 @@ fun RsvpScreen(
                             }
                         }
                     )
-                }
 
-                // RSVP font size slider (live preview)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
                     Text(
-                        "Text: ${currentFontSizeSp.toInt()}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.width(90.dp)
+                        "~$estimatedWpmForCurrentFrames WPM",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Slider(
-                        value = currentFontSizeSp,
-                        onValueChange = {
-                            currentFontSizeSp = it.coerceIn(28f, 80f)
-                            showFontSizeIndicator = true
-                        },
-                        onValueChangeFinished = {
-                            onRsvpFontSizeChange(currentFontSizeSp)
-                        },
-                        valueRange = 28f..80f,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
 
-                // Left bias slider
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        "Left: ${(currentHorizontalBias * 100).toInt()}%",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.width(90.dp)
-                    )
-                    Slider(
-                        value = currentHorizontalBias,
-                        onValueChange = { currentHorizontalBias = it.coerceIn(-0.6f, 0.6f) },
-                        onValueChangeFinished = { onHorizontalBiasChange(currentHorizontalBias) },
-                        valueRange = -0.6f..0.6f,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // RSVP font weight (live preview)
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "Weight",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        RsvpFontWeight.entries.forEach { weight ->
-                            OutlinedButton(
-                                onClick = {
-                                    currentFontWeight = weight
-                                    onRsvpFontWeightChange(weight)
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(
-                                    text = weight.name.lowercase().replaceFirstChar { it.titlecase() },
-                                    color = if (weight == currentFontWeight) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Tempo slider (speed)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        "Tempo: ${currentTempoMsPerWord}ms",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.width(90.dp)
-                    )
-                    Slider(
+                    SettingsSliderRow(
+                        title = "Tempo",
+                        subtitle = "Lower = faster.",
+                        valueLabel = "${currentTempoMsPerWord}ms",
                         value = currentTempoMsPerWord.toFloat(),
-                        onValueChange = {
-                            currentTempoMsPerWord = it.toLong().coerceIn(minTempoMsPerWord, maxTempoMsPerWord)
+                        onValueChange = { newValue ->
+                            currentTempoMsPerWord = newValue.toLong().coerceIn(minTempoMsPerWord, maxTempoMsPerWord)
                         },
                         onValueChangeFinished = { onTempoChange(currentTempoMsPerWord) },
-                        valueRange = minTempoMsPerWord.toFloat()..maxTempoMsPerWord.toFloat(),
-                        modifier = Modifier.weight(1f)
+                        valueRange = minTempoMsPerWord.toFloat()..maxTempoMsPerWord.toFloat()
                     )
-                }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Unlock extreme speeds",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "Allows down to ${extremeMinTempoMsPerWord}ms (can become unreadable).",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
+                    SettingsSwitchRow(
+                        title = "Unlock extreme speeds",
+                        subtitle = "Allows down to ${extremeMinTempoMsPerWord}ms (can become unreadable).",
                         checked = extremeSpeedUnlocked,
                         onCheckedChange = { enabled ->
                             onExtremeSpeedUnlockedChange(enabled)
@@ -849,13 +713,76 @@ fun RsvpScreen(
                             }
                         }
                     )
-                }
 
-                Text(
-                    "Swipe up/down to adjust speed\nUse sliders to preview changes\nEnable Positioning mode to swipe text\nLong press to exit",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                    SettingsSliderRow(
+                        title = "Text size",
+                        valueLabel = "${currentFontSizeSp.toInt()}sp",
+                        value = currentFontSizeSp,
+                        onValueChange = { newValue ->
+                            currentFontSizeSp = newValue.coerceIn(28f, 80f)
+                            showFontSizeIndicator = true
+                        },
+                        onValueChangeFinished = { onRsvpFontSizeChange(currentFontSizeSp) },
+                        valueRange = 28f..80f
+                    )
+
+                    Text(
+                        "Swipe up/down to adjust speed\nUse sliders to preview changes\nLong press to exit",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    SettingsNavRow(
+                        title = "Back",
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        showChevron = false,
+                        onClick = { showRsvpSettings = false }
+                    )
+                    Text(
+                        "RSVP settings",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    val configForSettings = remember(config, currentTempoMsPerWord) {
+                        config.copy(tempoMsPerWord = currentTempoMsPerWord)
+                    }
+                    RsvpSettingsContent(
+                        config = configForSettings,
+                        unlockExtremeSpeed = extremeSpeedUnlocked,
+                        rsvpFontSizeSp = currentFontSizeSp,
+                        rsvpFontFamily = currentFontFamily,
+                        rsvpFontWeight = currentFontWeight,
+                        rsvpVerticalBias = currentVerticalBias,
+                        rsvpHorizontalBias = currentHorizontalBias,
+                        onConfigChange = { updated ->
+                            currentTempoMsPerWord = updated.tempoMsPerWord
+                            onRsvpConfigChange(updated)
+                        },
+                        onUnlockExtremeSpeedChange = onExtremeSpeedUnlockedChange,
+                        onRsvpFontSizeChange = { size ->
+                            currentFontSizeSp = size
+                            showFontSizeIndicator = true
+                            onRsvpFontSizeChange(size)
+                        },
+                        onRsvpFontWeightChange = { weight ->
+                            currentFontWeight = weight
+                            onRsvpFontWeightChange(weight)
+                        },
+                        onRsvpFontFamilyChange = { family ->
+                            currentFontFamily = family
+                            onRsvpFontFamilyChange(family)
+                        },
+                        onRsvpVerticalBiasChange = { bias ->
+                            currentVerticalBias = bias
+                            onVerticalBiasChange(bias)
+                        },
+                        onRsvpHorizontalBiasChange = { bias ->
+                            currentHorizontalBias = bias
+                            onHorizontalBiasChange(bias)
+                        }
+                    )
+                }
             }
         }
 
