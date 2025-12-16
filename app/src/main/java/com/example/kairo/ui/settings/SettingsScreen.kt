@@ -40,6 +40,7 @@ import com.example.kairo.core.rsvp.RsvpPaceEstimator
 fun SettingsScreen(
     preferences: UserPreferences,
     onRsvpConfigChange: (RsvpConfig) -> Unit,
+    onUnlockExtremeSpeedChange: (Boolean) -> Unit,
     onFontSizeChange: (Float) -> Unit,
     onThemeChange: (ReaderTheme) -> Unit,
     onInvertedScrollChange: (Boolean) -> Unit,
@@ -78,6 +79,31 @@ fun SettingsScreen(
         }
         Text("Estimated pace: $estimatedWpm WPM", style = MaterialTheme.typography.bodyMedium)
 
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Unlock extreme speeds")
+                Text(
+                    "Allows very high speeds (can quickly become unreadable).",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Switch(
+                checked = preferences.unlockExtremeSpeed,
+                onCheckedChange = { enabled ->
+                    onUnlockExtremeSpeedChange(enabled)
+                    if (!enabled && preferences.rsvpConfig.tempoMsPerWord < 30L) {
+                        onRsvpConfigChange(preferences.rsvpConfig.copy(tempoMsPerWord = 30L))
+                    }
+                }
+            )
+        }
+
+        val minTempoMs = if (preferences.unlockExtremeSpeed) 10L else 30L
+
         Text("Tempo: ${preferences.rsvpConfig.tempoMsPerWord}ms per baseline word")
         Text(
             "Lower tempo = faster. This is the overall speed dial; everything else shapes readability.",
@@ -85,8 +111,14 @@ fun SettingsScreen(
         )
         Slider(
             value = preferences.rsvpConfig.tempoMsPerWord.toFloat(),
-            onValueChange = { onRsvpConfigChange(preferences.rsvpConfig.copy(tempoMsPerWord = it.toLong().coerceIn(60L, 240L))) },
-            valueRange = 60f..240f
+            onValueChange = {
+                onRsvpConfigChange(
+                    preferences.rsvpConfig.copy(
+                        tempoMsPerWord = it.toLong().coerceIn(minTempoMs, 240L)
+                    )
+                )
+            },
+            valueRange = minTempoMs.toFloat()..240f
         )
 
         Text("Minimum word time: ${preferences.rsvpConfig.minWordMs}ms")

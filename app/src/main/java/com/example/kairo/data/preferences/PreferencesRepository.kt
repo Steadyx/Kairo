@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 interface PreferencesRepository {
     val preferences: Flow<UserPreferences>
     suspend fun updateRsvpConfig(updater: (RsvpConfig) -> RsvpConfig)
+    suspend fun updateUnlockExtremeSpeed(enabled: Boolean)
     suspend fun updateFontSize(size: Float)
     suspend fun updateTheme(theme: String)
     suspend fun updateInvertedScroll(enabled: Boolean)

@@ -90,6 +90,8 @@ fun RsvpScreen(
     tokens: List<Token>,
     startIndex: Int,
     config: RsvpConfig,
+    extremeSpeedUnlocked: Boolean,
+    onExtremeSpeedUnlockedChange: (Boolean) -> Unit,
     engine: RsvpEngine,
     readerTheme: ReaderTheme,
     focusModeEnabled: Boolean,
@@ -111,6 +113,11 @@ fun RsvpScreen(
     onHorizontalBiasChange: (Float) -> Unit, // Called when left-bias is adjusted
     onExit: (Int) -> Unit  // Called to navigate back with resume index
 ) {
+    val safeMinTempoMsPerWord = 30L
+    val extremeMinTempoMsPerWord = 10L
+    val minTempoMsPerWord = if (extremeSpeedUnlocked) extremeMinTempoMsPerWord else safeMinTempoMsPerWord
+    val maxTempoMsPerWord = 240L
+
     // Resolve font family
     val resolvedFontFamily: FontFamily = when (fontFamily) {
         RsvpFontFamily.INTER -> InterFontFamily
@@ -364,7 +371,8 @@ fun RsvpScreen(
                             // Swipe up = faster (lower tempo). Swipe down = slower (higher tempo).
                             val tempoDeltaMs = (dragAccumulator / tempoSwipeThreshold).toInt() * 5L
                             if (tempoDeltaMs != 0L) {
-                                val newTempo = (dragStartTempoMsPerWord + tempoDeltaMs).coerceIn(60L, 240L)
+                                val newTempo =
+                                    (dragStartTempoMsPerWord + tempoDeltaMs).coerceIn(minTempoMsPerWord, maxTempoMsPerWord)
                                 if (newTempo != currentTempoMsPerWord) {
                                     currentTempoMsPerWord = newTempo
                                     showTempoIndicator = true
@@ -805,10 +813,41 @@ fun RsvpScreen(
                     )
                     Slider(
                         value = currentTempoMsPerWord.toFloat(),
-                        onValueChange = { currentTempoMsPerWord = it.toLong().coerceIn(60L, 240L) },
+                        onValueChange = {
+                            currentTempoMsPerWord = it.toLong().coerceIn(minTempoMsPerWord, maxTempoMsPerWord)
+                        },
                         onValueChangeFinished = { onTempoChange(currentTempoMsPerWord) },
-                        valueRange = 60f..240f,
+                        valueRange = minTempoMsPerWord.toFloat()..maxTempoMsPerWord.toFloat(),
                         modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Unlock extreme speeds",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Allows down to ${extremeMinTempoMsPerWord}ms (can become unreadable).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = extremeSpeedUnlocked,
+                        onCheckedChange = { enabled ->
+                            onExtremeSpeedUnlockedChange(enabled)
+                            if (!enabled && currentTempoMsPerWord < safeMinTempoMsPerWord) {
+                                currentTempoMsPerWord = safeMinTempoMsPerWord
+                                onTempoChange(currentTempoMsPerWord)
+                            }
+                        }
                     )
                 }
 

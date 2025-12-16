@@ -181,6 +181,7 @@ data class UserPreferences(
      * Default is slightly left to give long words more right-side space.
      */
     val rsvpHorizontalBias: Float = -0.12f,
+    val unlockExtremeSpeed: Boolean = false,
     // Focus mode
     val focusModeEnabled: Boolean = false,
     val focusHideStatusBar: Boolean = true,

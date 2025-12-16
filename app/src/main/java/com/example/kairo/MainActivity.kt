@@ -502,14 +502,20 @@ private fun KairoNavHost(
             val tokens = tokensState.value
 
             val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
-	            RsvpScreen(
-	                tokens = tokens,
-	                startIndex = startIndex.coerceAtLeast(0),
-	                config = prefs.rsvpConfig,
-	                engine = container.rsvpEngine,
-	                readerTheme = prefs.readerTheme,
-	                focusModeEnabled = focusEnabledInRsvp,
-	                onFocusModeEnabledChange = { enabled ->
+		            RsvpScreen(
+		                tokens = tokens,
+		                startIndex = startIndex.coerceAtLeast(0),
+		                config = prefs.rsvpConfig,
+                        extremeSpeedUnlocked = prefs.unlockExtremeSpeed,
+                        onExtremeSpeedUnlockedChange = { enabled ->
+                            coroutineScope.launch {
+                                container.preferencesRepository.updateUnlockExtremeSpeed(enabled)
+                            }
+                        },
+		                engine = container.rsvpEngine,
+		                readerTheme = prefs.readerTheme,
+		                focusModeEnabled = focusEnabledInRsvp,
+		                onFocusModeEnabledChange = { enabled ->
 	                    coroutineScope.launch {
 	                        if (enabled) {
 	                            if (!prefs.focusModeEnabled) {
@@ -625,18 +631,23 @@ private fun KairoNavHost(
 	            )
         }
 
-        composable("settings") {
-            SettingsScreen(
-                preferences = prefs,
-                onRsvpConfigChange = { config ->
-                    coroutineScope.launch { container.preferencesRepository.updateRsvpConfig { config } }
-                },
-                onFontSizeChange = { size ->
-                    coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
-                },
-                onThemeChange = { theme ->
-                    coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
-                },
+	        composable("settings") {
+	            SettingsScreen(
+	                preferences = prefs,
+	                onRsvpConfigChange = { config ->
+	                    coroutineScope.launch { container.preferencesRepository.updateRsvpConfig { config } }
+	                },
+                    onUnlockExtremeSpeedChange = { enabled ->
+                        coroutineScope.launch {
+                            container.preferencesRepository.updateUnlockExtremeSpeed(enabled)
+                        }
+                    },
+	                onFontSizeChange = { size ->
+	                    coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
+	                },
+	                onThemeChange = { theme ->
+	                    coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
+	                },
                 onInvertedScrollChange = { enabled ->
                     coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
                 },
