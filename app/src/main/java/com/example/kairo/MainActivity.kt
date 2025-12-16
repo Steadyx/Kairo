@@ -45,7 +45,10 @@ import com.example.kairo.ui.library.LibraryTab
 import com.example.kairo.ui.focus.FocusModeSideEffects
 import com.example.kairo.ui.reader.ReaderScreen
 import com.example.kairo.ui.rsvp.RsvpScreen
-import com.example.kairo.ui.settings.SettingsScreen
+import com.example.kairo.ui.settings.FocusSettingsScreen
+import com.example.kairo.ui.settings.ReaderSettingsScreen
+import com.example.kairo.ui.settings.RsvpSettingsScreen
+import com.example.kairo.ui.settings.SettingsHomeScreen
 import com.example.kairo.ui.theme.KairoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -297,16 +300,26 @@ private fun KairoNavHost(
             }
 
             val focusEnabledInReader = prefs.focusModeEnabled && prefs.focusApplyInReader
-	            ReaderScreen(
-	                book = book,
-	                uiState = effectiveUiState,
-	                fontSizeSp = prefs.readerFontSizeSp,
-	                invertedScroll = prefs.invertedScroll,
-	                focusModeEnabled = focusEnabledInReader,
-	                onFocusModeEnabledChange = { enabled ->
-	                    coroutineScope.launch {
-	                        if (enabled) {
-	                            if (!prefs.focusModeEnabled) {
+		            ReaderScreen(
+		                book = book,
+		                uiState = effectiveUiState,
+		                fontSizeSp = prefs.readerFontSizeSp,
+		                invertedScroll = prefs.invertedScroll,
+                        readerTheme = prefs.readerTheme,
+                        onFontSizeChange = { size ->
+                            coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
+                        },
+                        onThemeChange = { theme ->
+                            coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
+                        },
+                        onInvertedScrollChange = { enabled ->
+                            coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
+                        },
+		                focusModeEnabled = focusEnabledInReader,
+		                onFocusModeEnabledChange = { enabled ->
+		                    coroutineScope.launch {
+		                        if (enabled) {
+		                            if (!prefs.focusModeEnabled) {
 	                                container.preferencesRepository.updateFocusModeEnabled(true)
 	                            }
 	                            container.preferencesRepository.updateFocusApplyInReader(true)
@@ -429,11 +442,21 @@ private fun KairoNavHost(
 		                uiState = effectiveUiState,
 		                fontSizeSp = prefs.readerFontSizeSp,
 		                invertedScroll = prefs.invertedScroll,
+                        readerTheme = prefs.readerTheme,
+                        onFontSizeChange = { size ->
+                            coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
+                        },
+                        onThemeChange = { theme ->
+                            coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
+                        },
+                        onInvertedScrollChange = { enabled ->
+                            coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
+                        },
 		                focusModeEnabled = focusEnabledInReader,
 		                onFocusModeEnabledChange = { enabled ->
-	                    coroutineScope.launch {
-	                        if (enabled) {
-	                            if (!prefs.focusModeEnabled) {
+		                    coroutineScope.launch {
+		                        if (enabled) {
+		                            if (!prefs.focusModeEnabled) {
 	                                container.preferencesRepository.updateFocusModeEnabled(true)
 	                            }
 	                            container.preferencesRepository.updateFocusApplyInReader(true)
@@ -503,56 +526,56 @@ private fun KairoNavHost(
 
             val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
 		            RsvpScreen(
-		                tokens = tokens,
-		                startIndex = startIndex.coerceAtLeast(0),
-		                config = prefs.rsvpConfig,
-                        extremeSpeedUnlocked = prefs.unlockExtremeSpeed,
-                        onExtremeSpeedUnlockedChange = { enabled ->
-                            coroutineScope.launch {
-                                container.preferencesRepository.updateUnlockExtremeSpeed(enabled)
-                            }
-                        },
-		                engine = container.rsvpEngine,
-		                readerTheme = prefs.readerTheme,
-		                focusModeEnabled = focusEnabledInRsvp,
-		                onFocusModeEnabledChange = { enabled ->
-	                    coroutineScope.launch {
-	                        if (enabled) {
-	                            if (!prefs.focusModeEnabled) {
-	                                container.preferencesRepository.updateFocusModeEnabled(true)
+			                tokens = tokens,
+			                startIndex = startIndex.coerceAtLeast(0),
+			                config = prefs.rsvpConfig,
+	                        extremeSpeedUnlocked = prefs.unlockExtremeSpeed,
+	                        onExtremeSpeedUnlockedChange = { enabled ->
+	                            coroutineScope.launch {
+	                                container.preferencesRepository.updateUnlockExtremeSpeed(enabled)
 	                            }
-	                            container.preferencesRepository.updateFocusApplyInRsvp(true)
-	                        } else {
-	                            container.preferencesRepository.updateFocusApplyInRsvp(false)
-	                        }
-	                    }
-	                },
-	                onAddBookmark = { tokenIndex, previewText ->
-	                    coroutineScope.launch {
-	                        val id = "$bookId:$chapterIndex:$tokenIndex"
-	                        container.bookmarkRepository.add(
-	                            Bookmark(
-	                                id = id,
-	                                bookId = BookId(bookId),
-	                                chapterIndex = chapterIndex,
-	                                tokenIndex = tokenIndex,
-	                                previewText = previewText,
-	                                createdAt = System.currentTimeMillis()
-	                            )
-	                        )
-	                        Toast.makeText(context, "Bookmark added", Toast.LENGTH_SHORT).show()
-	                    }
-	                },
-	                onOpenBookmarks = {
-	                    navController.navigate("library?tab=bookmarks") {
-	                        popUpTo("library") { inclusive = false }
-	                    }
-	                },
-	                fontSizeSp = prefs.rsvpFontSizeSp,
-	                fontFamily = prefs.rsvpFontFamily,
-	                fontWeight = prefs.rsvpFontWeight,
-	                verticalBias = prefs.rsvpVerticalBias,
-                horizontalBias = prefs.rsvpHorizontalBias,
+	                        },
+			                engine = container.rsvpEngine,
+			                readerTheme = prefs.readerTheme,
+			                focusModeEnabled = focusEnabledInRsvp,
+			                onFocusModeEnabledChange = { enabled ->
+		                    coroutineScope.launch {
+		                        if (enabled) {
+		                            if (!prefs.focusModeEnabled) {
+		                                container.preferencesRepository.updateFocusModeEnabled(true)
+		                            }
+		                            container.preferencesRepository.updateFocusApplyInRsvp(true)
+		                        } else {
+		                            container.preferencesRepository.updateFocusApplyInRsvp(false)
+		                        }
+		                    }
+		                },
+		                onAddBookmark = { tokenIndex, previewText ->
+		                    coroutineScope.launch {
+		                        val id = "$bookId:$chapterIndex:$tokenIndex"
+		                        container.bookmarkRepository.add(
+		                            Bookmark(
+		                                id = id,
+		                                bookId = BookId(bookId),
+		                                chapterIndex = chapterIndex,
+		                                tokenIndex = tokenIndex,
+		                                previewText = previewText,
+		                                createdAt = System.currentTimeMillis()
+		                            )
+		                        )
+		                        Toast.makeText(context, "Bookmark added", Toast.LENGTH_SHORT).show()
+		                    }
+		                },
+		                onOpenBookmarks = {
+		                    navController.navigate("library?tab=bookmarks") {
+		                        popUpTo("library") { inclusive = false }
+		                    }
+		                },
+		                fontSizeSp = prefs.rsvpFontSizeSp,
+		                fontFamily = prefs.rsvpFontFamily,
+		                fontWeight = prefs.rsvpFontWeight,
+		                verticalBias = prefs.rsvpVerticalBias,
+	                horizontalBias = prefs.rsvpHorizontalBias,
                 onFinished = { lastIndex ->
                     val resumeIndex = if (tokens.isNotEmpty()) {
                         lastIndex.coerceIn(0, tokens.lastIndex)
@@ -582,108 +605,139 @@ private fun KairoNavHost(
 	                        )
 	                    }
 	                },
-                onTempoChange = { tempoMsPerWord ->
-                    coroutineScope.launch {
-                        container.preferencesRepository.updateRsvpConfig { it.copy(tempoMsPerWord = tempoMsPerWord) }
-                    }
-                },
-                onRsvpFontSizeChange = { size ->
-                    coroutineScope.launch {
-                        container.preferencesRepository.updateRsvpFontSize(size)
-                    }
-                },
-                onRsvpFontWeightChange = { weight ->
-                    coroutineScope.launch {
-                        container.preferencesRepository.updateRsvpFontWeight(weight)
-                    }
-                },
-                onThemeChange = { theme ->
-                    coroutineScope.launch {
-                        container.preferencesRepository.updateTheme(theme.name)
-                    }
-                },
-                onVerticalBiasChange = { bias ->
-                    coroutineScope.launch {
-                        container.preferencesRepository.updateRsvpVerticalBias(bias)
-                    }
-                },
-                onHorizontalBiasChange = { bias ->
-                    coroutineScope.launch {
-                        container.preferencesRepository.updateRsvpHorizontalBias(bias)
-                    }
-                },
-	                onExit = { index ->
-	                    val resumeIndex = if (tokens.isNotEmpty()) {
-	                        index.coerceIn(0, tokens.lastIndex)
-	                    } else {
-	                        index.coerceAtLeast(0)
+	                onTempoChange = { tempoMsPerWord ->
+	                    coroutineScope.launch {
+	                        container.preferencesRepository.updateRsvpConfig { it.copy(tempoMsPerWord = tempoMsPerWord) }
 	                    }
-	                    coroutineScope.launch(Dispatchers.IO) {
-	                        container.readingPositionRepository.savePosition(
-	                            ReadingPosition(BookId(bookId), chapterIndex, resumeIndex)
-	                        )
+	                },
+                    onRsvpConfigChange = { updated ->
+                        coroutineScope.launch {
+                            container.preferencesRepository.updateRsvpConfig { updated }
+                        }
+                    },
+	                onRsvpFontSizeChange = { size ->
+	                    coroutineScope.launch {
+	                        container.preferencesRepository.updateRsvpFontSize(size)
 	                    }
-	                    navController.previousBackStackEntry
-	                        ?.savedStateHandle
-	                        ?.set("rsvp_result_token_index", resumeIndex)
-	                    navController.popBackStack()
-	                }
-	            )
-        }
+	                },
+	                onRsvpFontWeightChange = { weight ->
+	                    coroutineScope.launch {
+	                        container.preferencesRepository.updateRsvpFontWeight(weight)
+	                    }
+	                },
+	                onRsvpFontFamilyChange = { family ->
+	                    coroutineScope.launch {
+	                        container.preferencesRepository.updateRsvpFontFamily(family)
+	                    }
+	                },
+	                onThemeChange = { theme ->
+	                    coroutineScope.launch {
+	                        container.preferencesRepository.updateTheme(theme.name)
+	                    }
+	                },
+	                onVerticalBiasChange = { bias ->
+	                    coroutineScope.launch {
+	                        container.preferencesRepository.updateRsvpVerticalBias(bias)
+	                    }
+	                },
+	                onHorizontalBiasChange = { bias ->
+	                    coroutineScope.launch {
+	                        container.preferencesRepository.updateRsvpHorizontalBias(bias)
+	                    }
+	                },
+		                onExit = { index ->
+		                    val resumeIndex = if (tokens.isNotEmpty()) {
+		                        index.coerceIn(0, tokens.lastIndex)
+		                    } else {
+		                        index.coerceAtLeast(0)
+		                    }
+		                    coroutineScope.launch(Dispatchers.IO) {
+		                        container.readingPositionRepository.savePosition(
+		                            ReadingPosition(BookId(bookId), chapterIndex, resumeIndex)
+		                        )
+		                    }
+		                    navController.previousBackStackEntry
+		                        ?.savedStateHandle
+		                        ?.set("rsvp_result_token_index", resumeIndex)
+		                    navController.popBackStack()
+		                }
+		            )
+	        }
 
 	        composable("settings") {
-	            SettingsScreen(
+	            SettingsHomeScreen(
+	                onOpenRsvp = { navController.navigate("settings/rsvp") },
+	                onOpenReader = { navController.navigate("settings/reader") },
+	                onOpenFocus = { navController.navigate("settings/focus") },
+	                onReset = { coroutineScope.launch { container.preferencesRepository.reset() } },
+	                onClose = { navController.popBackStack() }
+	            )
+	        }
+
+	        composable("settings/rsvp") {
+	            RsvpSettingsScreen(
 	                preferences = prefs,
 	                onRsvpConfigChange = { config ->
 	                    coroutineScope.launch { container.preferencesRepository.updateRsvpConfig { config } }
 	                },
-                    onUnlockExtremeSpeedChange = { enabled ->
-                        coroutineScope.launch {
-                            container.preferencesRepository.updateUnlockExtremeSpeed(enabled)
-                        }
-                    },
+	                onUnlockExtremeSpeedChange = { enabled ->
+	                    coroutineScope.launch { container.preferencesRepository.updateUnlockExtremeSpeed(enabled) }
+	                },
+	                onRsvpFontSizeChange = { size ->
+	                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontSize(size) }
+	                },
+	                onRsvpFontWeightChange = { weight ->
+	                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontWeight(weight) }
+	                },
+	                onRsvpFontFamilyChange = { family ->
+	                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontFamily(family) }
+	                },
+	                onRsvpVerticalBiasChange = { bias ->
+	                    coroutineScope.launch { container.preferencesRepository.updateRsvpVerticalBias(bias) }
+	                },
+	                onRsvpHorizontalBiasChange = { bias ->
+	                    coroutineScope.launch { container.preferencesRepository.updateRsvpHorizontalBias(bias) }
+	                },
+	                onBack = { navController.popBackStack() }
+	            )
+	        }
+
+	        composable("settings/reader") {
+	            ReaderSettingsScreen(
+	                preferences = prefs,
 	                onFontSizeChange = { size ->
 	                    coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
 	                },
 	                onThemeChange = { theme ->
 	                    coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
 	                },
-                onInvertedScrollChange = { enabled ->
-                    coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
-                },
-                onRsvpFontSizeChange = { size ->
-                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontSize(size) }
-                },
-                onRsvpFontWeightChange = { weight ->
-                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontWeight(weight) }
-                },
-                onRsvpFontFamilyChange = { family ->
-                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontFamily(family) }
-                },
-                onRsvpVerticalBiasChange = { bias ->
-                    coroutineScope.launch { container.preferencesRepository.updateRsvpVerticalBias(bias) }
-                },
-                onRsvpHorizontalBiasChange = { bias ->
-                    coroutineScope.launch { container.preferencesRepository.updateRsvpHorizontalBias(bias) }
-                },
-                onFocusModeEnabledChange = { enabled ->
-                    coroutineScope.launch { container.preferencesRepository.updateFocusModeEnabled(enabled) }
-                },
-                onFocusHideStatusBarChange = { enabled ->
-                    coroutineScope.launch { container.preferencesRepository.updateFocusHideStatusBar(enabled) }
-                },
-                onFocusPauseNotificationsChange = { enabled ->
-                    coroutineScope.launch { container.preferencesRepository.updateFocusPauseNotifications(enabled) }
-                },
-                onFocusApplyInReaderChange = { enabled ->
-                    coroutineScope.launch { container.preferencesRepository.updateFocusApplyInReader(enabled) }
-                },
-                onFocusApplyInRsvpChange = { enabled ->
-                    coroutineScope.launch { container.preferencesRepository.updateFocusApplyInRsvp(enabled) }
-                },
-                onReset = { coroutineScope.launch { container.preferencesRepository.reset() } },
-                onClose = { navController.popBackStack() }
-            )
-        }
+	                onInvertedScrollChange = { enabled ->
+	                    coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
+	                },
+	                onBack = { navController.popBackStack() }
+	            )
+	        }
+
+	        composable("settings/focus") {
+	            FocusSettingsScreen(
+	                preferences = prefs,
+	                onFocusModeEnabledChange = { enabled ->
+	                    coroutineScope.launch { container.preferencesRepository.updateFocusModeEnabled(enabled) }
+	                },
+	                onFocusHideStatusBarChange = { enabled ->
+	                    coroutineScope.launch { container.preferencesRepository.updateFocusHideStatusBar(enabled) }
+	                },
+	                onFocusPauseNotificationsChange = { enabled ->
+	                    coroutineScope.launch { container.preferencesRepository.updateFocusPauseNotifications(enabled) }
+	                },
+	                onFocusApplyInReaderChange = { enabled ->
+	                    coroutineScope.launch { container.preferencesRepository.updateFocusApplyInReader(enabled) }
+	                },
+	                onFocusApplyInRsvpChange = { enabled ->
+	                    coroutineScope.launch { container.preferencesRepository.updateFocusApplyInRsvp(enabled) }
+	                },
+	                onBack = { navController.popBackStack() }
+	            )
+	        }
     }
 }

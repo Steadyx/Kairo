@@ -12,6 +12,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
@@ -81,9 +84,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.kairo.core.model.Book
+import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.core.model.shouldInsertSpaceBeforeToken
+import com.example.kairo.ui.settings.ReaderSettingsContent
+import com.example.kairo.ui.settings.SettingsNavRow
+import com.example.kairo.ui.settings.SettingsSwitchRow
 import com.example.kairo.ui.theme.MerriweatherFontFamily
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -150,6 +157,10 @@ fun ReaderScreen(
     uiState: ReaderUiState,
     fontSizeSp: Float,
     invertedScroll: Boolean,
+    readerTheme: ReaderTheme,
+    onFontSizeChange: (Float) -> Unit,
+    onThemeChange: (ReaderTheme) -> Unit,
+    onInvertedScrollChange: (Boolean) -> Unit,
     focusModeEnabled: Boolean,
     onFocusModeEnabledChange: (Boolean) -> Unit,
     onAddBookmark: (chapterIndex: Int, tokenIndex: Int, previewText: String) -> Unit,
@@ -555,6 +566,12 @@ fun ReaderScreen(
         if (showReaderMenu) {
             BackHandler { showReaderMenu = false }
             ReaderMenuOverlay(
+                fontSizeSp = fontSizeSp,
+                readerTheme = readerTheme,
+                invertedScroll = invertedScroll,
+                onFontSizeChange = onFontSizeChange,
+                onThemeChange = onThemeChange,
+                onInvertedScrollChange = onInvertedScrollChange,
                 focusModeEnabled = focusModeEnabled,
                 onFocusModeEnabledChange = onFocusModeEnabledChange,
                 onAddBookmark = {
@@ -793,6 +810,12 @@ private fun ReaderHeader(
 
 @Composable
 private fun ReaderMenuOverlay(
+    fontSizeSp: Float,
+    readerTheme: ReaderTheme,
+    invertedScroll: Boolean,
+    onFontSizeChange: (Float) -> Unit,
+    onThemeChange: (ReaderTheme) -> Unit,
+    onInvertedScrollChange: (Boolean) -> Unit,
     focusModeEnabled: Boolean,
     onFocusModeEnabledChange: (Boolean) -> Unit,
     onAddBookmark: () -> Unit,
@@ -800,6 +823,9 @@ private fun ReaderMenuOverlay(
     onShowToc: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    var showReaderSettings by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -817,7 +843,9 @@ private fun ReaderMenuOverlay(
             tonalElevation = 3.dp
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Box(
@@ -828,77 +856,57 @@ private fun ReaderMenuOverlay(
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f))
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Focus mode",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                if (!showReaderSettings) {
+                    SettingsNavRow(
+                        title = "Bookmarks",
+                        subtitle = "Open saved bookmarks",
+                        icon = Icons.Default.Bookmark,
+                        onClick = onOpenBookmarks
                     )
-                    Switch(checked = focusModeEnabled, onCheckedChange = onFocusModeEnabledChange)
-                }
+                    SettingsNavRow(
+                        title = "Add bookmark",
+                        subtitle = "Save this position",
+                        icon = Icons.Default.Bookmark,
+                        showChevron = false,
+                        onClick = onAddBookmark
+                    )
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onAddBookmark() }
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Add bookmark",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                    SettingsNavRow(
+                        title = "Reader settings",
+                        subtitle = "Font size, theme, scrolling",
+                        icon = Icons.Default.Settings,
+                        onClick = { showReaderSettings = true }
                     )
-                }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onShowToc() }
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Table of contents",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                    SettingsSwitchRow(
+                        title = "Focus mode",
+                        subtitle = "Hide system chrome while reading.",
+                        checked = focusModeEnabled,
+                        onCheckedChange = onFocusModeEnabledChange
                     )
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onOpenBookmarks() }
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Bookmarks",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                    SettingsNavRow(
+                        title = "Table of contents",
+                        subtitle = "Jump to a chapter",
+                        icon = Icons.AutoMirrored.Filled.ArrowForward,
+                        showChevron = false,
+                        onClick = onShowToc
                     )
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                } else {
+                    SettingsNavRow(
+                        title = "Back",
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        showChevron = false,
+                        onClick = { showReaderSettings = false }
+                    )
+                    Text("Reader settings", style = MaterialTheme.typography.titleMedium)
+                    ReaderSettingsContent(
+                        fontSizeSp = fontSizeSp,
+                        readerTheme = readerTheme,
+                        invertedScroll = invertedScroll,
+                        onFontSizeChange = onFontSizeChange,
+                        onThemeChange = onThemeChange,
+                        onInvertedScrollChange = onInvertedScrollChange
                     )
                 }
             }
