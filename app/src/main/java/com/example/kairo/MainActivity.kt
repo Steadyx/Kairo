@@ -306,11 +306,15 @@ private fun KairoNavHost(
 		                fontSizeSp = prefs.readerFontSizeSp,
 		                invertedScroll = prefs.invertedScroll,
                         readerTheme = prefs.readerTheme,
+                        textBrightness = prefs.readerTextBrightness,
                         onFontSizeChange = { size ->
                             coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
                         },
                         onThemeChange = { theme ->
                             coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
+                        },
+                        onTextBrightnessChange = { brightness ->
+                            coroutineScope.launch { container.preferencesRepository.updateReaderTextBrightness(brightness) }
                         },
                         onInvertedScrollChange = { enabled ->
                             coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
@@ -443,11 +447,15 @@ private fun KairoNavHost(
 		                fontSizeSp = prefs.readerFontSizeSp,
 		                invertedScroll = prefs.invertedScroll,
                         readerTheme = prefs.readerTheme,
+                        textBrightness = prefs.readerTextBrightness,
                         onFontSizeChange = { size ->
                             coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
                         },
                         onThemeChange = { theme ->
                             coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
+                        },
+                        onTextBrightnessChange = { brightness ->
+                            coroutineScope.launch { container.preferencesRepository.updateReaderTextBrightness(brightness) }
                         },
                         onInvertedScrollChange = { enabled ->
                             coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
@@ -574,6 +582,7 @@ private fun KairoNavHost(
 		                fontSizeSp = prefs.rsvpFontSizeSp,
 		                fontFamily = prefs.rsvpFontFamily,
 		                fontWeight = prefs.rsvpFontWeight,
+                        textBrightness = prefs.rsvpTextBrightness,
 		                verticalBias = prefs.rsvpVerticalBias,
 	                horizontalBias = prefs.rsvpHorizontalBias,
                 onFinished = { lastIndex ->
@@ -615,16 +624,21 @@ private fun KairoNavHost(
                             container.preferencesRepository.updateRsvpConfig { updated }
                         }
                     },
-	                onRsvpFontSizeChange = { size ->
-	                    coroutineScope.launch {
-	                        container.preferencesRepository.updateRsvpFontSize(size)
-	                    }
-	                },
-	                onRsvpFontWeightChange = { weight ->
-	                    coroutineScope.launch {
-	                        container.preferencesRepository.updateRsvpFontWeight(weight)
-	                    }
-	                },
+		                onRsvpFontSizeChange = { size ->
+		                    coroutineScope.launch {
+		                        container.preferencesRepository.updateRsvpFontSize(size)
+		                    }
+		                },
+		                onRsvpTextBrightnessChange = { brightness ->
+		                    coroutineScope.launch {
+		                        container.preferencesRepository.updateRsvpTextBrightness(brightness)
+		                    }
+		                },
+		                onRsvpFontWeightChange = { weight ->
+		                    coroutineScope.launch {
+		                        container.preferencesRepository.updateRsvpFontWeight(weight)
+		                    }
+		                },
 	                onRsvpFontFamilyChange = { family ->
 	                    coroutineScope.launch {
 	                        container.preferencesRepository.updateRsvpFontFamily(family)
@@ -674,23 +688,26 @@ private fun KairoNavHost(
 	            )
 	        }
 
-	        composable("settings/rsvp") {
-	            RsvpSettingsScreen(
-	                preferences = prefs,
-	                onRsvpConfigChange = { config ->
-	                    coroutineScope.launch { container.preferencesRepository.updateRsvpConfig { config } }
-	                },
-	                onUnlockExtremeSpeedChange = { enabled ->
-	                    coroutineScope.launch { container.preferencesRepository.updateUnlockExtremeSpeed(enabled) }
-	                },
-	                onRsvpFontSizeChange = { size ->
-	                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontSize(size) }
-	                },
-	                onRsvpFontWeightChange = { weight ->
-	                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontWeight(weight) }
-	                },
-	                onRsvpFontFamilyChange = { family ->
-	                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontFamily(family) }
+		        composable("settings/rsvp") {
+		            RsvpSettingsScreen(
+		                preferences = prefs,
+		                onRsvpConfigChange = { config ->
+		                    coroutineScope.launch { container.preferencesRepository.updateRsvpConfig { config } }
+		                },
+		                onUnlockExtremeSpeedChange = { enabled ->
+		                    coroutineScope.launch { container.preferencesRepository.updateUnlockExtremeSpeed(enabled) }
+		                },
+		                onRsvpFontSizeChange = { size ->
+		                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontSize(size) }
+		                },
+		                onRsvpTextBrightnessChange = { brightness ->
+		                    coroutineScope.launch { container.preferencesRepository.updateRsvpTextBrightness(brightness) }
+		                },
+		                onRsvpFontWeightChange = { weight ->
+		                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontWeight(weight) }
+		                },
+		                onRsvpFontFamilyChange = { family ->
+		                    coroutineScope.launch { container.preferencesRepository.updateRsvpFontFamily(family) }
 	                },
 	                onRsvpVerticalBiasChange = { bias ->
 	                    coroutineScope.launch { container.preferencesRepository.updateRsvpVerticalBias(bias) }
@@ -702,20 +719,23 @@ private fun KairoNavHost(
 	            )
 	        }
 
-	        composable("settings/reader") {
-	            ReaderSettingsScreen(
-	                preferences = prefs,
-	                onFontSizeChange = { size ->
-	                    coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
-	                },
-	                onThemeChange = { theme ->
-	                    coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
-	                },
-	                onInvertedScrollChange = { enabled ->
-	                    coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
-	                },
-	                onBack = { navController.popBackStack() }
-	            )
+		        composable("settings/reader") {
+		            ReaderSettingsScreen(
+		                preferences = prefs,
+		                onFontSizeChange = { size ->
+		                    coroutineScope.launch { container.preferencesRepository.updateFontSize(size) }
+		                },
+		                onThemeChange = { theme ->
+		                    coroutineScope.launch { container.preferencesRepository.updateTheme(theme.name) }
+		                },
+		                onTextBrightnessChange = { brightness ->
+		                    coroutineScope.launch { container.preferencesRepository.updateReaderTextBrightness(brightness) }
+		                },
+		                onInvertedScrollChange = { enabled ->
+		                    coroutineScope.launch { container.preferencesRepository.updateInvertedScroll(enabled) }
+		                },
+		                onBack = { navController.popBackStack() }
+		            )
 	        }
 
 	        composable("settings/focus") {
