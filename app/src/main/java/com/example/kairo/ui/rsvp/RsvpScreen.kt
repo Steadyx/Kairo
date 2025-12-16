@@ -79,6 +79,7 @@ import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.core.rsvp.RsvpEngine
+import com.example.kairo.core.rsvp.RsvpPacing
 import com.example.kairo.ui.theme.InterFontFamily
 import com.example.kairo.ui.theme.RobotoFontFamily
 import kotlinx.coroutines.delay
@@ -286,21 +287,13 @@ fun RsvpScreen(
         return
     }
 
-    // Store the original WPM used to generate frames for duration scaling
-    val originalWpm = remember(tokens, startIndex) { config.baseWpm }
-
     // RSVP playback logic with dynamic WPM adjustment
     LaunchedEffect(isPlaying, frameIndex, completed, currentWpm) {
         if (!isPlaying || completed) return@LaunchedEffect
         if (frameIndex >= frames.size) return@LaunchedEffect
         val frame = frames[frameIndex]
-
-        // Scale duration based on WPM ratio: higher WPM = shorter duration
-        // duration ∝ 1/WPM, so newDuration = originalDuration * (originalWpm / currentWpm)
-        val scaledDuration = (frame.durationMs * originalWpm.toDouble() / currentWpm.toDouble()).toLong()
-            .coerceAtLeast(30L) // Minimum 30ms per frame
-
-        delay(scaledDuration)
+        val playbackConfig = config.copy(baseWpm = currentWpm)
+        delay(RsvpPacing.playbackDelayMs(frames, frameIndex, playbackConfig))
         if (frameIndex == frames.lastIndex) {
             completed = true
             // Move to next token after the last frame's original token
