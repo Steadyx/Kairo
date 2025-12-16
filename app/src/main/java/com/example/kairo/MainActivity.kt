@@ -576,9 +576,9 @@ private fun KairoNavHost(
 	                        )
 	                    }
 	                },
-                onWpmChange = { newWpm ->
+                onTempoChange = { tempoMsPerWord ->
                     coroutineScope.launch {
-                        container.preferencesRepository.updateRsvpConfig { it.copy(baseWpm = newWpm) }
+                        container.preferencesRepository.updateRsvpConfig { it.copy(tempoMsPerWord = tempoMsPerWord) }
                     }
                 },
                 onRsvpFontSizeChange = { size ->
