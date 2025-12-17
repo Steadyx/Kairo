@@ -7,20 +7,36 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.core.model.RsvpConfig
+import com.example.kairo.core.model.RsvpCustomProfile
 import com.example.kairo.core.model.RsvpFontFamily
 import com.example.kairo.core.model.RsvpFontWeight
+import com.example.kairo.core.model.RsvpProfile
+import com.example.kairo.core.model.RsvpProfileIds
+import com.example.kairo.core.model.description
+import com.example.kairo.core.model.displayName
 import com.example.kairo.core.rsvp.RsvpPaceEstimator
 
 @Composable
@@ -141,6 +157,8 @@ fun FocusSettingsContent(
 
 @Composable
 fun RsvpSettingsContent(
+    selectedProfileId: String,
+    customProfiles: List<RsvpCustomProfile>,
     config: RsvpConfig,
     unlockExtremeSpeed: Boolean,
     rsvpFontSizeSp: Float,
@@ -149,6 +167,9 @@ fun RsvpSettingsContent(
     rsvpFontWeight: RsvpFontWeight,
     rsvpVerticalBias: Float,
     rsvpHorizontalBias: Float,
+    onSelectProfile: (String) -> Unit,
+    onSaveCustomProfile: (String, RsvpConfig) -> Unit,
+    onDeleteCustomProfile: (String) -> Unit,
     onConfigChange: (RsvpConfig) -> Unit,
     onUnlockExtremeSpeedChange: (Boolean) -> Unit,
     onRsvpFontSizeChange: (Float) -> Unit,
@@ -161,6 +182,15 @@ fun RsvpSettingsContent(
     fun updateConfig(updater: (RsvpConfig) -> RsvpConfig) {
         onConfigChange(updater(config))
     }
+
+    RsvpProfileSelector(
+        selectedProfileId = selectedProfileId,
+        customProfiles = customProfiles,
+        config = config,
+        onSelectProfile = onSelectProfile,
+        onSaveCustomProfile = onSaveCustomProfile,
+        onDeleteCustomProfile = onDeleteCustomProfile
+    )
 
     val estimatedWpm = remember(config) { RsvpPaceEstimator.estimateWpm(config) }
     Text("Estimated pace: $estimatedWpm WPM", style = MaterialTheme.typography.bodyMedium)
@@ -403,6 +433,206 @@ fun RsvpSettingsContent(
         onValueChange = onRsvpHorizontalBiasChange,
         valueRange = -0.6f..0.6f
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RsvpProfileSelector(
+    selectedProfileId: String,
+    customProfiles: List<RsvpCustomProfile>,
+    config: RsvpConfig,
+    onSelectProfile: (String) -> Unit,
+    onSaveCustomProfile: (String, RsvpConfig) -> Unit,
+    onDeleteCustomProfile: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var saveName by remember { mutableStateOf("") }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val builtInOptions = remember { RsvpProfile.entries.toList() }
+    val selectedBuiltIn = remember(selectedProfileId) { RsvpProfileIds.parseBuiltIn(selectedProfileId) }
+    val selectedCustom = remember(selectedProfileId, customProfiles) {
+        customProfiles.firstOrNull { it.id == selectedProfileId }
+    }
+    val isCustomSelected = selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED || selectedCustom != null
+    val isUserProfileSelected = selectedCustom != null
+
+    val selectedLabel = when {
+        selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED -> "Custom"
+        selectedBuiltIn != null -> selectedBuiltIn.displayName()
+        selectedCustom != null -> selectedCustom.name
+        else -> "Custom"
+    }
+    val selectedDescription = when {
+        selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED -> "Unsaved tweaks"
+        selectedBuiltIn != null -> selectedBuiltIn.description()
+        selectedCustom != null -> "Saved profile"
+        else -> "Unsaved tweaks"
+    }
+
+    Text("RSVP profile", style = MaterialTheme.typography.titleMedium)
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text("Profile") },
+            supportingText = { Text(selectedDescription) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Column {
+                        Text("Custom", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Unsaved tweaks",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                onClick = {
+                    expanded = false
+                    onSelectProfile(RsvpProfileIds.CUSTOM_UNSAVED)
+                }
+            )
+
+            builtInOptions.forEach { option ->
+                val optionId = RsvpProfileIds.builtIn(option)
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(option.displayName(), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                option.description(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelectProfile(optionId)
+                    }
+                )
+            }
+
+            if (customProfiles.isNotEmpty()) {
+                customProfiles.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(option.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "Saved profile",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
+                        onClick = {
+                            expanded = false
+                            onSelectProfile(option.id)
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(6.dp))
+    androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        OutlinedButton(
+            onClick = {
+                saveName = if (isUserProfileSelected) selectedCustom?.name.orEmpty() else ""
+                showSaveDialog = true
+            },
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(if (isCustomSelected) "Save as profile" else "Save current")
+        }
+
+        if (isUserProfileSelected) {
+            OutlinedButton(
+                onClick = { showDeleteDialog = true },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Delete")
+            }
+        }
+    }
+
+    if (showSaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showSaveDialog = false },
+            title = { Text("Save profile") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = saveName,
+                        onValueChange = { saveName = it },
+                        singleLine = true,
+                        label = { Text("Profile name") }
+                    )
+                    Text(
+                        "Saves the current RSVP settings as a named profile.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onSaveCustomProfile(saveName, config)
+                        showSaveDialog = false
+                        saveName = ""
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showDeleteDialog && isUserProfileSelected) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete profile?") },
+            text = {
+                Text(
+                    "This can’t be undone.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteCustomProfile(selectedProfileId)
+                        showDeleteDialog = false
+                    }
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable

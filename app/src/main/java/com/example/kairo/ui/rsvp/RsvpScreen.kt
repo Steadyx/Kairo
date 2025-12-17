@@ -76,6 +76,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.core.model.RsvpConfig
+import com.example.kairo.core.model.RsvpCustomProfile
 import com.example.kairo.core.model.RsvpFontFamily
 import com.example.kairo.core.model.RsvpFontWeight
 import com.example.kairo.core.model.RsvpFrame
@@ -99,6 +100,8 @@ fun RsvpScreen(
     tokens: List<Token>,
     startIndex: Int,
     config: RsvpConfig,
+    selectedProfileId: String,
+    customProfiles: List<RsvpCustomProfile>,
     extremeSpeedUnlocked: Boolean,
     onExtremeSpeedUnlockedChange: (Boolean) -> Unit,
     engine: RsvpEngine,
@@ -116,6 +119,9 @@ fun RsvpScreen(
     onFinished: (Int) -> Unit,
     onPositionChanged: (Int) -> Unit,  // Called to save position (no navigation)
     onTempoChange: (Long) -> Unit,  // Called when tempo is adjusted via swipe/slider
+    onSelectProfile: (String) -> Unit, // Called when RSVP profile changes
+    onSaveCustomProfile: (String, RsvpConfig) -> Unit,
+    onDeleteCustomProfile: (String) -> Unit,
     onRsvpConfigChange: (RsvpConfig) -> Unit, // Called when RSVP timing profile settings change
     onRsvpFontSizeChange: (Float) -> Unit, // Called when RSVP font size is adjusted
     onRsvpTextBrightnessChange: (Float) -> Unit, // Called when RSVP text brightness is adjusted
@@ -760,6 +766,8 @@ fun RsvpScreen(
                         config.copy(tempoMsPerWord = currentTempoMsPerWord)
                     }
                     RsvpSettingsContent(
+                        selectedProfileId = selectedProfileId,
+                        customProfiles = customProfiles,
                         config = configForSettings,
                         unlockExtremeSpeed = extremeSpeedUnlocked,
                         rsvpFontSizeSp = currentFontSizeSp,
@@ -768,6 +776,9 @@ fun RsvpScreen(
                         rsvpFontWeight = currentFontWeight,
                         rsvpVerticalBias = currentVerticalBias,
                         rsvpHorizontalBias = currentHorizontalBias,
+                        onSelectProfile = onSelectProfile,
+                        onSaveCustomProfile = onSaveCustomProfile,
+                        onDeleteCustomProfile = onDeleteCustomProfile,
                         onConfigChange = { updated ->
                             currentTempoMsPerWord = updated.tempoMsPerWord
                             onRsvpConfigChange(updated)

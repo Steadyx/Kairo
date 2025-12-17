@@ -18,6 +18,9 @@ import com.example.kairo.core.model.UserPreferences
 @Composable
 fun RsvpSettingsScreen(
     preferences: UserPreferences,
+    onSelectRsvpProfile: (String) -> Unit,
+    onSaveRsvpProfile: (String, RsvpConfig) -> Unit,
+    onDeleteRsvpProfile: (String) -> Unit,
     onRsvpConfigChange: (RsvpConfig) -> Unit,
     onUnlockExtremeSpeedChange: (Boolean) -> Unit,
     onRsvpFontSizeChange: (Float) -> Unit,
@@ -38,6 +41,8 @@ fun RsvpSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             RsvpSettingsContent(
+                selectedProfileId = preferences.rsvpSelectedProfileId,
+                customProfiles = preferences.rsvpCustomProfiles,
                 config = preferences.rsvpConfig,
                 unlockExtremeSpeed = preferences.unlockExtremeSpeed,
                 rsvpFontSizeSp = preferences.rsvpFontSizeSp,
@@ -46,6 +51,9 @@ fun RsvpSettingsScreen(
                 rsvpFontWeight = preferences.rsvpFontWeight,
                 rsvpVerticalBias = preferences.rsvpVerticalBias,
                 rsvpHorizontalBias = preferences.rsvpHorizontalBias,
+                onSelectProfile = onSelectRsvpProfile,
+                onSaveCustomProfile = onSaveRsvpProfile,
+                onDeleteCustomProfile = onDeleteRsvpProfile,
                 onConfigChange = onRsvpConfigChange,
                 onUnlockExtremeSpeedChange = onUnlockExtremeSpeedChange,
                 onRsvpFontSizeChange = onRsvpFontSizeChange,

@@ -533,15 +533,17 @@ private fun KairoNavHost(
             val tokens = tokensState.value
 
             val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
-		            RsvpScreen(
-			                tokens = tokens,
-			                startIndex = startIndex.coerceAtLeast(0),
-			                config = prefs.rsvpConfig,
-	                        extremeSpeedUnlocked = prefs.unlockExtremeSpeed,
-	                        onExtremeSpeedUnlockedChange = { enabled ->
-	                            coroutineScope.launch {
-	                                container.preferencesRepository.updateUnlockExtremeSpeed(enabled)
-	                            }
+			            RsvpScreen(
+				                tokens = tokens,
+				                startIndex = startIndex.coerceAtLeast(0),
+				                config = prefs.rsvpConfig,
+                                selectedProfileId = prefs.rsvpSelectedProfileId,
+                                customProfiles = prefs.rsvpCustomProfiles,
+		                        extremeSpeedUnlocked = prefs.unlockExtremeSpeed,
+		                        onExtremeSpeedUnlockedChange = { enabled ->
+		                            coroutineScope.launch {
+		                                container.preferencesRepository.updateUnlockExtremeSpeed(enabled)
+		                            }
 	                        },
 			                engine = container.rsvpEngine,
 			                readerTheme = prefs.readerTheme,
@@ -614,16 +616,31 @@ private fun KairoNavHost(
 	                        )
 	                    }
 	                },
-	                onTempoChange = { tempoMsPerWord ->
-	                    coroutineScope.launch {
-	                        container.preferencesRepository.updateRsvpConfig { it.copy(tempoMsPerWord = tempoMsPerWord) }
-	                    }
-	                },
-                    onRsvpConfigChange = { updated ->
-                        coroutineScope.launch {
-                            container.preferencesRepository.updateRsvpConfig { updated }
-                        }
-                    },
+		                onTempoChange = { tempoMsPerWord ->
+		                    coroutineScope.launch {
+		                        container.preferencesRepository.updateRsvpConfig { it.copy(tempoMsPerWord = tempoMsPerWord) }
+		                    }
+		                },
+                        onSelectProfile = { profileId ->
+                            coroutineScope.launch {
+                                container.preferencesRepository.selectRsvpProfile(profileId)
+                            }
+                        },
+                        onSaveCustomProfile = { name, config ->
+                            coroutineScope.launch {
+                                container.preferencesRepository.saveRsvpCustomProfile(name, config)
+                            }
+                        },
+                        onDeleteCustomProfile = { profileId ->
+                            coroutineScope.launch {
+                                container.preferencesRepository.deleteRsvpCustomProfile(profileId)
+                            }
+                        },
+	                    onRsvpConfigChange = { updated ->
+	                        coroutineScope.launch {
+	                            container.preferencesRepository.updateRsvpConfig { updated }
+	                        }
+	                    },
 		                onRsvpFontSizeChange = { size ->
 		                    coroutineScope.launch {
 		                        container.preferencesRepository.updateRsvpFontSize(size)
@@ -691,6 +708,15 @@ private fun KairoNavHost(
 		        composable("settings/rsvp") {
 		            RsvpSettingsScreen(
 		                preferences = prefs,
+                        onSelectRsvpProfile = { profileId ->
+                            coroutineScope.launch { container.preferencesRepository.selectRsvpProfile(profileId) }
+                        },
+                        onSaveRsvpProfile = { name, config ->
+                            coroutineScope.launch { container.preferencesRepository.saveRsvpCustomProfile(name, config) }
+                        },
+                        onDeleteRsvpProfile = { profileId ->
+                            coroutineScope.launch { container.preferencesRepository.deleteRsvpCustomProfile(profileId) }
+                        },
 		                onRsvpConfigChange = { config ->
 		                    coroutineScope.launch { container.preferencesRepository.updateRsvpConfig { config } }
 		                },

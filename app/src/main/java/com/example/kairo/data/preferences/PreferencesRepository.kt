@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.Flow
 interface PreferencesRepository {
     val preferences: Flow<UserPreferences>
     suspend fun updateRsvpConfig(updater: (RsvpConfig) -> RsvpConfig)
+    suspend fun selectRsvpProfile(profileId: String)
+    suspend fun saveRsvpCustomProfile(name: String, config: RsvpConfig)
+    suspend fun deleteRsvpCustomProfile(profileId: String)
     suspend fun updateUnlockExtremeSpeed(enabled: Boolean)
     suspend fun updateFontSize(size: Float)
     suspend fun updateReaderTextBrightness(brightness: Float)

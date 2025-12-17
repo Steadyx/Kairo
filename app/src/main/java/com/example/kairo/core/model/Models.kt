@@ -95,8 +95,8 @@ data class RsvpConfig(
      * Chunking / units.
      * The engine can show short phrase units (e.g., "in the") to reduce flicker and improve flow.
      */
-    val enablePhraseChunking: Boolean = true,
-    val maxWordsPerUnit: Int = 2,
+    val enablePhraseChunking: Boolean = false,
+    val maxWordsPerUnit: Int = 1,
     val maxCharsPerUnit: Int = 14,
 
     /**
@@ -160,8 +160,89 @@ data class RsvpConfig(
     val clausePauseFactor: Double = 1.25
 )
 
+enum class RsvpProfile {
+    BALANCED,
+    CHILL,
+    SPRINT,
+    STUDY,
+}
+
+object RsvpProfileIds {
+    const val CUSTOM_UNSAVED: String = "custom:unsaved"
+    fun builtIn(profile: RsvpProfile): String = "builtin:${profile.name}"
+    fun isBuiltIn(id: String): Boolean = id.startsWith("builtin:")
+    fun isCustom(id: String): Boolean = id.startsWith("user:")
+    fun parseBuiltIn(id: String): RsvpProfile? {
+        val name = id.removePrefix("builtin:")
+        return runCatching { RsvpProfile.valueOf(name) }.getOrNull()
+    }
+}
+
+data class RsvpCustomProfile(
+    val id: String,
+    val name: String,
+    val config: RsvpConfig,
+    val updatedAtMs: Long
+)
+
+fun RsvpProfile.displayName(): String = when (this) {
+    RsvpProfile.BALANCED -> "Balanced"
+    RsvpProfile.CHILL -> "Chill"
+    RsvpProfile.SPRINT -> "Sprint"
+    RsvpProfile.STUDY -> "Study"
+}
+
+fun RsvpProfile.description(): String = when (this) {
+    RsvpProfile.BALANCED -> "Smooth, readable default"
+    RsvpProfile.CHILL -> "More breathing room and stronger pauses"
+    RsvpProfile.SPRINT -> "Fast, lighter pauses, higher flow"
+    RsvpProfile.STUDY -> "Deliberate pacing for comprehension"
+}
+
+fun RsvpProfile.defaultConfig(): RsvpConfig = when (this) {
+    RsvpProfile.BALANCED -> RsvpConfig()
+    RsvpProfile.CHILL -> RsvpConfig().copy(
+        tempoMsPerWord = 140L,
+        minWordMs = 55L,
+        longWordMinMs = 145L,
+        commaPauseMs = 120L,
+        sentenceEndPauseMs = 250L,
+        paragraphPauseMs = 330L,
+        smoothingAlpha = 0.28,
+        maxSlowdownFactor = 1.55
+    )
+    RsvpProfile.SPRINT -> RsvpConfig().copy(
+        tempoMsPerWord = 85L,
+        minWordMs = 40L,
+        longWordMinMs = 105L,
+        commaPauseMs = 70L,
+        sentenceEndPauseMs = 150L,
+        paragraphPauseMs = 190L,
+        pauseScaleExponent = 0.5,
+        smoothingAlpha = 0.45,
+        maxSpeedupFactor = 1.35,
+        maxSlowdownFactor = 1.35
+    )
+    RsvpProfile.STUDY -> RsvpConfig().copy(
+        tempoMsPerWord = 130L,
+        minWordMs = 55L,
+        longWordMinMs = 165L,
+        rarityExtraMaxMs = 85L,
+        complexityStrength = 0.8,
+        enablePhraseChunking = false,
+        maxWordsPerUnit = 1,
+        commaPauseMs = 115L,
+        sentenceEndPauseMs = 260L,
+        paragraphPauseMs = 380L,
+        smoothingAlpha = 0.25,
+        maxSlowdownFactor = 1.6
+    )
+}
+
 data class UserPreferences(
     val rsvpConfig: RsvpConfig = RsvpConfig(),
+    val rsvpSelectedProfileId: String = RsvpProfileIds.builtIn(RsvpProfile.BALANCED),
+    val rsvpCustomProfiles: List<RsvpCustomProfile> = emptyList(),
     val readerFontSizeSp: Float = 20f,
     val readerTheme: ReaderTheme = ReaderTheme.SEPIA,
     val readerTextBrightness: Float = 0.88f,
