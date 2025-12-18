@@ -17,14 +17,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -52,6 +56,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
@@ -76,6 +81,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.ParagraphStyle
+import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -93,6 +100,8 @@ import com.example.kairo.ui.settings.SettingsNavRow
 import com.example.kairo.ui.settings.SettingsSwitchRow
 import com.example.kairo.ui.theme.MerriweatherFontFamily
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -176,8 +185,8 @@ fun ReaderScreen(
     val chapter = book.chapters.getOrNull(chapterIndex)
     val coverImage = book.coverImage
 
-    // Get paragraphs from pre-computed ChapterData (already done off-thread)
-    val paragraphs = uiState.chapterData?.paragraphs ?: emptyList()
+    // Pre-computed chapter data (done off-thread)
+    val blocks = uiState.chapterData?.blocks ?: emptyList()
     val tokens = uiState.chapterData?.tokens ?: emptyList()
     val firstWordIndex = uiState.chapterData?.firstWordIndex ?: -1
     val imagePaths = uiState.chapterData?.imagePaths ?: emptyList()
@@ -187,15 +196,6 @@ fun ReaderScreen(
                 onFocusChange(tokens.nearestWordIndex(index))
             }
         }
-    }
-
-    // Find which paragraph contains the focus index
-    val focusParagraphIndex = remember(focusIndex, paragraphs) {
-        if (paragraphs.isEmpty()) 0
-        else paragraphs.indexOfFirst { paragraph ->
-            val endIndex = paragraph.startIndex + paragraph.tokens.size - 1
-            focusIndex in paragraph.startIndex..endIndex
-        }.coerceAtLeast(0)
     }
 
     val isCoverChapter = chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
@@ -240,12 +240,44 @@ fun ReaderScreen(
         }
     }
 
-    val listHeaderCount = remember(isCoverChapter, fullScreenTitlePageImagePath, headerCarouselImages) {
+    val excludedInlineImages = remember(
+        isCoverChapter,
+        fullScreenTitlePageImagePath,
+        imagePaths
+    ) {
+        buildSet {
+            if (isCoverChapter) {
+                imagePaths.firstOrNull()?.let { add(it) }
+            }
+            fullScreenTitlePageImagePath?.let { add(it) }
+        }
+    }
+    val visibleBlocks = remember(blocks, excludedInlineImages) {
+        if (excludedInlineImages.isEmpty()) {
+            blocks
+        } else {
+            blocks.filterNot { block ->
+                block is ReaderImageBlock && block.imagePath in excludedInlineImages
+            }
+        }
+    }
+    val focusBlockIndex = remember(focusIndex, visibleBlocks) {
+        if (visibleBlocks.isEmpty()) 0
+        else visibleBlocks.indexOfFirst { block ->
+            val paragraph = (block as? ReaderParagraphBlock)?.paragraph ?: return@indexOfFirst false
+            val endIndex = paragraph.startIndex + paragraph.tokens.size - 1
+            focusIndex in paragraph.startIndex..endIndex
+        }.coerceAtLeast(0)
+    }
+    val showHeaderCarousel = remember(headerCarouselImages, visibleBlocks) {
+        headerCarouselImages.isNotEmpty() && visibleBlocks.none { it is ReaderImageBlock }
+    }
+    val listHeaderCount = remember(isCoverChapter, fullScreenTitlePageImagePath, showHeaderCarousel) {
         (if (isCoverChapter) 1 else 0) +
             (if (fullScreenTitlePageImagePath != null) 1 else 0) +
-            (if (headerCarouselImages.isNotEmpty()) 1 else 0)
+            (if (showHeaderCarousel) 1 else 0)
     }
-    val focusListIndex = remember(focusParagraphIndex, listHeaderCount) { focusParagraphIndex + listHeaderCount }
+    val focusListIndex = remember(focusBlockIndex, listHeaderCount) { focusBlockIndex + listHeaderCount }
 
     // Use a key that changes when we need to reset the list position
     // This forces a new LazyListState with the correct initial position
@@ -288,7 +320,7 @@ fun ReaderScreen(
 
     // Scroll instantly when focus changes (e.g., returning from RSVP)
     LaunchedEffect(focusListIndex, listStateKey) {
-        if (paragraphs.isNotEmpty() && listState.firstVisibleItemIndex != focusListIndex) {
+        if (visibleBlocks.isNotEmpty() && listState.firstVisibleItemIndex != focusListIndex) {
             listState.scrollToItem(focusListIndex)
         }
     }
@@ -296,6 +328,7 @@ fun ReaderScreen(
     // Chapter list bottom sheet state
     val showChapterList = remember { mutableStateOf(false) }
     var showReaderMenu by remember { mutableStateOf(false) }
+    var fullScreenImagePath by remember { mutableStateOf<String?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
     val isRsvpEnabled = !uiState.isLoading && firstWordIndex != -1 && tokens.isNotEmpty()
@@ -309,6 +342,8 @@ fun ReaderScreen(
     val progressFraction by remember(progressPercent) {
         derivedStateOf { (progressPercent / 100f).coerceIn(0f, 1f) }
     }
+    val bottomInsetPadding = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues()
+    val bottomInset = bottomInsetPadding.calculateBottomPadding()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -380,7 +415,7 @@ fun ReaderScreen(
                         CircularProgressIndicator()
                     }
                 }
-            } else if (paragraphs.isEmpty() && !isCoverChapter && fullScreenTitlePageImagePath == null && headerCarouselImages.isEmpty()) {
+            } else if (visibleBlocks.isEmpty() && !isCoverChapter && fullScreenTitlePageImagePath == null && headerCarouselImages.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -471,12 +506,13 @@ fun ReaderScreen(
                 ) {
                     val viewportHeight = LocalConfiguration.current.screenHeightDp.dp
 
-                    // LAZY paragraph-based rendering
+                    // LAZY block-based rendering (text + images)
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         userScrollEnabled = !invertedScroll,
-                        verticalArrangement = Arrangement.spacedBy(18.dp) // Paragraph spacing
+                        verticalArrangement = Arrangement.spacedBy(18.dp), // Paragraph spacing
+                        contentPadding = PaddingValues(bottom = bottomInset + 96.dp)
                     ) {
                         if (isCoverChapter) {
                             item(key = "book_cover_full_${book.id.value}") {
@@ -520,33 +556,48 @@ fun ReaderScreen(
                                         AsyncImage(
                                             model = file,
                                             contentDescription = "Title page of ${book.title}",
-                                            modifier = Modifier.fillMaxSize(),
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clickable { fullScreenImagePath = fullScreenTitlePageImagePath },
                                             contentScale = ContentScale.Fit
                                         )
                                     }
                                 }
                             }
                         }
-                        if (headerCarouselImages.isNotEmpty()) {
+                        if (showHeaderCarousel) {
                             item(key = "chapter_images_$chapterIndex") {
-                                ChapterImages(imagePaths = headerCarouselImages)
+                                ChapterImages(
+                                    imagePaths = headerCarouselImages,
+                                    onImageClick = { fullScreenImagePath = it }
+                                )
                             }
                         }
-                        itemsIndexed(
-                            items = paragraphs,
-                            key = { _, paragraph -> "${chapterIndex}_${paragraph.startIndex}" }
-                        ) { _, paragraph ->
-                            ParagraphText(
-                                paragraph = paragraph,
-                                focusIndex = focusIndex,
-                                fontSizeSp = fontSizeSp,
-                                textBrightness = textBrightness,
-                                onFocusChange = onSafeFocusChange,
-                                onStartRsvp = { tokenIndex ->
-                                    if (!isRsvpEnabled) return@ParagraphText
-                                    onStartRsvp(tokens.nearestWordIndex(tokenIndex))
+                        items(
+                            items = visibleBlocks,
+                            key = { it.key }
+                        ) { block ->
+                            when (block) {
+                                is ReaderParagraphBlock -> {
+                                    ParagraphText(
+                                        paragraph = block.paragraph,
+                                        focusIndex = focusIndex,
+                                        fontSizeSp = fontSizeSp,
+                                        textBrightness = textBrightness,
+                                        onFocusChange = onSafeFocusChange,
+                                        onStartRsvp = { tokenIndex ->
+                                            if (!isRsvpEnabled) return@ParagraphText
+                                            onStartRsvp(tokens.nearestWordIndex(tokenIndex))
+                                        }
+                                    )
                                 }
-                            )
+                                is ReaderImageBlock -> {
+                                    InlineImageBlock(
+                                        imagePath = block.imagePath,
+                                        onOpen = { fullScreenImagePath = it }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -604,7 +655,7 @@ fun ReaderScreen(
             exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp)
+                .padding(end = 16.dp, bottom = 16.dp + bottomInset)
 	        ) {
 	            var dragAccumulator by remember { mutableFloatStateOf(0f) }
 	            Box(
@@ -670,6 +721,14 @@ fun ReaderScreen(
                     Icon(Icons.Default.PlayArrow, contentDescription = "Start RSVP")
                 }
             }
+        }
+
+        fullScreenImagePath?.let { path ->
+            BackHandler { fullScreenImagePath = null }
+            FullScreenImageViewer(
+                imagePath = path,
+                onDismiss = { fullScreenImagePath = null }
+            )
         }
     }
 }
@@ -924,7 +983,10 @@ private fun ReaderMenuOverlay(
 }
 
 @Composable
-private fun ChapterImages(imagePaths: List<String>) {
+private fun ChapterImages(
+    imagePaths: List<String>,
+    onImageClick: (String) -> Unit
+) {
     val context = LocalContext.current
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
@@ -943,12 +1005,107 @@ private fun ChapterImages(imagePaths: List<String>) {
                     AsyncImage(
                         model = file,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { onImageClick(relativePath) },
                         contentScale = ContentScale.Crop
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun InlineImageBlock(
+    imagePath: String,
+    onOpen: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val file = remember(imagePath) { resolveImageFile(context, imagePath) }
+    if (!file.exists()) return
+
+    val shape = RoundedCornerShape(14.dp)
+    Surface(
+        shape = shape,
+        tonalElevation = 1.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpen(imagePath) }
+    ) {
+        SubcomposeAsyncImage(
+            model = file,
+            contentDescription = "Illustration",
+            contentScale = ContentScale.FillWidth,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            val size = painter.intrinsicSize
+            val contentModifier = if (size.width.isFinite() && size.height.isFinite() && size.height > 0f) {
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(size.width / size.height)
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 180.dp, max = 420.dp)
+            }
+            SubcomposeAsyncImageContent(modifier = contentModifier)
+        }
+    }
+}
+
+@Composable
+private fun FullScreenImageViewer(
+    imagePath: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val file = remember(imagePath) { resolveImageFile(context, imagePath) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.96f))
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .pointerInput(imagePath) {
+                detectTapGestures(onTap = { onDismiss() })
+            }
+    ) {
+        if (file.exists()) {
+            SubcomposeAsyncImage(
+                model = file,
+                contentDescription = "Full screen image",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+            )
+        } else {
+            Text(
+                text = "Image not found",
+                color = Color.White,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier.align(Alignment.TopEnd)
+        ) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Close image viewer",
+                tint = Color.White
+            )
+        }
+    }
+}
+
+private fun resolveImageFile(context: android.content.Context, imagePath: String): File {
+    return if (imagePath.startsWith("/")) {
+        File(imagePath)
+    } else {
+        File(context.filesDir, imagePath)
     }
 }
 
@@ -964,8 +1121,12 @@ private fun ParagraphText(
     val baseStyle = TextStyle(
         fontFamily = MerriweatherFontFamily,
         fontSize = fontSizeSp.sp,
+        lineHeight = (fontSizeSp * 1.6f).sp,
         color = MaterialTheme.colorScheme.onBackground.copy(alpha = textBrightness.coerceIn(0.55f, 1.0f))
     )
+    val paragraphIndent = remember(fontSizeSp) {
+        ParagraphStyle(textIndent = TextIndent(firstLine = (fontSizeSp * 0.7f).sp))
+    }
     val primary = MaterialTheme.colorScheme.primary
     val focusStyle = remember(primary) {
         SpanStyle(
@@ -975,7 +1136,7 @@ private fun ParagraphText(
         )
     }
 
-    val annotated = remember(paragraph.tokens, paragraph.startIndex, focusIndex, primary) {
+    val annotated = remember(paragraph.tokens, paragraph.startIndex, focusIndex, primary, paragraphIndent) {
         buildAnnotatedString {
             paragraph.tokens.forEachIndexed { localIndex, token ->
                 if (token.type == TokenType.PARAGRAPH_BREAK || token.type == TokenType.PAGE_BREAK) return@forEachIndexed
@@ -993,6 +1154,7 @@ private fun ParagraphText(
                 addStringAnnotation(tag = "tokenIndex", annotation = globalIndex.toString(), start = start, end = end)
                 if (globalIndex == focusIndex) addStyle(focusStyle, start, end)
             }
+            addStyle(paragraphIndent, start = 0, end = length)
         }
     }
 

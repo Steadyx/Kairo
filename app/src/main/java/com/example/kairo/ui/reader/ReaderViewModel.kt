@@ -132,17 +132,24 @@ class ReaderViewModel(
             // Tokenize using your existing Tokenizer
             val tokens = tokenizer.tokenize(chapter)
             
-            if (tokens.isEmpty()) return@withContext null
-
             // Pre-compute paragraphs for lazy rendering
             val paragraphs = tokens.toParagraphs()
 
             // Find first word index for initial focus
             val firstWordIndex = tokens.indexOfFirst { it.type == TokenType.WORD }
 
+            if (tokens.isEmpty() && chapter.imagePaths.isEmpty()) return@withContext null
+
+            val blocks = buildReaderBlocks(
+                htmlContent = chapter.htmlContent,
+                paragraphs = paragraphs,
+                imagePaths = chapter.imagePaths
+            )
+
             ChapterData(
                 tokens = tokens,
                 paragraphs = paragraphs,
+                blocks = blocks,
                 firstWordIndex = firstWordIndex,
                 imagePaths = chapter.imagePaths
             )
@@ -224,6 +231,7 @@ data class ReaderUiState(
 data class ChapterData(
     val tokens: List<Token>,
     val paragraphs: List<Paragraph>,
+    val blocks: List<ReaderBlock>,
     val firstWordIndex: Int,
     val imagePaths: List<String>
 )
@@ -236,6 +244,18 @@ data class Paragraph(
     val tokens: List<Token>,
     val startIndex: Int
 )
+
+sealed interface ReaderBlock {
+    val key: String
+}
+
+data class ReaderParagraphBlock(val paragraph: Paragraph) : ReaderBlock {
+    override val key: String = "paragraph_${paragraph.startIndex}"
+}
+
+data class ReaderImageBlock(val imagePath: String, val index: Int) : ReaderBlock {
+    override val key: String = "image_${index}_$imagePath"
+}
 
 /**
  * Split tokens into paragraphs for lazy rendering.
@@ -269,6 +289,139 @@ fun List<Token>.toParagraphs(): List<Paragraph> {
     }
 
     return paragraphs
+}
+
+private sealed interface HtmlBlockMarker {
+    data object Paragraph : HtmlBlockMarker
+    data class Image(val path: String) : HtmlBlockMarker
+}
+
+private fun buildReaderBlocks(
+    htmlContent: String,
+    paragraphs: List<Paragraph>,
+    imagePaths: List<String>
+): List<ReaderBlock> {
+    if (paragraphs.isEmpty() && imagePaths.isEmpty()) return emptyList()
+
+    val markers = extractHtmlBlockMarkers(htmlContent, imagePaths)
+    val blocks = mutableListOf<ReaderBlock>()
+    var paragraphIndex = 0
+    var imageIndex = 0
+
+    if (markers.isEmpty() && paragraphs.isEmpty() && imagePaths.isNotEmpty()) {
+        return imagePaths.mapIndexed { index, path -> ReaderImageBlock(path, index) }
+    }
+
+    markers.forEach { marker ->
+        when (marker) {
+            HtmlBlockMarker.Paragraph -> {
+                val paragraph = paragraphs.getOrNull(paragraphIndex) ?: return@forEach
+                blocks.add(ReaderParagraphBlock(paragraph))
+                paragraphIndex += 1
+            }
+            is HtmlBlockMarker.Image -> {
+                blocks.add(ReaderImageBlock(marker.path, imageIndex))
+                imageIndex += 1
+            }
+        }
+    }
+
+    while (paragraphIndex < paragraphs.size) {
+        blocks.add(ReaderParagraphBlock(paragraphs[paragraphIndex]))
+        paragraphIndex += 1
+    }
+
+    return blocks
+}
+
+private fun extractHtmlBlockMarkers(htmlContent: String, imagePaths: List<String>): List<HtmlBlockMarker> {
+    if (htmlContent.isBlank()) {
+        return emptyList()
+    }
+
+    val cleaned = htmlContent
+        .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
+
+    val blockSeparated = cleaned.replace(
+        Regex("</?(p|div|br|h[1-6]|li|tr)[^>]*>", RegexOption.IGNORE_CASE),
+        "\n\n"
+    )
+    val rawBlocks = blockSeparated
+        .split(Regex("\\n\\s*\\n"))
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+
+    val markers = mutableListOf<HtmlBlockMarker>()
+    var fallbackIndex = 0
+    val imgRegex = Regex(
+        "<img[^>]+?src\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>",
+        RegexOption.IGNORE_CASE
+    )
+
+    rawBlocks.forEach { block ->
+        val imageMarkers = mutableListOf<HtmlBlockMarker.Image>()
+        imgRegex.findAll(block).forEach { match ->
+            val resolved = resolveInlineImagePath(match.groupValues[1], imagePaths, fallbackIndex)
+            if (resolved != null) {
+                imageMarkers += HtmlBlockMarker.Image(resolved.first)
+                fallbackIndex = resolved.second
+            }
+        }
+
+        val text = block
+            .replace(Regex("<[^>]+>"), "")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&#39;", "'")
+            .replace(Regex("&#(\\d+);")) { match ->
+                match.groupValues[1].toIntOrNull()?.toChar()?.toString() ?: ""
+            }
+            .replace(Regex("&#x([0-9a-fA-F]+);")) { match ->
+                match.groupValues[1].toIntOrNull(16)?.toChar()?.toString() ?: ""
+            }
+            .replace(Regex("[ \\t]+"), " ")
+            .trim()
+
+        if (text.isNotBlank()) {
+            markers += HtmlBlockMarker.Paragraph
+        }
+
+        markers.addAll(imageMarkers)
+    }
+
+    return markers
+}
+
+private fun resolveInlineImagePath(
+    rawSrc: String,
+    imagePaths: List<String>,
+    fallbackIndex: Int
+): Pair<String, Int>? {
+    val src = sanitizeInlineSrc(rawSrc)
+    if (src.isBlank()) return null
+    if (src.startsWith("data:", ignoreCase = true)) return null
+    if (src.startsWith("http://", ignoreCase = true) || src.startsWith("https://", ignoreCase = true)) return null
+
+    if (src.startsWith("kairo_epub_assets/")) {
+        return src to fallbackIndex
+    }
+
+    val fallback = imagePaths.getOrNull(fallbackIndex) ?: return null
+    return fallback to (fallbackIndex + 1)
+}
+
+private fun sanitizeInlineSrc(rawSrc: String): String {
+    val trimmed = rawSrc.trim()
+    if (trimmed.isBlank()) return ""
+    return trimmed
+        .substringBefore('#')
+        .substringBefore('?')
+        .trim()
 }
 
  

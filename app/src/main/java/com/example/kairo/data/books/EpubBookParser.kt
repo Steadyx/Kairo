@@ -181,7 +181,12 @@ class EpubBookParser : BookParser {
                 baseDir = chapterDir,
                 imageRelativePathByEpubPathLower = imageRelativePathByEpubPathLower
             )
-            val plainText = extractPlainText(originalHtml)
+            val resolvedHtml = rewriteHtmlImageSrcs(
+                html = originalHtml,
+                baseDir = chapterDir,
+                imageRelativePathByEpubPathLower = imageRelativePathByEpubPathLower
+            )
+            val plainText = extractPlainText(resolvedHtml)
             val title = extractChapterTitle(originalHtml) ?: spineItem.idref
 
             // Skip empty chapters
@@ -190,7 +195,7 @@ class EpubBookParser : BookParser {
             Chapter(
                 index = index,
                 title = title,
-                htmlContent = originalHtml,
+                htmlContent = resolvedHtml,
                 plainText = plainText,
                 imagePaths = imagePaths
             )
@@ -404,6 +409,31 @@ class EpubBookParser : BookParser {
         val ext = extRaw.take(10).filter { it.isLetterOrDigit() }
         val base = UUID.nameUUIDFromBytes(epubPathLower.toByteArray(Charsets.UTF_8)).toString()
         return if (ext.isNotEmpty()) "img_$base.$ext" else "img_$base"
+    }
+
+    private fun rewriteHtmlImageSrcs(
+        html: String,
+        baseDir: String,
+        imageRelativePathByEpubPathLower: Map<String, String>
+    ): String {
+        val imgRegex = Regex(
+            "(<img[^>]+?src\\s*=\\s*['\\\"])([^'\\\"]+)(['\\\"][^>]*>)",
+            RegexOption.IGNORE_CASE
+        )
+        return imgRegex.replace(html) { match ->
+            val rawSrc = match.groupValues[2]
+            val src = sanitizeSrc(rawSrc)
+            if (src.isBlank()) return@replace match.value
+            if (src.startsWith("data:", ignoreCase = true)) return@replace match.value
+            if (src.startsWith("http://", ignoreCase = true) || src.startsWith("https://", ignoreCase = true)) {
+                return@replace match.value
+            }
+            if (src.startsWith("kairo_epub_assets/")) return@replace match.value
+
+            val resolvedLower = resolvePath(baseDir, src).lowercase()
+            val relativePath = imageRelativePathByEpubPathLower[resolvedLower] ?: return@replace match.value
+            "${match.groupValues[1]}$relativePath${match.groupValues[3]}"
+        }
     }
 
     /**
