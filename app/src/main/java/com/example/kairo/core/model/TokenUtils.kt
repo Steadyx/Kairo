@@ -84,6 +84,7 @@ fun normalizeWhitespace(input: String): String =
 
 fun calculatePause(type: TokenType, config: RsvpConfig): Long = when (type) {
     TokenType.PARAGRAPH_BREAK -> config.paragraphPauseMs
+    TokenType.PAGE_BREAK -> max(config.paragraphPauseMs * 2, config.sentenceEndPauseMs + (config.paragraphPauseMs / 2))
     TokenType.PUNCTUATION -> max(60L, (config.paragraphPauseMs * 0.4).toLong())
     TokenType.WORD -> 0L
 }
@@ -199,7 +200,7 @@ fun joinTokensForDisplay(tokens: List<Token>): String {
     var prevNonBreakToken: Token? = null
 
     for (token in tokens) {
-        if (token.type == TokenType.PARAGRAPH_BREAK) {
+        if (token.type == TokenType.PARAGRAPH_BREAK || token.type == TokenType.PAGE_BREAK) {
             paragraphIndex = 0
             prevNonBreakToken = null
             continue

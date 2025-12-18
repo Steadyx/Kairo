@@ -20,17 +20,33 @@ class Tokenizer {
         if (normalized.isEmpty()) return emptyList()
 
         val cleaned = normalizeEpubSymbols(normalized)
+        val withPageBreaks = normalizePageBreakMarkers(cleaned)
 
         // Reset dialogue state for each chapter
         inDialogue = false
         DialogueAnalyzer.reset()
 
-        val paragraphs = cleaned.split(Regex("\\n\\s*\\n"))
+        val paragraphs = withPageBreaks
+            .split(Regex("\\n\\s*\\n"))
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
         val tokens = mutableListOf<Token>()
 
         paragraphs.forEachIndexed { index, paragraph ->
-            tokens += tokenizeParagraph(paragraph.trim())
-            if (index < paragraphs.lastIndex) {
+            val isPageBreak = isPageBreakParagraph(paragraph)
+            if (isPageBreak) {
+                tokens += Token(
+                    text = "\u000C",
+                    type = TokenType.PAGE_BREAK,
+                    pauseAfterMs = PAGE_BREAK_PAUSE
+                )
+            } else {
+                tokens += tokenizeParagraph(paragraph)
+            }
+
+            val nextParagraph = paragraphs.getOrNull(index + 1)
+            val nextIsPageBreak = nextParagraph?.let(::isPageBreakParagraph) == true
+            if (index < paragraphs.lastIndex && !isPageBreak && !nextIsPageBreak) {
                 tokens += Token(
                     text = "\n",
                     type = TokenType.PARAGRAPH_BREAK,
@@ -53,10 +69,12 @@ class Tokenizer {
                     OPENING_QUOTES.contains(part[0]) || CLOSING_QUOTES.contains(part[0])) -> {
                     // Track dialogue state with quotes
                     val char = part[0]
-                    if (OPENING_QUOTES.contains(char)) {
-                        inDialogue = true
-                    } else if (CLOSING_QUOTES.contains(char)) {
-                        inDialogue = false
+                    inDialogue = when {
+                        // Straight quotes are ambiguous; toggle on each occurrence.
+                        char == '"' -> !inDialogue
+                        OPENING_QUOTES.contains(char) -> true
+                        CLOSING_QUOTES.contains(char) -> false
+                        else -> inDialogue
                     }
 
                     tokens += Token(
@@ -101,6 +119,12 @@ class Tokenizer {
         // Normalize non-breaking/odd spaces to regular spaces for consistent regex handling.
         text = text.replace(Regex("[\\u00A0\\u2007\\u202F\\u2009\\u200A\\u200B]"), " ")
 
+        // Normalize common ASCII punctuation variants.
+        // "..." -> "…" so ellipses don't act like three sentence-ending dots.
+        text = text.replace(Regex("\\.{3,}"), "\u2026")
+        // "--" -> "—" so em-dashes don't act like two separate hyphens.
+        text = text.replace(Regex("(?<!-)--(?!-)"), "\u2014")
+
         // Fix common mojibake sequences from EPUB decoding (e.g., "Â°" for degree sign).
         text = text
             .replace("Â°", "°")
@@ -125,10 +149,26 @@ class Tokenizer {
         return text
     }
 
+    private fun normalizePageBreakMarkers(input: String): String {
+        var text = input
+
+        // Make form-feed page breaks visible to the paragraph splitter.
+        // Many ebook conversions use \u000C for page/scene breaks.
+        text = text.replace("\u000C", "\n\n\u000C\n\n")
+        return text
+    }
+
+    private fun isPageBreakParagraph(paragraph: String): Boolean {
+        if (paragraph.isBlank()) return false
+        if (paragraph == "\u000C") return true
+        return PAGE_BREAK_REGEX.matches(paragraph)
+    }
+
     companion object {
         private const val SENTENCE_PAUSE = 260L
         private const val MID_SENTENCE_PAUSE = 140L
         private const val PARAGRAPH_PAUSE = 320L
+        private const val PAGE_BREAK_PAUSE = 560L
 
         // Apostrophe characters used in contractions (straight and curly)
         private const val APOSTROPHES = "'\u2019\u2018"  // ' ' '
@@ -152,6 +192,12 @@ class Tokenizer {
         // Closing quotes that end dialogue
         private val CLOSING_QUOTES = setOf('"', '\u201D', '\u2019')
 
+        // Common "scene break" markers: "***", "* * *", "---", "— — —", "• • •", "___", etc.
+        // These frequently represent page breaks or scene breaks in ebooks.
+        private val PAGE_BREAK_REGEX = Regex(
+            """^\s*(?:(?:\*\s*){3,}|(?:-\s*){3,}|(?:_\s*){3,}|(?:~\s*){3,}|(?:\u2014\s*){2,}|(?:\u2013\s*){2,}|(?:\u2022\s*){3,}|(?:\u00B7\s*){3,})\s*$"""
+        )
+
         // Regex to match:
         // 1. Words with contractions: "don't", "he'd", "it's" - apostrophes (straight or curly) embedded in words
         // 2. Hyphenated words: "self-aware", "mother-in-law"
@@ -160,6 +206,10 @@ class Tokenizer {
             // Numeric + unit patterns: temperatures and percentages.
             // Examples: "20°C", "-35c", "–35c", "‑35c", "20°F", "20℃", "50%"
             """[-−–—‐‑‒﹣－]?\d+(?:[.,]\d+)?(?:[℃℉]|%|[°º]?[cCfFkK](?![a-zA-Z]))""" +
+            "|" +
+            // Numeric patterns with separators (decimals / thousands).
+            // Examples: "3.14", "1,000", "1,000,000", "-2.5"
+            """[-−–—‐‑‒﹣－]?\d+(?:[.,]\d+)+""" +
             "|" +
             // Word pattern: word chars, optionally followed by (apostrophe + word chars) or (hyphen + word chars)
             // This captures contractions like "don't" and hyphenated words like "self-aware"

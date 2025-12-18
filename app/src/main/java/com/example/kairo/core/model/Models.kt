@@ -39,7 +39,7 @@ data class BookmarkItem(
     val chapterCount: Int
 )
 
-enum class TokenType { WORD, PUNCTUATION, PARAGRAPH_BREAK }
+enum class TokenType { WORD, PUNCTUATION, PARAGRAPH_BREAK, PAGE_BREAK }
 
 data class Token(
     val text: String,
@@ -96,7 +96,7 @@ data class RsvpConfig(
      * The engine can show short phrase units (e.g., "in the") to reduce flicker and improve flow.
      */
     val enablePhraseChunking: Boolean = false,
-    val maxWordsPerUnit: Int = 1,
+    val maxWordsPerUnit: Int = 2,
     val maxCharsPerUnit: Int = 14,
 
     /**
@@ -146,7 +146,9 @@ data class RsvpConfig(
 
     /**
      * Legacy/compat fields (kept for older persistence & UI wiring).
-     * Not used by the redesigned engine.
+     *
+     * Note: the redesigned engine may still use a subset of these (e.g. clause pacing),
+     * but they remain optional/compat-focused.
      */
     val baseWpm: Int = 500,
     val wordsPerFrame: Int = 1,
@@ -157,8 +159,11 @@ data class RsvpConfig(
     val useClausePausing: Boolean = true,
     val useDialogueDetection: Boolean = true,
     val complexWordThreshold: Double = 1.3,
-    val clausePauseFactor: Double = 1.25
+    val clausePauseFactor: Double = 1.25,
+    val blinkMode: BlinkMode = BlinkMode.OFF
 )
+
+enum class BlinkMode { OFF, SUBTLE, ADAPTIVE }
 
 enum class RsvpProfile {
     BALANCED,

@@ -46,4 +46,30 @@ class TokenizerTest {
         assertTrue(words.contains("‑35c") || words.contains("-35c"))
         assertTrue(words.contains("-10°C"))
     }
+
+    @Test
+    fun detectsFormFeedAsPageBreak() {
+        val tokens = tokenizer.tokenize(chapter("Hello\u000CWorld"))
+        assertTrue(tokens.any { it.type == TokenType.PAGE_BREAK })
+    }
+
+    @Test
+    fun detectsSceneBreakMarkersAsPageBreak() {
+        val tokens = tokenizer.tokenize(chapter("Hello\n\n***\n\nWorld"))
+        assertTrue(tokens.any { it.type == TokenType.PAGE_BREAK })
+    }
+
+    @Test
+    fun normalizesAsciiEllipsisToSingleToken() {
+        val tokens = tokenizer.tokenize(chapter("Wait... now."))
+        val ellipsisCount = tokens.count { it.type == TokenType.PUNCTUATION && it.text == "\u2026" }
+        assertEquals(1, ellipsisCount)
+    }
+
+    @Test
+    fun normalizesDoubleHyphenToEmDash() {
+        val tokens = tokenizer.tokenize(chapter("Hello--world"))
+        val emDashCount = tokens.count { it.type == TokenType.PUNCTUATION && it.text == "\u2014" }
+        assertEquals(1, emDashCount)
+    }
 }
