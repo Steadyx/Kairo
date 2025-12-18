@@ -8,7 +8,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -192,6 +192,7 @@ fun RsvpScreen(
     var isAdjustingPosition by remember { mutableStateOf(false) }
     var isPositioningMode by rememberSaveable { mutableStateOf(false) }
     var dragStartBias by remember { mutableStateOf(verticalBias) }
+    var dragStartHorizontalBias by remember { mutableStateOf(horizontalBias) }
     var wasPlayingBeforePositioning by rememberSaveable { mutableStateOf(true) }
 
     // Helper to get current token position from the frame's originalTokenIndex
@@ -377,16 +378,20 @@ fun RsvpScreen(
             .background(MaterialTheme.colorScheme.background)
             // Restart gesture handler when persisted tempo changes, so we don't use stale config.
             .pointerInput(config.tempoMsPerWord, isPositioningMode) {
-                detectVerticalDragGestures(
+                detectDragGestures(
                     onDragStart = {
                         dragAccumulator = 0f
                         dragStartTempoMsPerWord = currentTempoMsPerWord
                         dragStartBias = currentVerticalBias
+                        dragStartHorizontalBias = currentHorizontalBias
                     },
                     onDragEnd = {
                         if (isPositioningMode) {
                             if (currentVerticalBias != dragStartBias) {
                                 onVerticalBiasChange(currentVerticalBias)
+                            }
+                            if (currentHorizontalBias != dragStartHorizontalBias) {
+                                onHorizontalBiasChange(currentHorizontalBias)
                             }
                         } else {
                             // Persist the tempo change when drag ends
@@ -396,15 +401,16 @@ fun RsvpScreen(
                         }
                         dragAccumulator = 0f
                     },
-                    onVerticalDrag = { _, dragAmount ->
+                    onDrag = { change, dragAmount ->
                         if (isPositioningMode) {
-                            // Move ORP vertically. dragAmount > 0 when dragging down.
                             val biasPerPx = 0.0015f
                             currentVerticalBias =
-                                (currentVerticalBias + dragAmount * biasPerPx).coerceIn(-0.6f, 0.6f)
+                                (currentVerticalBias + dragAmount.y * biasPerPx).coerceIn(-0.6f, 0.6f)
+                            currentHorizontalBias =
+                                (currentHorizontalBias + dragAmount.x * biasPerPx).coerceIn(-0.6f, 0.6f)
                             isAdjustingPosition = true
                         } else {
-                            dragAccumulator += dragAmount
+                            dragAccumulator += dragAmount.y
                             // Swipe up = faster (lower tempo). Swipe down = slower (higher tempo).
                             val tempoDeltaMs = (dragAccumulator / tempoSwipeThreshold).toInt() * 5L
                             if (tempoDeltaMs != 0L) {
@@ -416,6 +422,7 @@ fun RsvpScreen(
                                 }
                             }
                         }
+                        change.consume()
                     }
                 )
             }
@@ -474,7 +481,8 @@ fun RsvpScreen(
                         fontSizeSp = currentFontSizeSp,
                         fontFamily = resolvedFontFamily,
                         fontWeight = resolvedFontWeight,
-                        horizontalBias = currentHorizontalBias
+                        horizontalBias = currentHorizontalBias,
+                        lockPivot = effectiveConfig.enablePhraseChunking && effectiveConfig.maxWordsPerUnit > 1
                 )
             }
         }
@@ -930,11 +938,16 @@ private fun OrpAlignedText(
     fontSizeSp: Float = 44f,
     fontFamily: FontFamily = InterFontFamily,
     fontWeight: FontWeight = FontWeight.Light,
-    horizontalBias: Float = -0.12f
+    horizontalBias: Float = -0.12f,
+    lockPivot: Boolean = false
 ) {
     // Build the display string with sections
     val firstWord = tokens.firstOrNull { it.type == TokenType.WORD }
     val orpIndex = firstWord?.orpIndex ?: 0
+    val wordCount = tokens.count { it.type == TokenType.WORD }
+    var firstWordStart = -1
+    var firstWordEndExclusive = -1
+    val effectiveBias = horizontalBias.coerceIn(-0.6f, 0.6f)
 
     // Build full text with punctuation attached correctly
     // Opening punctuation attaches to the next word (no space after)
@@ -947,7 +960,12 @@ private fun OrpAlignedText(
             when (token.type) {
                 TokenType.WORD -> {
                     if (needsSpace) append(" ")
+                    val start = length
                     append(token.text)
+                    if (firstWordStart == -1) {
+                        firstWordStart = start
+                        firstWordEndExclusive = length
+                    }
                     needsSpace = true
                 }
                 TokenType.PUNCTUATION -> {
@@ -972,8 +990,8 @@ private fun OrpAlignedText(
     }
 
     // Calculate the pivot position in the full string (constrained to the first WORD token).
-    val wordStart = if (firstWord != null) fullText.indexOf(firstWord.text) else -1
-    val wordEndExclusive = if (firstWord != null && wordStart >= 0) wordStart + firstWord.text.length else -1
+    val wordStart = if (firstWordStart >= 0) firstWordStart else -1
+    val wordEndExclusive = if (firstWordEndExclusive > 0) firstWordEndExclusive else -1
     val pivotPosition = if (firstWord != null && wordStart >= 0) {
         (wordStart + orpIndex).coerceIn(wordStart, (wordEndExclusive - 1).coerceAtLeast(wordStart))
     } else {
@@ -989,7 +1007,7 @@ private fun OrpAlignedText(
         letterSpacing = 0.5.sp
     )
 
-    val clampedBias = horizontalBias.coerceIn(-0.6f, 0.6f)
+    val clampedBias = effectiveBias
     val density = LocalDensity.current
     val safePivotIndex = remember(fullText, pivotPosition) {
         if (fullText.isEmpty()) 0 else pivotPosition.coerceIn(0, fullText.lastIndex)
@@ -1016,7 +1034,6 @@ private fun OrpAlignedText(
         val maxFraction = 1f - (safeRightPx / maxWidthPx).coerceIn(0.05f, 0.45f)
         val desiredFraction = rawFraction.coerceIn(minFraction, maxFraction)
         val desiredPivotX = (maxWidthPx * desiredFraction).coerceIn(safeLeftPx, maxWidthPx - safeRightPx)
-        val guideBias = ((desiredPivotX / maxWidthPx) * 2f) - 1f
 
         val measured = remember(baseAnnotatedText, textStyle) {
             textMeasurer.measure(
@@ -1044,10 +1061,24 @@ private fun OrpAlignedText(
 
         val pivotIndex: Int
         val translationX: Float
-        if (maxTranslationX < minTranslationX) {
+        val guidePivotX: Float
+        if (lockPivot && wordCount > 1) {
+            // For multi-word chunks, keep the pivot stable and shift the guide to balance the phrase.
+            pivotIndex = safePivotIndex.coerceIn(pivotCandidateStart, pivotCandidateEnd)
+            val pivotCenter = pivotCenterX(pivotIndex)
+            val textLeft = measured.getBoundingBox(0).left
+            val textRight = measured.getBoundingBox(fullText.lastIndex.coerceAtLeast(0)).right
+            val textCenter = (textLeft + textRight) / 2f
+            val chunkingShiftPx = pivotCenter - textCenter
+            val minPivotX = minTranslationX + pivotCenter
+            val maxPivotX = maxTranslationX + pivotCenter
+            guidePivotX = (desiredPivotX + chunkingShiftPx).coerceIn(minPivotX, maxPivotX)
+            translationX = guidePivotX - pivotCenter
+        } else if (maxTranslationX < minTranslationX) {
             // Word is wider than the safe area; center it to reduce perceived edge-hugging.
             pivotIndex = safePivotIndex.coerceIn(pivotCandidateStart, pivotCandidateEnd)
             translationX = (maxWidthPx - measuredWidthPx) / 2f
+            guidePivotX = desiredPivotX
         } else {
             // Choose a pivot index within the word that maximizes "comfort" margins
             // while keeping the pivot as close as possible to the computed ORP.
@@ -1086,7 +1117,10 @@ private fun OrpAlignedText(
 
             pivotIndex = bestIndex
             translationX = (desiredPivotX - pivotCenterX(pivotIndex)).coerceIn(minTranslationX, maxTranslationX)
+            guidePivotX = desiredPivotX
         }
+
+        val guideBias = ((guidePivotX / maxWidthPx) * 2f) - 1f
 
         val annotatedText = remember(fullText, pivotIndex, pivotColor) {
             buildAnnotatedString {
