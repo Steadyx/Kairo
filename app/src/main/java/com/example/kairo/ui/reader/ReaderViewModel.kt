@@ -250,7 +250,7 @@ fun List<Token>.toParagraphs(): List<Paragraph> {
 
     forEachIndexed { index, token ->
         when (token.type) {
-            TokenType.PARAGRAPH_BREAK -> {
+            TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> {
                 if (currentTokens.isNotEmpty()) {
                     paragraphs.add(Paragraph(currentTokens.toList(), startIndex))
                     currentTokens = mutableListOf()

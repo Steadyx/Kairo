@@ -978,7 +978,7 @@ private fun ParagraphText(
     val annotated = remember(paragraph.tokens, paragraph.startIndex, focusIndex, primary) {
         buildAnnotatedString {
             paragraph.tokens.forEachIndexed { localIndex, token ->
-                if (token.type == TokenType.PARAGRAPH_BREAK) return@forEachIndexed
+                if (token.type == TokenType.PARAGRAPH_BREAK || token.type == TokenType.PAGE_BREAK) return@forEachIndexed
                 val globalIndex = paragraph.startIndex + localIndex
 
                 val prevToken = if (localIndex > 0) paragraph.tokens[localIndex - 1] else null

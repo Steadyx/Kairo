@@ -4,12 +4,17 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -18,16 +23,21 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.kairo.core.model.BlinkMode
 import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.model.RsvpCustomProfile
@@ -156,6 +166,81 @@ fun FocusSettingsContent(
 }
 
 @Composable
+private fun DeferredSliderRow(
+    title: String,
+    valueLabel: (Float) -> String,
+    rawValue: Float,
+    onCommit: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    subtitle: String? = null
+) {
+    var localValue by remember { mutableFloatStateOf(rawValue) }
+    LaunchedEffect(rawValue) {
+        localValue = rawValue
+    }
+
+    val coercedValue = localValue.coerceIn(valueRange.start, valueRange.endInclusive)
+    SettingsSliderRow(
+        title = title,
+        subtitle = subtitle,
+        valueLabel = valueLabel(coercedValue),
+        value = coercedValue,
+        onValueChange = { localValue = it },
+        onValueChangeFinished = { onCommit(coercedValue) },
+        valueRange = valueRange
+    )
+}
+
+@Composable
+private fun BlinkModeSelector(
+    selected: BlinkMode,
+    onSelect: (BlinkMode) -> Unit
+) {
+    val options = listOf(BlinkMode.OFF, BlinkMode.SUBTLE, BlinkMode.ADAPTIVE)
+    val subtitle = when (selected) {
+        BlinkMode.OFF -> "No blink between words."
+        BlinkMode.SUBTLE -> "Small, steady blink at higher speeds."
+        BlinkMode.ADAPTIVE -> "Blink adapts to easier words and clean stretches."
+    }
+
+    Text("Blink mode", style = MaterialTheme.typography.bodyLarge)
+    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Spacer(modifier = Modifier.height(6.dp))
+
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(options, key = { it.name }) { mode ->
+            val isSelected = mode == selected
+            val label = when (mode) {
+                BlinkMode.OFF -> "Off"
+                BlinkMode.SUBTLE -> "Subtle"
+                BlinkMode.ADAPTIVE -> "Adaptive"
+            }
+
+            Surface(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onSelect(mode) },
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isSelected) 0.7f else 0.4f),
+                border = BorderStroke(
+                    1.dp,
+                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                )
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun RsvpSettingsContent(
     selectedProfileId: String,
     customProfiles: List<RsvpCustomProfile>,
@@ -208,183 +293,208 @@ fun RsvpSettingsContent(
     )
 
     val minTempoMs = if (unlockExtremeSpeed) 10L else 30L
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Tempo",
         subtitle = "Lower tempo = faster. This is the overall speed dial; everything else shapes readability.",
-        valueLabel = "${config.tempoMsPerWord}ms",
-        value = config.tempoMsPerWord.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.tempoMsPerWord.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(tempoMsPerWord = newValue.toLong().coerceIn(minTempoMs, 240L)) }
         },
         valueRange = minTempoMs.toFloat()..240f
     )
 
     Text("Readability floors", style = MaterialTheme.typography.titleSmall)
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Minimum word time",
         subtitle = "Hard floor for any displayed word; prevents flashing at high speeds.",
-        valueLabel = "${config.minWordMs}ms",
-        value = config.minWordMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.minWordMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(minWordMs = newValue.toLong().coerceIn(30L, 140L)) }
         },
         valueRange = 30f..140f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Long-word minimum",
         subtitle = "Ensures long/complex words feel readable even at very high speed.",
-        valueLabel = "${config.longWordMinMs}ms",
-        value = config.longWordMinMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.longWordMinMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(longWordMinMs = newValue.toLong().coerceIn(80L, 300L)) }
         },
         valueRange = 80f..300f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Long-word threshold",
-        valueLabel = "${config.longWordChars} chars",
-        value = config.longWordChars.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toInt()} chars" },
+        rawValue = config.longWordChars.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(longWordChars = newValue.toInt().coerceIn(8, 14)) }
         },
         valueRange = 8f..14f
     )
 
     Text("Difficulty model", style = MaterialTheme.typography.titleSmall)
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Syllable boost",
-        valueLabel = "+${config.syllableExtraMs}ms",
-        value = config.syllableExtraMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "+${it.toLong()}ms" },
+        rawValue = config.syllableExtraMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(syllableExtraMs = newValue.toLong().coerceIn(0L, 45L)) }
         },
         valueRange = 0f..45f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Rarity boost",
-        valueLabel = "+${config.rarityExtraMaxMs}ms",
-        value = config.rarityExtraMaxMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "+${it.toLong()}ms" },
+        rawValue = config.rarityExtraMaxMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(rarityExtraMaxMs = newValue.toLong().coerceIn(0L, 200L)) }
         },
         valueRange = 0f..200f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Complexity strength",
-        valueLabel = "${(config.complexityStrength * 100).toInt()}%",
-        value = (config.complexityStrength * 100).toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toInt()}%" },
+        rawValue = (config.complexityStrength * 100).toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(complexityStrength = (newValue / 100.0).coerceIn(0.0, 1.0)) }
         },
         valueRange = 0f..100f
     )
 
     Text("Punctuation pauses", style = MaterialTheme.typography.titleSmall)
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Comma",
-        valueLabel = "${config.commaPauseMs}ms",
-        value = config.commaPauseMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.commaPauseMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(commaPauseMs = newValue.toLong().coerceIn(0L, 260L)) }
         },
         valueRange = 0f..260f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Dash",
-        valueLabel = "${config.dashPauseMs}ms",
-        value = config.dashPauseMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.dashPauseMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(dashPauseMs = newValue.toLong().coerceIn(0L, 320L)) }
         },
         valueRange = 0f..320f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Semicolon",
-        valueLabel = "${config.semicolonPauseMs}ms",
-        value = config.semicolonPauseMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.semicolonPauseMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(semicolonPauseMs = newValue.toLong().coerceIn(0L, 360L)) }
         },
         valueRange = 0f..360f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Colon",
-        valueLabel = "${config.colonPauseMs}ms",
-        value = config.colonPauseMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.colonPauseMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(colonPauseMs = newValue.toLong().coerceIn(0L, 360L)) }
         },
         valueRange = 0f..360f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Sentence end",
-        valueLabel = "${config.sentenceEndPauseMs}ms",
-        value = config.sentenceEndPauseMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.sentenceEndPauseMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(sentenceEndPauseMs = newValue.toLong().coerceIn(0L, 500L)) }
         },
         valueRange = 0f..500f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Parentheses",
-        valueLabel = "${config.parenthesesPauseMs}ms",
-        value = config.parenthesesPauseMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.parenthesesPauseMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(parenthesesPauseMs = newValue.toLong().coerceIn(0L, 320L)) }
         },
         valueRange = 0f..320f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Quotes",
-        valueLabel = "${config.quotePauseMs}ms",
-        value = config.quotePauseMs.toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.quotePauseMs.toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(quotePauseMs = newValue.toLong().coerceIn(0L, 200L)) }
         },
         valueRange = 0f..200f
     )
 
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Pause scaling",
         subtitle = "Compress pauses at high speed (floors still apply).",
-        valueLabel = "${(config.pauseScaleExponent * 100).toInt()}%",
-        value = (config.pauseScaleExponent * 100).toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toInt()}%" },
+        rawValue = (config.pauseScaleExponent * 100).toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(pauseScaleExponent = (newValue / 100.0).coerceIn(0.2, 0.9)) }
         },
         valueRange = 20f..90f
     )
 
     Text("Context shaping", style = MaterialTheme.typography.titleSmall)
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Parentheticals",
-        valueLabel = "+${((config.parentheticalMultiplier - 1.0) * 100).toInt()}%",
-        value = ((config.parentheticalMultiplier - 1.0) * 100).toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "+${(it).toInt()}%" },
+        rawValue = ((config.parentheticalMultiplier - 1.0) * 100).toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(parentheticalMultiplier = (1.0 + newValue / 100.0).coerceIn(1.0, 1.35)) }
         },
         valueRange = 0f..35f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Dialogue pace",
-        valueLabel = "${(config.dialogueMultiplier * 100).toInt()}%",
-        value = (config.dialogueMultiplier * 100).toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toInt()}%" },
+        rawValue = (config.dialogueMultiplier * 100).toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(dialogueMultiplier = (newValue / 100.0).coerceIn(0.85, 1.05)) }
         },
         valueRange = 85f..105f
     )
 
     Text("Rhythm", style = MaterialTheme.typography.titleSmall)
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Stability",
         subtitle = "Higher = more responsive; lower = steadier cadence.",
-        valueLabel = "${(config.smoothingAlpha * 100).toInt()}%",
-        value = (config.smoothingAlpha * 100).toFloat(),
-        onValueChange = { newValue ->
+        valueLabel = { "${it.toInt()}%" },
+        rawValue = (config.smoothingAlpha * 100).toFloat(),
+        onCommit = { newValue ->
             updateConfig { it.copy(smoothingAlpha = (newValue / 100.0).coerceIn(0.0, 1.0)) }
         },
         valueRange = 0f..100f
+    )
+
+    SettingsSwitchRow(
+        title = "Clause pacing",
+        subtitle = "Adds tiny hesitations at clause starts for more natural phrasing.",
+        checked = config.useClausePausing,
+        onCheckedChange = { enabled ->
+            updateConfig { it.copy(useClausePausing = enabled) }
+        }
+    )
+
+    DeferredSliderRow(
+        title = "Clause strength",
+        subtitle = "Extra time at clause starts (only when clause pacing is enabled).",
+        valueLabel = { "+${it.toInt()}%" },
+        rawValue = ((config.clausePauseFactor.coerceIn(1.0, 1.6) - 1.0) * 100).toFloat(),
+        onCommit = { newValue ->
+            updateConfig { it.copy(clausePauseFactor = (1.0 + newValue / 100.0).coerceIn(1.0, 1.6)) }
+        },
+        valueRange = 0f..60f
+    )
+
+    BlinkModeSelector(
+        selected = config.blinkMode,
+        onSelect = { mode -> updateConfig { it.copy(blinkMode = mode) } }
     )
 
     SettingsSwitchRow(
@@ -399,38 +509,38 @@ fun RsvpSettingsContent(
     Spacer(modifier = Modifier.height(8.dp))
     Text("RSVP display", style = MaterialTheme.typography.titleMedium)
 
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Font size",
-        valueLabel = "${rsvpFontSizeSp.toInt()}sp",
-        value = rsvpFontSizeSp,
-        onValueChange = { onRsvpFontSizeChange(it.coerceIn(28f, 64f)) },
+        valueLabel = { "${it.toInt()}sp" },
+        rawValue = rsvpFontSizeSp,
+        onCommit = { onRsvpFontSizeChange(it.coerceIn(28f, 64f)) },
         valueRange = 28f..64f
     )
 
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Text brightness",
         subtitle = "Dims the RSVP word display without changing the theme.",
-        valueLabel = "${(rsvpTextBrightness.coerceIn(0.55f, 1.0f) * 100).toInt()}%",
-        value = rsvpTextBrightness.coerceIn(0.55f, 1.0f),
-        onValueChange = { onRsvpTextBrightnessChange(it.coerceIn(0.55f, 1.0f)) },
+        valueLabel = { "${(it.coerceIn(0.55f, 1.0f) * 100).toInt()}%" },
+        rawValue = rsvpTextBrightness.coerceIn(0.55f, 1.0f),
+        onCommit = { onRsvpTextBrightnessChange(it.coerceIn(0.55f, 1.0f)) },
         valueRange = 0.55f..1.0f
     )
 
     RsvpFontFamilySelector(selected = rsvpFontFamily, onFontFamilyChange = onRsvpFontFamilyChange)
     RsvpFontWeightSelector(selected = rsvpFontWeight, onFontWeightChange = onRsvpFontWeightChange)
 
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Vertical position",
-        valueLabel = "${(rsvpVerticalBias * 100).toInt()}%",
-        value = rsvpVerticalBias,
-        onValueChange = onRsvpVerticalBiasChange,
+        valueLabel = { "${(it * 100).toInt()}%" },
+        rawValue = rsvpVerticalBias,
+        onCommit = onRsvpVerticalBiasChange,
         valueRange = -0.6f..0.6f
     )
-    SettingsSliderRow(
+    DeferredSliderRow(
         title = "Left bias",
-        valueLabel = "${(rsvpHorizontalBias * 100).toInt()}%",
-        value = rsvpHorizontalBias,
-        onValueChange = onRsvpHorizontalBiasChange,
+        valueLabel = { "${(it * 100).toInt()}%" },
+        rawValue = rsvpHorizontalBias,
+        onCommit = onRsvpHorizontalBiasChange,
         valueRange = -0.6f..0.6f
     )
 }

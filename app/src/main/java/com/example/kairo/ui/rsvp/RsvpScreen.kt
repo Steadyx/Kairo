@@ -344,7 +344,7 @@ fun RsvpScreen(
         if (!isPlaying || completed) return@LaunchedEffect
         if (frameIndex >= frames.size) return@LaunchedEffect
         val frame = frames[frameIndex]
-        delay(frame.durationMs.coerceAtLeast(30L))
+        delay(frame.durationMs.coerceAtLeast(16L))
         if (frameIndex == frames.lastIndex) {
             completed = true
             // Move to next token after the last frame's original token
@@ -939,7 +939,7 @@ private fun OrpAlignedText(
     // Build full text with punctuation attached correctly
     // Opening punctuation attaches to the next word (no space after)
     // Closing punctuation attaches to the previous word (no space before)
-    val openingPunctuation = setOf('(', '[', '{', '"', '\u201C', '\u2018')
+    val openingPunctuation = setOf('(', '[', '{', '\u201C', '\u2018')
 
     val fullText = buildString {
         var needsSpace = false
@@ -951,7 +951,13 @@ private fun OrpAlignedText(
                     needsSpace = true
                 }
                 TokenType.PUNCTUATION -> {
-                    val isOpening = token.text.length == 1 && token.text[0] in openingPunctuation
+                    val ch = token.text.singleOrNull()
+                    val isOpening = when {
+                        ch == null -> false
+                        ch == '"' -> !needsSpace
+                        ch in openingPunctuation -> true
+                        else -> false
+                    }
                     // No space before closing punctuation
                     // Space before opening punctuation (if not at start)
                     if (isOpening && needsSpace) append(" ")
@@ -960,7 +966,7 @@ private fun OrpAlignedText(
                     // Closing punctuation: space after (next word is separate)
                     needsSpace = !isOpening
                 }
-                TokenType.PARAGRAPH_BREAK -> { /* ignore */ }
+                TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> { /* ignore */ }
             }
         }
     }
