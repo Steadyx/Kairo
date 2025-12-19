@@ -200,6 +200,30 @@ class ComprehensionRsvpEngineHeuristicsTest {
     }
 
     @Test
+    fun structuralPauseAddsExtraTimeToBreakFrames() {
+        val config = stableConfig.copy(
+            tempoMsPerWord = 200L,
+            paragraphPauseMs = 0L,
+            startDelayMs = 0L,
+            endDelayMs = 0L,
+            rampUpFrames = 0,
+            rampDownFrames = 0
+        )
+
+        val tokens = listOf(
+            w("Hello"),
+            Token(text = "\n", type = TokenType.PARAGRAPH_BREAK, pauseAfterMs = 200L),
+            w("Next")
+        )
+
+        val frames = engine.generateFrames(tokens, 0, config)
+        val breakFrame = frames.firstOrNull { it.tokens.none { t -> t.type == TokenType.WORD } }
+            ?: error("Expected a break frame")
+
+        assertTrue("Expected break frame to include extra pause", breakFrame.durationMs >= 340L)
+    }
+
+    @Test
     fun speakerTagsReadFasterWhenDialogueDetectionEnabled() {
         val baseConfig = stableConfig.copy(
             tempoMsPerWord = 200L,

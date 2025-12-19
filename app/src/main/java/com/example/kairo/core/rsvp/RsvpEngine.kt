@@ -73,10 +73,13 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
                 val msPerWord = config.tempoMsPerWord.toDouble()
                 val pauseScale = pauseScale(msPerWord, config)
+                val extraPause = (cursorToken.pauseAfterMs.coerceAtLeast(0L).toDouble()) * pauseScale
                 val durationMs = when (cursorToken.type) {
                     TokenType.PAGE_BREAK -> max(pageBreakBasePauseMs(config) * pauseScale, MIN_PAGE_BREAK_MS).toLong()
                     TokenType.PARAGRAPH_BREAK -> max(config.paragraphPauseMs.toDouble() * pauseScale, MIN_PARAGRAPH_BREAK_MS).toLong()
                     else -> 0L
+                }.let { base ->
+                    (base + extraPause).toLong()
                 }.coerceAtLeast(MIN_FRAME_MS)
 
                 frames += RsvpFrame(
@@ -323,6 +326,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
                         dialogueEntryMultiplier *
                         speakerTagMultiplier
                     duration += max(wordMs, wordFloorMs(token, config).toDouble())
+                    if (token.pauseAfterMs > 0L) {
+                        duration += token.pauseAfterMs * pauseScale(msPerWord, config)
+                    }
                 }
                 else -> Unit
             }
