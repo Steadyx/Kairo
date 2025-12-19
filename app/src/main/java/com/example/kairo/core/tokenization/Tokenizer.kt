@@ -5,8 +5,6 @@ import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.calculateOrpIndex
 import com.example.kairo.core.model.normalizeWhitespace
-import com.example.kairo.core.model.isMidSentencePunctuation
-import com.example.kairo.core.model.isSentenceEndingPunctuation
 import com.example.kairo.core.linguistics.WordAnalyzer
 import com.example.kairo.core.linguistics.ClauseDetector
 import com.example.kairo.core.linguistics.DialogueAnalyzer
@@ -21,6 +19,7 @@ class Tokenizer {
 
         val cleaned = normalizeEpubSymbols(normalized)
         val withPageBreaks = normalizePageBreakMarkers(cleaned)
+        val blockCues = extractBlockCues(chapter.htmlContent)
 
         // Reset dialogue state for each chapter
         inDialogue = false
@@ -38,7 +37,7 @@ class Tokenizer {
                 tokens += Token(
                     text = "\u000C",
                     type = TokenType.PAGE_BREAK,
-                    pauseAfterMs = PAGE_BREAK_PAUSE
+                    pauseAfterMs = 0L
                 )
             } else {
                 tokens += tokenizeParagraph(paragraph)
@@ -47,10 +46,13 @@ class Tokenizer {
             val nextParagraph = paragraphs.getOrNull(index + 1)
             val nextIsPageBreak = nextParagraph?.let(::isPageBreakParagraph) == true
             if (index < paragraphs.lastIndex && !isPageBreak && !nextIsPageBreak) {
+                val currentCue = blockCues.getOrNull(index) ?: BlockCue(BlockType.PARAGRAPH, false)
+                val nextCue = blockCues.getOrNull(index + 1)
+                val extraPause = structuralPauseMs(currentCue, nextCue)
                 tokens += Token(
                     text = "\n",
                     type = TokenType.PARAGRAPH_BREAK,
-                    pauseAfterMs = PARAGRAPH_PAUSE
+                    pauseAfterMs = extraPause
                 )
             }
         }
@@ -80,7 +82,7 @@ class Tokenizer {
                     tokens += Token(
                         text = part,
                         type = TokenType.PUNCTUATION,
-                        pauseAfterMs = punctuationPause(char),
+                        pauseAfterMs = 0L,
                         isDialogue = inDialogue
                     )
                 }
@@ -107,10 +109,61 @@ class Tokenizer {
         return tokens
     }
 
-    private fun punctuationPause(char: Char): Long = when {
-        isSentenceEndingPunctuation(char) -> SENTENCE_PAUSE
-        isMidSentencePunctuation(char) -> MID_SENTENCE_PAUSE
-        else -> 0L
+    private fun structuralPauseMs(current: BlockCue, next: BlockCue?): Long {
+        var extra = 0L
+
+        when (current.type) {
+            BlockType.HEADING -> extra += HEADING_AFTER_MS
+            BlockType.BLOCKQUOTE -> extra += BLOCKQUOTE_AFTER_MS
+            BlockType.PREFORMATTED -> extra += PREFORMATTED_AFTER_MS
+            BlockType.LIST_ITEM -> if (next?.type != BlockType.LIST_ITEM) extra += LIST_END_AFTER_MS
+            BlockType.PARAGRAPH -> Unit
+        }
+
+        if (current.hasEmphasis) extra += EMPHASIS_AFTER_MS
+
+        when (next?.type) {
+            BlockType.HEADING -> extra += HEADING_BEFORE_MS
+            BlockType.BLOCKQUOTE -> extra += BLOCKQUOTE_BEFORE_MS
+            BlockType.PREFORMATTED -> extra += PREFORMATTED_BEFORE_MS
+            else -> Unit
+        }
+
+        return extra.coerceAtLeast(0L)
+    }
+
+    private fun extractBlockCues(html: String): List<BlockCue> {
+        if (html.isBlank()) return emptyList()
+
+        val cleaned = html
+            .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
+
+        val tagRegex = Regex("<\\s*(h[1-6]|li|blockquote|pre|p|div|br)\\b[^>]*>", RegexOption.IGNORE_CASE)
+        val emphasisRegex = Regex("<\\s*(em|i)\\b", RegexOption.IGNORE_CASE)
+        val matches = tagRegex.findAll(cleaned).toList()
+        if (matches.isEmpty()) return emptyList()
+
+        val cues = mutableListOf<BlockCue>()
+        for (i in matches.indices) {
+            val match = matches[i]
+            val tag = match.groupValues[1].lowercase()
+            val start = match.range.first
+            val end = if (i < matches.lastIndex) matches[i + 1].range.first else cleaned.length
+            val content = cleaned.substring(start, end)
+            val hasEmphasis = emphasisRegex.containsMatchIn(content)
+
+            val type = when {
+                tag.startsWith("h") -> BlockType.HEADING
+                tag == "li" -> BlockType.LIST_ITEM
+                tag == "blockquote" -> BlockType.BLOCKQUOTE
+                tag == "pre" -> BlockType.PREFORMATTED
+                else -> BlockType.PARAGRAPH
+            }
+            cues += BlockCue(type, hasEmphasis)
+        }
+
+        return cues
     }
 
     private fun normalizeEpubSymbols(input: String): String {
@@ -165,10 +218,14 @@ class Tokenizer {
     }
 
     companion object {
-        private const val SENTENCE_PAUSE = 260L
-        private const val MID_SENTENCE_PAUSE = 140L
-        private const val PARAGRAPH_PAUSE = 320L
-        private const val PAGE_BREAK_PAUSE = 560L
+        private const val HEADING_BEFORE_MS = 140L
+        private const val HEADING_AFTER_MS = 220L
+        private const val BLOCKQUOTE_BEFORE_MS = 90L
+        private const val BLOCKQUOTE_AFTER_MS = 140L
+        private const val PREFORMATTED_BEFORE_MS = 110L
+        private const val PREFORMATTED_AFTER_MS = 160L
+        private const val LIST_END_AFTER_MS = 120L
+        private const val EMPHASIS_AFTER_MS = 60L
 
         // Apostrophe characters used in contractions (straight and curly)
         private const val APOSTROPHES = "'\u2019\u2018"  // ' ' '
@@ -219,4 +276,17 @@ class Tokenizer {
             """[.,;:!?\u201C\u201D\u201E\u0022\u2018\u2019\u2014\u2013\u2026()\[\]{}\-\u2212°º%$€£¥℃℉]"""
         )
     }
+
+    private enum class BlockType {
+        PARAGRAPH,
+        HEADING,
+        LIST_ITEM,
+        BLOCKQUOTE,
+        PREFORMATTED
+    }
+
+    private data class BlockCue(
+        val type: BlockType,
+        val hasEmphasis: Boolean
+    )
 }
