@@ -79,11 +79,12 @@ import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.model.RsvpCustomProfile
 import com.example.kairo.core.model.RsvpFontFamily
 import com.example.kairo.core.model.RsvpFontWeight
-import com.example.kairo.core.model.RsvpFrame
+import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
-import com.example.kairo.core.rsvp.RsvpEngine
+import com.example.kairo.data.rsvp.RsvpFrameRepository
+import com.example.kairo.data.rsvp.RsvpFrameSet
 import com.example.kairo.ui.settings.RsvpSettingsContent
 import com.example.kairo.ui.settings.SettingsNavRow
 import com.example.kairo.ui.settings.SettingsSliderRow
@@ -91,12 +92,16 @@ import com.example.kairo.ui.settings.SettingsSwitchRow
 import com.example.kairo.ui.settings.ThemeSelector
 import com.example.kairo.ui.theme.InterFontFamily
 import com.example.kairo.ui.theme.RobotoFontFamily
+import android.os.SystemClock
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.roundToLong
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RsvpScreen(
+    bookId: BookId,
+    chapterIndex: Int,
     tokens: List<Token>,
     startIndex: Int,
     config: RsvpConfig,
@@ -104,7 +109,7 @@ fun RsvpScreen(
     customProfiles: List<RsvpCustomProfile>,
     extremeSpeedUnlocked: Boolean,
     onExtremeSpeedUnlockedChange: (Boolean) -> Unit,
-    engine: RsvpEngine,
+    frameRepository: RsvpFrameRepository,
     readerTheme: ReaderTheme,
     focusModeEnabled: Boolean,
     onFocusModeEnabledChange: (Boolean) -> Unit,
@@ -175,12 +180,25 @@ fun RsvpScreen(
         RsvpFontWeight.MEDIUM -> FontWeight.Medium
     }
 
-    val effectiveConfig = remember(config, currentTempoMsPerWord) {
-        val derivedWpm = (60_000.0 / currentTempoMsPerWord.toDouble()).toInt().coerceAtLeast(1)
-        config.copy(tempoMsPerWord = currentTempoMsPerWord, baseWpm = derivedWpm)
+    var frameSet by remember { mutableStateOf<RsvpFrameSet?>(null) }
+    var isFramesLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(bookId, chapterIndex, config) {
+        val hadFrames = frameSet?.frames?.isNotEmpty() == true
+        if (!hadFrames) isFramesLoading = true
+
+        val computed = runCatching {
+            frameRepository.getFrames(bookId, chapterIndex, config)
+        }.getOrNull()
+
+        frameSet = computed
+        isFramesLoading = false
     }
-    val frames = remember(tokens, startIndex, effectiveConfig) {
-        runCatching { engine.generateFrames(tokens, startIndex, effectiveConfig) }.getOrElse { emptyList() }
+
+    val frames = frameSet?.frames.orEmpty()
+    val baseTempoMs = frameSet?.baseTempoMs ?: config.tempoMsPerWord
+    val tempoScale = remember(currentTempoMsPerWord, baseTempoMs) {
+        if (baseTempoMs <= 0L) 1.0 else (currentTempoMsPerWord.toDouble() / baseTempoMs.toDouble()).coerceIn(0.1, 4.0)
     }
 
     var frameIndex by rememberSaveable { mutableStateOf(0) }
@@ -194,6 +212,7 @@ fun RsvpScreen(
     var dragStartBias by remember { mutableStateOf(verticalBias) }
     var dragStartHorizontalBias by remember { mutableStateOf(horizontalBias) }
     var wasPlayingBeforePositioning by rememberSaveable { mutableStateOf(true) }
+    var lastPositionSaveMs by rememberSaveable { mutableStateOf(0L) }
 
     // Helper to get current token position from the frame's originalTokenIndex
     fun getCurrentTokenIndex(): Int {
@@ -248,7 +267,7 @@ fun RsvpScreen(
         showQuickSettings = false
     }
 
-    // Save position whenever frame changes (so it's always up to date)
+    // Save position periodically while playing to avoid heavy persistence churn.
     LaunchedEffect(frameIndex) {
         if (frames.isNotEmpty()) {
             val currentIndex = getCurrentTokenIndex()
@@ -258,7 +277,11 @@ fun RsvpScreen(
             } else {
                 currentIndex
             }
-            onPositionChanged(safeIndex)
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastPositionSaveMs >= POSITION_SAVE_INTERVAL_MS || frameIndex == frames.lastIndex) {
+                lastPositionSaveMs = now
+                onPositionChanged(safeIndex)
+            }
         }
     }
 
@@ -272,8 +295,13 @@ fun RsvpScreen(
 
     // Reset state only when tokens or startIndex change (not when config/tempo changes)
     LaunchedEffect(tokens, startIndex) {
-        frameIndex = 0
         currentTokenIndex = startIndex
+        frameIndex = if (frames.isNotEmpty()) {
+            val idx = frames.indexOfLast { it.originalTokenIndex <= startIndex }.let { if (it == -1) 0 else it }
+            idx.coerceIn(0, frames.lastIndex)
+        } else {
+            0
+        }
         isPlaying = true
         completed = false
         // Initialize tempo from config when starting a new RSVP session
@@ -321,6 +349,23 @@ fun RsvpScreen(
         }
     }
 
+    // Loading state
+    if (frames.isEmpty() && isFramesLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "Preparing RSVP…",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+            )
+        }
+        return
+    }
+
     // Empty state
     if (frames.isEmpty()) {
         Box(
@@ -341,11 +386,12 @@ fun RsvpScreen(
     }
 
     // RSVP playback logic
-    LaunchedEffect(isPlaying, frameIndex, completed, frames) {
+    LaunchedEffect(isPlaying, frameIndex, completed, frames, tempoScale) {
         if (!isPlaying || completed) return@LaunchedEffect
         if (frameIndex >= frames.size) return@LaunchedEffect
         val frame = frames[frameIndex]
-        delay(frame.durationMs.coerceAtLeast(16L))
+        val scaledMs = (frame.durationMs * tempoScale).roundToLong().coerceAtLeast(16L)
+        delay(scaledMs)
         if (frameIndex == frames.lastIndex) {
             completed = true
             // Move to next token after the last frame's original token
@@ -366,9 +412,14 @@ fun RsvpScreen(
     // Swipe threshold for tempo adjustment (pixels per 5ms change)
     val tempoSwipeThreshold = 30f
 
-    val estimatedWpmForCurrentFrames = remember(frames) {
+    val baseFrameStats = remember(frames) {
         val wordCount = frames.sumOf { frame -> frame.tokens.count { it.type == TokenType.WORD } }.coerceAtLeast(1)
         val totalMs = frames.sumOf { it.durationMs }.coerceAtLeast(1L)
+        wordCount to totalMs
+    }
+    val estimatedWpmForCurrentFrames = remember(baseFrameStats, tempoScale) {
+        val wordCount = baseFrameStats.first
+        val totalMs = (baseFrameStats.second * tempoScale).roundToLong().coerceAtLeast(1L)
         ((wordCount * 60_000.0) / totalMs.toDouble()).toInt().coerceAtLeast(1)
     }
 
@@ -398,6 +449,7 @@ fun RsvpScreen(
                             if (currentTempoMsPerWord != dragStartTempoMsPerWord) {
                                 onTempoChange(currentTempoMsPerWord)
                             }
+                            showTempoIndicator = false
                         }
                         dragAccumulator = 0f
                     },
@@ -482,7 +534,7 @@ fun RsvpScreen(
                         fontFamily = resolvedFontFamily,
                         fontWeight = resolvedFontWeight,
                         horizontalBias = currentHorizontalBias,
-                        lockPivot = effectiveConfig.enablePhraseChunking && effectiveConfig.maxWordsPerUnit > 1
+                        lockPivot = config.enablePhraseChunking && config.maxWordsPerUnit > 1
                 )
             }
         }
@@ -1214,3 +1266,5 @@ private fun OrpAlignedText(
         }
     }
 }
+
+private const val POSITION_SAVE_INTERVAL_MS = 750L

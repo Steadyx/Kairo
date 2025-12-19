@@ -257,7 +257,19 @@ object ClauseDetector {
 object DialogueAnalyzer {
 
     private var inDialogue = false
-    private var dialogueDepth = 0
+
+    private val speakerVerbs = setOf(
+        "said", "asked", "replied", "answered", "whispered", "shouted",
+        "yelled", "muttered", "murmured", "exclaimed", "declared",
+        "demanded", "inquired", "responded", "added", "continued",
+        "explained", "insisted", "suggested", "warned", "promised"
+    )
+
+    private val speakerPatterns = listOf(
+        Regex("^(he|she|they|i|we|it|\\w+) (said|asked|replied|answered|whispered)"),
+        Regex("(said|asked|replied|answered|whispered) (he|she|they|\\w+)$"),
+        Regex("^\".*\" (said|asked|replied|answered|whispered)")
+    )
 
     /**
      * Tracks dialogue state and returns appropriate timing multiplier.
@@ -281,14 +293,16 @@ object DialogueAnalyzer {
     fun isSpeakerTag(words: List<String>): Boolean {
         if (words.isEmpty()) return false
 
-        val text = words.joinToString(" ").lowercase()
-        val speakerPatterns = listOf(
-            Regex("^(he|she|they|i|we|it|\\w+) (said|asked|replied|answered|whispered)"),
-            Regex("(said|asked|replied) (he|she|they|\\w+)$"),
-            Regex("^\".*\" (said|asked|replied)")
-        )
+        val lower = words.map { it.lowercase() }
+        if (!lower.any { it in speakerVerbs }) return false
 
+        val text = lower.joinToString(" ")
         return speakerPatterns.any { it.containsMatchIn(text) }
+    }
+
+    fun isSpeakerVerb(word: String): Boolean {
+        if (word.isEmpty()) return false
+        return word.lowercase() in speakerVerbs
     }
 
     /**
@@ -298,6 +312,5 @@ object DialogueAnalyzer {
 
     fun reset() {
         inDialogue = false
-        dialogueDepth = 0
     }
 }

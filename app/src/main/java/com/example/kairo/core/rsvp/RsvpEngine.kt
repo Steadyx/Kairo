@@ -1,6 +1,7 @@
 package com.example.kairo.core.rsvp
 
 import com.example.kairo.core.linguistics.ClauseDetector
+import com.example.kairo.core.linguistics.DialogueAnalyzer
 import com.example.kairo.core.model.BlinkMode
 import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.model.RsvpFrame
@@ -101,6 +102,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 state = state
             )
             val prevTokenGlobal = expanded.getOrNull(cursor - 1)?.token
+            val prevWordGlobal = findPrevWord(expanded, beforeIndex = cursor)
             val nextTokenGlobal = expanded.getOrNull(nextCursor)?.token
             val nextWordGlobal = expanded.getOrNull(findFirstWordCursor(expanded, nextCursor))?.token
             cursor = nextCursor
@@ -112,6 +114,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 rhythm = rhythm,
                 flow = flow,
                 prevToken = prevTokenGlobal,
+                prevWord = prevWordGlobal,
                 nextToken = nextTokenGlobal,
                 nextWord = nextWordGlobal,
                 boundaryBefore = boundaryBefore
@@ -231,6 +234,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         rhythm: RhythmState,
         flow: FlowState,
         prevToken: Token?,
+        prevWord: Token?,
         nextToken: Token?,
         nextWord: Token?,
         boundaryBefore: BoundaryBefore
@@ -245,6 +249,12 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val startBoost = startBoostMultiplier(msPerWord = msPerWord, boundaryBefore = boundaryBefore)
         val clauseConfigStrength = ((config.clausePauseFactor - 1.0) / (DEFAULT_CLAUSE_PAUSE_FACTOR - 1.0)).coerceIn(0.0, 2.0)
         val dialogueEntryBoost = 1.0 + (DIALOGUE_ENTRY_BOOST * speedStrength)
+        val speakerTagMultiplier = speakerTagMultiplier(
+            wordsInFrame = words,
+            prevWord = prevWord,
+            nextWord = nextWord,
+            config = config
+        )
 
         var duration = 0.0
         var parentheticalDepth = contextBefore.parentheticalDepth
@@ -262,9 +272,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     inDialogue = token.isDialogue
                 }
                 TokenType.WORD -> {
+                    val dialogueMultiplier = if (config.useDialogueDetection && inDialogue) config.dialogueMultiplier else 1.0
                     val contextWordMultiplier =
                         (if (parentheticalDepth > 0) config.parentheticalMultiplier else 1.0) *
-                            (if (inDialogue) config.dialogueMultiplier else 1.0)
+                            dialogueMultiplier
                     val boosted = if (index == firstWordIndex) startBoost else 1.0
                     val nextWordText = frameTokens.subList(index + 1, frameTokens.size)
                         .firstOrNull { it.type == TokenType.WORD }
@@ -293,7 +304,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
                         speedStrength = speedStrength
                     )
 
-                    val dialogueEntryMultiplier = if (!contextBefore.inDialogue && index == firstWordIndex && token.isDialogue) {
+                    val dialogueEntryMultiplier = if (config.useDialogueDetection &&
+                        !contextBefore.inDialogue &&
+                        index == firstWordIndex &&
+                        token.isDialogue
+                    ) {
                         dialogueEntryBoost
                     } else {
                         1.0
@@ -305,7 +320,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
                         clauseMultiplier *
                         terminalMultiplier *
                         emphasisMultiplier *
-                        dialogueEntryMultiplier
+                        dialogueEntryMultiplier *
+                        speakerTagMultiplier
                     duration += max(wordMs, wordFloorMs(token, config).toDouble())
                 }
                 else -> Unit
@@ -498,6 +514,47 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
 
         return multiplier.coerceIn(1.0, MAX_EMPHASIS_MULTIPLIER)
+    }
+
+    private fun speakerTagMultiplier(
+        wordsInFrame: List<Token>,
+        prevWord: Token?,
+        nextWord: Token?,
+        config: RsvpConfig
+    ): Double {
+        if (!config.useDialogueDetection) return 1.0
+
+        if (wordsInFrame.isEmpty()) return 1.0
+        if (wordsInFrame.any { it.isDialogue }) return 1.0
+        if (wordsInFrame.size > 3) return 1.0
+
+        val prevText = prevWord?.text
+        val nextText = nextWord?.text
+        val hasSpeakerVerb =
+            wordsInFrame.any { DialogueAnalyzer.isSpeakerVerb(it.text) } ||
+                (prevText != null && DialogueAnalyzer.isSpeakerVerb(prevText)) ||
+                (nextText != null && DialogueAnalyzer.isSpeakerVerb(nextText))
+        if (!hasSpeakerVerb) return 1.0
+
+        val frameTexts = wordsInFrame.map { it.text }
+        val candidates = mutableListOf<List<String>>()
+
+        when (frameTexts.size) {
+            1 -> {
+                val current = frameTexts[0]
+                if (prevText != null) candidates += listOf(prevText, current)
+                if (nextText != null) candidates += listOf(current, nextText)
+                if (prevText != null && nextText != null) candidates += listOf(prevText, current, nextText)
+            }
+            else -> {
+                candidates += frameTexts
+                if (prevText != null) candidates += listOf(prevText) + frameTexts
+                if (nextText != null) candidates += frameTexts + listOf(nextText)
+            }
+        }
+
+        val matchesTag = candidates.any { DialogueAnalyzer.isSpeakerTag(it) }
+        return if (matchesTag) DialogueAnalyzer.getSpeakerTagMultiplier() else 1.0
     }
 
     private fun transitionHoldMs(
