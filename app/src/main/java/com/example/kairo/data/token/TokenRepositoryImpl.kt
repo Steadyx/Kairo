@@ -1,18 +1,20 @@
 package com.example.kairo.data.token
 
 import com.example.kairo.core.model.BookId
+import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.tokenization.Tokenizer
 import com.example.kairo.data.books.BookRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 class TokenRepositoryImpl(
-    private val bookRepository: BookRepository,
-    private val tokenizer: Tokenizer
+    private val bookRepository: BookRepository
 ) : TokenRepository {
 
     // LRU cache with max 10 chapters to prevent unbounded memory growth
@@ -22,37 +24,37 @@ class TokenRepositoryImpl(
         }
     }
     private val mutex = Mutex()
-    private val prefetchScope = CoroutineScope(Dispatchers.IO)
+    private val tokenizationDispatcher = Dispatchers.Default.limitedParallelism(1)
+    private val prefetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    override suspend fun getTokens(bookId: BookId, chapterIndex: Int): List<Token> {
+    override suspend fun getTokens(bookId: BookId, chapterIndex: Int, chapter: Chapter?): List<Token> {
         val key = "${bookId.value}-$chapterIndex"
-        return mutex.withLock {
-            cache[key] ?: run {
-                val chapter = bookRepository.getChapter(bookId, chapterIndex)
-                val tokens = tokenizer.tokenize(chapter)
-                cache[key] = tokens
-                tokens
-            }
-        }.also {
-            // Prefetch next chapter in background for smoother reading
+        val cached = mutex.withLock { cache[key] }
+        if (cached != null) {
             prefetchNextChapter(bookId, chapterIndex + 1)
+            return cached
         }
+
+        val resolvedChapter = chapter
+            ?: withContext(Dispatchers.IO) { bookRepository.getChapter(bookId, chapterIndex) }
+        val tokens = withContext(tokenizationDispatcher) { Tokenizer().tokenize(resolvedChapter) }
+        mutex.withLock { cache[key] = tokens }
+        prefetchNextChapter(bookId, chapterIndex + 1)
+        return tokens
     }
 
     private fun prefetchNextChapter(bookId: BookId, nextIndex: Int) {
         val key = "${bookId.value}-$nextIndex"
         prefetchScope.launch {
-            mutex.withLock {
-                // Only prefetch if not already cached
-                if (!cache.containsKey(key)) {
-                    try {
-                        val chapter = bookRepository.getChapter(bookId, nextIndex)
-                        val tokens = tokenizer.tokenize(chapter)
-                        cache[key] = tokens
-                    } catch (e: Exception) {
-                        // Chapter doesn't exist, ignore
-                    }
-                }
+            val cached = mutex.withLock { cache.containsKey(key) }
+            if (cached) return@launch
+
+            try {
+                val chapter = withContext(Dispatchers.IO) { bookRepository.getChapter(bookId, nextIndex) }
+                val tokens = withContext(tokenizationDispatcher) { Tokenizer().tokenize(chapter) }
+                mutex.withLock { cache[key] = tokens }
+            } catch (e: Exception) {
+                // Chapter doesn't exist, ignore
             }
         }
     }

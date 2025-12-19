@@ -198,4 +198,34 @@ class ComprehensionRsvpEngineHeuristicsTest {
         assertTrue(withBlink[1].durationMs in 16L..22L)
         assertEquals(withoutBlink.sumOf { it.durationMs }, withBlink.sumOf { it.durationMs })
     }
+
+    @Test
+    fun speakerTagsReadFasterWhenDialogueDetectionEnabled() {
+        val baseConfig = stableConfig.copy(
+            tempoMsPerWord = 200L,
+            rarityExtraMaxMs = 0L,
+            syllableExtraMs = 0L,
+            complexityStrength = 0.0,
+            lengthStrength = 0.0,
+            lengthExponent = 1.0,
+            sentenceEndPauseMs = 0L,
+            commaPauseMs = 0L,
+            semicolonPauseMs = 0L,
+            colonPauseMs = 0L,
+            dashPauseMs = 0L,
+            parenthesesPauseMs = 0L,
+            quotePauseMs = 0L,
+            paragraphPauseMs = 0L,
+            useClausePausing = false,
+            useDialogueDetection = false
+        )
+
+        val tokens = listOf(w("he"), w("said"))
+        val withoutDetection = engine.generateFrames(tokens, 0, baseConfig)
+        val withDetection = engine.generateFrames(tokens, 0, baseConfig.copy(useDialogueDetection = true))
+
+        assertTrue(withoutDetection.size >= 2 && withDetection.size >= 2)
+        assertTrue(withDetection[0].durationMs < withoutDetection[0].durationMs)
+        assertTrue(withDetection[1].durationMs < withoutDetection[1].durationMs)
+    }
 }

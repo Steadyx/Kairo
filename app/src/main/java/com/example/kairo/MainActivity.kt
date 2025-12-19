@@ -237,7 +237,7 @@ private fun KairoNavHost(
 
             // Use ViewModel for chapter caching and preloading
             val readerViewModel: ReaderViewModel =
-                viewModel(factory = ReaderViewModel.factory(container.bookRepository))
+                viewModel(factory = ReaderViewModel.factory(container.bookRepository, container.tokenRepository))
             val uiState by readerViewModel.uiState.collectAsState()
 
             // Resume index returned from RSVP. Use it immediately to avoid focus "jump".
@@ -402,7 +402,7 @@ private fun KairoNavHost(
                 }
 
 		            val readerViewModel: ReaderViewModel =
-                        viewModel(factory = ReaderViewModel.factory(container.bookRepository))
+                        viewModel(factory = ReaderViewModel.factory(container.bookRepository, container.tokenRepository))
 		            val uiState by readerViewModel.uiState.collectAsState()
 
 		            // Resume index returned from RSVP. Use it immediately to avoid focus "jump".
@@ -534,6 +534,8 @@ private fun KairoNavHost(
 
             val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
 			            RsvpScreen(
+                            bookId = BookId(bookId),
+                            chapterIndex = chapterIndex,
 				                tokens = tokens,
 				                startIndex = startIndex.coerceAtLeast(0),
 				                config = prefs.rsvpConfig,
@@ -545,7 +547,7 @@ private fun KairoNavHost(
 		                                container.preferencesRepository.updateUnlockExtremeSpeed(enabled)
 		                            }
 	                        },
-			                engine = container.rsvpEngine,
+			                frameRepository = container.rsvpFrameRepository,
 			                readerTheme = prefs.readerTheme,
 			                focusModeEnabled = focusEnabledInRsvp,
 			                onFocusModeEnabledChange = { enabled ->

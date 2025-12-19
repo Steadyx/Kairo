@@ -48,6 +48,8 @@ import com.example.kairo.core.model.RsvpProfileIds
 import com.example.kairo.core.model.description
 import com.example.kairo.core.model.displayName
 import com.example.kairo.core.rsvp.RsvpPaceEstimator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ReaderSettingsContent(
@@ -277,8 +279,16 @@ fun RsvpSettingsContent(
         onDeleteCustomProfile = onDeleteCustomProfile
     )
 
-    val estimatedWpm = remember(config) { RsvpPaceEstimator.estimateWpm(config) }
-    Text("Estimated pace: $estimatedWpm WPM", style = MaterialTheme.typography.bodyMedium)
+    var estimatedWpm by remember { mutableStateOf(0) }
+    LaunchedEffect(config) {
+        estimatedWpm = withContext(Dispatchers.Default) { RsvpPaceEstimator.estimateWpm(config) }
+    }
+    val estimatedText = if (estimatedWpm > 0) {
+        "Estimated pace: $estimatedWpm WPM"
+    } else {
+        "Estimating pace..."
+    }
+    Text(estimatedText, style = MaterialTheme.typography.bodyMedium)
 
     SettingsSwitchRow(
         title = "Unlock extreme speeds",

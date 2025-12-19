@@ -6,7 +6,6 @@ import com.example.kairo.data.bookmarks.BookmarkRepository
 import com.example.kairo.data.bookmarks.BookmarkRepositoryImpl
 import com.example.kairo.core.rsvp.ComprehensionRsvpEngine
 import com.example.kairo.core.rsvp.RsvpEngine
-import com.example.kairo.core.tokenization.Tokenizer
 import com.example.kairo.data.books.BookRepository
 import com.example.kairo.data.books.BookRepositoryImpl
 import com.example.kairo.data.books.EpubBookParser
@@ -21,6 +20,8 @@ import com.example.kairo.data.preferences.PreferencesRepository
 import com.example.kairo.data.preferences.PreferencesRepositoryImpl
 import com.example.kairo.data.reading.ReadingPositionRepository
 import com.example.kairo.data.reading.ReadingPositionRepositoryImpl
+import com.example.kairo.data.rsvp.RsvpFrameRepository
+import com.example.kairo.data.rsvp.RsvpFrameRepositoryImpl
 import com.example.kairo.data.seed.SampleSeeder
 import com.example.kairo.data.token.TokenRepository
 import com.example.kairo.data.token.TokenRepositoryImpl
@@ -35,12 +36,11 @@ class AppContainer(private val context: Context) {
         .build()
 
     private val parsers = listOf(EpubBookParser(), MobiBookParser())
-    private val tokenizer = Tokenizer()
 
     val bookRepository: BookRepository =
         BookRepositoryImpl(database.bookDao(), parsers, context.applicationContext)
     val tokenRepository: TokenRepository =
-        TokenRepositoryImpl(bookRepository, tokenizer)
+        TokenRepositoryImpl(bookRepository)
     val readingPositionRepository: ReadingPositionRepository =
         ReadingPositionRepositoryImpl(database.readingPositionDao())
     val bookmarkRepository: BookmarkRepository =
@@ -55,5 +55,7 @@ class AppContainer(private val context: Context) {
             context.applicationContext
         )
     val rsvpEngine: RsvpEngine = ComprehensionRsvpEngine()
+    val rsvpFrameRepository: RsvpFrameRepository =
+        RsvpFrameRepositoryImpl(tokenRepository, rsvpEngine)
     val sampleSeeder = SampleSeeder(database.bookDao())
 }

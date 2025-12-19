@@ -8,8 +8,8 @@ import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
-import com.example.kairo.core.tokenization.Tokenizer
 import com.example.kairo.data.books.BookRepository
+import com.example.kairo.data.token.TokenRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,15 +23,12 @@ import kotlinx.coroutines.withContext
  * Handles chapter loading, tokenization, and paragraph computation off the main thread.
  */
 class ReaderViewModel(
-    private val bookRepository: BookRepository
+    private val bookRepository: BookRepository,
+    private val tokenRepository: TokenRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
-
-    // Tokenizer instance - has internal state (inDialogue) so we create per-use
-    // or could keep one and rely on its reset behavior per chapter
-    private val tokenizer = Tokenizer()
 
     // LRU cache for processed chapters - avoids re-tokenizing when switching back
     private val chapterCache = object : LinkedHashMap<Int, ChapterData>(5, 0.75f, true) {
@@ -39,6 +36,7 @@ class ReaderViewModel(
             return size > 5
         }
     }
+    private val tokenizationDispatcher = Dispatchers.Default.limitedParallelism(1)
 
     private var currentBook: Book? = null
 
@@ -98,7 +96,17 @@ class ReaderViewModel(
                 withContext(Dispatchers.IO) { bookRepository.getChapter(book.id, chapterIndex) }
             }.getOrNull()
 
-            val result = chapter?.let { processChapter(it) }
+            val tokens = if (chapter != null) {
+                runCatching { tokenRepository.getTokens(book.id, chapterIndex, chapter) }.getOrNull()
+            } else {
+                null
+            }
+
+            val result = if (chapter != null && tokens != null) {
+                processChapter(chapter, tokens)
+            } else {
+                null
+            }
 
             // Cache the result
             result?.let { chapterCache[chapterIndex] = it }
@@ -127,11 +135,8 @@ class ReaderViewModel(
      * Process a chapter on a background thread.
      * Returns null if chapter is empty.
      */
-    private suspend fun processChapter(chapter: Chapter): ChapterData? {
-        return withContext(Dispatchers.Default) {
-            // Tokenize using your existing Tokenizer
-            val tokens = tokenizer.tokenize(chapter)
-            
+    private suspend fun processChapter(chapter: Chapter, tokens: List<Token>): ChapterData? {
+        return withContext(tokenizationDispatcher) {
             // Pre-compute paragraphs for lazy rendering
             val paragraphs = tokens.toParagraphs()
 
@@ -162,8 +167,8 @@ class ReaderViewModel(
     private fun preloadAdjacentChapters(currentIndex: Int) {
         val book = currentBook ?: return
 
-        viewModelScope.launch(Dispatchers.Default) {
-            listOf(currentIndex - 1, currentIndex + 1)
+        viewModelScope.launch(tokenizationDispatcher) {
+            listOf(currentIndex + 1)
                 .filter { it in book.chapters.indices }
                 .filter { it !in chapterCache }
                 .forEach { index ->
@@ -171,7 +176,10 @@ class ReaderViewModel(
                         withContext(Dispatchers.IO) { bookRepository.getChapter(book.id, index) }
                     }.getOrNull() ?: return@forEach
 
-                    processChapter(chapter)?.let { data -> chapterCache[index] = data }
+                    val tokens = runCatching { tokenRepository.getTokens(book.id, index, chapter) }.getOrNull()
+                    if (tokens != null) {
+                        processChapter(chapter, tokens)?.let { data -> chapterCache[index] = data }
+                    }
                 }
         }
     }
@@ -204,12 +212,12 @@ class ReaderViewModel(
     }
 
     companion object {
-        fun factory(bookRepository: BookRepository): ViewModelProvider.Factory =
+        fun factory(bookRepository: BookRepository, tokenRepository: TokenRepository): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     if (modelClass.isAssignableFrom(ReaderViewModel::class.java)) {
-                        return ReaderViewModel(bookRepository) as T
+                        return ReaderViewModel(bookRepository, tokenRepository) as T
                     }
                     throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
                 }
