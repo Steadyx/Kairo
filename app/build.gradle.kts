@@ -1,7 +1,10 @@
+import dev.detekt.gradle.Detekt
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.detekt)
     id("org.jetbrains.kotlin.kapt")
 }
 
@@ -41,6 +44,39 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.15"
     }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    config.setFrom(files("$rootDir/detekt.yml"))
+    autoCorrect = false
+}
+
+tasks.withType<Detekt>().configureEach {
+    // Only the folders where your Kotlin actually is
+    setSource(
+        files(
+            "src/main/java",
+            "src/test/java",
+            "src/androidTest/java",
+            "src/debug/java",
+            "src/release/java",
+        )
+    )
+
+    include("**/*.kt", "**/*.kts")
+
+    // Exclude everything that wastes time
+    exclude(
+        "**/build/**",
+        "**/.gradle/**",
+        "**/.idea/**",
+        "**/.kotlin/**",
+        "**/generated/**",
+        "**/resources/**",
+        "**/tmp/**"
+    )
 }
 
 dependencies {

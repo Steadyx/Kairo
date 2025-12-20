@@ -1,0 +1,5 @@
+# Detekt configuration for import hygiene.
+style:
+  active: true
+  UnusedImport:
+    active: true
