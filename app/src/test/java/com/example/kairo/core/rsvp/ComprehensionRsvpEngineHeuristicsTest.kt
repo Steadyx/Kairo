@@ -7,6 +7,7 @@ import com.example.kairo.core.model.TokenType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 
 class ComprehensionRsvpEngineHeuristicsTest {
 
@@ -49,6 +50,24 @@ class ComprehensionRsvpEngineHeuristicsTest {
     }
 
     @Test
+    fun abbreviationAtSentenceEndKeepsSentencePause() {
+        val config = stableConfig.copy(
+            rarityExtraMaxMs = 0L,
+            syllableExtraMs = 0L,
+            complexityStrength = 0.0,
+            lengthStrength = 0.0,
+            lengthExponent = 1.0
+        )
+
+        val abbrevEnd = engine.generateFrames(tokens = listOf(w("Dr"), p(".")), startIndex = 0, config = config)
+        val normalEnd = engine.generateFrames(tokens = listOf(w("Hello"), p(".")), startIndex = 0, config = config)
+
+        assertTrue(abbrevEnd.isNotEmpty() && normalEnd.isNotEmpty())
+        val diff = abs(abbrevEnd[0].durationMs - normalEnd[0].durationMs)
+        assertTrue("Expected abbreviation at sentence end to pause like a sentence end", diff <= 5L)
+    }
+
+    @Test
     fun decimalPointsDoNotPause() {
         val decimalTokens = listOf(w("3"), p("."), w("14"), w("pi"))
         val sentenceTokens = listOf(w("3"), p("."), w("pi"))
@@ -61,6 +80,38 @@ class ComprehensionRsvpEngineHeuristicsTest {
             "Decimal point should not cause a sentence pause",
             decimalFrames[0].durationMs < sentenceFrames[0].durationMs - 80
         )
+    }
+
+    @Test
+    fun openingQuoteDoesNotAddExtraPause() {
+        val config = stableConfig.copy(
+            rarityExtraMaxMs = 0L,
+            syllableExtraMs = 0L,
+            complexityStrength = 0.0,
+            lengthStrength = 0.0,
+            lengthExponent = 1.0
+        )
+
+        val plain = engine.generateFrames(tokens = listOf(w("Hello")), startIndex = 0, config = config)[0].durationMs
+        val quoted = engine.generateFrames(tokens = listOf(p("\""), w("Hello")), startIndex = 0, config = config)[0].durationMs
+
+        assertTrue("Expected opening quote to avoid adding pause", abs(quoted - plain) <= 5L)
+    }
+
+    @Test
+    fun closingQuoteDoesNotDoubleSentencePause() {
+        val config = stableConfig.copy(
+            rarityExtraMaxMs = 0L,
+            syllableExtraMs = 0L,
+            complexityStrength = 0.0,
+            lengthStrength = 0.0,
+            lengthExponent = 1.0
+        )
+
+        val base = engine.generateFrames(tokens = listOf(w("Hello"), p(".")), startIndex = 0, config = config)[0].durationMs
+        val withQuote = engine.generateFrames(tokens = listOf(w("Hello"), p("."), p("\"")), startIndex = 0, config = config)[0].durationMs
+
+        assertTrue("Expected closing quote not to add extra pause", abs(withQuote - base) <= 5L)
     }
 
     @Test
