@@ -350,6 +350,19 @@ class ComprehensionRsvpEngine : RsvpEngine {
         frameTokens.forEachIndexed { index, token ->
             if (token.type != TokenType.PUNCTUATION) return@forEachIndexed
 
+            val prevTokenInFrame = frameTokens.getOrNull(index - 1)
+            val nextTokenInFrame = frameTokens.getOrNull(index + 1)
+            if (shouldSkipPunctuationPause(
+                    token = token,
+                    index = index,
+                    firstWordIndex = firstWordIndex,
+                    prevToken = prevTokenInFrame,
+                    nextToken = nextTokenInFrame
+                )
+            ) {
+                return@forEachIndexed
+            }
+
             val prevWordInFrame = frameTokens.subList(0, index).lastOrNull { it.type == TokenType.WORD }
             val nextWordInFrame = frameTokens.subList(index + 1, frameTokens.size).firstOrNull { it.type == TokenType.WORD }
 
@@ -685,6 +698,34 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
     }
 
+    private fun shouldSkipPunctuationPause(
+        token: Token,
+        index: Int,
+        firstWordIndex: Int,
+        prevToken: Token?,
+        nextToken: Token?
+    ): Boolean {
+        val ch = token.text.firstOrNull() ?: return true
+        if (index < firstWordIndex && isOpeningPunctuationChar(ch)) return true
+
+        val prevIsPunct = prevToken?.type == TokenType.PUNCTUATION
+        val nextIsPunct = nextToken?.type == TokenType.PUNCTUATION
+        val prevCh = prevToken?.text?.firstOrNull()
+        val nextCh = nextToken?.text?.firstOrNull()
+
+        if (isQuoteOrBracket(ch) && (prevIsPunct || nextIsPunct)) return true
+
+        val isSentenceEnd = isSentenceEndingPunctuation(ch) || ch == '.'
+        val prevIsSentenceEnd = prevCh != null && (isSentenceEndingPunctuation(prevCh) || prevCh == '.')
+        if (isSentenceEnd && prevIsSentenceEnd) return true
+
+        return false
+    }
+
+    private fun isOpeningPunctuationChar(ch: Char): Boolean = ch == '"' || ch in OPENING_PUNCTUATION
+
+    private fun isQuoteOrBracket(ch: Char): Boolean = ch in QUOTE_OR_BRACKET_PUNCTUATION
+
     private fun isHardBoundaryPunctuation(
         token: Token,
         prevWord: Token?,
@@ -711,7 +752,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
             val prevWord = tokens.subList(0, i).lastOrNull { it.type == TokenType.WORD }
             val nextWord = tokens.subList(i + 1, tokens.size).firstOrNull { it.type == TokenType.WORD }
-            if (isHardBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextWord ?: nextToken)) return true
+            if (isRhythmBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextWord ?: nextToken)) return true
         }
 
         return false
@@ -1038,25 +1079,41 @@ class ComprehensionRsvpEngine : RsvpEngine {
         if (rawPrev.isEmpty()) return false
 
         val normalized = rawPrev.trimEnd('.', ',', ';', ':').lowercase()
-        if (normalized in KNOWN_ABBREVIATIONS) return true
+        val nextWord = nextToken?.takeIf { it.type == TokenType.WORD }?.text
+        if (nextWord == null) return false
+
+        val nextLetters = nextWord.filter { it.isLetter() }
+        val nextFirst = nextLetters.firstOrNull()
+        val nextStartsLower = nextFirst?.isLowerCase() == true
+        val nextStartsUpper = nextFirst?.isUpperCase() == true
+        val isSentenceStarter = nextWord.lowercase() in SENTENCE_STARTERS
+        val nextIsInitial = nextLetters.length == 1 && nextLetters.all { it.isUpperCase() }
+
+        if (normalized in TITLE_ABBREVIATIONS) return true
+
+        if (normalized in KNOWN_ABBREVIATIONS) {
+            return nextStartsLower || (nextStartsUpper && !isSentenceStarter) || nextIsInitial
+        }
 
         val prevLetters = rawPrev.filter { it.isLetter() }
-        if (prevLetters.length == 1) return true
-        if (prevLetters.length <= 3 && prevLetters.all { it.isUpperCase() }) return true
-
-        val nextText = nextToken?.text?.trim().orEmpty()
-        val nextLetters = nextText.filter { it.isLetter() }
-
-        if (nextToken?.type == TokenType.WORD &&
-            nextLetters.length == 1 &&
-            nextLetters.all { it.isUpperCase() } &&
-            prevLetters.length <= 3 &&
-            prevLetters.any { it.isUpperCase() }
-        ) {
-            return true
+        if (prevLetters.length == 1) {
+            return nextStartsLower || (nextStartsUpper && !isSentenceStarter) || nextIsInitial
+        }
+        if (prevLetters.length <= 3 && prevLetters.all { it.isUpperCase() }) {
+            return nextStartsLower || (nextStartsUpper && !isSentenceStarter) || nextIsInitial
         }
 
         return false
+    }
+
+    private fun isRhythmBoundaryPunctuation(
+        token: Token,
+        prevWord: Token?,
+        nextToken: Token?
+    ): Boolean {
+        if (isHardBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextToken)) return true
+        val ch = token.text.firstOrNull() ?: return false
+        return ch == ':' || ch == '\u2014' || ch == '\u2013' || ch == '-'
     }
 
     private companion object {
@@ -1088,9 +1145,18 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
         private val OPENING_PUNCTUATION = setOf('(', '[', '{', '\u201C', '\u2018')
 
+        private val QUOTE_OR_BRACKET_PUNCTUATION = setOf(
+            '(', ')', '[', ']', '{', '}',
+            '"', '\u201C', '\u201D', '\u2018', '\u2019'
+        )
+
         private val SKIPPABLE_BOUNDARY_PUNCTUATION = setOf(
             '(', ')', '[', ']', '{', '}',
             '"', '\u201C', '\u201D', '\u2018', '\u2019'
+        )
+
+        private val TITLE_ABBREVIATIONS = setOf(
+            "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "rev", "fr"
         )
 
         private val KNOWN_ABBREVIATIONS = setOf(
@@ -1099,6 +1165,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
             "inc", "ltd", "dept", "est", "approx", "misc",
             "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept",
             "oct", "nov", "dec", "u.s", "u.k", "u.n"
+        )
+
+        private val SENTENCE_STARTERS = setOf(
+            "i", "he", "she", "they", "we", "it", "the", "a", "an", "this", "that", "these", "those"
         )
 
         private val GLUE_WORDS = setOf(
