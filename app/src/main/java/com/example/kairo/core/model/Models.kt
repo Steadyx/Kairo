@@ -65,12 +65,15 @@ data class Token(
     val type: TokenType,
     val orpIndex: Int? = null,
     val pauseAfterMs: Long = 0L,
+    val highlightStart: Int? = null,
+    val highlightEndExclusive: Int? = null,
     // Advanced linguistic metadata
     val syllableCount: Int = 1,
     val frequencyScore: Double = 0.5, // 0.0 = rare, 1.0 = very common
     val complexityMultiplier: Double = 1.0, // Timing multiplier
     val isClauseBoundary: Boolean = false,
     val isDialogue: Boolean = false,
+    val isSubwordChunk: Boolean = false,
 )
 
 data class RsvpConfig(
@@ -113,6 +116,10 @@ data class RsvpConfig(
     val enablePhraseChunking: Boolean = false,
     val maxWordsPerUnit: Int = 2,
     val maxCharsPerUnit: Int = 14,
+    /**
+     * Extra pause after intermediate chunks when long words are split for RSVP.
+     */
+    val subwordChunkPauseMs: Long = 60L,
     /**
      * Punctuation pauses (milliseconds).
      * These are *breath* values; they are further shaped by pauseScaleExponent at very high WPM.

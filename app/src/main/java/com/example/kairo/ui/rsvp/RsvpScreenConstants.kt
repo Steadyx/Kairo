@@ -67,6 +67,8 @@ const val ORP_CENTER_FRACTION = 0.5f
 const val ORP_TRANSFORM_ORIGIN_X = 0f
 const val ORP_TRANSFORM_ORIGIN_Y = 0.5f
 const val MIN_ORP_WIDTH_PX = 1f
+const val ORP_MIN_AUTO_FIT_SCALE = 0.72f
+const val ORP_ELLIPSIS = '\u2026'
 
 const val ZERO_FLOAT = 0f
 const val ONE_FLOAT = 1f

@@ -1,15 +1,17 @@
 package com.example.kairo.ui.rsvp
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 
 internal data class OrpTypography(val fontSizeSp: Float, val fontFamily: FontFamily, val fontWeight: FontWeight,)
 
-internal data class OrpColors(val textColor: Color, val pivotColor: Color, val pivotLineColor: Color,)
+internal data class OrpColors(
+    val textColor: Color,
+    val pivotColor: Color,
+    val pivotLineColor: Color,
+    val highlightColor: Color,
+)
 
 internal data class OrpTextLayout(val horizontalBias: Float, val lockPivot: Boolean,)
 
@@ -19,9 +21,9 @@ internal data class OrpTextContent(
     val firstWordEndExclusive: Int,
     val pivotPosition: Int,
     val wordCount: Int,
+    val highlightStart: Int,
+    val highlightEndExclusive: Int,
 )
-
-internal data class OrpTextRendering(val annotatedText: AnnotatedString, val textStyle: TextStyle, val textMeasurer: TextMeasurer,)
 
 internal data class OrpBounds(
     val safeLeftPx: Float,
@@ -41,4 +43,6 @@ internal data class OrpTextBuildState(
     var needsSpace: Boolean = false,
     var firstWordStart: Int = INVALID_INDEX,
     var firstWordEndExclusive: Int = INVALID_INDEX,
+    var highlightStart: Int = INVALID_INDEX,
+    var highlightEndExclusive: Int = INVALID_INDEX,
 )

@@ -2,15 +2,12 @@
 
 package com.example.kairo.ui.rsvp
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.sp
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import kotlin.math.roundToInt
@@ -23,57 +20,35 @@ internal fun OrpAlignedText(
     layout: OrpTextLayout,
 ) {
     val content = remember(tokens) { buildOrpTextContent(tokens) }
-    val rendering =
-        rememberOrpRendering(
-            fullText = content.fullText,
-            typography = typography,
-            pivotPosition = content.pivotPosition,
-            pivotColor = colors.pivotColor,
-        )
     OrpAlignedTextLayout(
         content = content,
         layout = layout,
         colors = colors,
-        rendering = rendering,
+        typography = typography,
     )
 }
 
-@Composable
-private fun rememberOrpRendering(
-    fullText: String,
-    typography: OrpTypography,
-    pivotPosition: Int,
-    pivotColor: Color,
-): OrpTextRendering {
-    val baseStyle = MaterialTheme.typography.displayMedium
-    val textStyle =
-        remember(typography, baseStyle) {
-            baseStyle.copy(
-                fontSize = typography.fontSizeSp.sp,
-                fontFamily = typography.fontFamily,
-                fontWeight = typography.fontWeight,
-                letterSpacing = ORP_LETTER_SPACING_SP.sp,
-            )
-        }
-    val annotatedText =
-        remember(fullText, pivotPosition, pivotColor) {
-            buildOrpAnnotatedText(fullText, pivotPosition, pivotColor)
-        }
-    val textMeasurer = rememberTextMeasurer()
-    return OrpTextRendering(
-        annotatedText = annotatedText,
-        textStyle = textStyle,
-        textMeasurer = textMeasurer,
-    )
-}
-
-private fun buildOrpAnnotatedText(
+internal fun buildOrpAnnotatedText(
     fullText: String,
     pivotPosition: Int,
     pivotColor: Color,
+    highlightStart: Int,
+    highlightEndExclusive: Int,
+    highlightColor: Color,
 ): AnnotatedString =
     buildAnnotatedString {
         append(fullText)
+        if (highlightStart >= 0 && highlightEndExclusive > highlightStart) {
+            val safeStart = highlightStart.coerceIn(0, fullText.length)
+            val safeEnd = highlightEndExclusive.coerceIn(safeStart, fullText.length)
+            if (safeEnd > safeStart) {
+                addStyle(
+                    style = SpanStyle(color = highlightColor),
+                    start = safeStart,
+                    end = safeEnd,
+                )
+            }
+        }
         if (fullText.isNotEmpty()) {
             val safeIndex = pivotPosition.coerceIn(0, fullText.lastIndex)
             addStyle(
@@ -104,6 +79,8 @@ private fun buildOrpTextContent(tokens: List<Token>): OrpTextContent {
         firstWordEndExclusive = state.firstWordEndExclusive,
         pivotPosition = resolvePivotPosition(state),
         wordCount = wordCount,
+        highlightStart = state.highlightStart,
+        highlightEndExclusive = state.highlightEndExclusive,
     )
 }
 
@@ -118,6 +95,19 @@ private fun appendWord(
     if (state.firstWordStart == INVALID_INDEX) {
         state.firstWordStart = start
         state.firstWordEndExclusive = builder.length
+        val highlightStart = token.highlightStart
+        val highlightEndExclusive = token.highlightEndExclusive
+        if (highlightStart != null &&
+            highlightEndExclusive != null &&
+            highlightEndExclusive > highlightStart
+        ) {
+            val safeStart = (start + highlightStart).coerceIn(start, builder.length)
+            val safeEnd = (start + highlightEndExclusive).coerceIn(safeStart, builder.length)
+            if (safeEnd > safeStart) {
+                state.highlightStart = safeStart
+                state.highlightEndExclusive = safeEnd
+            }
+        }
     }
     state.needsSpace = true
 }

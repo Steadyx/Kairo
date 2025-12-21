@@ -184,3 +184,76 @@ fun splitHyphenatedToken(token: Token): List<Token> {
         )
     }
 }
+
+/**
+ * Splits a token for RSVP display, handling hyphenated words and long words.
+ * Long words are chunked into minimal parts based on [maxChunkLength].
+ */
+fun splitTokenForRsvp(
+    token: Token,
+    maxChunkLength: Int,
+    subwordChunkPauseMs: Long,
+): List<Token> =
+    splitHyphenatedToken(token).flatMap { splitToken ->
+        splitLongWordToken(splitToken, maxChunkLength, subwordChunkPauseMs)
+    }
+
+private fun splitLongWordToken(
+    token: Token,
+    maxChunkLength: Int,
+    subwordChunkPauseMs: Long,
+): List<Token> {
+    if (token.type != TokenType.WORD) return listOf(token)
+    if (maxChunkLength <= 0) return listOf(token)
+
+    val text = token.text
+    val trailingHyphen = text.endsWith("-")
+    val baseText = if (trailingHyphen) text.dropLast(1) else text
+
+    if (baseText.length <= maxChunkLength || baseText.isEmpty()) return listOf(token)
+
+    val ranges = splitWordIntoChunkRanges(baseText, maxChunkLength)
+    return ranges.mapIndexed { index, range ->
+        val isLast = index == ranges.lastIndex
+        val extraPause = if (isLast) 0L else subwordChunkPauseMs.coerceAtLeast(0L)
+
+        Token(
+            text = text,
+            type = TokenType.WORD,
+            orpIndex = token.orpIndex,
+            syllableCount = token.syllableCount,
+            frequencyScore = token.frequencyScore,
+            complexityMultiplier = token.complexityMultiplier,
+            // Block phrase chunking across subword splits.
+            isClauseBoundary = true,
+            isDialogue = token.isDialogue,
+            pauseAfterMs = extraPause,
+            isSubwordChunk = true,
+            highlightStart = range.start,
+            highlightEndExclusive = range.endExclusive,
+        )
+    }
+}
+
+private data class ChunkRange(val start: Int, val endExclusive: Int,)
+
+private fun splitWordIntoChunkRanges(
+    word: String,
+    maxChunkLength: Int,
+): List<ChunkRange> {
+    if (word.length <= maxChunkLength) return listOf(ChunkRange(0, word.length))
+
+    val chunkCount = (word.length + maxChunkLength - 1) / maxChunkLength
+    val baseSize = word.length / chunkCount
+    val remainder = word.length % chunkCount
+    val parts = mutableListOf<ChunkRange>()
+    var index = 0
+
+    repeat(chunkCount) { chunkIndex ->
+        val size = baseSize + if (chunkIndex < remainder) 1 else 0
+        parts += ChunkRange(index, index + size)
+        index += size
+    }
+
+    return parts
+}

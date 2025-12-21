@@ -68,12 +68,12 @@ private fun rememberEstimatedWpm(
 ): Int {
     val baseFrameStats =
         remember(frames) {
-            val wordCount =
+            val wordUnits =
                 frames
-                    .sumOf { frame -> frame.tokens.count { it.type == TokenType.WORD } }
-                    .coerceAtLeast(MIN_WORD_COUNT)
+                    .sumOf { frame -> frame.tokens.sumOf { it.wordUnitWeight() } }
+                    .coerceAtLeast(MIN_WORD_COUNT.toDouble())
             val totalMs = frames.sumOf { it.durationMs }.coerceAtLeast(MIN_TOTAL_MS)
-            wordCount to totalMs
+            wordUnits to totalMs
         }
     return remember(baseFrameStats, tempoScale) {
         val wordCount = baseFrameStats.first
@@ -83,6 +83,17 @@ private fun rememberEstimatedWpm(
                 .coerceAtLeast(MIN_TOTAL_MS)
         ((wordCount * MS_PER_MINUTE) / totalMs.toDouble()).toInt().coerceAtLeast(MIN_WORD_COUNT)
     }
+}
+
+private fun com.example.kairo.core.model.Token.wordUnitWeight(): Double {
+    if (type != TokenType.WORD) return 0.0
+    if (!isSubwordChunk) return 1.0
+    val start = highlightStart
+    val end = highlightEndExclusive
+    if (start == null || end == null || end <= start || text.isEmpty()) return 1.0
+    val chunkLength = (end - start).toDouble().coerceAtLeast(1.0)
+    val fullLength = text.length.toDouble().coerceAtLeast(chunkLength)
+    return (chunkLength / fullLength).coerceIn(0.1, 1.0)
 }
 
 @Composable
@@ -95,6 +106,7 @@ private fun rememberRsvpTextColors(textBrightness: Float): OrpColors {
         pivotColor = MaterialTheme.colorScheme.primary,
         pivotLineColor = MaterialTheme.colorScheme.onBackground.copy(alpha = pivotLineAlpha),
         textColor = MaterialTheme.colorScheme.onBackground.copy(alpha = clampedBrightness),
+        highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
     )
 }
 
