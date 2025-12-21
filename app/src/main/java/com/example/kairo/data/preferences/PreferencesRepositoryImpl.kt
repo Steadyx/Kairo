@@ -124,6 +124,9 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
                         prefs[keys.maxWordsPerUnit] ?: RsvpConfig().maxWordsPerUnit,
                         maxCharsPerUnit =
                         prefs[keys.maxCharsPerUnit] ?: RsvpConfig().maxCharsPerUnit,
+                        subwordChunkPauseMs =
+                        prefs[keys.subwordChunkPauseMs]
+                            ?: RsvpConfig().subwordChunkPauseMs,
                         commaPauseMs = prefs[keys.commaPauseMs] ?: RsvpConfig().commaPauseMs,
                         semicolonPauseMs =
                         prefs[keys.semicolonPauseMs]
@@ -483,6 +486,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         o.put("enablePhraseChunking", config.enablePhraseChunking)
         o.put("maxWordsPerUnit", config.maxWordsPerUnit)
         o.put("maxCharsPerUnit", config.maxCharsPerUnit)
+        o.put("subwordChunkPauseMs", config.subwordChunkPauseMs)
         o.put("commaPauseMs", config.commaPauseMs)
         o.put("semicolonPauseMs", config.semicolonPauseMs)
         o.put("colonPauseMs", config.colonPauseMs)
@@ -539,6 +543,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
             enablePhraseChunking = obj.optBoolean("enablePhraseChunking", d.enablePhraseChunking),
             maxWordsPerUnit = obj.optInt("maxWordsPerUnit", d.maxWordsPerUnit),
             maxCharsPerUnit = obj.optInt("maxCharsPerUnit", d.maxCharsPerUnit),
+            subwordChunkPauseMs = obj.optLong("subwordChunkPauseMs", d.subwordChunkPauseMs),
             commaPauseMs = obj.optLong("commaPauseMs", d.commaPauseMs),
             semicolonPauseMs = obj.optLong("semicolonPauseMs", d.semicolonPauseMs),
             colonPauseMs = obj.optLong("colonPauseMs", d.colonPauseMs),
@@ -598,6 +603,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         prefs[keys.enablePhraseChunking] = config.enablePhraseChunking
         prefs[keys.maxWordsPerUnit] = config.maxWordsPerUnit
         prefs[keys.maxCharsPerUnit] = config.maxCharsPerUnit
+        prefs[keys.subwordChunkPauseMs] = config.subwordChunkPauseMs
         prefs[keys.commaPauseMs] = config.commaPauseMs
         prefs[keys.semicolonPauseMs] = config.semicolonPauseMs
         prefs[keys.colonPauseMs] = config.colonPauseMs
@@ -673,6 +679,9 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
                 ?: RsvpConfig().enablePhraseChunking,
             maxWordsPerUnit = prefs[keys.maxWordsPerUnit] ?: RsvpConfig().maxWordsPerUnit,
             maxCharsPerUnit = prefs[keys.maxCharsPerUnit] ?: RsvpConfig().maxCharsPerUnit,
+            subwordChunkPauseMs =
+            prefs[keys.subwordChunkPauseMs]
+                ?: RsvpConfig().subwordChunkPauseMs,
             commaPauseMs = prefs[keys.commaPauseMs] ?: RsvpConfig().commaPauseMs,
             semicolonPauseMs = prefs[keys.semicolonPauseMs] ?: RsvpConfig().semicolonPauseMs,
             colonPauseMs = prefs[keys.colonPauseMs] ?: RsvpConfig().colonPauseMs,
@@ -731,6 +740,7 @@ private object PrefKeys {
     val enablePhraseChunking = booleanPreferencesKey("enable_phrase_chunking")
     val maxWordsPerUnit = intPreferencesKey("max_words_per_unit")
     val maxCharsPerUnit = intPreferencesKey("max_chars_per_unit")
+    val subwordChunkPauseMs = longPreferencesKey("subword_chunk_pause_ms")
     val commaPauseMs = longPreferencesKey("comma_pause_ms")
     val semicolonPauseMs = longPreferencesKey("semicolon_pause_ms")
     val colonPauseMs = longPreferencesKey("colon_pause_ms")

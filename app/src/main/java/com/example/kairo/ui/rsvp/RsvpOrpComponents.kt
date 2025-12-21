@@ -16,6 +16,8 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 
@@ -54,7 +56,8 @@ internal fun OrpPointer(
 
 @Composable
 internal fun OrpTextLine(
-    rendering: OrpTextRendering,
+    annotatedText: AnnotatedString,
+    textStyle: TextStyle,
     textColor: Color,
     translationX: Float,
 ) {
@@ -65,8 +68,8 @@ internal fun OrpTextLine(
             .clipToBounds(),
     ) {
         Text(
-            text = rendering.annotatedText,
-            style = rendering.textStyle,
+            text = annotatedText,
+            style = textStyle,
             color = textColor,
             textAlign = TextAlign.Start,
             maxLines = 1,

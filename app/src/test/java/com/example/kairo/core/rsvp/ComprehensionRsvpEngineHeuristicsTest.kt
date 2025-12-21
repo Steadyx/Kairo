@@ -185,6 +185,52 @@ class ComprehensionRsvpEngineHeuristicsTest {
     }
 
     @Test
+    fun longWordsSplitIntoChunks() {
+        val config = stableConfig.copy(maxChunkLength = 6, enablePhraseChunking = false)
+        val word = "antidisestablishment"
+        val expectedChunks = (word.length + config.maxChunkLength - 1) / config.maxChunkLength
+
+        val frames = engine.generateFrames(
+            tokens = listOf(w(word)),
+            startIndex = 0,
+            config = config
+        )
+
+        assertEquals(expectedChunks, frames.size)
+        val chunkTokens = frames.map { frame ->
+            frame.tokens.first { it.type == TokenType.WORD }
+        }
+        chunkTokens.forEach { token ->
+            assertEquals(word, token.text)
+            assertTrue("Expected highlight range on chunk", token.highlightStart != null)
+            assertTrue("Expected highlight range on chunk", token.highlightEndExclusive != null)
+        }
+        val ranges =
+            chunkTokens
+                .map { token -> token.highlightStart!! to token.highlightEndExclusive!! }
+                .sortedBy { it.first }
+        assertEquals(0, ranges.first().first)
+        assertEquals(word.length, ranges.last().second)
+        ranges.forEach { (start, end) ->
+            assertTrue(
+                "Expected chunk length <= ${config.maxChunkLength}",
+                (end - start) <= config.maxChunkLength,
+            )
+        }
+        ranges.drop(1).forEachIndexed { index, range ->
+            assertEquals(
+                "Expected contiguous ranges",
+                ranges[index].second,
+                range.first,
+            )
+        }
+        chunkTokens.dropLast(1).forEach { token ->
+            assertEquals(config.subwordChunkPauseMs, token.pauseAfterMs)
+        }
+        assertEquals(0L, chunkTokens.last().pauseAfterMs)
+    }
+
+    @Test
     fun signedNumericTokensAreNotSplit() {
         val tokens = listOf(w("-35c"))
         val frames = engine.generateFrames(tokens, 0, stableConfig)

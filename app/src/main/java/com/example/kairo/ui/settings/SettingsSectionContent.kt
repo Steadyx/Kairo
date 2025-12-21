@@ -378,6 +378,16 @@ fun RsvpSettingsContent(
         },
         valueRange = 8f..14f,
     )
+    DeferredSliderRow(
+        title = "Split-word pause",
+        subtitle = "Extra time between long-word chunks.",
+        valueLabel = { "+${it.toLong()}ms" },
+        rawValue = config.subwordChunkPauseMs.toFloat(),
+        onCommit = { newValue ->
+            updateConfig { it.copy(subwordChunkPauseMs = newValue.toLong().coerceIn(0L, 200L)) }
+        },
+        valueRange = 0f..200f,
+    )
 
     Text("Difficulty model", style = MaterialTheme.typography.titleSmall)
     DeferredSliderRow(

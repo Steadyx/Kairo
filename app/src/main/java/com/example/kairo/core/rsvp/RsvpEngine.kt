@@ -21,7 +21,7 @@ import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.isMidSentencePunctuation
 import com.example.kairo.core.model.isSentenceEndingPunctuation
-import com.example.kairo.core.model.splitHyphenatedToken
+import com.example.kairo.core.model.splitTokenForRsvp
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -56,7 +56,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
         val expanded =
             tokens.flatMapIndexed { index, token ->
-                splitHyphenatedToken(token).map { splitToken ->
+                splitTokenForRsvp(
+                    token = token,
+                    maxChunkLength = config.maxChunkLength,
+                    subwordChunkPauseMs = config.subwordChunkPauseMs,
+                ).map { splitToken ->
                     ExpandedToken(splitToken, index)
                 }
             }
@@ -498,7 +502,23 @@ class ComprehensionRsvpEngine : RsvpEngine {
         config: RsvpConfig,
     ): Double {
         val text = word.text
-        val letters = text.count { it.isLetterOrDigit() }.coerceAtLeast(1)
+        val fullLetters = text.count { it.isLetterOrDigit() }.coerceAtLeast(1)
+        val (letters, syllables) =
+            if (word.isSubwordChunk &&
+                word.highlightStart != null &&
+                word.highlightEndExclusive != null &&
+                word.highlightEndExclusive > word.highlightStart &&
+                word.highlightEndExclusive <= text.length
+            ) {
+                val chunkText = text.substring(word.highlightStart, word.highlightEndExclusive)
+                val chunkLetters = chunkText.count { it.isLetterOrDigit() }.coerceAtLeast(1)
+                val ratio = (chunkLetters.toDouble() / fullLetters.toDouble()).coerceIn(0.2, 1.0)
+                val scaledSyllables =
+                    max(1.0, word.syllableCount.toDouble() * ratio).roundToLong().toInt()
+                chunkLetters to scaledSyllables
+            } else {
+                fullLetters to word.syllableCount
+            }
 
         val lengthCurve =
             run {
@@ -510,7 +530,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
             1.0 + (max(0.0, word.complexityMultiplier - 1.0) * config.complexityStrength)
 
         val rarityExtra = (1.0 - word.frequencyScore).coerceIn(0.0, 1.0) * config.rarityExtraMaxMs
-        val syllableExtra = max(0, word.syllableCount - 1) * config.syllableExtraMs
+        val syllableExtra = max(0, syllables - 1) * config.syllableExtraMs
 
         var duration = (msPerWord * lengthCurve * complexityComponent) + rarityExtra + syllableExtra
 
@@ -953,6 +973,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         word: Token,
         config: RsvpConfig,
     ): Long {
+        if (word.isSubwordChunk) return config.longWordMinMs
         val letters = word.text.count { it.isLetterOrDigit() }
         return if (letters >= config.longWordChars) config.longWordMinMs else config.minWordMs
     }
