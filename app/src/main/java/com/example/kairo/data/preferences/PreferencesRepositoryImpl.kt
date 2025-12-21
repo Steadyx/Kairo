@@ -6,15 +6,15 @@
     "MagicNumber",
     "MaxLineLength",
     "ReturnCount",
-    "TooManyFunctions"
+    "TooManyFunctions",
 )
 
 package com.example.kairo.data.preferences
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -33,148 +33,199 @@ import com.example.kairo.core.model.RsvpProfile
 import com.example.kairo.core.model.RsvpProfileIds
 import com.example.kairo.core.model.UserPreferences
 import com.example.kairo.core.model.defaultConfig
+import java.util.UUID
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
 
 private val legacyBaseWpmKey = intPreferencesKey("base_wpm")
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
 
-class PreferencesRepositoryImpl(
-    private val context: Context
-) : PreferencesRepository {
-
+class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepository {
     private val keys = PrefKeys
 
-    override val preferences: Flow<UserPreferences> = context.dataStore.data
-        .onEach { prefs ->
-            if (prefs.contains(legacyBaseWpmKey)) {
-                context.dataStore.edit { mutable ->
-                    if (!mutable.contains(keys.tempoMsPerWord)) {
-                        val legacyWpm = mutable[legacyBaseWpmKey]
-                        val tempoMs = when {
-                            legacyWpm == null -> RsvpConfig().tempoMsPerWord
-                            legacyWpm <= 0 -> RsvpConfig().tempoMsPerWord
-                            else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(10L)
+    override val preferences: Flow<UserPreferences> =
+        context.dataStore.data
+            .onEach { prefs ->
+                if (prefs.contains(legacyBaseWpmKey)) {
+                    context.dataStore.edit { mutable ->
+                        if (!mutable.contains(keys.tempoMsPerWord)) {
+                            val legacyWpm = mutable[legacyBaseWpmKey]
+                            val tempoMs =
+                                when {
+                                    legacyWpm == null -> RsvpConfig().tempoMsPerWord
+                                    legacyWpm <= 0 -> RsvpConfig().tempoMsPerWord
+                                    else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(
+                                        10L
+                                    )
+                                }
+                            mutable[keys.tempoMsPerWord] = tempoMs
                         }
-                        mutable[keys.tempoMsPerWord] = tempoMs
+                        mutable.remove(legacyBaseWpmKey)
                     }
-                    mutable.remove(legacyBaseWpmKey)
                 }
+            }.map { prefs ->
+                val defaults = UserPreferences()
+                val customProfiles = parseCustomProfiles(prefs[keys.customRsvpProfilesJson])
+                val selectedProfileId = migrateAndReadSelectedProfileId(prefs, customProfiles)
+                val derivedTempoMs =
+                    (
+                        prefs[keys.tempoMsPerWord] ?: run {
+                            val legacyWpm = prefs[legacyBaseWpmKey]
+                            when {
+                                legacyWpm == null -> RsvpConfig().tempoMsPerWord
+                                legacyWpm <= 0 -> RsvpConfig().tempoMsPerWord
+                                else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(
+                                    10L
+                                )
+                            }
+                        }
+                        ).coerceAtLeast(10L)
+                val derivedBaseWpm = (60_000.0 / derivedTempoMs.toDouble()).toInt().coerceAtLeast(1)
+
+                val storedBlinkMode = parseBlinkMode(prefs[keys.blinkMode])
+                val blinkMode =
+                    storedBlinkMode
+                        ?: if (prefs[keys.blinkEnabled] ==
+                            true
+                        ) {
+                            BlinkMode.SUBTLE
+                        } else {
+                            RsvpConfig().blinkMode
+                        }
+
+                UserPreferences(
+                    rsvpConfig =
+                    RsvpConfig(
+                        tempoMsPerWord = derivedTempoMs,
+                        baseWpm = derivedBaseWpm,
+                        minWordMs = prefs[keys.minWordMs] ?: RsvpConfig().minWordMs,
+                        longWordMinMs = prefs[keys.longWordMinMs] ?: RsvpConfig().longWordMinMs,
+                        longWordChars = prefs[keys.longWordChars] ?: RsvpConfig().longWordChars,
+                        syllableExtraMs =
+                        prefs[keys.syllableExtraMs] ?: RsvpConfig().syllableExtraMs,
+                        rarityExtraMaxMs =
+                        prefs[keys.rarityExtraMaxMs]
+                            ?: RsvpConfig().rarityExtraMaxMs,
+                        complexityStrength =
+                        prefs[keys.complexityStrength]
+                            ?: RsvpConfig().complexityStrength,
+                        lengthStrength =
+                        prefs[keys.lengthStrength] ?: RsvpConfig().lengthStrength,
+                        lengthExponent =
+                        prefs[keys.lengthExponent] ?: RsvpConfig().lengthExponent,
+                        enablePhraseChunking =
+                        prefs[keys.enablePhraseChunking]
+                            ?: RsvpConfig().enablePhraseChunking,
+                        maxWordsPerUnit =
+                        prefs[keys.maxWordsPerUnit] ?: RsvpConfig().maxWordsPerUnit,
+                        maxCharsPerUnit =
+                        prefs[keys.maxCharsPerUnit] ?: RsvpConfig().maxCharsPerUnit,
+                        commaPauseMs = prefs[keys.commaPauseMs] ?: RsvpConfig().commaPauseMs,
+                        semicolonPauseMs =
+                        prefs[keys.semicolonPauseMs]
+                            ?: RsvpConfig().semicolonPauseMs,
+                        colonPauseMs = prefs[keys.colonPauseMs] ?: RsvpConfig().colonPauseMs,
+                        dashPauseMs = prefs[keys.dashPauseMs] ?: RsvpConfig().dashPauseMs,
+                        parenthesesPauseMs =
+                        prefs[keys.parenthesesPauseMs]
+                            ?: RsvpConfig().parenthesesPauseMs,
+                        quotePauseMs = prefs[keys.quotePauseMs] ?: RsvpConfig().quotePauseMs,
+                        sentenceEndPauseMs =
+                        prefs[keys.sentenceEndPauseMs]
+                            ?: RsvpConfig().sentenceEndPauseMs,
+                        paragraphPauseMs =
+                        prefs[keys.paragraphPauseMs]
+                            ?: RsvpConfig().paragraphPauseMs,
+                        pauseScaleExponent =
+                        prefs[keys.pauseScaleExponent]
+                            ?: RsvpConfig().pauseScaleExponent,
+                        minPauseScale = prefs[keys.minPauseScale] ?: RsvpConfig().minPauseScale,
+                        parentheticalMultiplier =
+                        prefs[keys.parentheticalMultiplier]
+                            ?: RsvpConfig().parentheticalMultiplier,
+                        dialogueMultiplier =
+                        prefs[keys.dialogueMultiplier]
+                            ?: RsvpConfig().dialogueMultiplier,
+                        smoothingAlpha =
+                        prefs[keys.smoothingAlpha] ?: RsvpConfig().smoothingAlpha,
+                        maxSpeedupFactor =
+                        prefs[keys.maxSpeedupFactor]
+                            ?: RsvpConfig().maxSpeedupFactor,
+                        maxSlowdownFactor =
+                        prefs[keys.maxSlowdownFactor]
+                            ?: RsvpConfig().maxSlowdownFactor,
+                        orpEnabled = prefs[keys.orpEnabled] ?: RsvpConfig().orpEnabled,
+                        startDelayMs = prefs[keys.startDelayMs] ?: RsvpConfig().startDelayMs,
+                        endDelayMs = prefs[keys.endDelayMs] ?: RsvpConfig().endDelayMs,
+                        rampUpFrames = prefs[keys.rampUpFrames] ?: RsvpConfig().rampUpFrames,
+                        rampDownFrames =
+                        prefs[keys.rampDownFrames] ?: RsvpConfig().rampDownFrames,
+                        // Legacy persisted fields
+                        wordsPerFrame = prefs[keys.wordsPerFrame] ?: RsvpConfig().wordsPerFrame,
+                        maxChunkLength =
+                        prefs[keys.maxChunkLength] ?: RsvpConfig().maxChunkLength,
+                        punctuationPauseFactor =
+                        prefs[keys.punctuationPause]
+                            ?: RsvpConfig().punctuationPauseFactor,
+                        longWordMultiplier =
+                        prefs[keys.longWordMultiplier]
+                            ?: RsvpConfig().longWordMultiplier,
+                        useClausePausing =
+                        prefs[keys.useClausePausing]
+                            ?: RsvpConfig().useClausePausing,
+                        clausePauseFactor =
+                        (
+                            prefs[keys.clausePauseFactor]?.takeIf { it.isFinite() }
+                                ?: RsvpConfig().clausePauseFactor
+                            ).coerceIn(1.0, 1.6),
+                        blinkMode = blinkMode,
+                    ),
+                    rsvpSelectedProfileId = selectedProfileId,
+                    rsvpCustomProfiles = customProfiles,
+                    readerFontSizeSp = prefs[keys.readerFontSize] ?: defaults.readerFontSizeSp,
+                    readerTheme =
+                    prefs[keys.readerTheme]?.let { value ->
+                        runCatching { ReaderTheme.valueOf(value) }.getOrNull()
+                    } ?: defaults.readerTheme,
+                    readerTextBrightness =
+                    (
+                        prefs[keys.readerTextBrightness]
+                            ?: defaults.readerTextBrightness
+                        ).coerceIn(0.55f, 1.0f),
+                    invertedScroll = prefs[keys.invertedScroll] ?: defaults.invertedScroll,
+                    rsvpFontSizeSp = prefs[keys.rsvpFontSize] ?: defaults.rsvpFontSizeSp,
+                    rsvpTextBrightness =
+                    (
+                        prefs[keys.rsvpTextBrightness]
+                            ?: defaults.rsvpTextBrightness
+                        ).coerceIn(0.55f, 1.0f),
+                    rsvpFontWeight =
+                    prefs[keys.rsvpFontWeight]?.let { value ->
+                        runCatching { RsvpFontWeight.valueOf(value) }.getOrNull()
+                    } ?: defaults.rsvpFontWeight,
+                    rsvpFontFamily =
+                    prefs[keys.rsvpFontFamily]?.let { value ->
+                        runCatching { RsvpFontFamily.valueOf(value) }.getOrNull()
+                    } ?: defaults.rsvpFontFamily,
+                    rsvpVerticalBias = prefs[keys.rsvpVerticalBias] ?: defaults.rsvpVerticalBias,
+                    rsvpHorizontalBias =
+                    prefs[keys.rsvpHorizontalBias] ?: defaults.rsvpHorizontalBias,
+                    unlockExtremeSpeed = prefs[keys.unlockExtremeSpeed] ?: (derivedTempoMs < 30L),
+                    focusModeEnabled = prefs[keys.focusModeEnabled] ?: defaults.focusModeEnabled,
+                    focusHideStatusBar =
+                    prefs[keys.focusHideStatusBar] ?: defaults.focusHideStatusBar,
+                    focusPauseNotifications =
+                    prefs[keys.focusPauseNotifications]
+                        ?: defaults.focusPauseNotifications,
+                    focusApplyInReader =
+                    prefs[keys.focusApplyInReader] ?: defaults.focusApplyInReader,
+                    focusApplyInRsvp = prefs[keys.focusApplyInRsvp] ?: defaults.focusApplyInRsvp,
+                )
             }
-        }
-        .map { prefs ->
-            val defaults = UserPreferences()
-            val customProfiles = parseCustomProfiles(prefs[keys.customRsvpProfilesJson])
-            val selectedProfileId = migrateAndReadSelectedProfileId(prefs, customProfiles)
-            val derivedTempoMs = (prefs[keys.tempoMsPerWord] ?: run {
-                val legacyWpm = prefs[legacyBaseWpmKey]
-                when {
-                    legacyWpm == null -> RsvpConfig().tempoMsPerWord
-                    legacyWpm <= 0 -> RsvpConfig().tempoMsPerWord
-                    else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(10L)
-                }
-            }).coerceAtLeast(10L)
-            val derivedBaseWpm = (60_000.0 / derivedTempoMs.toDouble()).toInt().coerceAtLeast(1)
-
-            val storedBlinkMode = parseBlinkMode(prefs[keys.blinkMode])
-            val blinkMode = storedBlinkMode
-                ?: if (prefs[keys.blinkEnabled] == true) BlinkMode.SUBTLE else RsvpConfig().blinkMode
-
-            UserPreferences(
-                rsvpConfig = RsvpConfig(
-                    tempoMsPerWord = derivedTempoMs,
-                    baseWpm = derivedBaseWpm,
-                    minWordMs = prefs[keys.minWordMs] ?: RsvpConfig().minWordMs,
-                    longWordMinMs = prefs[keys.longWordMinMs] ?: RsvpConfig().longWordMinMs,
-                    longWordChars = prefs[keys.longWordChars] ?: RsvpConfig().longWordChars,
-                    syllableExtraMs = prefs[keys.syllableExtraMs] ?: RsvpConfig().syllableExtraMs,
-                    rarityExtraMaxMs = prefs[keys.rarityExtraMaxMs]
-                        ?: RsvpConfig().rarityExtraMaxMs,
-                    complexityStrength = prefs[keys.complexityStrength]
-                        ?: RsvpConfig().complexityStrength,
-                    lengthStrength = prefs[keys.lengthStrength] ?: RsvpConfig().lengthStrength,
-                    lengthExponent = prefs[keys.lengthExponent] ?: RsvpConfig().lengthExponent,
-                    enablePhraseChunking = prefs[keys.enablePhraseChunking]
-                        ?: RsvpConfig().enablePhraseChunking,
-                    maxWordsPerUnit = prefs[keys.maxWordsPerUnit] ?: RsvpConfig().maxWordsPerUnit,
-                    maxCharsPerUnit = prefs[keys.maxCharsPerUnit] ?: RsvpConfig().maxCharsPerUnit,
-                    commaPauseMs = prefs[keys.commaPauseMs] ?: RsvpConfig().commaPauseMs,
-                    semicolonPauseMs = prefs[keys.semicolonPauseMs]
-                        ?: RsvpConfig().semicolonPauseMs,
-                    colonPauseMs = prefs[keys.colonPauseMs] ?: RsvpConfig().colonPauseMs,
-                    dashPauseMs = prefs[keys.dashPauseMs] ?: RsvpConfig().dashPauseMs,
-                    parenthesesPauseMs = prefs[keys.parenthesesPauseMs]
-                        ?: RsvpConfig().parenthesesPauseMs,
-                    quotePauseMs = prefs[keys.quotePauseMs] ?: RsvpConfig().quotePauseMs,
-                    sentenceEndPauseMs = prefs[keys.sentenceEndPauseMs]
-                        ?: RsvpConfig().sentenceEndPauseMs,
-                    paragraphPauseMs = prefs[keys.paragraphPauseMs]
-                        ?: RsvpConfig().paragraphPauseMs,
-                    pauseScaleExponent = prefs[keys.pauseScaleExponent]
-                        ?: RsvpConfig().pauseScaleExponent,
-                    minPauseScale = prefs[keys.minPauseScale] ?: RsvpConfig().minPauseScale,
-                    parentheticalMultiplier = prefs[keys.parentheticalMultiplier]
-                        ?: RsvpConfig().parentheticalMultiplier,
-                    dialogueMultiplier = prefs[keys.dialogueMultiplier]
-                        ?: RsvpConfig().dialogueMultiplier,
-                    smoothingAlpha = prefs[keys.smoothingAlpha] ?: RsvpConfig().smoothingAlpha,
-                    maxSpeedupFactor = prefs[keys.maxSpeedupFactor]
-                        ?: RsvpConfig().maxSpeedupFactor,
-                    maxSlowdownFactor = prefs[keys.maxSlowdownFactor]
-                        ?: RsvpConfig().maxSlowdownFactor,
-                    orpEnabled = prefs[keys.orpEnabled] ?: RsvpConfig().orpEnabled,
-                    startDelayMs = prefs[keys.startDelayMs] ?: RsvpConfig().startDelayMs,
-                    endDelayMs = prefs[keys.endDelayMs] ?: RsvpConfig().endDelayMs,
-                    rampUpFrames = prefs[keys.rampUpFrames] ?: RsvpConfig().rampUpFrames,
-                    rampDownFrames = prefs[keys.rampDownFrames] ?: RsvpConfig().rampDownFrames,
-                    // Legacy persisted fields
-                    wordsPerFrame = prefs[keys.wordsPerFrame] ?: RsvpConfig().wordsPerFrame,
-                    maxChunkLength = prefs[keys.maxChunkLength] ?: RsvpConfig().maxChunkLength,
-                    punctuationPauseFactor = prefs[keys.punctuationPause]
-                        ?: RsvpConfig().punctuationPauseFactor,
-                    longWordMultiplier = prefs[keys.longWordMultiplier]
-                        ?: RsvpConfig().longWordMultiplier,
-                    useClausePausing = prefs[keys.useClausePausing]
-                        ?: RsvpConfig().useClausePausing,
-                    clausePauseFactor = (prefs[keys.clausePauseFactor]?.takeIf { it.isFinite() }
-                        ?: RsvpConfig().clausePauseFactor)
-                        .coerceIn(1.0, 1.6),
-                    blinkMode = blinkMode
-                ),
-                rsvpSelectedProfileId = selectedProfileId,
-                rsvpCustomProfiles = customProfiles,
-                readerFontSizeSp = prefs[keys.readerFontSize] ?: defaults.readerFontSizeSp,
-                readerTheme = prefs[keys.readerTheme]?.let { value ->
-                    runCatching { ReaderTheme.valueOf(value) }.getOrNull()
-                } ?: defaults.readerTheme,
-                readerTextBrightness = (prefs[keys.readerTextBrightness]
-                    ?: defaults.readerTextBrightness).coerceIn(0.55f, 1.0f),
-                invertedScroll = prefs[keys.invertedScroll] ?: defaults.invertedScroll,
-                rsvpFontSizeSp = prefs[keys.rsvpFontSize] ?: defaults.rsvpFontSizeSp,
-                rsvpTextBrightness = (prefs[keys.rsvpTextBrightness]
-                    ?: defaults.rsvpTextBrightness).coerceIn(0.55f, 1.0f),
-                rsvpFontWeight = prefs[keys.rsvpFontWeight]?.let { value ->
-                    runCatching { RsvpFontWeight.valueOf(value) }.getOrNull()
-                } ?: defaults.rsvpFontWeight,
-                rsvpFontFamily = prefs[keys.rsvpFontFamily]?.let { value ->
-                    runCatching { RsvpFontFamily.valueOf(value) }.getOrNull()
-                } ?: defaults.rsvpFontFamily,
-                rsvpVerticalBias = prefs[keys.rsvpVerticalBias] ?: defaults.rsvpVerticalBias,
-                rsvpHorizontalBias = prefs[keys.rsvpHorizontalBias] ?: defaults.rsvpHorizontalBias,
-                unlockExtremeSpeed = prefs[keys.unlockExtremeSpeed] ?: (derivedTempoMs < 30L),
-                focusModeEnabled = prefs[keys.focusModeEnabled] ?: defaults.focusModeEnabled,
-                focusHideStatusBar = prefs[keys.focusHideStatusBar] ?: defaults.focusHideStatusBar,
-                focusPauseNotifications = prefs[keys.focusPauseNotifications]
-                    ?: defaults.focusPauseNotifications,
-                focusApplyInReader = prefs[keys.focusApplyInReader] ?: defaults.focusApplyInReader,
-                focusApplyInRsvp = prefs[keys.focusApplyInRsvp] ?: defaults.focusApplyInRsvp
-            )
-        }
 
     override suspend fun updateRsvpConfig(updater: (RsvpConfig) -> RsvpConfig) {
         context.dataStore.edit { prefs ->
@@ -216,7 +267,10 @@ class PreferencesRepositoryImpl(
         }
     }
 
-    override suspend fun saveRsvpCustomProfile(name: String, config: RsvpConfig) {
+    override suspend fun saveRsvpCustomProfile(
+        name: String,
+        config: RsvpConfig,
+    ) {
         val trimmedName = name.trim().take(32)
         if (trimmedName.isBlank()) return
 
@@ -229,8 +283,8 @@ class PreferencesRepositoryImpl(
                     id = id,
                     name = trimmedName,
                     config = config,
-                    updatedAtMs = now
-                )
+                    updatedAtMs = now,
+                ),
             )
             prefs[keys.customRsvpProfilesJson] = encodeCustomProfiles(existing)
             prefs[keys.rsvpProfile] = id
@@ -330,12 +384,19 @@ class PreferencesRepositoryImpl(
         val trimmed = raw.trim()
         if (trimmed.isBlank()) return RsvpProfileIds.CUSTOM_UNSAVED
         if (trimmed == "CUSTOM") return RsvpProfileIds.CUSTOM_UNSAVED
-        if (trimmed == "BALANCED" || trimmed == "CHILL" || trimmed == "SPRINT" || trimmed == "STUDY") {
+        if (trimmed == "BALANCED" ||
+            trimmed == "CHILL" ||
+            trimmed == "SPRINT" ||
+            trimmed == "STUDY"
+        ) {
             val parsed =
                 runCatching { RsvpProfile.valueOf(trimmed) }.getOrNull() ?: RsvpProfile.BALANCED
             return RsvpProfileIds.builtIn(parsed)
         }
-        if (trimmed.startsWith("builtin:") || trimmed.startsWith("user:") || trimmed == RsvpProfileIds.CUSTOM_UNSAVED) {
+        if (trimmed.startsWith("builtin:") ||
+            trimmed.startsWith("user:") ||
+            trimmed == RsvpProfileIds.CUSTOM_UNSAVED
+        ) {
             return trimmed
         }
         return RsvpProfileIds.CUSTOM_UNSAVED
@@ -343,19 +404,27 @@ class PreferencesRepositoryImpl(
 
     private fun migrateAndReadSelectedProfileId(
         prefs: Preferences,
-        customProfiles: List<RsvpCustomProfile>
+        customProfiles: List<RsvpCustomProfile>,
     ): String {
         val stored = prefs[keys.rsvpProfile]
-        val normalized = if (stored == null) {
-            RsvpProfileIds.builtIn(RsvpProfile.BALANCED)
-        } else {
-            normalizeProfileId(stored)
-        }
+        val normalized =
+            if (stored == null) {
+                RsvpProfileIds.builtIn(RsvpProfile.BALANCED)
+            } else {
+                normalizeProfileId(stored)
+            }
         return when {
             normalized == RsvpProfileIds.CUSTOM_UNSAVED -> normalized
             RsvpProfileIds.isBuiltIn(normalized) -> normalized
             RsvpProfileIds.isCustom(normalized) -> {
-                if (customProfiles.any { it.id == normalized }) normalized else RsvpProfileIds.CUSTOM_UNSAVED
+                if (customProfiles.any {
+                        it.id == normalized
+                    }
+                ) {
+                    normalized
+                } else {
+                    RsvpProfileIds.CUSTOM_UNSAVED
+                }
             }
 
             else -> RsvpProfileIds.CUSTOM_UNSAVED
@@ -379,8 +448,8 @@ class PreferencesRepositoryImpl(
                             id = id,
                             name = name,
                             config = decodeRsvpConfig(cfgObj),
-                            updatedAtMs = updatedAt
-                        )
+                            updatedAtMs = updatedAt,
+                        ),
                     )
                 }
             }
@@ -447,13 +516,16 @@ class PreferencesRepositoryImpl(
 
     private fun decodeRsvpConfig(obj: JSONObject): RsvpConfig {
         val d = RsvpConfig()
-        val clausePauseFactor = obj.optDouble("clausePauseFactor", d.clausePauseFactor)
-            .takeIf { it.isFinite() }
-            ?.coerceIn(1.0, 1.6)
-            ?: d.clausePauseFactor
+        val clausePauseFactor =
+            obj
+                .optDouble("clausePauseFactor", d.clausePauseFactor)
+                .takeIf { it.isFinite() }
+                ?.coerceIn(1.0, 1.6)
+                ?: d.clausePauseFactor
         val blinkModeRaw = obj.optString("blinkMode", "")
-        val blinkMode = parseBlinkMode(blinkModeRaw.takeIf { it.isNotBlank() })
-            ?: if (obj.optBoolean("blinkEnabled", false)) BlinkMode.SUBTLE else d.blinkMode
+        val blinkMode =
+            parseBlinkMode(blinkModeRaw.takeIf { it.isNotBlank() })
+                ?: if (obj.optBoolean("blinkEnabled", false)) BlinkMode.SUBTLE else d.blinkMode
         return RsvpConfig(
             tempoMsPerWord = obj.optLong("tempoMsPerWord", d.tempoMsPerWord),
             minWordMs = obj.optLong("minWordMs", d.minWordMs),
@@ -477,9 +549,10 @@ class PreferencesRepositoryImpl(
             paragraphPauseMs = obj.optLong("paragraphPauseMs", d.paragraphPauseMs),
             pauseScaleExponent = obj.optDouble("pauseScaleExponent", d.pauseScaleExponent),
             minPauseScale = obj.optDouble("minPauseScale", d.minPauseScale),
-            parentheticalMultiplier = obj.optDouble(
+            parentheticalMultiplier =
+            obj.optDouble(
                 "parentheticalMultiplier",
-                d.parentheticalMultiplier
+                d.parentheticalMultiplier,
             ),
             dialogueMultiplier = obj.optDouble("dialogueMultiplier", d.dialogueMultiplier),
             smoothingAlpha = obj.optDouble("smoothingAlpha", d.smoothingAlpha),
@@ -492,9 +565,10 @@ class PreferencesRepositoryImpl(
             rampDownFrames = obj.optInt("rampDownFrames", d.rampDownFrames),
             wordsPerFrame = obj.optInt("wordsPerFrame", d.wordsPerFrame),
             maxChunkLength = obj.optInt("maxChunkLength", d.maxChunkLength),
-            punctuationPauseFactor = obj.optDouble(
+            punctuationPauseFactor =
+            obj.optDouble(
                 "punctuationPauseFactor",
-                d.punctuationPauseFactor
+                d.punctuationPauseFactor,
             ),
             longWordMultiplier = obj.optDouble("longWordMultiplier", d.longWordMultiplier),
             baseWpm = d.baseWpm,
@@ -503,11 +577,14 @@ class PreferencesRepositoryImpl(
             useDialogueDetection = d.useDialogueDetection,
             complexWordThreshold = d.complexWordThreshold,
             clausePauseFactor = clausePauseFactor,
-            blinkMode = blinkMode
+            blinkMode = blinkMode,
         )
     }
 
-    private fun writeRsvpConfig(prefs: MutablePreferences, config: RsvpConfig) {
+    private fun writeRsvpConfig(
+        prefs: MutablePreferences,
+        config: RsvpConfig,
+    ) {
         prefs[keys.tempoMsPerWord] = config.tempoMsPerWord.coerceAtLeast(10L)
         prefs.remove(legacyBaseWpmKey)
         prefs[keys.minWordMs] = config.minWordMs
@@ -556,19 +633,29 @@ class PreferencesRepositoryImpl(
     }
 
     private fun readConfig(prefs: Preferences): RsvpConfig {
-        val tempoMsPerWord = (prefs[keys.tempoMsPerWord] ?: run {
-            val legacyWpm = prefs[legacyBaseWpmKey]
-            when {
-                legacyWpm == null -> RsvpConfig().tempoMsPerWord
-                legacyWpm <= 0 -> RsvpConfig().tempoMsPerWord
-                else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(10L)
-            }
-        }).coerceAtLeast(10L)
+        val tempoMsPerWord =
+            (
+                prefs[keys.tempoMsPerWord] ?: run {
+                    val legacyWpm = prefs[legacyBaseWpmKey]
+                    when {
+                        legacyWpm == null -> RsvpConfig().tempoMsPerWord
+                        legacyWpm <= 0 -> RsvpConfig().tempoMsPerWord
+                        else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(10L)
+                    }
+                }
+                ).coerceAtLeast(10L)
         val derivedBaseWpm = (60_000.0 / tempoMsPerWord.toDouble()).toInt().coerceAtLeast(1)
 
         val storedBlinkMode = parseBlinkMode(prefs[keys.blinkMode])
-        val blinkMode = storedBlinkMode
-            ?: if (prefs[keys.blinkEnabled] == true) BlinkMode.SUBTLE else RsvpConfig().blinkMode
+        val blinkMode =
+            storedBlinkMode
+                ?: if (prefs[keys.blinkEnabled] ==
+                    true
+                ) {
+                    BlinkMode.SUBTLE
+                } else {
+                    RsvpConfig().blinkMode
+                }
 
         return RsvpConfig(
             tempoMsPerWord = tempoMsPerWord,
@@ -581,7 +668,8 @@ class PreferencesRepositoryImpl(
             complexityStrength = prefs[keys.complexityStrength] ?: RsvpConfig().complexityStrength,
             lengthStrength = prefs[keys.lengthStrength] ?: RsvpConfig().lengthStrength,
             lengthExponent = prefs[keys.lengthExponent] ?: RsvpConfig().lengthExponent,
-            enablePhraseChunking = prefs[keys.enablePhraseChunking]
+            enablePhraseChunking =
+            prefs[keys.enablePhraseChunking]
                 ?: RsvpConfig().enablePhraseChunking,
             maxWordsPerUnit = prefs[keys.maxWordsPerUnit] ?: RsvpConfig().maxWordsPerUnit,
             maxCharsPerUnit = prefs[keys.maxCharsPerUnit] ?: RsvpConfig().maxCharsPerUnit,
@@ -595,7 +683,8 @@ class PreferencesRepositoryImpl(
             paragraphPauseMs = prefs[keys.paragraphPauseMs] ?: RsvpConfig().paragraphPauseMs,
             pauseScaleExponent = prefs[keys.pauseScaleExponent] ?: RsvpConfig().pauseScaleExponent,
             minPauseScale = prefs[keys.minPauseScale] ?: RsvpConfig().minPauseScale,
-            parentheticalMultiplier = prefs[keys.parentheticalMultiplier]
+            parentheticalMultiplier =
+            prefs[keys.parentheticalMultiplier]
                 ?: RsvpConfig().parentheticalMultiplier,
             dialogueMultiplier = prefs[keys.dialogueMultiplier] ?: RsvpConfig().dialogueMultiplier,
             smoothingAlpha = prefs[keys.smoothingAlpha] ?: RsvpConfig().smoothingAlpha,
@@ -605,22 +694,26 @@ class PreferencesRepositoryImpl(
             rampDownFrames = prefs[keys.rampDownFrames] ?: RsvpConfig().rampDownFrames,
             wordsPerFrame = prefs[keys.wordsPerFrame] ?: RsvpConfig().wordsPerFrame,
             maxChunkLength = prefs[keys.maxChunkLength] ?: RsvpConfig().maxChunkLength,
-            punctuationPauseFactor = prefs[keys.punctuationPause]
+            punctuationPauseFactor =
+            prefs[keys.punctuationPause]
                 ?: RsvpConfig().punctuationPauseFactor,
             longWordMultiplier = prefs[keys.longWordMultiplier] ?: RsvpConfig().longWordMultiplier,
             useClausePausing = prefs[keys.useClausePausing] ?: RsvpConfig().useClausePausing,
-            clausePauseFactor = (prefs[keys.clausePauseFactor]?.takeIf { it.isFinite() }
-                ?: RsvpConfig().clausePauseFactor)
-                .coerceIn(1.0, 1.6),
+            clausePauseFactor =
+            (
+                prefs[keys.clausePauseFactor]?.takeIf { it.isFinite() }
+                    ?: RsvpConfig().clausePauseFactor
+                ).coerceIn(1.0, 1.6),
             blinkMode = blinkMode,
             orpEnabled = prefs[keys.orpEnabled] ?: RsvpConfig().orpEnabled,
             startDelayMs = prefs[keys.startDelayMs] ?: RsvpConfig().startDelayMs,
-            endDelayMs = prefs[keys.endDelayMs] ?: RsvpConfig().endDelayMs
+            endDelayMs = prefs[keys.endDelayMs] ?: RsvpConfig().endDelayMs,
         )
     }
 
-    private fun parseBlinkMode(value: String?): BlinkMode? =
-        value?.let { runCatching { BlinkMode.valueOf(it) }.getOrNull() }
+    private fun parseBlinkMode(value: String?): BlinkMode? = value?.let {
+        runCatching { BlinkMode.valueOf(it) }.getOrNull()
+    }
 }
 
 private object PrefKeys {

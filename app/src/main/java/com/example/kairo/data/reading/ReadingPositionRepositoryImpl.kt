@@ -8,16 +8,16 @@ import com.example.kairo.data.local.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class ReadingPositionRepositoryImpl(
-    private val dao: ReadingPositionDao
-) : ReadingPositionRepository {
-    override suspend fun getPosition(bookId: BookId): ReadingPosition? =
-        dao.getPosition(bookId.value)?.toDomain()
+class ReadingPositionRepositoryImpl(private val dao: ReadingPositionDao,) : ReadingPositionRepository {
+    override suspend fun getPosition(
+        bookId: BookId
+    ): ReadingPosition? = dao.getPosition(bookId.value)?.toDomain()
 
     override suspend fun savePosition(position: ReadingPosition) {
         dao.savePosition(position.toEntity())
     }
 
-    override fun observePositions(): Flow<List<ReadingPosition>> =
-        dao.getPositions().map { entities -> entities.map { it.toDomain() } }
+    override fun observePositions(): Flow<List<ReadingPosition>> = dao.getPositions().map { entities ->
+        entities.map { it.toDomain() }
+    }
 }

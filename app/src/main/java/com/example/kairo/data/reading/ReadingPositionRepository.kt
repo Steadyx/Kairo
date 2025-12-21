@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 
 interface ReadingPositionRepository {
     suspend fun getPosition(bookId: BookId): ReadingPosition?
+
     suspend fun savePosition(position: ReadingPosition)
+
     fun observePositions(): Flow<List<ReadingPosition>>
 }

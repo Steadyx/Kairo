@@ -6,8 +6,8 @@ import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import com.example.kairo.core.model.nearestWordIndex
-import kotlinx.coroutines.delay
 import kotlin.math.roundToLong
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun RsvpPositionSaveEffect(context: RsvpUiContext) {
@@ -19,14 +19,16 @@ internal fun RsvpPositionSaveEffect(context: RsvpUiContext) {
         if (frames.isEmpty()) return@LaunchedEffect
         val currentIndex = resolveCurrentTokenIndex(frames, runtime.frameIndex, book.startIndex)
         runtime.currentTokenIndex = currentIndex
-        val safeIndex = if (book.tokens.isNotEmpty()) {
-            book.tokens.nearestWordIndex(currentIndex)
-        } else {
-            currentIndex
-        }
+        val safeIndex =
+            if (book.tokens.isNotEmpty()) {
+                book.tokens.nearestWordIndex(currentIndex)
+            } else {
+                currentIndex
+            }
         val now = SystemClock.elapsedRealtime()
-        val shouldSave = now - runtime.lastPositionSaveMs >= POSITION_SAVE_INTERVAL_MS ||
-            runtime.frameIndex == frames.lastIndex
+        val shouldSave =
+            now - runtime.lastPositionSaveMs >= POSITION_SAVE_INTERVAL_MS ||
+                runtime.frameIndex == frames.lastIndex
         if (shouldSave) {
             runtime.lastPositionSaveMs = now
             context.callbacks.playback.onPositionChanged(safeIndex)
@@ -86,18 +88,20 @@ internal fun RsvpPlaybackLoopEffect(context: RsvpUiContext) {
         if (!runtime.isPlaying || runtime.completed) return@LaunchedEffect
         if (runtime.frameIndex >= frames.size) return@LaunchedEffect
         val frame = frames[runtime.frameIndex]
-        val scaledMs = (frame.durationMs * tempoScale)
-            .roundToLong()
-            .coerceAtLeast(MIN_FRAME_DELAY_MS)
+        val scaledMs =
+            (frame.durationMs * tempoScale)
+                .roundToLong()
+                .coerceAtLeast(MIN_FRAME_DELAY_MS)
         delay(scaledMs)
         if (runtime.frameIndex == frames.lastIndex) {
             runtime.completed = true
             val rawNextIndex = frame.originalTokenIndex + 1
-            val safeNextIndex = if (tokens.isNotEmpty()) {
-                tokens.nearestWordIndex(rawNextIndex)
-            } else {
-                rawNextIndex
-            }
+            val safeNextIndex =
+                if (tokens.isNotEmpty()) {
+                    tokens.nearestWordIndex(rawNextIndex)
+                } else {
+                    rawNextIndex
+                }
             context.callbacks.playback.onFinished(safeNextIndex)
         } else {
             runtime.frameIndex += 1

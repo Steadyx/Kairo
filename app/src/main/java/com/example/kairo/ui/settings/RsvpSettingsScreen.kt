@@ -2,11 +2,11 @@
 
 package com.example.kairo.ui.settings
 
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import com.example.kairo.core.model.RsvpConfig
@@ -28,16 +28,17 @@ fun RsvpSettingsScreen(
     onRsvpFontFamilyChange: (RsvpFontFamily) -> Unit,
     onRsvpVerticalBiasChange: (Float) -> Unit,
     onRsvpHorizontalBiasChange: (Float) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
 
     SettingsScaffold(title = "RSVP settings", onBack = onBack) { modifier ->
         Column(
-            modifier = modifier
+            modifier =
+            modifier
                 .verticalScroll(scrollState)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             RsvpSettingsContent(
                 selectedProfileId = preferences.rsvpSelectedProfileId,
@@ -60,7 +61,7 @@ fun RsvpSettingsScreen(
                 onRsvpFontWeightChange = onRsvpFontWeightChange,
                 onRsvpFontFamilyChange = onRsvpFontFamilyChange,
                 onRsvpVerticalBiasChange = onRsvpVerticalBiasChange,
-                onRsvpHorizontalBiasChange = onRsvpHorizontalBiasChange
+                onRsvpHorizontalBiasChange = onRsvpHorizontalBiasChange,
             )
         }
     }

@@ -7,6 +7,5 @@ class Converters {
     fun fromAuthors(authors: List<String>): String = authors.joinToString("|||")
 
     @TypeConverter
-    fun toAuthors(raw: String): List<String> =
-        if (raw.isEmpty()) emptyList() else raw.split("|||")
+    fun toAuthors(raw: String): List<String> = if (raw.isEmpty()) emptyList() else raw.split("|||")
 }

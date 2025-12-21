@@ -39,13 +39,14 @@ internal fun BoxScope.RsvpProgressBar(context: RsvpUiContext) {
 
     LinearProgressIndicator(
         progress = { progress },
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxWidth()
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
             .height(PROGRESS_HEIGHT),
         color = MaterialTheme.colorScheme.primary.copy(alpha = PROGRESS_PRIMARY_ALPHA),
-        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = PROGRESS_TRACK_ALPHA)
+        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = PROGRESS_TRACK_ALPHA),
     )
 }
 
@@ -54,11 +55,12 @@ internal fun BoxScope.RsvpTopBar(context: RsvpUiContext) {
     val runtime = context.runtime
 
     Row(
-        modifier = Modifier
+        modifier =
+        Modifier
             .align(Alignment.TopEnd)
             .statusBarsPadding()
             .padding(TOP_BAR_PADDING),
-        horizontalArrangement = Arrangement.spacedBy(TOP_BAR_SPACING)
+        horizontalArrangement = Arrangement.spacedBy(TOP_BAR_SPACING),
     ) {
         IconButton(onClick = {
             if (runtime.isPositioningMode) {
@@ -72,7 +74,7 @@ internal fun BoxScope.RsvpTopBar(context: RsvpUiContext) {
                 Icons.Default.Settings,
                 contentDescription = "Settings",
                 tint = MaterialTheme.colorScheme.onBackground.copy(alpha = TOP_BAR_ICON_ALPHA),
-                modifier = Modifier.size(TOP_BAR_ICON_SIZE)
+                modifier = Modifier.size(TOP_BAR_ICON_SIZE),
             )
         }
         IconButton(onClick = { exitAndSavePosition(context) }) {
@@ -80,40 +82,43 @@ internal fun BoxScope.RsvpTopBar(context: RsvpUiContext) {
                 Icons.Default.Close,
                 contentDescription = "Close",
                 tint = MaterialTheme.colorScheme.onBackground.copy(alpha = TOP_BAR_ICON_ALPHA),
-                modifier = Modifier.size(TOP_BAR_ICON_SIZE)
+                modifier = Modifier.size(TOP_BAR_ICON_SIZE),
             )
         }
     }
 }
 
 @Composable
-internal fun BoxScope.RsvpTempoIndicator(context: RsvpUiContext, estimatedWpm: Int) {
+internal fun BoxScope.RsvpTempoIndicator(
+    context: RsvpUiContext,
+    estimatedWpm: Int,
+) {
     val runtime = context.runtime
 
     AnimatedVisibility(
         visible = runtime.showTempoIndicator,
         enter = fadeIn(),
         exit = fadeOut(),
-        modifier = Modifier.align(Alignment.TopCenter)
+        modifier = Modifier.align(Alignment.TopCenter),
     ) {
         Box(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .padding(top = TEMPO_INDICATOR_TOP_PADDING)
                 .background(
                     MaterialTheme.colorScheme.primaryContainer.copy(
-                        alpha = INDICATOR_BACKGROUND_ALPHA
+                        alpha = INDICATOR_BACKGROUND_ALPHA,
                     ),
-                    RoundedCornerShape(INDICATOR_CORNER_RADIUS)
-                )
-                .padding(
+                    RoundedCornerShape(INDICATOR_CORNER_RADIUS),
+                ).padding(
                     horizontal = INDICATOR_PADDING_HORIZONTAL,
-                    vertical = INDICATOR_PADDING_VERTICAL
-                )
+                    vertical = INDICATOR_PADDING_VERTICAL,
+                ),
         ) {
             Text(
                 text = "~$estimatedWpm WPM",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
     }
@@ -127,26 +132,26 @@ internal fun BoxScope.RsvpFontSizeIndicator(context: RsvpUiContext) {
         visible = runtime.showFontSizeIndicator,
         enter = fadeIn(),
         exit = fadeOut(),
-        modifier = Modifier.align(Alignment.TopCenter)
+        modifier = Modifier.align(Alignment.TopCenter),
     ) {
         Box(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .padding(top = FONT_SIZE_INDICATOR_TOP_PADDING)
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant.copy(
-                        alpha = INDICATOR_BACKGROUND_ALPHA
+                        alpha = INDICATOR_BACKGROUND_ALPHA,
                     ),
-                    RoundedCornerShape(INDICATOR_CORNER_RADIUS)
-                )
-                .padding(
+                    RoundedCornerShape(INDICATOR_CORNER_RADIUS),
+                ).padding(
                     horizontal = INDICATOR_PADDING_HORIZONTAL,
-                    vertical = INDICATOR_PADDING_VERTICAL
-                )
+                    vertical = INDICATOR_PADDING_VERTICAL,
+                ),
         ) {
             Text(
                 text = "${runtime.currentFontSizeSp.toInt()}sp",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -160,28 +165,28 @@ internal fun BoxScope.RsvpPositioningIndicator(context: RsvpUiContext) {
         visible = runtime.isPositioningMode,
         enter = fadeIn(),
         exit = fadeOut(),
-        modifier = Modifier.align(Alignment.TopCenter)
+        modifier = Modifier.align(Alignment.TopCenter),
     ) {
         Box(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .padding(top = TEMPO_INDICATOR_TOP_PADDING)
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant.copy(
-                        alpha = INDICATOR_BACKGROUND_ALPHA
+                        alpha = INDICATOR_BACKGROUND_ALPHA,
                     ),
-                    RoundedCornerShape(INDICATOR_CORNER_RADIUS)
-                )
-                .clickable { finishPositioning(context, resumeIfWasPlaying = true) }
+                    RoundedCornerShape(INDICATOR_CORNER_RADIUS),
+                ).clickable { finishPositioning(context, resumeIfWasPlaying = true) }
                 .padding(
                     horizontal = POSITIONING_INDICATOR_PADDING_HORIZONTAL,
-                    vertical = POSITIONING_INDICATOR_PADDING_VERTICAL
-                )
+                    vertical = POSITIONING_INDICATOR_PADDING_VERTICAL,
+                ),
         ) {
             Text(
                 text = "Positioning mode - swipe to move\nTap here to finish",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
         }
     }

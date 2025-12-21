@@ -8,24 +8,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.kairo.core.model.RsvpFrame
 
-internal data class RsvpFrameLoadState(
-    val frames: List<RsvpFrame>,
-    val baseTempoMs: Long,
-    val isLoading: Boolean
-)
+internal data class RsvpFrameLoadState(val frames: List<RsvpFrame>, val baseTempoMs: Long, val isLoading: Boolean,)
 
-internal data class RsvpTimingInfo(
-    val minTempoMs: Long,
-    val maxTempoMs: Long,
-    val tempoScale: Double
-)
+internal data class RsvpTimingInfo(val minTempoMs: Long, val maxTempoMs: Long, val tempoScale: Double,)
 
 internal data class RsvpUiContext(
     val state: RsvpScreenState,
     val callbacks: RsvpScreenCallbacks,
     val runtime: RsvpRuntimeState,
     val frameState: RsvpFrameLoadState,
-    val timing: RsvpTimingInfo
+    val timing: RsvpTimingInfo,
 )
 
 internal class RsvpRuntimeState {

@@ -7,15 +7,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TokenizerTest {
-
     private val tokenizer = Tokenizer()
 
-    private fun chapter(text: String) = Chapter(
-        index = 0,
-        title = null,
-        htmlContent = "",
-        plainText = text
-    )
+    private fun chapter(text: String) =
+        Chapter(
+            index = 0,
+            title = null,
+            htmlContent = "",
+            plainText = text,
+        )
 
     @Test
     fun normalizesTemperatureSpacingAndMojibake() {
@@ -38,7 +38,9 @@ class TokenizerTest {
 
     @Test
     fun keepsNegativeTemperaturesAsSingleWordToken() {
-        val tokens = tokenizer.tokenize(chapter("A sentence like this -35c and –35c and ‑35c and -10°C."))
+        val tokens = tokenizer.tokenize(
+            chapter("A sentence like this -35c and –35c and ‑35c and -10°C.")
+        )
         val words = tokens.filter { it.type == TokenType.WORD }.map { it.text }
 
         assertTrue(words.contains("-35c"))

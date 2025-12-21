@@ -6,14 +6,12 @@ import com.example.kairo.core.model.nearestWordIndex
 internal fun resolveCurrentTokenIndex(
     frames: List<RsvpFrame>,
     frameIndex: Int,
-    fallbackIndex: Int
-): Int {
-    return frames.getOrNull(frameIndex)?.originalTokenIndex ?: fallbackIndex
-}
+    fallbackIndex: Int,
+): Int = frames.getOrNull(frameIndex)?.originalTokenIndex ?: fallbackIndex
 
 internal fun alignFrameIndex(
     frames: List<RsvpFrame>,
-    tokenIndex: Int
+    tokenIndex: Int,
 ): Int {
     if (frames.isEmpty()) return 0
     val idx = frames.indexOfLast { it.originalTokenIndex <= tokenIndex }
@@ -30,11 +28,12 @@ internal fun exitAndSavePosition(context: RsvpUiContext) {
     runtime.completed = true
 
     val currentIndex = resolveCurrentTokenIndex(frames, runtime.frameIndex, book.startIndex)
-    val safeIndex = if (book.tokens.isNotEmpty()) {
-        book.tokens.nearestWordIndex(currentIndex)
-    } else {
-        currentIndex
-    }
+    val safeIndex =
+        if (book.tokens.isNotEmpty()) {
+            book.tokens.nearestWordIndex(currentIndex)
+        } else {
+            currentIndex
+        }
     context.callbacks.playback.onPositionChanged(safeIndex)
     context.callbacks.playback.onExit(safeIndex)
 }
@@ -50,11 +49,15 @@ internal fun advanceFrame(context: RsvpUiContext) {
     }
     val lastFrame = frames.getOrNull(runtime.frameIndex)
     val rawNextIndex = (lastFrame?.originalTokenIndex ?: context.state.book.startIndex) + 1
-    val safeNextIndex = if (context.state.book.tokens.isNotEmpty()) {
-        context.state.book.tokens.nearestWordIndex(rawNextIndex)
-    } else {
-        rawNextIndex
-    }
+    val safeNextIndex =
+        if (context.state.book.tokens
+                .isNotEmpty()
+        ) {
+            context.state.book.tokens
+                .nearestWordIndex(rawNextIndex)
+        } else {
+            rawNextIndex
+        }
     context.callbacks.playback.onFinished(safeNextIndex)
     runtime.completed = true
 }

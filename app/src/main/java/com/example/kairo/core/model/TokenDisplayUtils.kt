@@ -3,13 +3,24 @@
 package com.example.kairo.core.model
 
 private val openingPunctuationCharsForDisplay = setOf('"', '\u201C', '\u2018', '(', '[', '{')
-private val closingPunctuationCharsForDisplay = setOf(
-    '.', ',', ';', ':', '!', '?',
-    '"', '\u201D', '\u2019',
-    ')', ']', '}',
-    '\u2014', '\u2013', // Em-dash — and en-dash –
-    '\u2026'            // Ellipsis …
-)
+private val closingPunctuationCharsForDisplay =
+    setOf(
+        '.',
+        ',',
+        ';',
+        ':',
+        '!',
+        '?',
+        '"',
+        '\u201D',
+        '\u2019',
+        ')',
+        ']',
+        '}',
+        '\u2014',
+        '\u2013', // Em-dash — and en-dash –
+        '\u2026', // Ellipsis …
+    )
 
 private val dashJoinersForDisplay = setOf('\u2014', '\u2013')
 
@@ -24,7 +35,11 @@ private fun Token.isPunctuationIn(chars: Set<Char>): Boolean =
  * This is used by the scrollable Reader view so punctuation spacing stays stable regardless of the original
  * whitespace in the source.
  */
-fun shouldInsertSpaceBeforeToken(token: Token, prevToken: Token?, tokenIndexInParagraph: Int): Boolean {
+fun shouldInsertSpaceBeforeToken(
+    token: Token,
+    prevToken: Token?,
+    tokenIndexInParagraph: Int,
+): Boolean {
     if (tokenIndexInParagraph == 0) return false
 
     val isClosing = token.isPunctuationIn(closingPunctuationCharsForDisplay)

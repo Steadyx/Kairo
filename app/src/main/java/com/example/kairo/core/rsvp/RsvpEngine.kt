@@ -7,7 +7,7 @@
     "MagicNumber",
     "MaxLineLength",
     "ReturnCount",
-    "UnreachableCode"
+    "UnreachableCode",
 )
 
 package com.example.kairo.core.rsvp
@@ -31,7 +31,7 @@ interface RsvpEngine {
     fun generateFrames(
         tokens: List<Token>,
         startIndex: Int,
-        config: RsvpConfig
+        config: RsvpConfig,
     ): List<RsvpFrame>
 }
 
@@ -47,17 +47,29 @@ interface RsvpEngine {
  */
 @Suppress("LargeClass", "TooManyFunctions")
 class ComprehensionRsvpEngine : RsvpEngine {
-
-    override fun generateFrames(tokens: List<Token>, startIndex: Int, config: RsvpConfig): List<RsvpFrame> {
+    override fun generateFrames(
+        tokens: List<Token>,
+        startIndex: Int,
+        config: RsvpConfig,
+    ): List<RsvpFrame> {
         if (tokens.isEmpty()) return emptyList()
 
-        val expanded = tokens.flatMapIndexed { index, token ->
-            splitHyphenatedToken(token).map { splitToken ->
-                ExpandedToken(splitToken, index)
+        val expanded =
+            tokens.flatMapIndexed { index, token ->
+                splitHyphenatedToken(token).map { splitToken ->
+                    ExpandedToken(splitToken, index)
+                }
+            }
+
+        var cursor = expanded.indexOfFirst { it.originalIndex >= startIndex }.let {
+            if (it ==
+                -1
+            ) {
+                0
+            } else {
+                it
             }
         }
-
-        var cursor = expanded.indexOfFirst { it.originalIndex >= startIndex }.let { if (it == -1) 0 else it }
         cursor = cursor.coerceIn(0, expanded.lastIndex)
 
         while (cursor < expanded.size && expanded[cursor].token.type != TokenType.WORD) cursor++
@@ -66,40 +78,53 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val frames = mutableListOf<RsvpFrame>()
 
         val state = ContextState()
-        val rhythm = RhythmState(
-            smoothingAlpha = config.smoothingAlpha,
-            maxSpeedupFactor = config.maxSpeedupFactor,
-            maxSlowdownFactor = config.maxSlowdownFactor
-        )
-        val flow = FlowState(
-            alpha = FLOW_EMA_ALPHA,
-            maxBoost = FLOW_MAX_BOOST,
-            maxSlowdown = FLOW_MAX_SLOWDOWN,
-            strength = FLOW_STRENGTH
-        )
+        val rhythm =
+            RhythmState(
+                smoothingAlpha = config.smoothingAlpha,
+                maxSpeedupFactor = config.maxSpeedupFactor,
+                maxSlowdownFactor = config.maxSlowdownFactor,
+            )
+        val flow =
+            FlowState(
+                alpha = FLOW_EMA_ALPHA,
+                maxBoost = FLOW_MAX_BOOST,
+                maxSlowdown = FLOW_MAX_SLOWDOWN,
+                strength = FLOW_STRENGTH,
+            )
 
         while (cursor < expanded.size) {
             val cursorToken = expanded[cursor].token
-            if (cursorToken.type == TokenType.PARAGRAPH_BREAK || cursorToken.type == TokenType.PAGE_BREAK) {
+            if (cursorToken.type == TokenType.PARAGRAPH_BREAK ||
+                cursorToken.type == TokenType.PAGE_BREAK
+            ) {
                 val nextWordCursor = findFirstWordCursor(expanded, cursor + 1)
                 if (nextWordCursor >= expanded.size) break
 
                 val msPerWord = config.tempoMsPerWord.toDouble()
                 val pauseScale = pauseScale(msPerWord, config)
-                val extraPause = (cursorToken.pauseAfterMs.coerceAtLeast(0L).toDouble()) * pauseScale
-                val durationMs = when (cursorToken.type) {
-                    TokenType.PAGE_BREAK -> max(pageBreakBasePauseMs(config) * pauseScale, MIN_PAGE_BREAK_MS).toLong()
-                    TokenType.PARAGRAPH_BREAK -> max(config.paragraphPauseMs.toDouble() * pauseScale, MIN_PARAGRAPH_BREAK_MS).toLong()
-                    else -> 0L
-                }.let { base ->
-                    (base + extraPause).toLong()
-                }.coerceAtLeast(MIN_FRAME_MS)
+                val extraPause =
+                    (cursorToken.pauseAfterMs.coerceAtLeast(0L).toDouble()) * pauseScale
+                val durationMs =
+                    when (cursorToken.type) {
+                        TokenType.PAGE_BREAK -> max(
+                            pageBreakBasePauseMs(config) * pauseScale,
+                            MIN_PAGE_BREAK_MS
+                        ).toLong()
+                        TokenType.PARAGRAPH_BREAK -> max(
+                            config.paragraphPauseMs.toDouble() * pauseScale,
+                            MIN_PARAGRAPH_BREAK_MS
+                        ).toLong()
+                        else -> 0L
+                    }.let { base ->
+                        (base + extraPause).toLong()
+                    }.coerceAtLeast(MIN_FRAME_MS)
 
-                frames += RsvpFrame(
-                    tokens = listOf(breakMarkerToken(cursorToken.type)),
-                    durationMs = durationMs,
-                    originalTokenIndex = expanded[nextWordCursor].originalIndex
-                )
+                frames +=
+                    RsvpFrame(
+                        tokens = listOf(breakMarkerToken(cursorToken.type)),
+                        durationMs = durationMs,
+                        originalTokenIndex = expanded[nextWordCursor].originalIndex,
+                    )
                 rhythm.reset()
                 flow.reset()
                 cursor++
@@ -111,37 +136,50 @@ class ComprehensionRsvpEngine : RsvpEngine {
             if (wordCursor >= expanded.size) break
             val boundaryBefore = boundaryBefore(expanded, wordCursor)
 
-            val (frameTokens, frameOriginalIndex, nextCursor) = buildUnit(
-                expandedTokens = expanded,
-                startCursor = cursor,
-                config = config,
-                state = state
-            )
+            val (frameTokens, frameOriginalIndex, nextCursor) =
+                buildUnit(
+                    expandedTokens = expanded,
+                    startCursor = cursor,
+                    config = config,
+                    state = state,
+                )
             val prevTokenGlobal = expanded.getOrNull(cursor - 1)?.token
             val prevWordGlobal = findPrevWord(expanded, beforeIndex = cursor)
             val nextTokenGlobal = expanded.getOrNull(nextCursor)?.token
-            val nextWordGlobal = expanded.getOrNull(findFirstWordCursor(expanded, nextCursor))?.token
+            val nextWordGlobal = expanded.getOrNull(
+                findFirstWordCursor(expanded, nextCursor)
+            )?.token
             cursor = nextCursor
 
-            val durationMs = computeUnitDurationMs(
-                frameTokens = frameTokens,
-                config = config,
-                contextBefore = contextBefore,
-                rhythm = rhythm,
-                flow = flow,
-                prevToken = prevTokenGlobal,
-                prevWord = prevWordGlobal,
-                nextToken = nextTokenGlobal,
-                nextWord = nextWordGlobal,
-                boundaryBefore = boundaryBefore
-            )
+            val durationMs =
+                computeUnitDurationMs(
+                    frameTokens = frameTokens,
+                    config = config,
+                    contextBefore = contextBefore,
+                    rhythm = rhythm,
+                    flow = flow,
+                    prevToken = prevTokenGlobal,
+                    prevWord = prevWordGlobal,
+                    nextToken = nextTokenGlobal,
+                    nextWord = nextWordGlobal,
+                    boundaryBefore = boundaryBefore,
+                )
 
-            frames += RsvpFrame(tokens = frameTokens, durationMs = durationMs, originalTokenIndex = frameOriginalIndex)
+            frames +=
+                RsvpFrame(
+                    tokens = frameTokens,
+                    durationMs = durationMs,
+                    originalTokenIndex = frameOriginalIndex
+                )
 
-            while (cursor < expanded.size && expanded[cursor].token.type != TokenType.WORD &&
+            while (cursor < expanded.size &&
+                expanded[cursor].token.type != TokenType.WORD &&
                 expanded[cursor].token.type != TokenType.PARAGRAPH_BREAK &&
                 expanded[cursor].token.type != TokenType.PAGE_BREAK &&
-                !(expanded[cursor].token.type == TokenType.PUNCTUATION && isOpeningPunctuation(expanded[cursor].token, state))
+                !(
+                    expanded[cursor].token.type == TokenType.PUNCTUATION &&
+                        isOpeningPunctuation(expanded[cursor].token, state)
+                    )
             ) {
                 state.consume(expanded[cursor].token)
                 cursor++
@@ -157,7 +195,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         expandedTokens: List<ExpandedToken>,
         startCursor: Int,
         config: RsvpConfig,
-        state: ContextState
+        state: ContextState,
     ): UnitBuildResult {
         val unitTokens = mutableListOf<Token>()
         var cursor = startCursor.coerceIn(0, expandedTokens.lastIndex)
@@ -176,11 +214,19 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
 
         // First word is required.
-        while (cursor < expandedTokens.size && expandedTokens[cursor].token.type != TokenType.WORD) {
+        while (cursor < expandedTokens.size &&
+            expandedTokens[cursor].token.type != TokenType.WORD
+        ) {
             cursor++
         }
-        val firstWord = expandedTokens.getOrNull(cursor) ?: return UnitBuildResult(unitTokens, startCursor, cursor)
-        if (firstWord.token.type != TokenType.WORD) return UnitBuildResult(unitTokens, startCursor, cursor)
+        val firstWord =
+            expandedTokens.getOrNull(cursor)
+                ?: return UnitBuildResult(unitTokens, startCursor, cursor)
+        if (firstWord.token.type !=
+            TokenType.WORD
+        ) {
+            return UnitBuildResult(unitTokens, startCursor, cursor)
+        }
         unitTokens += firstWord.token
         state.consume(firstWord.token)
         firstWordOriginalIndex = firstWord.originalIndex
@@ -191,7 +237,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
             val candidateIndex = cursor
             val candidate = expandedTokens.getOrNull(candidateIndex)
             if (candidate != null && candidate.token.type == TokenType.WORD) {
-                val combinedChars = unitTokens.sumOf { it.text.length } + candidate.token.text.length
+                val combinedChars =
+                    unitTokens.sumOf { it.text.length } + candidate.token.text.length
                 val effectiveMaxWords = max(2, config.maxWordsPerUnit)
                 val withinLimits = effectiveMaxWords >= 2 && combinedChars <= config.maxCharsPerUnit
 
@@ -223,7 +270,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     cursor++
 
                     val nextToken = expandedTokens.getOrNull(cursor)?.token
-                    if (!hitHardBoundary && isHardBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextToken)) {
+                    if (!hitHardBoundary &&
+                        isHardBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextToken)
+                    ) {
                         hitHardBoundary = true
                     }
                     continue
@@ -239,7 +288,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         return UnitBuildResult(
             tokens = unitTokens,
             originalWordIndex = firstWordOriginalIndex ?: startCursor,
-            nextCursor = cursor
+            nextCursor = cursor,
         )
     }
 
@@ -253,7 +302,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         prevWord: Token?,
         nextToken: Token?,
         nextWord: Token?,
-        boundaryBefore: BoundaryBefore
+        boundaryBefore: BoundaryBefore,
     ): Long {
         val msPerWord = config.tempoMsPerWord.toDouble()
 
@@ -262,15 +311,20 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val pageBreaks = frameTokens.count { it.type == TokenType.PAGE_BREAK }
         val firstWordIndex = frameTokens.indexOfFirst { it.type == TokenType.WORD }
         val speedStrength = speedStrength(msPerWord)
-        val startBoost = startBoostMultiplier(msPerWord = msPerWord, boundaryBefore = boundaryBefore)
-        val clauseConfigStrength = ((config.clausePauseFactor - 1.0) / (DEFAULT_CLAUSE_PAUSE_FACTOR - 1.0)).coerceIn(0.0, 2.0)
+        val startBoost =
+            startBoostMultiplier(msPerWord = msPerWord, boundaryBefore = boundaryBefore)
+        val clauseConfigStrength = (
+            (config.clausePauseFactor - 1.0) /
+                (DEFAULT_CLAUSE_PAUSE_FACTOR - 1.0)
+            ).coerceIn(0.0, 2.0)
         val dialogueEntryBoost = 1.0 + (DIALOGUE_ENTRY_BOOST * speedStrength)
-        val speakerTagMultiplier = speakerTagMultiplier(
-            wordsInFrame = words,
-            prevWord = prevWord,
-            nextWord = nextWord,
-            config = config
-        )
+        val speakerTagMultiplier =
+            speakerTagMultiplier(
+                wordsInFrame = words,
+                prevWord = prevWord,
+                nextWord = nextWord,
+                config = config,
+            )
 
         var duration = 0.0
         var parentheticalDepth = contextBefore.parentheticalDepth
@@ -288,56 +342,69 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     inDialogue = token.isDialogue
                 }
                 TokenType.WORD -> {
-                    val dialogueMultiplier = if (config.useDialogueDetection && inDialogue) config.dialogueMultiplier else 1.0
+                    val dialogueMultiplier = if (config.useDialogueDetection &&
+                        inDialogue
+                    ) {
+                        config.dialogueMultiplier
+                    } else {
+                        1.0
+                    }
                     val contextWordMultiplier =
                         (if (parentheticalDepth > 0) config.parentheticalMultiplier else 1.0) *
                             dialogueMultiplier
                     val boosted = if (index == firstWordIndex) startBoost else 1.0
-                    val nextWordText = frameTokens.subList(index + 1, frameTokens.size)
-                        .firstOrNull { it.type == TokenType.WORD }
-                        ?.text
-                        ?: nextWord?.text
+                    val nextWordText =
+                        frameTokens
+                            .subList(index + 1, frameTokens.size)
+                            .firstOrNull { it.type == TokenType.WORD }
+                            ?.text
+                            ?: nextWord?.text
 
-                    val clauseMultiplier = if (!config.useClausePausing) {
-                        1.0
-                    } else {
-                        val raw = ClauseDetector.getClausePauseFactor(token.text, nextWordText)
-                        1.0 + ((raw - 1.0) * speedStrength * clauseConfigStrength)
-                    }
+                    val clauseMultiplier =
+                        if (!config.useClausePausing) {
+                            1.0
+                        } else {
+                            val raw = ClauseDetector.getClausePauseFactor(token.text, nextWordText)
+                            1.0 + ((raw - 1.0) * speedStrength * clauseConfigStrength)
+                        }
 
-                    val terminalMultiplier = terminalWordMultiplier(
-                        wordIndex = index,
-                        word = token,
-                        frameTokens = frameTokens,
-                        nextToken = nextToken,
-                        speedStrength = speedStrength
-                    )
+                    val terminalMultiplier =
+                        terminalWordMultiplier(
+                            wordIndex = index,
+                            word = token,
+                            frameTokens = frameTokens,
+                            nextToken = nextToken,
+                            speedStrength = speedStrength,
+                        )
 
-                    val emphasisMultiplier = emphasisMultiplier(
-                        token = token,
-                        isFirstWord = index == firstWordIndex,
-                        boundaryBefore = boundaryBefore,
-                        speedStrength = speedStrength
-                    )
+                    val emphasisMultiplier =
+                        emphasisMultiplier(
+                            token = token,
+                            isFirstWord = index == firstWordIndex,
+                            boundaryBefore = boundaryBefore,
+                            speedStrength = speedStrength,
+                        )
 
-                    val dialogueEntryMultiplier = if (config.useDialogueDetection &&
-                        !contextBefore.inDialogue &&
-                        index == firstWordIndex &&
-                        token.isDialogue
-                    ) {
-                        dialogueEntryBoost
-                    } else {
-                        1.0
-                    }
+                    val dialogueEntryMultiplier =
+                        if (config.useDialogueDetection &&
+                            !contextBefore.inDialogue &&
+                            index == firstWordIndex &&
+                            token.isDialogue
+                        ) {
+                            dialogueEntryBoost
+                        } else {
+                            1.0
+                        }
 
-                    val wordMs = wordDurationMs(token, msPerWord, config) *
-                        contextWordMultiplier *
-                        boosted *
-                        clauseMultiplier *
-                        terminalMultiplier *
-                        emphasisMultiplier *
-                        dialogueEntryMultiplier *
-                        speakerTagMultiplier
+                    val wordMs =
+                        wordDurationMs(token, msPerWord, config) *
+                            contextWordMultiplier *
+                            boosted *
+                            clauseMultiplier *
+                            terminalMultiplier *
+                            emphasisMultiplier *
+                            dialogueEntryMultiplier *
+                            speakerTagMultiplier
                     duration += max(wordMs, wordFloorMs(token, config).toDouble())
                     if (token.pauseAfterMs > 0L) {
                         duration += token.pauseAfterMs * pauseScale(msPerWord, config)
@@ -347,12 +414,13 @@ class ComprehensionRsvpEngine : RsvpEngine {
             }
         }
 
-        val transitionHold = transitionHoldMs(
-            frameTokens = frameTokens,
-            firstWord = words.firstOrNull(),
-            nextWord = nextWord,
-            speedStrength = speedStrength
-        )
+        val transitionHold =
+            transitionHoldMs(
+                frameTokens = frameTokens,
+                firstWord = words.firstOrNull(),
+                nextWord = nextWord,
+                speedStrength = speedStrength,
+            )
         if (transitionHold > 0.0) {
             duration += transitionHold
         }
@@ -370,23 +438,30 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     index = index,
                     firstWordIndex = firstWordIndex,
                     prevToken = prevTokenInFrame,
-                    nextToken = nextTokenInFrame
+                    nextToken = nextTokenInFrame,
                 )
             ) {
                 return@forEachIndexed
             }
 
-            val prevWordInFrame = frameTokens.subList(0, index).lastOrNull { it.type == TokenType.WORD }
-            val nextWordInFrame = frameTokens.subList(index + 1, frameTokens.size).firstOrNull { it.type == TokenType.WORD }
+            val prevWordInFrame = frameTokens.subList(0, index).lastOrNull {
+                it.type ==
+                    TokenType.WORD
+            }
+            val nextWordInFrame = frameTokens.subList(index + 1, frameTokens.size).firstOrNull {
+                it.type ==
+                    TokenType.WORD
+            }
 
-            duration += punctuationPauseMs(
-                token = token,
-                prevWord = prevWordInFrame ?: prevToken,
-                nextToken = nextWordInFrame ?: nextToken,
-                msPerWord = msPerWord,
-                config = config,
-                pauseScale = pauseScale
-            )
+            duration +=
+                punctuationPauseMs(
+                    token = token,
+                    prevWord = prevWordInFrame ?: prevToken,
+                    nextToken = nextWordInFrame ?: nextToken,
+                    msPerWord = msPerWord,
+                    config = config,
+                    pauseScale = pauseScale,
+                )
         }
         if (paragraphBreaks > 0) {
             duration += config.paragraphPauseMs * pauseScale * paragraphBreaks
@@ -398,11 +473,12 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
         val hardBoundary = isHardBoundary(frameTokens, nextToken)
         val difficulty = frameDifficulty(words)
-        duration *= flow.apply(
-            difficulty = difficulty,
-            speedStrength = speedStrength,
-            isBoundary = hardBoundary
-        )
+        duration *=
+            flow.apply(
+                difficulty = difficulty,
+                speedStrength = speedStrength,
+                isBoundary = hardBoundary,
+            )
 
         val smoothed = rhythm.apply(duration, isBoundary = hardBoundary)
         return smoothed
@@ -410,14 +486,19 @@ class ComprehensionRsvpEngine : RsvpEngine {
             .coerceAtLeast(MIN_FRAME_MS)
     }
 
-    private fun wordDurationMs(word: Token, msPerWord: Double, config: RsvpConfig): Double {
+    private fun wordDurationMs(
+        word: Token,
+        msPerWord: Double,
+        config: RsvpConfig,
+    ): Double {
         val text = word.text
         val letters = text.count { it.isLetterOrDigit() }.coerceAtLeast(1)
 
-        val lengthCurve = run {
-            val x = ((letters - 4).coerceAtLeast(0) / 10.0)
-            1.0 + config.lengthStrength * (x.pow(config.lengthExponent))
-        }
+        val lengthCurve =
+            run {
+                val x = ((letters - 4).coerceAtLeast(0) / 10.0)
+                1.0 + config.lengthStrength * (x.pow(config.lengthExponent))
+            }
 
         val complexityComponent =
             1.0 + (max(0.0, word.complexityMultiplier - 1.0) * config.complexityStrength)
@@ -444,45 +525,62 @@ class ComprehensionRsvpEngine : RsvpEngine {
         nextToken: Token?,
         msPerWord: Double,
         config: RsvpConfig,
-        pauseScale: Double
+        pauseScale: Double,
     ): Double {
         val ch = token.text.firstOrNull() ?: return 0.0
         val prevText = prevWord?.text.orEmpty()
 
-        var base = when {
-            ch == '.' -> {
-                when {
-                    isDecimalPoint(prevText, nextToken) -> 0.0
-                    isAbbreviationDot(prevText, nextToken) -> config.commaPauseMs * 0.35
-                    else -> config.sentenceEndPauseMs.toDouble()
+        var base =
+            when {
+                ch == '.' -> {
+                    when {
+                        isDecimalPoint(prevText, nextToken) -> 0.0
+                        isAbbreviationDot(prevText, nextToken) -> config.commaPauseMs * 0.35
+                        else -> config.sentenceEndPauseMs.toDouble()
+                    }
                 }
+                isSentenceEndingPunctuation(ch) -> config.sentenceEndPauseMs.toDouble()
+                ch == ',' -> if (isThousandSeparator(
+                        prevText,
+                        nextToken
+                    )
+                ) {
+                    0.0
+                } else {
+                    config.commaPauseMs.toDouble()
+                }
+                ch == ';' -> config.semicolonPauseMs.toDouble()
+                ch == ':' -> config.colonPauseMs.toDouble()
+                ch == '\u2014' || ch == '\u2013' || ch == '-' -> config.dashPauseMs.toDouble()
+                ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' -> config.parenthesesPauseMs.toDouble()
+                ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019' -> config.quotePauseMs.toDouble()
+                isMidSentencePunctuation(ch) -> config.commaPauseMs * 0.85
+                else -> 0.0
             }
-            isSentenceEndingPunctuation(ch) -> config.sentenceEndPauseMs.toDouble()
-            ch == ',' -> if (isThousandSeparator(prevText, nextToken)) 0.0 else config.commaPauseMs.toDouble()
-            ch == ';' -> config.semicolonPauseMs.toDouble()
-            ch == ':' -> config.colonPauseMs.toDouble()
-            ch == '\u2014' || ch == '\u2013' || ch == '-' -> config.dashPauseMs.toDouble()
-            ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' -> config.parenthesesPauseMs.toDouble()
-            ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019' -> config.quotePauseMs.toDouble()
-            isMidSentencePunctuation(ch) -> config.commaPauseMs * 0.85
-            else -> 0.0
-        }
 
-        var floor = when {
-            ch == '.' -> {
-                if (isDecimalPoint(prevText, nextToken) || isAbbreviationDot(prevText, nextToken)) 0.0 else 125.0
+        var floor =
+            when {
+                ch == '.' -> {
+                    if (isDecimalPoint(prevText, nextToken) ||
+                        isAbbreviationDot(prevText, nextToken)
+                    ) {
+                        0.0
+                    } else {
+                        125.0
+                    }
+                }
+                isSentenceEndingPunctuation(ch) -> 125.0
+                ch == ',' -> if (isThousandSeparator(prevText, nextToken)) 0.0 else 70.0
+                ch == ';' -> 95.0
+                ch == ':' -> 85.0
+                ch == '\u2014' || ch == '\u2013' || ch == '-' -> 90.0
+                ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' -> 45.0
+                ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019' -> 35.0
+                else -> 0.0
             }
-            isSentenceEndingPunctuation(ch) -> 125.0
-            ch == ',' -> if (isThousandSeparator(prevText, nextToken)) 0.0 else 70.0
-            ch == ';' -> 95.0
-            ch == ':' -> 85.0
-            ch == '\u2014' || ch == '\u2013' || ch == '-' -> 90.0
-            ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' -> 45.0
-            ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019' -> 35.0
-            else -> 0.0
-        }
 
-        if (ch == '.' && isLikelySentenceContinuation(nextToken) &&
+        if (ch == '.' &&
+            isLikelySentenceContinuation(nextToken) &&
             !isDecimalPoint(prevText, nextToken) &&
             !isAbbreviationDot(prevText, nextToken)
         ) {
@@ -496,7 +594,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
 
         if (isSentenceEndingPunctuation(ch) || ch == '.') {
-            if (nextToken?.type == TokenType.PARAGRAPH_BREAK || nextToken?.type == TokenType.PAGE_BREAK) {
+            if (nextToken?.type == TokenType.PARAGRAPH_BREAK ||
+                nextToken?.type == TokenType.PAGE_BREAK
+            ) {
                 base += SENTENCE_END_BREAK_BOOST_MS * speedStrength
             }
         }
@@ -510,7 +610,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
         return max(scaled, floor)
     }
 
-    private fun pauseScale(msPerWord: Double, config: RsvpConfig): Double {
+    private fun pauseScale(
+        msPerWord: Double,
+        config: RsvpConfig,
+    ): Double {
         val ratio = (msPerWord / BASE_MS_PER_WORD_AT_300).coerceIn(0.12, 2.5)
         val scaled = ratio.pow(config.pauseScaleExponent)
         return max(config.minPauseScale, scaled)
@@ -520,7 +623,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         token: Token,
         isFirstWord: Boolean,
         boundaryBefore: BoundaryBefore,
-        speedStrength: Double
+        speedStrength: Double,
     ): Double {
         val text = token.text
         if (text.isEmpty()) return 1.0
@@ -528,7 +631,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val isSentenceStart = isFirstWord && boundaryBefore != BoundaryBefore.NONE
         val letters = text.filter { it.isLetter() }
         val hasDigits = text.any { it.isDigit() }
-        val isAcronym = letters.length in 2..5 && letters.isNotEmpty() && letters.all { it.isUpperCase() }
+        val isAcronym =
+            letters.length in 2..5 && letters.isNotEmpty() && letters.all { it.isUpperCase() }
         val startsUpper = letters.firstOrNull()?.isUpperCase() == true
         val hasLower = letters.any { it.isLowerCase() }
         val isProper = startsUpper && hasLower && !isSentenceStart
@@ -551,7 +655,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         wordsInFrame: List<Token>,
         prevWord: Token?,
         nextWord: Token?,
-        config: RsvpConfig
+        config: RsvpConfig,
     ): Double {
         if (!config.useDialogueDetection) return 1.0
 
@@ -575,7 +679,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 val current = frameTexts[0]
                 if (prevText != null) candidates += listOf(prevText, current)
                 if (nextText != null) candidates += listOf(current, nextText)
-                if (prevText != null && nextText != null) candidates += listOf(prevText, current, nextText)
+                if (prevText != null &&
+                    nextText != null
+                ) {
+                    candidates += listOf(prevText, current, nextText)
+                }
             }
             else -> {
                 candidates += frameTexts
@@ -592,7 +700,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         frameTokens: List<Token>,
         firstWord: Token?,
         nextWord: Token?,
-        speedStrength: Double
+        speedStrength: Double,
     ): Double {
         if (firstWord == null || nextWord == null) return 0.0
         if (frameTokens.count { it.type == TokenType.WORD } != 1) return 0.0
@@ -609,23 +717,42 @@ class ComprehensionRsvpEngine : RsvpEngine {
         return (total / words.size).coerceIn(0.0, 1.0)
     }
 
-    private fun shouldPreferHold(prev: Token, next: Token): Boolean {
+    private fun shouldPreferHold(
+        prev: Token,
+        next: Token,
+    ): Boolean {
         val prevLower = prev.text.lowercase()
         val nextLower = next.text.lowercase()
         val pairKey = "$prevLower $nextLower"
         val isHinted = pairKey in TIGHT_PAIR_HINTS
-        val gluePair = prevLower in GLUE_WORDS && nextLower in GLUE_WORDS &&
-            prev.text.length <= 4 && next.text.length <= 4
-        val easyPair = wordEase(prev) >= EASY_PAIR_THRESHOLD && wordEase(next) >= EASY_PAIR_THRESHOLD
+        val gluePair =
+            prevLower in GLUE_WORDS &&
+                nextLower in GLUE_WORDS &&
+                prev.text.length <= 4 &&
+                next.text.length <= 4
+        val easyPair =
+            wordEase(prev) >= EASY_PAIR_THRESHOLD && wordEase(next) >= EASY_PAIR_THRESHOLD
 
         return easyPair && (isHinted || gluePair)
     }
 
-    private fun isClauseLeadPunctuation(ch: Char, nextToken: Token?): Boolean {
-        if (ch != ',' && ch != ';' && ch != ':' && ch != '\u2014' && ch != '\u2013' && ch != '-') return false
+    private fun isClauseLeadPunctuation(
+        ch: Char,
+        nextToken: Token?,
+    ): Boolean {
+        if (ch != ',' &&
+            ch != ';' &&
+            ch != ':' &&
+            ch != '\u2014' &&
+            ch != '\u2013' &&
+            ch != '-'
+        ) {
+            return false
+        }
         val nextWord = nextToken?.takeIf { it.type == TokenType.WORD } ?: return false
         val nextLower = nextWord.text.lowercase()
-        return ClauseDetector.isClauseBoundary(nextLower) || ClauseDetector.isCoordinatingConjunction(nextLower)
+        return ClauseDetector.isClauseBoundary(nextLower) ||
+            ClauseDetector.isCoordinatingConjunction(nextLower)
     }
 
     private fun isLikelySentenceContinuation(nextToken: Token?): Boolean {
@@ -634,25 +761,36 @@ class ComprehensionRsvpEngine : RsvpEngine {
         return firstChar.isLowerCase()
     }
 
-    private fun isEmbeddedQuote(ch: Char, prevWord: Token?, nextToken: Token?): Boolean {
-        val isQuote = ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019'
+    private fun isEmbeddedQuote(
+        ch: Char,
+        prevWord: Token?,
+        nextToken: Token?,
+    ): Boolean {
+        val isQuote =
+            ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019'
         if (!isQuote) return false
 
         val nextCh = nextToken?.text?.firstOrNull()
         val nextIsPunct = nextToken?.type == TokenType.PUNCTUATION
-        val adjacentSentencePunct = nextIsPunct && nextCh != null &&
-            (isSentenceEndingPunctuation(nextCh) || isMidSentencePunctuation(nextCh))
+        val adjacentSentencePunct =
+            nextIsPunct &&
+                nextCh != null &&
+                (isSentenceEndingPunctuation(nextCh) || isMidSentencePunctuation(nextCh))
 
         return adjacentSentencePunct || (prevWord != null && nextToken?.type == TokenType.WORD)
     }
 
-    private fun multiWordPenalty(wordCount: Int): Double = when (wordCount) {
-        0, 1 -> 1.0
-        2 -> 1.12
-        else -> 1.2
-    }
+    private fun multiWordPenalty(wordCount: Int): Double =
+        when (wordCount) {
+            0, 1 -> 1.0
+            2 -> 1.12
+            else -> 1.2
+        }
 
-    private fun isPhraseChunkCandidate(prev: Token, next: Token): Boolean {
+    private fun isPhraseChunkCandidate(
+        prev: Token,
+        next: Token,
+    ): Boolean {
         val prevLower = prev.text.lowercase()
         val nextLower = next.text.lowercase()
 
@@ -671,11 +809,20 @@ class ComprehensionRsvpEngine : RsvpEngine {
         word: Token,
         frameTokens: List<Token>,
         nextToken: Token?,
-        speedStrength: Double
+        speedStrength: Double,
     ): Double {
-        val punctIndex = (wordIndex + 1 until frameTokens.size).firstOrNull { frameTokens[it].type == TokenType.PUNCTUATION }
-            ?: return 1.0
-        if (frameTokens.subList(wordIndex + 1, punctIndex).any { it.type == TokenType.WORD }) return 1.0
+        val punctIndex =
+            (wordIndex + 1 until frameTokens.size).firstOrNull {
+                frameTokens[it].type ==
+                    TokenType.PUNCTUATION
+            }
+                ?: return 1.0
+        if (frameTokens.subList(wordIndex + 1, punctIndex).any {
+                it.type == TokenType.WORD
+            }
+        ) {
+            return 1.0
+        }
 
         val punctToken = frameTokens[punctIndex]
         val ch = punctToken.text.firstOrNull() ?: return 1.0
@@ -685,24 +832,33 @@ class ComprehensionRsvpEngine : RsvpEngine {
         if (ch == ',' && isThousandSeparator(word.text, tokenAfterPunct)) return 1.0
         if (ch == '.' && isDecimalPoint(word.text, tokenAfterPunct)) return 1.0
 
-        val extra = when {
-            isHardBoundaryPunctuation(punctToken, prevWord = word, nextToken = tokenAfterPunct) -> 0.10
-            ch == ',' -> 0.06
-            ch == ':' -> 0.07
-            ch == '\u2014' || ch == '\u2013' || ch == '-' -> 0.06
-            else -> 0.0
-        }
+        val extra =
+            when {
+                isHardBoundaryPunctuation(
+                    punctToken,
+                    prevWord = word,
+                    nextToken = tokenAfterPunct
+                ) -> 0.10
+                ch == ',' -> 0.06
+                ch == ':' -> 0.07
+                ch == '\u2014' || ch == '\u2013' || ch == '-' -> 0.06
+                else -> 0.0
+            }
 
         return 1.0 + (extra * speedStrength)
     }
 
-    private fun breakMarkerToken(type: TokenType): Token = when (type) {
-        TokenType.PAGE_BREAK -> Token(text = "• • •", type = TokenType.PUNCTUATION)
-        TokenType.PARAGRAPH_BREAK -> Token(text = " ", type = TokenType.PUNCTUATION)
-        else -> Token(text = " ", type = TokenType.PUNCTUATION)
-    }
+    private fun breakMarkerToken(type: TokenType): Token =
+        when (type) {
+            TokenType.PAGE_BREAK -> Token(text = "• • •", type = TokenType.PUNCTUATION)
+            TokenType.PARAGRAPH_BREAK -> Token(text = " ", type = TokenType.PUNCTUATION)
+            else -> Token(text = " ", type = TokenType.PUNCTUATION)
+        }
 
-    private fun isOpeningPunctuation(token: Token, state: ContextState): Boolean {
+    private fun isOpeningPunctuation(
+        token: Token,
+        state: ContextState,
+    ): Boolean {
         val ch = token.text.firstOrNull() ?: return false
         return when (ch) {
             '"' -> !state.straightQuoteOpen
@@ -715,7 +871,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         index: Int,
         firstWordIndex: Int,
         prevToken: Token?,
-        nextToken: Token?
+        nextToken: Token?,
     ): Boolean {
         val ch = token.text.firstOrNull() ?: return true
         if (index < firstWordIndex && isOpeningPunctuationChar(ch)) return true
@@ -727,7 +883,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
         if (isQuoteOrBracket(ch) && (prevIsPunct || nextIsPunct)) return true
 
         val isSentenceEnd = isSentenceEndingPunctuation(ch) || ch == '.'
-        val prevIsSentenceEnd = prevCh != null && (isSentenceEndingPunctuation(prevCh) || prevCh == '.')
+        val prevIsSentenceEnd =
+            prevCh != null && (isSentenceEndingPunctuation(prevCh) || prevCh == '.')
         return isSentenceEnd && prevIsSentenceEnd
     }
 
@@ -738,7 +895,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
     private fun isHardBoundaryPunctuation(
         token: Token,
         prevWord: Token?,
-        nextToken: Token?
+        nextToken: Token?,
     ): Boolean {
         val ch = token.text.firstOrNull() ?: return false
         val prevText = prevWord?.text.orEmpty()
@@ -752,22 +909,44 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
     }
 
-    private fun isHardBoundary(tokens: List<Token>, nextToken: Token?): Boolean {
-        if (tokens.any { it.type == TokenType.PARAGRAPH_BREAK || it.type == TokenType.PAGE_BREAK }) return true
+    private fun isHardBoundary(
+        tokens: List<Token>,
+        nextToken: Token?,
+    ): Boolean {
+        if (tokens.any {
+                it.type == TokenType.PARAGRAPH_BREAK || it.type == TokenType.PAGE_BREAK
+            }
+        ) {
+            return true
+        }
 
         for (i in tokens.indices) {
             val token = tokens[i]
             if (token.type != TokenType.PUNCTUATION) continue
 
             val prevWord = tokens.subList(0, i).lastOrNull { it.type == TokenType.WORD }
-            val nextWord = tokens.subList(i + 1, tokens.size).firstOrNull { it.type == TokenType.WORD }
-            if (isRhythmBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextWord ?: nextToken)) return true
+            val nextWord = tokens.subList(i + 1, tokens.size).firstOrNull {
+                it.type ==
+                    TokenType.WORD
+            }
+            if (isRhythmBoundaryPunctuation(
+                    token,
+                    prevWord = prevWord,
+                    nextToken =
+                    nextWord ?: nextToken
+                )
+            ) {
+                return true
+            }
         }
 
         return false
     }
 
-    private fun wordFloorMs(word: Token, config: RsvpConfig): Long {
+    private fun wordFloorMs(
+        word: Token,
+        config: RsvpConfig,
+    ): Long {
         val letters = word.text.count { it.isLetterOrDigit() }
         return if (letters >= config.longWordChars) config.longWordMinMs else config.minWordMs
     }
@@ -775,14 +954,18 @@ class ComprehensionRsvpEngine : RsvpEngine {
     private fun pageBreakBasePauseMs(config: RsvpConfig): Double =
         max(config.paragraphPauseMs.toDouble() * 1.75, config.sentenceEndPauseMs.toDouble() * 1.4)
 
-    private fun startBoostMultiplier(msPerWord: Double, boundaryBefore: BoundaryBefore): Double {
+    private fun startBoostMultiplier(
+        msPerWord: Double,
+        boundaryBefore: BoundaryBefore,
+    ): Double {
         val strength = speedStrength(msPerWord)
-        val maxExtra = when (boundaryBefore) {
-            BoundaryBefore.SENTENCE -> 0.10
-            BoundaryBefore.PARAGRAPH -> 0.16
-            BoundaryBefore.PAGE -> 0.22
-            BoundaryBefore.NONE -> 0.0
-        }
+        val maxExtra =
+            when (boundaryBefore) {
+                BoundaryBefore.SENTENCE -> 0.10
+                BoundaryBefore.PARAGRAPH -> 0.16
+                BoundaryBefore.PAGE -> 0.22
+                BoundaryBefore.NONE -> 0.0
+            }
 
         return 1.0 + (maxExtra * strength)
     }
@@ -792,13 +975,23 @@ class ComprehensionRsvpEngine : RsvpEngine {
         return ((speedFactor - 1.0) / 2.5).coerceIn(0.0, 1.0)
     }
 
-    private fun findFirstWordCursor(expandedTokens: List<ExpandedToken>, startCursor: Int): Int {
+    private fun findFirstWordCursor(
+        expandedTokens: List<ExpandedToken>,
+        startCursor: Int,
+    ): Int {
         var cursor = startCursor.coerceAtLeast(0)
-        while (cursor < expandedTokens.size && expandedTokens[cursor].token.type != TokenType.WORD) cursor++
+        while (cursor < expandedTokens.size &&
+            expandedTokens[cursor].token.type != TokenType.WORD
+        ) {
+            cursor++
+        }
         return cursor
     }
 
-    private fun boundaryBefore(expandedTokens: List<ExpandedToken>, wordCursor: Int): BoundaryBefore {
+    private fun boundaryBefore(
+        expandedTokens: List<ExpandedToken>,
+        wordCursor: Int,
+    ): BoundaryBefore {
         if (wordCursor <= 0 || wordCursor >= expandedTokens.size) return BoundaryBefore.NONE
         val nextToken = expandedTokens[wordCursor].token
 
@@ -815,7 +1008,12 @@ class ComprehensionRsvpEngine : RsvpEngine {
                         continue
                     }
                     val prevWord = findPrevWord(expandedTokens, beforeIndex = cursor)
-                    return if (isHardBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextToken)) {
+                    return if (isHardBoundaryPunctuation(
+                            token,
+                            prevWord = prevWord,
+                            nextToken = nextToken
+                        )
+                    ) {
                         BoundaryBefore.SENTENCE
                     } else {
                         BoundaryBefore.NONE
@@ -827,7 +1025,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
         return BoundaryBefore.NONE
     }
 
-    private fun findPrevWord(expandedTokens: List<ExpandedToken>, beforeIndex: Int): Token? {
+    private fun findPrevWord(
+        expandedTokens: List<ExpandedToken>,
+        beforeIndex: Int,
+    ): Token? {
         var cursor = beforeIndex - 1
         while (cursor >= 0) {
             val token = expandedTokens[cursor].token
@@ -837,7 +1038,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
         return null
     }
 
-    private fun applySessionRamps(frames: MutableList<RsvpFrame>, config: RsvpConfig) {
+    private fun applySessionRamps(
+        frames: MutableList<RsvpFrame>,
+        config: RsvpConfig,
+    ) {
         if (frames.isEmpty()) return
 
         val total = frames.size
@@ -858,20 +1062,26 @@ class ComprehensionRsvpEngine : RsvpEngine {
             frames[i] = frames[i].copy(durationMs = (frames[i].durationMs * multiplier).toLong())
         }
 
-        frames[frames.lastIndex] = frames.last().copy(durationMs = frames.last().durationMs + config.endDelayMs)
+        frames[frames.lastIndex] =
+            frames.last().copy(durationMs = frames.last().durationMs + config.endDelayMs)
     }
 
-    private fun applyBlinkSeparation(frames: MutableList<RsvpFrame>, config: RsvpConfig) {
+    private fun applyBlinkSeparation(
+        frames: MutableList<RsvpFrame>,
+        config: RsvpConfig,
+    ) {
         if (frames.size < 2) return
 
         val strength = speedStrength(config.tempoMsPerWord.toDouble())
         if (strength < BLINK_START_STRENGTH) return
-        val normalizedStrength = ((strength - BLINK_START_STRENGTH) / (1.0 - BLINK_START_STRENGTH))
-            .coerceIn(0.0, 1.0)
+        val normalizedStrength =
+            ((strength - BLINK_START_STRENGTH) / (1.0 - BLINK_START_STRENGTH))
+                .coerceIn(0.0, 1.0)
         val easedStrength = normalizedStrength * normalizedStrength
-        val targetBlinkMs = (MIN_BLINK_MS.toDouble() + (BLINK_EXTRA_MS * easedStrength))
-            .roundToLong()
-            .coerceIn(MIN_BLINK_MS, MAX_BLINK_MS)
+        val targetBlinkMs =
+            (MIN_BLINK_MS.toDouble() + (BLINK_EXTRA_MS * easedStrength))
+                .roundToLong()
+                .coerceIn(MIN_BLINK_MS, MAX_BLINK_MS)
 
         val blinkToken = Token(text = " ", type = TokenType.PUNCTUATION)
         val output = ArrayList<RsvpFrame>(frames.size * 2)
@@ -904,18 +1114,27 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 val floorMs = max(wordFloorMs(firstWord, config), MIN_FRAME_MS)
                 val maxBlink = (frame.durationMs - floorMs).coerceAtLeast(0L)
                 val punctuationFactor = blinkPunctuationFactor(frame.tokens)
-                val weight = when (config.blinkMode) {
-                    BlinkMode.SUBTLE -> punctuationFactor
-                    BlinkMode.ADAPTIVE -> {
-                        val ease = (wordEase(firstWord) + wordEase(nextWord ?: firstWord)) * 0.5
-                        if (ease >= ADAPTIVE_EASE_THRESHOLD) punctuationFactor else 0.0
+                val weight =
+                    when (config.blinkMode) {
+                        BlinkMode.SUBTLE -> punctuationFactor
+                        BlinkMode.ADAPTIVE -> {
+                            val ease = (wordEase(firstWord) + wordEase(nextWord ?: firstWord)) * 0.5
+                            if (ease >= ADAPTIVE_EASE_THRESHOLD) punctuationFactor else 0.0
+                        }
+                        BlinkMode.OFF -> 0.0
                     }
-                    BlinkMode.OFF -> 0.0
-                }
                 val blinkMs = min((targetBlinkMs * weight).roundToLong(), maxBlink)
                 if (blinkMs >= MIN_BLINK_MS) {
-                    output += frame.copy(durationMs = (frame.durationMs - blinkMs).coerceAtLeast(MIN_FRAME_MS))
-                    output += RsvpFrame(tokens = listOf(blinkToken), durationMs = blinkMs, originalTokenIndex = frame.originalTokenIndex)
+                    output +=
+                        frame.copy(
+                            durationMs = (frame.durationMs - blinkMs).coerceAtLeast(MIN_FRAME_MS)
+                        )
+                    output +=
+                        RsvpFrame(
+                            tokens = listOf(blinkToken),
+                            durationMs = blinkMs,
+                            originalTokenIndex = frame.originalTokenIndex
+                        )
                     continue
                 }
             }
@@ -932,31 +1151,31 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val lengthScore = ((letters - 4).coerceAtLeast(0) / 8.0).coerceIn(0.0, 1.0)
         val syllableScore = ((word.syllableCount - 1).coerceAtLeast(0) / 4.0).coerceIn(0.0, 1.0)
         val rarityScore = (1.0 - word.frequencyScore).coerceIn(0.0, 1.0)
-        val complexityScore = (word.complexityMultiplier - 1.0).coerceAtLeast(0.0).coerceIn(0.0, 1.0)
+        val complexityScore = (word.complexityMultiplier - 1.0).coerceAtLeast(
+            0.0
+        ).coerceIn(0.0, 1.0)
 
-        val difficulty = (lengthScore * 0.35) +
-            (syllableScore * 0.25) +
-            (rarityScore * 0.25) +
-            (complexityScore * 0.15)
+        val difficulty =
+            (lengthScore * 0.35) +
+                (syllableScore * 0.25) +
+                (rarityScore * 0.25) +
+                (complexityScore * 0.15)
 
         return (1.0 - difficulty).coerceIn(0.0, 1.0)
     }
 
     private fun blinkPunctuationFactor(tokens: List<Token>): Double {
-        val hasMidPause = tokens.any { token ->
-            val ch = token.text.firstOrNull() ?: return@any false
-            token.type == TokenType.PUNCTUATION && isMidSentencePunctuation(ch)
-        }
+        val hasMidPause =
+            tokens.any { token ->
+                val ch = token.text.firstOrNull() ?: return@any false
+                token.type == TokenType.PUNCTUATION && isMidSentencePunctuation(ch)
+            }
         return if (hasMidPause) 0.55 else 1.0
     }
 
-    private data class ExpandedToken(val token: Token, val originalIndex: Int)
+    private data class ExpandedToken(val token: Token, val originalIndex: Int,)
 
-    private data class UnitBuildResult(
-        val tokens: List<Token>,
-        val originalWordIndex: Int,
-        val nextCursor: Int
-    )
+    private data class UnitBuildResult(val tokens: List<Token>, val originalWordIndex: Int, val nextCursor: Int,)
 
     private enum class BoundaryBefore { NONE, SENTENCE, PARAGRAPH, PAGE }
 
@@ -968,10 +1187,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
         var inDialogue: Boolean = false
             private set
 
-        fun snapshot(): ContextSnapshot = ContextSnapshot(
-            parentheticalDepth = parentheticalDepth,
-            inDialogue = inDialogue
-        )
+        fun snapshot(): ContextSnapshot =
+            ContextSnapshot(
+                parentheticalDepth = parentheticalDepth,
+                inDialogue = inDialogue,
+            )
 
         fun consume(token: Token) {
             if (token.type == TokenType.WORD) {
@@ -992,10 +1212,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
     }
 
-    private data class ContextSnapshot(
-        val parentheticalDepth: Int,
-        val inDialogue: Boolean
-    )
+    private data class ContextSnapshot(val parentheticalDepth: Int, val inDialogue: Boolean,)
 
     private class RhythmState {
         private var ema: Double? = null
@@ -1006,28 +1223,32 @@ class ComprehensionRsvpEngine : RsvpEngine {
         constructor(
             smoothingAlpha: Double,
             maxSpeedupFactor: Double,
-            maxSlowdownFactor: Double
+            maxSlowdownFactor: Double,
         ) {
             this.smoothingAlpha = smoothingAlpha.coerceIn(0.0, 1.0)
             this.maxSpeedupFactor = maxSpeedupFactor.coerceAtLeast(1.0)
             this.maxSlowdownFactor = maxSlowdownFactor.coerceAtLeast(1.0)
         }
 
-        fun apply(rawMs: Double, isBoundary: Boolean): Double {
+        fun apply(
+            rawMs: Double,
+            isBoundary: Boolean,
+        ): Double {
             if (isBoundary) {
                 ema = rawMs
                 return rawMs
             }
 
             val prev = ema
-            val next = if (prev == null) {
-                rawMs
-            } else {
-                val mixed = prev + (smoothingAlpha * (rawMs - prev))
-                val minAllowed = prev / maxSpeedupFactor
-                val maxAllowed = prev * maxSlowdownFactor
-                mixed.coerceIn(minAllowed, maxAllowed)
-            }
+            val next =
+                if (prev == null) {
+                    rawMs
+                } else {
+                    val mixed = prev + (smoothingAlpha * (rawMs - prev))
+                    val minAllowed = prev / maxSpeedupFactor
+                    val maxAllowed = prev * maxSlowdownFactor
+                    mixed.coerceIn(minAllowed, maxAllowed)
+                }
 
             ema = next
             return next
@@ -1042,11 +1263,15 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private val alpha: Double,
         private val maxBoost: Double,
         private val maxSlowdown: Double,
-        private val strength: Double
+        private val strength: Double,
     ) {
         private var ema: Double? = null
 
-        fun apply(difficulty: Double, speedStrength: Double, isBoundary: Boolean): Double {
+        fun apply(
+            difficulty: Double,
+            speedStrength: Double,
+            isBoundary: Boolean,
+        ): Double {
             if (isBoundary) {
                 ema = difficulty
                 return 1.0
@@ -1054,8 +1279,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
             val prev = ema ?: difficulty
             val delta = difficulty - prev
-            val multiplier = (1.0 + (delta * strength * speedStrength))
-                .coerceIn(1.0 - maxSlowdown, 1.0 + maxBoost)
+            val multiplier =
+                (1.0 + (delta * strength * speedStrength))
+                    .coerceIn(1.0 - maxSlowdown, 1.0 + maxBoost)
 
             ema = prev + (alpha * (difficulty - prev))
             return multiplier
@@ -1066,19 +1292,28 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
     }
 
-    private fun isDecimalPoint(prevText: String, nextToken: Token?): Boolean {
+    private fun isDecimalPoint(
+        prevText: String,
+        nextToken: Token?,
+    ): Boolean {
         if (!prevText.any { it.isDigit() }) return false
         return nextToken?.type == TokenType.WORD && nextToken.text.any { it.isDigit() }
     }
 
-    private fun isThousandSeparator(prevText: String, nextToken: Token?): Boolean {
+    private fun isThousandSeparator(
+        prevText: String,
+        nextToken: Token?,
+    ): Boolean {
         if (prevText.isEmpty() || nextToken?.type != TokenType.WORD) return false
         if (!prevText.all { it.isDigit() }) return false
         val nextText = nextToken.text
         return nextText.length == 3 && nextText.all { it.isDigit() }
     }
 
-    private fun isAbbreviationDot(prevWordText: String, nextToken: Token?): Boolean {
+    private fun isAbbreviationDot(
+        prevWordText: String,
+        nextToken: Token?,
+    ): Boolean {
         val rawPrev = prevWordText.trim()
         if (rawPrev.isEmpty()) return false
 
@@ -1113,9 +1348,16 @@ class ComprehensionRsvpEngine : RsvpEngine {
     private fun isRhythmBoundaryPunctuation(
         token: Token,
         prevWord: Token?,
-        nextToken: Token?
+        nextToken: Token?,
     ): Boolean {
-        if (isHardBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextToken)) return true
+        if (isHardBoundaryPunctuation(
+                token,
+                prevWord = prevWord,
+                nextToken = nextToken
+            )
+        ) {
+            return true
+        }
         val ch = token.text.firstOrNull() ?: return false
         return ch == ':' || ch == '\u2014' || ch == '\u2013' || ch == '-'
     }
@@ -1149,47 +1391,177 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
         private val OPENING_PUNCTUATION = setOf('(', '[', '{', '\u201C', '\u2018')
 
-        private val QUOTE_OR_BRACKET_PUNCTUATION = setOf(
-            '(', ')', '[', ']', '{', '}',
-            '"', '\u201C', '\u201D', '\u2018', '\u2019'
-        )
+        private val QUOTE_OR_BRACKET_PUNCTUATION =
+            setOf(
+                '(',
+                ')',
+                '[',
+                ']',
+                '{',
+                '}',
+                '"',
+                '\u201C',
+                '\u201D',
+                '\u2018',
+                '\u2019',
+            )
 
-        private val SKIPPABLE_BOUNDARY_PUNCTUATION = setOf(
-            '(', ')', '[', ']', '{', '}',
-            '"', '\u201C', '\u201D', '\u2018', '\u2019'
-        )
+        private val SKIPPABLE_BOUNDARY_PUNCTUATION =
+            setOf(
+                '(',
+                ')',
+                '[',
+                ']',
+                '{',
+                '}',
+                '"',
+                '\u201C',
+                '\u201D',
+                '\u2018',
+                '\u2019',
+            )
 
-        private val TITLE_ABBREVIATIONS = setOf(
-            "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "rev", "fr"
-        )
+        private val TITLE_ABBREVIATIONS =
+            setOf(
+                "mr",
+                "mrs",
+                "ms",
+                "dr",
+                "prof",
+                "sr",
+                "jr",
+                "st",
+                "rev",
+                "fr",
+            )
 
-        private val KNOWN_ABBREVIATIONS = setOf(
-            "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "vs", "etc",
-            "e.g", "i.e", "eg", "ie", "no", "vol", "fig", "al",
-            "inc", "ltd", "dept", "est", "approx", "misc",
-            "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept",
-            "oct", "nov", "dec", "u.s", "u.k", "u.n"
-        )
+        private val KNOWN_ABBREVIATIONS =
+            setOf(
+                "mr",
+                "mrs",
+                "ms",
+                "dr",
+                "prof",
+                "sr",
+                "jr",
+                "st",
+                "vs",
+                "etc",
+                "e.g",
+                "i.e",
+                "eg",
+                "ie",
+                "no",
+                "vol",
+                "fig",
+                "al",
+                "inc",
+                "ltd",
+                "dept",
+                "est",
+                "approx",
+                "misc",
+                "jan",
+                "feb",
+                "mar",
+                "apr",
+                "jun",
+                "jul",
+                "aug",
+                "sep",
+                "sept",
+                "oct",
+                "nov",
+                "dec",
+                "u.s",
+                "u.k",
+                "u.n",
+            )
 
-        private val SENTENCE_STARTERS = setOf(
-            "i", "he", "she", "they", "we", "it", "the", "a", "an", "this", "that", "these", "those"
-        )
+        private val SENTENCE_STARTERS =
+            setOf(
+                "i",
+                "he",
+                "she",
+                "they",
+                "we",
+                "it",
+                "the",
+                "a",
+                "an",
+                "this",
+                "that",
+                "these",
+                "those",
+            )
 
-        private val GLUE_WORDS = setOf(
-            "a", "an", "the",
-            "of", "to", "in", "on", "at", "by", "for", "with", "from",
-            "and", "or", "but", "nor", "yet", "so",
-            "as", "if", "than", "then", "that", "which", "who", "whom", "whose",
-            "is", "are", "was", "were", "be", "been", "being",
-            "not", "no"
-        )
+        private val GLUE_WORDS =
+            setOf(
+                "a",
+                "an",
+                "the",
+                "of",
+                "to",
+                "in",
+                "on",
+                "at",
+                "by",
+                "for",
+                "with",
+                "from",
+                "and",
+                "or",
+                "but",
+                "nor",
+                "yet",
+                "so",
+                "as",
+                "if",
+                "than",
+                "then",
+                "that",
+                "which",
+                "who",
+                "whom",
+                "whose",
+                "is",
+                "are",
+                "was",
+                "were",
+                "be",
+                "been",
+                "being",
+                "not",
+                "no",
+            )
 
-        private val TIGHT_PAIR_HINTS = setOf(
-            "to the", "in the", "of the", "on the", "at the", "for the",
-            "to a", "in a", "of a", "on a", "at a", "for a",
-            "to my", "in my", "of my", "on my", "at my",
-            "to his", "to her", "to their",
-            "as a", "as the", "as if", "as a", "as an"
-        )
+        private val TIGHT_PAIR_HINTS =
+            setOf(
+                "to the",
+                "in the",
+                "of the",
+                "on the",
+                "at the",
+                "for the",
+                "to a",
+                "in a",
+                "of a",
+                "on a",
+                "at a",
+                "for a",
+                "to my",
+                "in my",
+                "of my",
+                "on my",
+                "at my",
+                "to his",
+                "to her",
+                "to their",
+                "as a",
+                "as the",
+                "as if",
+                "as a",
+                "as an",
+            )
     }
 }

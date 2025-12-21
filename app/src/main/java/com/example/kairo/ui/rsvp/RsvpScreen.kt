@@ -16,40 +16,46 @@ import com.example.kairo.data.rsvp.RsvpFrameSet
 fun RsvpScreen(
     state: RsvpScreenState,
     callbacks: RsvpScreenCallbacks,
-    dependencies: RsvpScreenDependencies
+    dependencies: RsvpScreenDependencies,
 ) {
-    val minTempoMsPerWord = if (state.uiPrefs.extremeSpeedUnlocked) {
-        EXTREME_MIN_TEMPO_MS_PER_WORD
-    } else {
-        SAFE_MIN_TEMPO_MS_PER_WORD
-    }
-    val runtime = rememberRsvpRuntimeState(
-        profile = state.profile,
-        textStyle = state.textStyle,
-        layoutBias = state.layoutBias,
-        startIndex = state.book.startIndex
-    )
-    val frameState = rememberFrameLoadState(
-        book = state.book,
-        profile = state.profile,
-        frameRepository = dependencies.frameRepository
-    )
-    val tempoScale = rememberTempoScale(
-        currentTempoMsPerWord = runtime.currentTempoMsPerWord,
-        baseTempoMs = frameState.baseTempoMs
-    )
-    val timing = RsvpTimingInfo(
-        minTempoMs = minTempoMsPerWord,
-        maxTempoMs = MAX_TEMPO_MS_PER_WORD,
-        tempoScale = tempoScale
-    )
-    val context = RsvpUiContext(
-        state = state,
-        callbacks = callbacks,
-        runtime = runtime,
-        frameState = frameState,
-        timing = timing
-    )
+    val minTempoMsPerWord =
+        if (state.uiPrefs.extremeSpeedUnlocked) {
+            EXTREME_MIN_TEMPO_MS_PER_WORD
+        } else {
+            SAFE_MIN_TEMPO_MS_PER_WORD
+        }
+    val runtime =
+        rememberRsvpRuntimeState(
+            profile = state.profile,
+            textStyle = state.textStyle,
+            layoutBias = state.layoutBias,
+            startIndex = state.book.startIndex,
+        )
+    val frameState =
+        rememberFrameLoadState(
+            book = state.book,
+            profile = state.profile,
+            frameRepository = dependencies.frameRepository,
+        )
+    val tempoScale =
+        rememberTempoScale(
+            currentTempoMsPerWord = runtime.currentTempoMsPerWord,
+            baseTempoMs = frameState.baseTempoMs,
+        )
+    val timing =
+        RsvpTimingInfo(
+            minTempoMs = minTempoMsPerWord,
+            maxTempoMs = MAX_TEMPO_MS_PER_WORD,
+            tempoScale = tempoScale,
+        )
+    val context =
+        RsvpUiContext(
+            state = state,
+            callbacks = callbacks,
+            runtime = runtime,
+            frameState = frameState,
+            timing = timing,
+        )
 
     RsvpBackHandler(context)
     RsvpPlaybackEffects(context)
@@ -72,23 +78,24 @@ private fun rememberRsvpRuntimeState(
     profile: RsvpProfileContext,
     textStyle: RsvpTextStyle,
     layoutBias: RsvpLayoutBias,
-    startIndex: Int
+    startIndex: Int,
 ): RsvpRuntimeState {
-    val state = remember {
-        RsvpRuntimeState().apply {
-            currentTempoMsPerWord = profile.config.tempoMsPerWord
-            dragStartTempoMsPerWord = profile.config.tempoMsPerWord
-            currentFontFamily = textStyle.fontFamily
-            currentTextBrightness = textStyle.textBrightness
-            currentFontSizeSp = textStyle.fontSizeSp
-            currentFontWeight = textStyle.fontWeight
-            currentVerticalBias = layoutBias.verticalBias
-            currentHorizontalBias = layoutBias.horizontalBias
-            dragStartBias = layoutBias.verticalBias
-            dragStartHorizontalBias = layoutBias.horizontalBias
-            currentTokenIndex = startIndex
+    val state =
+        remember {
+            RsvpRuntimeState().apply {
+                currentTempoMsPerWord = profile.config.tempoMsPerWord
+                dragStartTempoMsPerWord = profile.config.tempoMsPerWord
+                currentFontFamily = textStyle.fontFamily
+                currentTextBrightness = textStyle.textBrightness
+                currentFontSizeSp = textStyle.fontSizeSp
+                currentFontWeight = textStyle.fontWeight
+                currentVerticalBias = layoutBias.verticalBias
+                currentHorizontalBias = layoutBias.horizontalBias
+                dragStartBias = layoutBias.verticalBias
+                dragStartHorizontalBias = layoutBias.horizontalBias
+                currentTokenIndex = startIndex
+            }
         }
-    }
 
     LaunchedEffect(profile.config.tempoMsPerWord) {
         state.currentTempoMsPerWord = profile.config.tempoMsPerWord
@@ -107,7 +114,7 @@ private fun rememberRsvpRuntimeState(
 private fun rememberFrameLoadState(
     book: RsvpBookContext,
     profile: RsvpProfileContext,
-    frameRepository: RsvpFrameRepository
+    frameRepository: RsvpFrameRepository,
 ): RsvpFrameLoadState {
     var frameSet by remember { mutableStateOf<RsvpFrameSet?>(null) }
     var isFramesLoading by remember { mutableStateOf(true) }
@@ -116,9 +123,10 @@ private fun rememberFrameLoadState(
         val hadFrames = frameSet?.frames?.isNotEmpty() == true
         if (!hadFrames) isFramesLoading = true
 
-        val computed = runCatching {
-            frameRepository.getFrames(book.bookId, book.chapterIndex, profile.config)
-        }.getOrNull()
+        val computed =
+            runCatching {
+                frameRepository.getFrames(book.bookId, book.chapterIndex, profile.config)
+            }.getOrNull()
 
         frameSet = computed
         isFramesLoading = false
@@ -129,13 +137,16 @@ private fun rememberFrameLoadState(
     return RsvpFrameLoadState(
         frames = frames,
         baseTempoMs = baseTempoMs,
-        isLoading = isFramesLoading
+        isLoading = isFramesLoading,
     )
 }
 
 @Composable
-private fun rememberTempoScale(currentTempoMsPerWord: Long, baseTempoMs: Long): Double {
-    return remember(currentTempoMsPerWord, baseTempoMs) {
+private fun rememberTempoScale(
+    currentTempoMsPerWord: Long,
+    baseTempoMs: Long,
+): Double =
+    remember(currentTempoMsPerWord, baseTempoMs) {
         if (baseTempoMs <= 0L) {
             DEFAULT_TEMPO_SCALE
         } else {
@@ -143,11 +154,9 @@ private fun rememberTempoScale(currentTempoMsPerWord: Long, baseTempoMs: Long): 
                 .coerceIn(TEMPO_SCALE_MIN, TEMPO_SCALE_MAX)
         }
     }
-}
 
-private fun shouldShowLoading(frameState: RsvpFrameLoadState): Boolean {
-    return frameState.isLoading && frameState.frames.isEmpty()
-}
+private fun shouldShowLoading(frameState: RsvpFrameLoadState): Boolean =
+    frameState.isLoading && frameState.frames.isEmpty()
 
 @Composable
 private fun RsvpBackHandler(context: RsvpUiContext) {

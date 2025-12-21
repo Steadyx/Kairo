@@ -5,12 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "books")
-data class BookEntity(
-    @PrimaryKey val id: String,
-    val title: String,
-    val authors: List<String>,
-    val coverImage: ByteArray?
-) {
+data class BookEntity(@PrimaryKey val id: String, val title: String, val authors: List<String>, val coverImage: ByteArray?,) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is BookEntity) return false
@@ -44,23 +39,19 @@ data class ChapterEntity(
     val title: String?,
     val htmlContent: String,
     val plainText: String,
-    val imagePaths: String = ""
+    val imagePaths: String = "",
 )
 
 @Entity(tableName = "reading_positions")
-data class ReadingPositionEntity(
-    @PrimaryKey val bookId: String,
-    val chapterIndex: Int,
-    val tokenIndex: Int
-)
+data class ReadingPositionEntity(@PrimaryKey val bookId: String, val chapterIndex: Int, val tokenIndex: Int,)
 
 @Entity(
     tableName = "bookmarks",
     indices = [
         Index(value = ["bookId"]),
         Index(value = ["createdAt"]),
-        Index(value = ["bookId", "chapterIndex", "tokenIndex"], unique = true)
-    ]
+        Index(value = ["bookId", "chapterIndex", "tokenIndex"], unique = true),
+    ],
 )
 data class BookmarkEntity(
     @PrimaryKey val id: String,
@@ -68,5 +59,5 @@ data class BookmarkEntity(
     val chapterIndex: Int,
     val tokenIndex: Int,
     val previewText: String,
-    val createdAt: Long
+    val createdAt: Long,
 )

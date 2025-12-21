@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
@@ -36,35 +36,38 @@ import com.example.kairo.ui.settings.SettingsSwitchRow
 import com.example.kairo.ui.settings.ThemeSelector
 
 @Composable
-internal fun BoxScope.RsvpQuickSettingsPanel(context: RsvpUiContext, estimatedWpm: Int) {
+internal fun BoxScope.RsvpQuickSettingsPanel(
+    context: RsvpUiContext,
+    estimatedWpm: Int,
+) {
     val runtime = context.runtime
 
     AnimatedVisibility(
         visible = runtime.showQuickSettings,
         enter = fadeIn(),
         exit = fadeOut(),
-        modifier = Modifier.align(Alignment.BottomCenter)
+        modifier = Modifier.align(Alignment.BottomCenter),
     ) {
         Column(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(QUICK_SETTINGS_HEIGHT_FRACTION)
                 .navigationBarsPadding()
                 .background(
                     MaterialTheme.colorScheme.surface.copy(
-                        alpha = QUICK_SETTINGS_BACKGROUND_ALPHA
+                        alpha = QUICK_SETTINGS_BACKGROUND_ALPHA,
                     ),
                     RoundedCornerShape(
                         topStart = QUICK_SETTINGS_CORNER,
-                        topEnd = QUICK_SETTINGS_CORNER
-                    )
-                )
-                .verticalScroll(rememberScrollState())
+                        topEnd = QUICK_SETTINGS_CORNER,
+                    ),
+                ).verticalScroll(rememberScrollState())
                 .padding(
                     horizontal = QUICK_SETTINGS_HORIZONTAL_PADDING,
-                    vertical = QUICK_SETTINGS_VERTICAL_PADDING
+                    vertical = QUICK_SETTINGS_VERTICAL_PADDING,
                 ),
-            verticalArrangement = Arrangement.spacedBy(QUICK_SETTINGS_SPACING)
+            verticalArrangement = Arrangement.spacedBy(QUICK_SETTINGS_SPACING),
         ) {
             var showRsvpSettings by remember { mutableStateOf(false) }
             if (showRsvpSettings) {
@@ -73,7 +76,7 @@ internal fun BoxScope.RsvpQuickSettingsPanel(context: RsvpUiContext, estimatedWp
                 RsvpQuickSettingsMain(
                     context = context,
                     estimatedWpm = estimatedWpm,
-                    onOpenRsvpSettings = { showRsvpSettings = true }
+                    onOpenRsvpSettings = { showRsvpSettings = true },
                 )
             }
         }
@@ -84,7 +87,7 @@ internal fun BoxScope.RsvpQuickSettingsPanel(context: RsvpUiContext, estimatedWp
 private fun RsvpQuickSettingsMain(
     context: RsvpUiContext,
     estimatedWpm: Int,
-    onOpenRsvpSettings: () -> Unit
+    onOpenRsvpSettings: () -> Unit,
 ) {
     RsvpQuickSettingsHeader()
     RsvpQuickSettingsBookmarks(context, onOpenRsvpSettings)
@@ -100,14 +103,14 @@ private fun RsvpQuickSettingsHeader() {
     Text(
         "Quick Settings",
         style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSurface
+        color = MaterialTheme.colorScheme.onSurface,
     )
 }
 
 @Composable
 private fun RsvpQuickSettingsBookmarks(
     context: RsvpUiContext,
-    onOpenRsvpSettings: () -> Unit
+    onOpenRsvpSettings: () -> Unit,
 ) {
     val runtime = context.runtime
 
@@ -118,20 +121,20 @@ private fun RsvpQuickSettingsBookmarks(
         onClick = {
             runtime.showQuickSettings = false
             context.callbacks.bookmarks.onOpenBookmarks()
-        }
+        },
     )
     SettingsNavRow(
         title = "Add bookmark",
         subtitle = "Save this position",
         icon = Icons.Default.Bookmark,
         showChevron = false,
-        onClick = { addBookmarkNow(context) }
+        onClick = { addBookmarkNow(context) },
     )
     SettingsNavRow(
         title = "RSVP settings",
         subtitle = "Timing profile, readability, display",
         icon = Icons.Default.Settings,
-        onClick = onOpenRsvpSettings
+        onClick = onOpenRsvpSettings,
     )
 }
 
@@ -139,13 +142,13 @@ private fun RsvpQuickSettingsBookmarks(
 private fun RsvpQuickSettingsThemeAndFocus(context: RsvpUiContext) {
     ThemeSelector(
         selected = context.state.uiPrefs.readerTheme,
-        onThemeChange = context.callbacks.theme.onThemeChange
+        onThemeChange = context.callbacks.theme.onThemeChange,
     )
     SettingsSwitchRow(
         title = "Focus mode",
         subtitle = "Hide system chrome while reading.",
         checked = context.state.uiPrefs.focusModeEnabled,
-        onCheckedChange = context.callbacks.ui.onFocusModeEnabledChange
+        onCheckedChange = context.callbacks.ui.onFocusModeEnabledChange,
     )
 }
 
@@ -163,12 +166,15 @@ private fun RsvpQuickSettingsPositioningToggle(context: RsvpUiContext) {
             } else {
                 finishPositioning(context, resumeIfWasPlaying = false)
             }
-        }
+        },
     )
 }
 
 @Composable
-private fun RsvpQuickSettingsTempoControls(context: RsvpUiContext, estimatedWpm: Int) {
+private fun RsvpQuickSettingsTempoControls(
+    context: RsvpUiContext,
+    estimatedWpm: Int,
+) {
     val runtime = context.runtime
     val minTempoMs = context.timing.minTempoMs
     val maxTempoMs = context.timing.maxTempoMs
@@ -176,7 +182,7 @@ private fun RsvpQuickSettingsTempoControls(context: RsvpUiContext, estimatedWpm:
     Text(
         "~$estimatedWpm WPM",
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     SettingsSliderRow(
         title = "Tempo",
@@ -189,7 +195,7 @@ private fun RsvpQuickSettingsTempoControls(context: RsvpUiContext, estimatedWpm:
         onValueChangeFinished = {
             context.callbacks.playback.onTempoChange(runtime.currentTempoMsPerWord)
         },
-        valueRange = minTempoMs.toFloat()..maxTempoMs.toFloat()
+        valueRange = minTempoMs.toFloat()..maxTempoMs.toFloat(),
     )
     SettingsSwitchRow(
         title = "Unlock extreme speeds",
@@ -201,7 +207,7 @@ private fun RsvpQuickSettingsTempoControls(context: RsvpUiContext, estimatedWpm:
                 runtime.currentTempoMsPerWord = SAFE_MIN_TEMPO_MS_PER_WORD
                 context.callbacks.playback.onTempoChange(runtime.currentTempoMsPerWord)
             }
-        }
+        },
     )
 }
 
@@ -220,7 +226,7 @@ private fun RsvpQuickSettingsTextSizeControls(context: RsvpUiContext) {
         onValueChangeFinished = {
             context.callbacks.ui.onRsvpFontSizeChange(runtime.currentFontSizeSp)
         },
-        valueRange = MIN_FONT_SIZE_SP..MAX_FONT_SIZE_SP
+        valueRange = MIN_FONT_SIZE_SP..MAX_FONT_SIZE_SP,
     )
 }
 
@@ -229,25 +235,25 @@ private fun RsvpQuickSettingsHints() {
     Text(
         "Swipe up/down to adjust speed\nUse sliders to preview changes\nLong press to exit",
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
 @Composable
 private fun RsvpQuickSettingsAdvanced(
     context: RsvpUiContext,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     SettingsNavRow(
         title = "Back",
         icon = Icons.AutoMirrored.Filled.ArrowBack,
         showChevron = false,
-        onClick = onBack
+        onClick = onBack,
     )
     Text(
         "RSVP settings",
         style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSurface
+        color = MaterialTheme.colorScheme.onSurface,
     )
     RsvpQuickSettingsAdvancedContent(context)
 }
@@ -257,9 +263,10 @@ private fun RsvpQuickSettingsAdvancedContent(context: RsvpUiContext) {
     val runtime = context.runtime
     val profile = context.state.profile
 
-    val configForSettings = remember(profile.config, runtime.currentTempoMsPerWord) {
-        profile.config.copy(tempoMsPerWord = runtime.currentTempoMsPerWord)
-    }
+    val configForSettings =
+        remember(profile.config, runtime.currentTempoMsPerWord) {
+            profile.config.copy(tempoMsPerWord = runtime.currentTempoMsPerWord)
+        }
     RsvpSettingsContent(
         selectedProfileId = profile.selectedProfileId,
         customProfiles = profile.customProfiles,
@@ -303,6 +310,6 @@ private fun RsvpQuickSettingsAdvancedContent(context: RsvpUiContext) {
         onRsvpHorizontalBiasChange = { bias ->
             runtime.currentHorizontalBias = bias
             context.callbacks.theme.onHorizontalBiasChange(bias)
-        }
+        },
     )
 }

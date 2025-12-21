@@ -4,9 +4,7 @@ import com.example.kairo.data.local.BookDao
 import com.example.kairo.data.local.toEntity
 import com.example.kairo.sample.SampleBooks
 
-class SampleSeeder(
-    private val bookDao: BookDao
-) {
+class SampleSeeder(private val bookDao: BookDao,) {
     suspend fun seedIfEmpty() {
         val existing = bookDao.peekBook()
         if (existing != null) return

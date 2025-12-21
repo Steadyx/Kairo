@@ -5,5 +5,9 @@ import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
 
 interface TokenRepository {
-    suspend fun getTokens(bookId: BookId, chapterIndex: Int, chapter: Chapter? = null): List<Token>
+    suspend fun getTokens(
+        bookId: BookId,
+        chapterIndex: Int,
+        chapter: Chapter? = null,
+    ): List<Token>
 }

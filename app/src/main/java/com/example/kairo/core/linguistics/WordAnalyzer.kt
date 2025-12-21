@@ -7,7 +7,6 @@ package com.example.kairo.core.linguistics
  * Provides syllable counting, word frequency scoring, and complexity analysis.
  */
 object WordAnalyzer {
-
     /**
      * Estimates syllable count using linguistic rules.
      * Based on vowel groupings with adjustments for silent e, dipthongs, etc.
@@ -72,68 +71,255 @@ object WordAnalyzer {
         val lower = word.lowercase()
 
         // Top 100 most common English words (score: 1.0)
-        val veryCommon = setOf(
-            "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
-            "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-            "this", "but", "his", "by", "from", "they", "we", "say", "her", "she",
-            "or", "an", "will", "my", "one", "all", "would", "there", "their", "what",
-            "so", "up", "out", "if", "about", "who", "get", "which", "go", "me",
-            "when", "make", "can", "like", "time", "no", "just", "him", "know", "take",
-            "people", "into", "year", "your", "good", "some", "could", "them", "see", "other",
-            "than", "then", "now", "look", "only", "come", "its", "over", "think", "also",
-            "back", "after", "use", "two", "how", "our", "work", "first", "well", "way",
-            "even", "new", "want", "because", "any", "these", "give", "day", "most", "us"
-        )
+        val veryCommon =
+            setOf(
+                "the",
+                "be",
+                "to",
+                "of",
+                "and",
+                "a",
+                "in",
+                "that",
+                "have",
+                "i",
+                "it",
+                "for",
+                "not",
+                "on",
+                "with",
+                "he",
+                "as",
+                "you",
+                "do",
+                "at",
+                "this",
+                "but",
+                "his",
+                "by",
+                "from",
+                "they",
+                "we",
+                "say",
+                "her",
+                "she",
+                "or",
+                "an",
+                "will",
+                "my",
+                "one",
+                "all",
+                "would",
+                "there",
+                "their",
+                "what",
+                "so",
+                "up",
+                "out",
+                "if",
+                "about",
+                "who",
+                "get",
+                "which",
+                "go",
+                "me",
+                "when",
+                "make",
+                "can",
+                "like",
+                "time",
+                "no",
+                "just",
+                "him",
+                "know",
+                "take",
+                "people",
+                "into",
+                "year",
+                "your",
+                "good",
+                "some",
+                "could",
+                "them",
+                "see",
+                "other",
+                "than",
+                "then",
+                "now",
+                "look",
+                "only",
+                "come",
+                "its",
+                "over",
+                "think",
+                "also",
+                "back",
+                "after",
+                "use",
+                "two",
+                "how",
+                "our",
+                "work",
+                "first",
+                "well",
+                "way",
+                "even",
+                "new",
+                "want",
+                "because",
+                "any",
+                "these",
+                "give",
+                "day",
+                "most",
+                "us",
+            )
 
         // Common words (score: 0.85)
-        val common = setOf(
-            "been", "has", "more", "was", "were", "being", "had", "did", "does",
-            "should", "much", "before", "where", "must", "through", "too", "very",
-            "still", "those", "such", "here", "why", "came", "each", "may", "same",
-            "both", "find", "long", "down", "made", "said", "while", "own", "part",
-            "under", "might", "great", "never", "world", "hand", "high", "every",
-            "last", "place", "went", "right", "old", "again", "found", "around",
-            "three", "small", "between", "always", "next", "few", "house", "put",
-            "thought", "eyes", "many", "head", "away", "once", "upon", "home"
-        )
+        val common =
+            setOf(
+                "been",
+                "has",
+                "more",
+                "was",
+                "were",
+                "being",
+                "had",
+                "did",
+                "does",
+                "should",
+                "much",
+                "before",
+                "where",
+                "must",
+                "through",
+                "too",
+                "very",
+                "still",
+                "those",
+                "such",
+                "here",
+                "why",
+                "came",
+                "each",
+                "may",
+                "same",
+                "both",
+                "find",
+                "long",
+                "down",
+                "made",
+                "said",
+                "while",
+                "own",
+                "part",
+                "under",
+                "might",
+                "great",
+                "never",
+                "world",
+                "hand",
+                "high",
+                "every",
+                "last",
+                "place",
+                "went",
+                "right",
+                "old",
+                "again",
+                "found",
+                "around",
+                "three",
+                "small",
+                "between",
+                "always",
+                "next",
+                "few",
+                "house",
+                "put",
+                "thought",
+                "eyes",
+                "many",
+                "head",
+                "away",
+                "once",
+                "upon",
+                "home",
+            )
 
         // Moderately common words (score: 0.7)
-        val moderate = setOf(
-            "something", "nothing", "another", "without", "though", "against",
-            "enough", "almost", "perhaps", "during", "however", "morning",
-            "together", "behind", "across", "anything", "everyone", "everything",
-            "sometimes", "suddenly", "already", "himself", "herself", "themselves",
-            "became", "woman", "children", "called", "really", "young", "asked",
-            "father", "mother", "going", "looking", "night", "money", "water"
-        )
+        val moderate =
+            setOf(
+                "something",
+                "nothing",
+                "another",
+                "without",
+                "though",
+                "against",
+                "enough",
+                "almost",
+                "perhaps",
+                "during",
+                "however",
+                "morning",
+                "together",
+                "behind",
+                "across",
+                "anything",
+                "everyone",
+                "everything",
+                "sometimes",
+                "suddenly",
+                "already",
+                "himself",
+                "herself",
+                "themselves",
+                "became",
+                "woman",
+                "children",
+                "called",
+                "really",
+                "young",
+                "asked",
+                "father",
+                "mother",
+                "going",
+                "looking",
+                "night",
+                "money",
+                "water",
+            )
 
         // Heuristic for unknown words based on word length and structure
-        val lengthPenalty = when {
-            lower.length <= 4 -> 0.6  // Short words are often common
-            lower.length <= 6 -> 0.5
-            lower.length <= 8 -> 0.4
-            lower.length <= 10 -> 0.3
-            else -> 0.2  // Very long words are usually rare/complex
-        }
+        val lengthPenalty =
+            when {
+                lower.length <= 4 -> 0.6 // Short words are often common
+                lower.length <= 6 -> 0.5
+                lower.length <= 8 -> 0.4
+                lower.length <= 10 -> 0.3
+                else -> 0.2 // Very long words are usually rare/complex
+            }
 
         // Bonus for common word patterns
-        val patternBonus = when {
-            lower.endsWith("ing") -> 0.1
-            lower.endsWith("ed") -> 0.1
-            lower.endsWith("ly") -> 0.05
-            lower.endsWith("ness") -> 0.0
-            lower.endsWith("ment") -> 0.0
-            lower.endsWith("tion") -> -0.05  // Technical/formal
-            lower.endsWith("ology") -> -0.1  // Scientific
-            else -> 0.0
-        }
+        val patternBonus =
+            when {
+                lower.endsWith("ing") -> 0.1
+                lower.endsWith("ed") -> 0.1
+                lower.endsWith("ly") -> 0.05
+                lower.endsWith("ness") -> 0.0
+                lower.endsWith("ment") -> 0.0
+                lower.endsWith("tion") -> -0.05 // Technical/formal
+                lower.endsWith("ology") -> -0.1 // Scientific
+                else -> 0.0
+            }
 
-        val score = when (lower) {
-            in veryCommon -> 1.0
-            in common -> 0.85
-            in moderate -> 0.7
-            else -> (lengthPenalty + patternBonus).coerceIn(0.1, 0.6)
-        }
+        val score =
+            when (lower) {
+                in veryCommon -> 1.0
+                in common -> 0.85
+                in moderate -> 0.7
+                else -> (lengthPenalty + patternBonus).coerceIn(0.1, 0.6)
+            }
 
         return score
     }
@@ -142,10 +328,13 @@ object WordAnalyzer {
      * Detects if a word is likely part of dialogue (quoted speech).
      */
     @Suppress("unused")
-    fun isDialogueMarker(text: String): Boolean {
-        return text.contains('"') || text.contains('\u201C') || text.contains('\u201D') ||
-               text.contains('\'') || text.contains('\u2018') || text.contains('\u2019')
-    }
+    fun isDialogueMarker(text: String): Boolean =
+        text.contains('"') ||
+            text.contains('\u201C') ||
+            text.contains('\u201D') ||
+            text.contains('\'') ||
+            text.contains('\u2018') ||
+            text.contains('\u2019')
 
     /**
      * Detects speaker attribution patterns (he said, she asked, etc.)
@@ -153,12 +342,30 @@ object WordAnalyzer {
     @Suppress("unused")
     fun isSpeakerAttribution(words: List<String>): Boolean {
         val lower = words.map { it.lowercase() }
-        val attributionVerbs = setOf(
-            "said", "asked", "replied", "answered", "whispered", "shouted",
-            "yelled", "muttered", "murmured", "exclaimed", "declared",
-            "demanded", "inquired", "responded", "added", "continued",
-            "explained", "insisted", "suggested", "warned", "promised"
-        )
+        val attributionVerbs =
+            setOf(
+                "said",
+                "asked",
+                "replied",
+                "answered",
+                "whispered",
+                "shouted",
+                "yelled",
+                "muttered",
+                "murmured",
+                "exclaimed",
+                "declared",
+                "demanded",
+                "inquired",
+                "responded",
+                "added",
+                "continued",
+                "explained",
+                "insisted",
+                "suggested",
+                "warned",
+                "promised",
+            )
         return lower.any { it in attributionVerbs }
     }
 
@@ -193,40 +400,74 @@ object WordAnalyzer {
  * Clause and phrase boundary detection for intelligent chunking.
  */
 object ClauseDetector {
-
     // Words that typically start new clauses
-    private val clauseStarters = setOf(
-        "which", "that", "who", "whom", "whose", "where", "when", "while",
-        "because", "although", "though", "unless", "until", "since", "if",
-        "after", "before", "whenever", "wherever", "whether", "however",
-        "therefore", "moreover", "furthermore", "nevertheless", "meanwhile",
-        "otherwise", "besides", "hence", "thus", "consequently", "accordingly"
-    )
+    private val clauseStarters =
+        setOf(
+            "which",
+            "that",
+            "who",
+            "whom",
+            "whose",
+            "where",
+            "when",
+            "while",
+            "because",
+            "although",
+            "though",
+            "unless",
+            "until",
+            "since",
+            "if",
+            "after",
+            "before",
+            "whenever",
+            "wherever",
+            "whether",
+            "however",
+            "therefore",
+            "moreover",
+            "furthermore",
+            "nevertheless",
+            "meanwhile",
+            "otherwise",
+            "besides",
+            "hence",
+            "thus",
+            "consequently",
+            "accordingly",
+        )
 
     // Coordinating conjunctions (FANBOYS)
-    private val coordinatingConjunctions = setOf(
-        "for", "and", "nor", "but", "or", "yet", "so"
-    )
+    private val coordinatingConjunctions =
+        setOf(
+            "for",
+            "and",
+            "nor",
+            "but",
+            "or",
+            "yet",
+            "so",
+        )
 
     /**
      * Detects if a word is a clause boundary marker.
      */
-    fun isClauseBoundary(word: String): Boolean {
-        return word.lowercase() in clauseStarters
-    }
+    fun isClauseBoundary(word: String): Boolean = word.lowercase() in clauseStarters
 
     /**
      * Detects coordinating conjunctions that might warrant a pause.
      */
-    fun isCoordinatingConjunction(word: String): Boolean {
-        return word.lowercase() in coordinatingConjunctions
-    }
+    fun isCoordinatingConjunction(word: String): Boolean =
+        word.lowercase() in coordinatingConjunctions
 
     /**
      * Calculates pause factor based on grammatical structure.
      * Returns multiplier for pause duration.
      */
-    fun getClausePauseFactor(word: String, nextWord: String?): Double {
+    fun getClausePauseFactor(
+        word: String,
+        nextWord: String?,
+    ): Double {
         val lower = word.lowercase()
         val nextLower = nextWord?.lowercase()
 
@@ -234,9 +475,10 @@ object ClauseDetector {
         val pauseForClauseStarter = lower in clauseStarters
 
         // Coordinating conjunctions between clauses
-        val pauseForConjunction = lower in coordinatingConjunctions &&
-            nextLower != null &&
-            nextLower in setOf("i", "he", "she", "they", "we", "it", "the", "a", "an")
+        val pauseForConjunction =
+            lower in coordinatingConjunctions &&
+                nextLower != null &&
+                nextLower in setOf("i", "he", "she", "they", "we", "it", "the", "a", "an")
 
         return when {
             pauseForClauseStarter -> 1.15
@@ -249,33 +491,51 @@ object ClauseDetector {
      * Detects parenthetical asides (text in parentheses, em-dashes, etc.)
      */
     @Suppress("unused")
-    fun isParentheticalMarker(text: String): Boolean {
-        return text.contains('(') || text.contains(')') ||
-               text.contains('—') || text.contains("--") ||
-               text.contains('–')
-    }
-
+    fun isParentheticalMarker(text: String): Boolean =
+        text.contains('(') ||
+            text.contains(')') ||
+            text.contains('—') ||
+            text.contains("--") ||
+            text.contains('–')
 }
 
 /**
  * Dialogue detection and pacing for natural speech patterns.
  */
 object DialogueAnalyzer {
-
     private var inDialogue = false
 
-    private val speakerVerbs = setOf(
-        "said", "asked", "replied", "answered", "whispered", "shouted",
-        "yelled", "muttered", "murmured", "exclaimed", "declared",
-        "demanded", "inquired", "responded", "added", "continued",
-        "explained", "insisted", "suggested", "warned", "promised"
-    )
+    private val speakerVerbs =
+        setOf(
+            "said",
+            "asked",
+            "replied",
+            "answered",
+            "whispered",
+            "shouted",
+            "yelled",
+            "muttered",
+            "murmured",
+            "exclaimed",
+            "declared",
+            "demanded",
+            "inquired",
+            "responded",
+            "added",
+            "continued",
+            "explained",
+            "insisted",
+            "suggested",
+            "warned",
+            "promised",
+        )
 
-    private val speakerPatterns = listOf(
-        Regex("^(he|she|they|i|we|it|\\w+) (said|asked|replied|answered|whispered)"),
-        Regex("(said|asked|replied|answered|whispered) (he|she|they|\\w+)$"),
-        Regex("^\".*\" (said|asked|replied|answered|whispered)")
-    )
+    private val speakerPatterns =
+        listOf(
+            Regex("^(he|she|they|i|we|it|\\w+) (said|asked|replied|answered|whispered)"),
+            Regex("(said|asked|replied|answered|whispered) (he|she|they|\\w+)$"),
+            Regex("^\".*\" (said|asked|replied|answered|whispered)"),
+        )
 
     /**
      * Tracks dialogue state and returns appropriate timing multiplier.

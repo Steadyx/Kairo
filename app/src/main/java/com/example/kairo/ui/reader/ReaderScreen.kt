@@ -6,7 +6,7 @@
     "LongParameterList",
     "LoopWithTooManyJumpStatements",
     "MagicNumber",
-    "MaxLineLength"
+    "MaxLineLength",
 )
 
 package com.example.kairo.ui.reader
@@ -16,18 +16,17 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,18 +41,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -62,13 +69,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -83,23 +83,27 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.ParagraphStyle
-import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
+import coil.request.ImageRequest
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.core.model.TokenType
@@ -109,29 +113,26 @@ import com.example.kairo.ui.settings.ReaderSettingsContent
 import com.example.kairo.ui.settings.SettingsNavRow
 import com.example.kairo.ui.settings.SettingsSwitchRow
 import com.example.kairo.ui.theme.MerriweatherFontFamily
-import coil.compose.AsyncImage
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
-import coil.request.ImageRequest
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 
 private sealed interface InvertedScrollCommand {
-    data class Drag(val dy: Float) : InvertedScrollCommand
-    data class Fling(val velocityY: Float) : InvertedScrollCommand
+    data class Drag(val dy: Float,) : InvertedScrollCommand
+
+    data class Fling(val velocityY: Float,) : InvertedScrollCommand
 }
 
 private enum class Axis { Horizontal, Vertical }
 
 private suspend fun performInvertedFling(
     listState: androidx.compose.foundation.lazy.LazyListState,
-    initialVelocityY: Float
+    initialVelocityY: Float,
 ) {
     var velocity = initialVelocityY
     var lastFrameNanos = withFrameNanos { it }
@@ -153,7 +154,7 @@ private suspend fun performInvertedFling(
 
 /**
  * Main reader screen - can be called directly with ViewModel state.
- * 
+ *
  * Usage with ViewModel:
  * ```
  * val uiState by viewModel.uiState.collectAsState()
@@ -187,7 +188,7 @@ fun ReaderScreen(
     onOpenBookmarks: () -> Unit,
     onFocusChange: (Int) -> Unit,
     onStartRsvp: (Int) -> Unit,
-    onChapterChange: (Int) -> Unit
+    onChapterChange: (Int) -> Unit,
 ) {
     val chapterIndex = uiState.chapterIndex
     val focusIndex = uiState.focusIndex
@@ -199,113 +200,133 @@ fun ReaderScreen(
     val tokens = uiState.chapterData?.tokens.orEmpty()
     val firstWordIndex = uiState.chapterData?.firstWordIndex ?: -1
     val imagePaths = uiState.chapterData?.imagePaths.orEmpty()
-    val onSafeFocusChange = remember(tokens, onFocusChange) {
-        { index: Int ->
-            if (tokens.isNotEmpty()) {
-                onFocusChange(tokens.nearestWordIndex(index))
+    val onSafeFocusChange =
+        remember(tokens, onFocusChange) {
+            { index: Int ->
+                if (tokens.isNotEmpty()) {
+                    onFocusChange(tokens.nearestWordIndex(index))
+                }
             }
         }
-    }
 
     val isCoverChapter = chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
     val wordCount = remember(tokens) { tokens.count { it.type == TokenType.WORD } }
 
-    val fullScreenTitlePageImagePath = remember(chapterIndex, isCoverChapter, imagePaths, wordCount) {
-        if (imagePaths.isEmpty()) return@remember null
+    val fullScreenTitlePageImagePath =
+        remember(chapterIndex, isCoverChapter, imagePaths, wordCount) {
+            if (imagePaths.isEmpty()) return@remember null
 
-        when {
-            // If we already render a metadata cover image, the first extracted image in chapter 0 is often a duplicate
-            // cover. Prefer the second image as the title page (do not fall back to the first, to avoid rendering the
-            // same cover twice).
-            chapterIndex == 0 && isCoverChapter -> imagePaths.getOrNull(1)
+            when {
+                // If we already render a metadata cover image, the first extracted image in chapter 0 is often a duplicate
+                // cover. Prefer the second image as the title page (do not fall back to the first, to avoid rendering the
+                // same cover twice).
+                chapterIndex == 0 && isCoverChapter -> imagePaths.getOrNull(1)
 
-            // Some EPUBs store the title page as a single-image chapter (often chapter 1).
-            chapterIndex == 1 && imagePaths.size == 1 -> imagePaths.first()
+                // Some EPUBs store the title page as a single-image chapter (often chapter 1).
+                chapterIndex == 1 && imagePaths.size == 1 -> imagePaths.first()
 
-            // If we don't have a metadata cover, chapter 0's first image is usually the title page.
-            chapterIndex == 0 && !isCoverChapter -> imagePaths.first()
+                // If we don't have a metadata cover, chapter 0's first image is usually the title page.
+                chapterIndex == 0 && !isCoverChapter -> imagePaths.first()
 
-            // Fallback: if the chapter has no words and only a single image, treat it as a full-page image chapter.
-            imagePaths.size == 1 && wordCount == 0 -> imagePaths.first()
+                // Fallback: if the chapter has no words and only a single image, treat it as a full-page image chapter.
+                imagePaths.size == 1 && wordCount == 0 -> imagePaths.first()
 
-            else -> null
+                else -> null
+            }
         }
-    }
 
-    val headerCarouselImages = remember(chapterIndex, isCoverChapter, fullScreenTitlePageImagePath, imagePaths) {
-        if (imagePaths.isEmpty()) return@remember emptyList()
+    val headerCarouselImages =
+        remember(chapterIndex, isCoverChapter, fullScreenTitlePageImagePath, imagePaths) {
+            if (imagePaths.isEmpty()) return@remember emptyList()
 
-        when {
-            chapterIndex == 0 && isCoverChapter -> {
-                val skip = when {
-                    fullScreenTitlePageImagePath == null -> 1
-                    imagePaths.size >= 2 -> 2
-                    else -> 1
+            when {
+                chapterIndex == 0 && isCoverChapter -> {
+                    val skip =
+                        when {
+                            fullScreenTitlePageImagePath == null -> 1
+                            imagePaths.size >= 2 -> 2
+                            else -> 1
+                        }
+                    imagePaths.drop(skip)
                 }
-                imagePaths.drop(skip)
+                fullScreenTitlePageImagePath != null -> imagePaths.drop(1)
+                else -> imagePaths
             }
-            fullScreenTitlePageImagePath != null -> imagePaths.drop(1)
-            else -> imagePaths
         }
-    }
 
-    val excludedInlineImages = remember(
-        isCoverChapter,
-        fullScreenTitlePageImagePath,
-        imagePaths
-    ) {
-        buildSet {
-            if (isCoverChapter) {
-                imagePaths.firstOrNull()?.let { add(it) }
-            }
-            fullScreenTitlePageImagePath?.let { add(it) }
-        }
-    }
-    val visibleBlocks = remember(blocks, excludedInlineImages) {
-        if (excludedInlineImages.isEmpty()) {
-            blocks
-        } else {
-            blocks.filterNot { block ->
-                block is ReaderImageBlock && block.imagePath in excludedInlineImages
+    val excludedInlineImages =
+        remember(
+            isCoverChapter,
+            fullScreenTitlePageImagePath,
+            imagePaths,
+        ) {
+            buildSet {
+                if (isCoverChapter) {
+                    imagePaths.firstOrNull()?.let { add(it) }
+                }
+                fullScreenTitlePageImagePath?.let { add(it) }
             }
         }
+    val visibleBlocks =
+        remember(blocks, excludedInlineImages) {
+            if (excludedInlineImages.isEmpty()) {
+                blocks
+            } else {
+                blocks.filterNot { block ->
+                    block is ReaderImageBlock && block.imagePath in excludedInlineImages
+                }
+            }
+        }
+    val focusBlockIndex =
+        remember(focusIndex, visibleBlocks) {
+            if (visibleBlocks.isEmpty()) {
+                0
+            } else {
+                visibleBlocks
+                    .indexOfFirst { block ->
+                        val paragraph =
+                            (block as? ReaderParagraphBlock)?.paragraph ?: return@indexOfFirst false
+                        val endIndex = paragraph.startIndex + paragraph.tokens.size - 1
+                        focusIndex in paragraph.startIndex..endIndex
+                    }.coerceAtLeast(0)
+            }
+        }
+    val showHeaderCarousel =
+        remember(headerCarouselImages, visibleBlocks) {
+            headerCarouselImages.isNotEmpty() && visibleBlocks.none { it is ReaderImageBlock }
+        }
+    val listHeaderCount =
+        remember(isCoverChapter, fullScreenTitlePageImagePath, showHeaderCarousel) {
+            (if (isCoverChapter) 1 else 0) +
+                (if (fullScreenTitlePageImagePath != null) 1 else 0) +
+                (if (showHeaderCarousel) 1 else 0)
+        }
+    val focusListIndex = remember(focusBlockIndex, listHeaderCount) {
+        focusBlockIndex +
+            listHeaderCount
     }
-    val focusBlockIndex = remember(focusIndex, visibleBlocks) {
-        if (visibleBlocks.isEmpty()) 0
-        else visibleBlocks.indexOfFirst { block ->
-            val paragraph = (block as? ReaderParagraphBlock)?.paragraph ?: return@indexOfFirst false
-            val endIndex = paragraph.startIndex + paragraph.tokens.size - 1
-            focusIndex in paragraph.startIndex..endIndex
-        }.coerceAtLeast(0)
-    }
-    val showHeaderCarousel = remember(headerCarouselImages, visibleBlocks) {
-        headerCarouselImages.isNotEmpty() && visibleBlocks.none { it is ReaderImageBlock }
-    }
-    val listHeaderCount = remember(isCoverChapter, fullScreenTitlePageImagePath, showHeaderCarousel) {
-        (if (isCoverChapter) 1 else 0) +
-            (if (fullScreenTitlePageImagePath != null) 1 else 0) +
-            (if (showHeaderCarousel) 1 else 0)
-    }
-    val focusListIndex = remember(focusBlockIndex, listHeaderCount) { focusBlockIndex + listHeaderCount }
 
     // Use a key that changes when we need to reset the list position
     // This forces a new LazyListState with the correct initial position
-    val listStateKey = remember(chapterIndex, uiState.chapterData) {
-        "$chapterIndex-${uiState.chapterData?.hashCode() ?: 0}"
-    }
+    val listStateKey =
+        remember(chapterIndex, uiState.chapterData) {
+            "$chapterIndex-${uiState.chapterData?.hashCode() ?: 0}"
+        }
 
-    val listState = key(listStateKey) {
-        rememberLazyListState(
-            initialFirstVisibleItemIndex = focusListIndex
-        )
-    }
+    val listState =
+        key(listStateKey) {
+            rememberLazyListState(
+                initialFirstVisibleItemIndex = focusListIndex,
+            )
+        }
 
-    val invertedScrollCommands = remember(listStateKey) {
-        MutableSharedFlow<InvertedScrollCommand>(
-            extraBufferCapacity = 64,
-            onBufferOverflow = BufferOverflow.DROP_OLDEST
-        )
-    }
+    val invertedScrollCommands =
+        remember(listStateKey) {
+            MutableSharedFlow<InvertedScrollCommand>(
+                extraBufferCapacity = 64,
+                onBufferOverflow = BufferOverflow.DROP_OLDEST,
+            )
+        }
 
     LaunchedEffect(listStateKey, invertedScroll) {
         if (!invertedScroll) return@LaunchedEffect
@@ -319,9 +340,10 @@ fun ReaderScreen(
 
                 is InvertedScrollCommand.Fling -> {
                     flingJob?.cancel()
-                    val newJob = launch {
-                        performInvertedFling(listState, command.velocityY)
-                    }
+                    val newJob =
+                        launch {
+                            performInvertedFling(listState, command.velocityY)
+                        }
                     flingJob = newJob
                     newJob.invokeOnCompletion {
                         if (flingJob === newJob) {
@@ -347,32 +369,47 @@ fun ReaderScreen(
 
     val coroutineScope = rememberCoroutineScope()
     val isRsvpEnabled = !uiState.isLoading && firstWordIndex != -1 && tokens.isNotEmpty()
-    val progressPercent = remember(tokens, focusIndex) {
-        if (tokens.size < 2) 0
-        else {
-            val safeFocus = tokens.nearestWordIndex(focusIndex).coerceIn(0, tokens.lastIndex)
-            ((safeFocus.toFloat() / tokens.lastIndex.toFloat()) * 100f).roundToInt().coerceIn(0, 100)
+    val progressPercent =
+        remember(tokens, focusIndex) {
+            if (tokens.size < 2) {
+                0
+            } else {
+                val safeFocus = tokens.nearestWordIndex(focusIndex).coerceIn(0, tokens.lastIndex)
+                ((safeFocus.toFloat() / tokens.lastIndex.toFloat()) * 100f).roundToInt().coerceIn(
+                    0,
+                    100
+                )
+            }
         }
-    }
     val progressFraction by remember(progressPercent) {
         derivedStateOf { (progressPercent / 100f).coerceIn(0f, 1f) }
     }
-    val bottomInsetPadding = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues()
+    val bottomInsetPadding = WindowInsets.safeDrawing.only(
+        WindowInsetsSides.Bottom
+    ).asPaddingValues()
     val bottomInset = bottomInsetPadding.calculateBottomPadding()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(
                     if (focusModeEnabled) {
                         // In focus mode, do not reserve space for the (hidden) status bar.
-                        WindowInsets.displayCutout.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                        WindowInsets.displayCutout.only(
+                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                        )
                     } else {
-                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
-                    }
-                )
-                .padding(start = 16.dp, end = 16.dp, top = if (focusModeEnabled) 8.dp else 16.dp)
+                        WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                        )
+                    },
+                ).padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = if (focusModeEnabled) 8.dp else 16.dp
+                ),
         ) {
             // Header with book info and navigation
             ReaderHeader(
@@ -383,31 +420,37 @@ fun ReaderScreen(
                 canGoPrevChapter = chapterIndex > 0,
                 canGoNextChapter = chapterIndex < book.chapters.lastIndex,
                 onPrevChapter = { onChapterChange((chapterIndex - 1).coerceAtLeast(0)) },
-                onNextChapter = { onChapterChange((chapterIndex + 1).coerceAtMost(book.chapters.lastIndex)) },
-                onShowMenu = { showReaderMenu = !showReaderMenu }
+                onNextChapter = {
+                    onChapterChange((chapterIndex + 1).coerceAtMost(book.chapters.lastIndex))
+                },
+                onShowMenu = { showReaderMenu = !showReaderMenu },
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             // Show loading indicator or content
             if (uiState.isLoading) {
-                val isCoverChapter = chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
+                val isCoverChapter =
+                    chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
                 if (isCoverChapter) {
                     Box(
-                        modifier = Modifier
+                        modifier =
+                        Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         val context = LocalContext.current
                         Surface(
                             shape = RoundedCornerShape(14.dp),
                             tonalElevation = 2.dp,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
                         ) {
                             AsyncImage(
-                                model = remember(coverImage, book.id.value) {
-                                    ImageRequest.Builder(context)
+                                model =
+                                remember(coverImage, book.id.value) {
+                                    ImageRequest
+                                        .Builder(context)
                                         .data(coverImage)
                                         .memoryCacheKey("book_cover_full_${book.id.value}")
                                         .crossfade(false)
@@ -415,115 +458,135 @@ fun ReaderScreen(
                                 },
                                 contentDescription = "Cover of ${book.title}",
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
+                                contentScale = ContentScale.Fit,
                             )
                         }
                         CircularProgressIndicator()
                     }
                 } else {
                     Box(
-                        modifier = Modifier
+                        modifier =
+                        Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator()
                     }
                 }
-            } else if (visibleBlocks.isEmpty() && !isCoverChapter && fullScreenTitlePageImagePath == null && headerCarouselImages.isEmpty()) {
+            } else if (visibleBlocks.isEmpty() &&
+                !isCoverChapter &&
+                fullScreenTitlePageImagePath == null &&
+                headerCarouselImages.isEmpty()
+            ) {
                 Box(
-                    modifier = Modifier
+                    modifier =
+                    Modifier
                         .weight(1f)
                         .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "No content in this chapter",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
-                val gestureModifier = Modifier.pointerInput(listStateKey, invertedScroll, chapterIndex) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val pointerId = down.id
+                val gestureModifier =
+                    Modifier.pointerInput(listStateKey, invertedScroll, chapterIndex) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val pointerId = down.id
 
-                        val touchSlop = viewConfiguration.touchSlop
-                        val swipeThreshold = touchSlop * 4f
+                            val touchSlop = viewConfiguration.touchSlop
+                            val swipeThreshold = touchSlop * 4f
 
-                        var totalX = 0f
-                        var totalY = 0f
-                        var axis = Axis.Horizontal
-                        var axisResolved = false
+                            var totalX = 0f
+                            var totalY = 0f
+                            var axis = Axis.Horizontal
+                            var axisResolved = false
 
-                        val tracker = VelocityTracker()
-                        tracker.addPosition(SystemClock.uptimeMillis(), down.position)
+                            val tracker = VelocityTracker()
+                            tracker.addPosition(SystemClock.uptimeMillis(), down.position)
 
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == pointerId } ?: break
-                            if (!change.pressed) break
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change =
+                                    event.changes.firstOrNull { it.id == pointerId } ?: break
+                                if (!change.pressed) break
 
-                            val dx = change.position.x - change.previousPosition.x
-                            val dy = change.position.y - change.previousPosition.y
-                            totalX += dx
-                            totalY += dy
+                                val dx = change.position.x - change.previousPosition.x
+                                val dy = change.position.y - change.previousPosition.y
+                                totalX += dx
+                                totalY += dy
 
-                            if (!axisResolved) {
-                                val absX = abs(totalX)
-                                val absY = abs(totalY)
-                                if (absX > touchSlop || absY > touchSlop) {
-                                    axis = if (absX > absY) Axis.Horizontal else Axis.Vertical
-                                    axisResolved = true
-                                } else {
-                                    continue
-                                }
-                            }
-
-                            when (axis) {
-                                Axis.Horizontal -> Unit // wait for drag end to switch chapter
-                                Axis.Vertical -> {
-                                    if (!invertedScroll) {
-                                        // Let LazyColumn handle normal vertical scrolling.
-                                        break
+                                if (!axisResolved) {
+                                    val absX = abs(totalX)
+                                    val absY = abs(totalY)
+                                    if (absX > touchSlop || absY > touchSlop) {
+                                        axis = if (absX > absY) Axis.Horizontal else Axis.Vertical
+                                        axisResolved = true
+                                    } else {
+                                        continue
                                     }
-                                    tracker.addPosition(SystemClock.uptimeMillis(), change.position)
-                                    invertedScrollCommands.tryEmit(InvertedScrollCommand.Drag(dy))
                                 }
-                            }
-                        }
 
-                        if (axisResolved) {
-                            when (axis) {
-                                Axis.Horizontal -> {
-                                    when {
-                                        totalX <= -swipeThreshold -> onChapterChange(
-                                            (chapterIndex + 1).coerceAtMost(book.chapters.lastIndex)
+                                when (axis) {
+                                    Axis.Horizontal -> Unit // wait for drag end to switch chapter
+                                    Axis.Vertical -> {
+                                        if (!invertedScroll) {
+                                            // Let LazyColumn handle normal vertical scrolling.
+                                            break
+                                        }
+                                        tracker.addPosition(
+                                            SystemClock.uptimeMillis(),
+                                            change.position
                                         )
-                                        totalX >= swipeThreshold -> onChapterChange(
-                                            (chapterIndex - 1).coerceAtLeast(0)
+                                        invertedScrollCommands.tryEmit(
+                                            InvertedScrollCommand.Drag(dy)
                                         )
                                     }
                                 }
-                                Axis.Vertical -> {
-                                    if (invertedScroll) {
-                                        val velocity = tracker.calculateVelocity().y
-                                        if (abs(velocity) > 200f) {
-                                            invertedScrollCommands.tryEmit(InvertedScrollCommand.Fling(velocity))
+                            }
+
+                            if (axisResolved) {
+                                when (axis) {
+                                    Axis.Horizontal -> {
+                                        when {
+                                            totalX <= -swipeThreshold ->
+                                                onChapterChange(
+                                                    (chapterIndex + 1).coerceAtMost(
+                                                        book.chapters.lastIndex
+                                                    ),
+                                                )
+                                            totalX >= swipeThreshold ->
+                                                onChapterChange(
+                                                    (chapterIndex - 1).coerceAtLeast(0),
+                                                )
+                                        }
+                                    }
+                                    Axis.Vertical -> {
+                                        if (invertedScroll) {
+                                            val velocity = tracker.calculateVelocity().y
+                                            if (abs(velocity) > 200f) {
+                                                invertedScrollCommands.tryEmit(
+                                                    InvertedScrollCommand.Fling(velocity)
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
                 Box(
-                    modifier = Modifier
+                    modifier =
+                    Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .then(gestureModifier)
+                        .then(gestureModifier),
                 ) {
                     val viewportHeight = LocalConfiguration.current.screenHeightDp.dp
 
@@ -533,7 +596,7 @@ fun ReaderScreen(
                         modifier = Modifier.fillMaxSize(),
                         userScrollEnabled = !invertedScroll,
                         verticalArrangement = Arrangement.spacedBy(18.dp), // Paragraph spacing
-                        contentPadding = PaddingValues(bottom = bottomInset + 96.dp)
+                        contentPadding = PaddingValues(bottom = bottomInset + 96.dp),
                     ) {
                         if (isCoverChapter) {
                             item(key = "book_cover_full_${book.id.value}") {
@@ -541,46 +604,61 @@ fun ReaderScreen(
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
                                     tonalElevation = 2.dp,
-                                    modifier = Modifier
+                                    modifier =
+                                    Modifier
                                         .fillMaxWidth()
                                         .height(viewportHeight)
-                                        .clip(RoundedCornerShape(14.dp))
+                                        .clip(RoundedCornerShape(14.dp)),
                                 ) {
                                     AsyncImage(
-                                        model = remember(coverImage, book.id.value) {
-                                            ImageRequest.Builder(context)
+                                        model =
+                                        remember(coverImage, book.id.value) {
+                                            ImageRequest
+                                                .Builder(context)
                                                 .data(coverImage)
-                                                .memoryCacheKey("book_cover_full_${book.id.value}")
+                                                .memoryCacheKey(
+                                                    "book_cover_full_${book.id.value}"
+                                                )
                                                 .crossfade(false)
                                                 .build()
                                         },
                                         contentDescription = "Cover of ${book.title}",
                                         modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Fit
+                                        contentScale = ContentScale.Fit,
                                     )
                                 }
                             }
                         }
                         if (fullScreenTitlePageImagePath != null) {
-                            item(key = "title_page_full_${book.id.value}_$fullScreenTitlePageImagePath") {
+                            item(
+                                key = "title_page_full_${book.id.value}_$fullScreenTitlePageImagePath"
+                            ) {
                                 val context = LocalContext.current
-                                val file = remember(fullScreenTitlePageImagePath) { File(context.filesDir, fullScreenTitlePageImagePath) }
+                                val file =
+                                    remember(fullScreenTitlePageImagePath) {
+                                        File(context.filesDir, fullScreenTitlePageImagePath)
+                                    }
                                 if (file.exists()) {
                                     Surface(
                                         shape = RoundedCornerShape(14.dp),
                                         tonalElevation = 2.dp,
-                                        modifier = Modifier
+                                        modifier =
+                                        Modifier
                                             .fillMaxWidth()
                                             .height(viewportHeight)
-                                            .clip(RoundedCornerShape(14.dp))
+                                            .clip(RoundedCornerShape(14.dp)),
                                     ) {
                                         AsyncImage(
                                             model = file,
                                             contentDescription = "Title page of ${book.title}",
-                                            modifier = Modifier
+                                            modifier =
+                                            Modifier
                                                 .fillMaxSize()
-                                                .clickable { fullScreenImagePath = fullScreenTitlePageImagePath },
-                                            contentScale = ContentScale.Fit
+                                                .clickable {
+                                                    fullScreenImagePath =
+                                                        fullScreenTitlePageImagePath
+                                                },
+                                            contentScale = ContentScale.Fit,
                                         )
                                     }
                                 }
@@ -590,13 +668,13 @@ fun ReaderScreen(
                             item(key = "chapter_images_$chapterIndex") {
                                 ChapterImages(
                                     imagePaths = headerCarouselImages,
-                                    onImageClick = { fullScreenImagePath = it }
+                                    onImageClick = { fullScreenImagePath = it },
                                 )
                             }
                         }
                         items(
                             items = visibleBlocks,
-                            key = { it.key }
+                            key = { it.key },
                         ) { block ->
                             when (block) {
                                 is ReaderParagraphBlock -> {
@@ -609,13 +687,13 @@ fun ReaderScreen(
                                         onStartRsvp = { tokenIndex ->
                                             if (!isRsvpEnabled) return@ParagraphText
                                             onStartRsvp(tokens.nearestWordIndex(tokenIndex))
-                                        }
+                                        },
                                     )
                                 }
                                 is ReaderImageBlock -> {
                                     InlineImageBlock(
                                         imagePath = block.imagePath,
-                                        onOpen = { fullScreenImagePath = it }
+                                        onOpen = { fullScreenImagePath = it },
                                     )
                                 }
                             }
@@ -634,7 +712,7 @@ fun ReaderScreen(
                 onChapterSelected = { index ->
                     onChapterChange(index)
                     showChapterList.value = false
-                }
+                },
             )
         }
 
@@ -653,7 +731,9 @@ fun ReaderScreen(
                 onFocusModeEnabledChange = onFocusModeEnabledChange,
                 onAddBookmark = {
                     if (tokens.isEmpty()) return@ReaderMenuOverlay
-                    val safeTokenIndex = tokens.nearestWordIndex(focusIndex).coerceIn(0, tokens.lastIndex)
+                    val safeTokenIndex = tokens.nearestWordIndex(
+                        focusIndex
+                    ).coerceIn(0, tokens.lastIndex)
                     val preview = tokens.getOrNull(safeTokenIndex)?.text.orEmpty()
                     onAddBookmark(chapterIndex, safeTokenIndex, preview)
                     showReaderMenu = false
@@ -666,7 +746,7 @@ fun ReaderScreen(
                     showReaderMenu = false
                     showChapterList.value = true
                 },
-                onDismiss = { showReaderMenu = false }
+                onDismiss = { showReaderMenu = false },
             )
         }
 
@@ -674,34 +754,38 @@ fun ReaderScreen(
             visible = isRsvpEnabled && !showReaderMenu && !showChapterList.value,
             enter = fadeIn(),
             exit = fadeOut(),
-            modifier = Modifier
+            modifier =
+            Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 16.dp + bottomInset)
-	        ) {
-	            var dragAccumulator by remember { mutableFloatStateOf(0f) }
-	            Box(
-	                contentAlignment = Alignment.Center,
-	                modifier = Modifier
-	                    .pointerInput(focusListIndex) {
-	                        detectTapGestures(
-	                            onLongPress = {
-	                                coroutineScope.launch {
-	                                    listState.animateScrollToItem(focusListIndex)
-	                                }
-	                            }
-	                        )
-	                    }
-                    .pointerInput(tokens, focusIndex, invertedScroll) {
+                .padding(end = 16.dp, bottom = 16.dp + bottomInset),
+        ) {
+            var dragAccumulator by remember { mutableFloatStateOf(0f) }
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier =
+                Modifier
+                    .pointerInput(focusListIndex) {
+                        detectTapGestures(
+                            onLongPress = {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(focusListIndex)
+                                }
+                            },
+                        )
+                    }.pointerInput(tokens, focusIndex, invertedScroll) {
                         val thresholdPx = 22f
                         var gestureFocusIndex = 0
                         detectVerticalDragGestures(
                             onDragStart = {
                                 dragAccumulator = 0f
-                                gestureFocusIndex = if (tokens.isNotEmpty()) {
-                                    tokens.nearestWordIndex(focusIndex).coerceIn(0, tokens.lastIndex)
-                                } else {
-                                    0
-                                }
+                                gestureFocusIndex =
+                                    if (tokens.isNotEmpty()) {
+                                        tokens.nearestWordIndex(
+                                            focusIndex
+                                        ).coerceIn(0, tokens.lastIndex)
+                                    } else {
+                                        0
+                                    }
                             },
                             onDragEnd = { dragAccumulator = 0f },
                             onVerticalDrag = { change, dragAmount ->
@@ -713,22 +797,26 @@ fun ReaderScreen(
                                 // Swipe up (negative drag) moves forward by default.
                                 val rawDirection = -steps
                                 val effectiveDirection = if (invertedScroll) -rawDirection else rawDirection
-                                val next = tokens.nearestWordIndex(
-                                    (gestureFocusIndex + effectiveDirection).coerceIn(0, tokens.lastIndex)
-                                )
+                                val next =
+                                    tokens.nearestWordIndex(
+                                        (gestureFocusIndex + effectiveDirection).coerceIn(
+                                            0,
+                                            tokens.lastIndex
+                                        ),
+                                    )
                                 gestureFocusIndex = next
                                 onFocusChange(next)
                                 dragAccumulator -= steps * thresholdPx
-                            }
+                            },
                         )
-                    }
+                    },
             ) {
                 CircularProgressIndicator(
                     progress = { progressFraction },
                     modifier = Modifier.size(76.dp),
                     strokeWidth = 4.dp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.60f),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f)
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f),
                 )
                 FloatingActionButton(
                     onClick = {
@@ -737,7 +825,7 @@ fun ReaderScreen(
                     },
                     shape = CircleShape,
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = "Start RSVP")
                 }
@@ -748,7 +836,7 @@ fun ReaderScreen(
             BackHandler { fullScreenImagePath = null }
             FullScreenImageViewer(
                 imagePath = path,
-                onDismiss = { fullScreenImagePath = null }
+                onDismiss = { fullScreenImagePath = null },
             )
         }
     }
@@ -759,38 +847,44 @@ private fun ChapterListOverlay(
     book: Book,
     currentChapterIndex: Int,
     onDismiss: () -> Unit,
-    onChapterSelected: (Int) -> Unit
+    onChapterSelected: (Int) -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier =
+        Modifier
+            .fillMaxSize(),
     ) {
         Box(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.45f))
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { onDismiss() })
-                }
+                },
         )
 
         Surface(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxSize(),
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 3.dp
+            tonalElevation = 3.dp,
         ) {
             Box(
-                modifier = Modifier.windowInsetsPadding(
-                    WindowInsets.displayCutout.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
-                )
+                modifier =
+                Modifier.windowInsetsPadding(
+                    WindowInsets.displayCutout.only(
+                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                    ),
+                ),
             ) {
                 ChapterListSheet(
                     book = book,
                     currentChapterIndex = currentChapterIndex,
-                    onChapterSelected = onChapterSelected
+                    onChapterSelected = onChapterSelected,
                 )
             }
         }
@@ -807,32 +901,35 @@ private fun ReaderHeader(
     canGoNextChapter: Boolean,
     onPrevChapter: () -> Unit,
     onNextChapter: () -> Unit,
-    onShowMenu: () -> Unit
+    onShowMenu: () -> Unit,
 ) {
     val context = LocalContext.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
             modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             if (coverImage != null && coverImage.isNotEmpty()) {
                 AsyncImage(
-                    model = remember(coverImage, book.id.value) {
-                        ImageRequest.Builder(context)
+                    model =
+                    remember(coverImage, book.id.value) {
+                        ImageRequest
+                            .Builder(context)
                             .data(coverImage)
                             .memoryCacheKey("book_cover_thumb_${book.id.value}")
                             .crossfade(false)
                             .build()
                     },
                     contentDescription = null,
-                    modifier = Modifier
+                    modifier =
+                    Modifier
                         .size(width = 44.dp, height = 56.dp)
                         .clip(RoundedCornerShape(10.dp)),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
                 Spacer(modifier = Modifier.width(12.dp))
             }
@@ -843,19 +940,19 @@ private fun ReaderHeader(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = chapterTitle ?: "Chapter ${chapterIndex + 1}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = "Chapter ${chapterIndex + 1} of ${book.chapters.size}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.secondary,
                 )
             }
         }
@@ -864,29 +961,31 @@ private fun ReaderHeader(
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Previous chapter",
-                    tint = if (canGoPrevChapter) {
+                    tint =
+                    if (canGoPrevChapter) {
                         MaterialTheme.colorScheme.onSurface
                     } else {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                    }
+                    },
                 )
             }
             IconButton(onClick = onNextChapter, enabled = canGoNextChapter) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "Next chapter",
-                    tint = if (canGoNextChapter) {
+                    tint =
+                    if (canGoNextChapter) {
                         MaterialTheme.colorScheme.onSurface
                     } else {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                    }
+                    },
                 )
             }
             IconButton(onClick = onShowMenu) {
                 Icon(
                     Icons.Default.Settings,
                     contentDescription = "Reader menu",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
             }
         }
@@ -908,39 +1007,43 @@ private fun ReaderMenuOverlay(
     onAddBookmark: () -> Unit,
     onOpenBookmarks: () -> Unit,
     onShowToc: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var showReaderSettings by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.35f))
-                .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) }
+                .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) },
         )
 
         Surface(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth(),
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-            tonalElevation = 3.dp
+            tonalElevation = 3.dp,
         ) {
             Column(
-                modifier = Modifier
+                modifier =
+                Modifier
                     .verticalScroll(scrollState)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Box(
-                    modifier = Modifier
+                    modifier =
+                    Modifier
                         .align(Alignment.CenterHorizontally)
                         .size(width = 42.dp, height = 4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)),
                 )
 
                 if (!showReaderSettings) {
@@ -948,28 +1051,28 @@ private fun ReaderMenuOverlay(
                         title = "Bookmarks",
                         subtitle = "Open saved bookmarks",
                         icon = Icons.Default.Bookmark,
-                        onClick = onOpenBookmarks
+                        onClick = onOpenBookmarks,
                     )
                     SettingsNavRow(
                         title = "Add bookmark",
                         subtitle = "Save this position",
                         icon = Icons.Default.Bookmark,
                         showChevron = false,
-                        onClick = onAddBookmark
+                        onClick = onAddBookmark,
                     )
 
                     SettingsNavRow(
                         title = "Reader settings",
                         subtitle = "Font size, theme, scrolling",
                         icon = Icons.Default.Settings,
-                        onClick = { showReaderSettings = true }
+                        onClick = { showReaderSettings = true },
                     )
 
                     SettingsSwitchRow(
                         title = "Focus mode",
                         subtitle = "Hide system chrome while reading.",
                         checked = focusModeEnabled,
-                        onCheckedChange = onFocusModeEnabledChange
+                        onCheckedChange = onFocusModeEnabledChange,
                     )
 
                     SettingsNavRow(
@@ -977,14 +1080,14 @@ private fun ReaderMenuOverlay(
                         subtitle = "Jump to a chapter",
                         icon = Icons.AutoMirrored.Filled.ArrowForward,
                         showChevron = false,
-                        onClick = onShowToc
+                        onClick = onShowToc,
                     )
                 } else {
                     SettingsNavRow(
                         title = "Back",
                         icon = Icons.AutoMirrored.Filled.ArrowBack,
                         showChevron = false,
-                        onClick = { showReaderSettings = false }
+                        onClick = { showReaderSettings = false },
                     )
                     Text("Reader settings", style = MaterialTheme.typography.titleMedium)
                     ReaderSettingsContent(
@@ -995,7 +1098,7 @@ private fun ReaderMenuOverlay(
                         onFontSizeChange = onFontSizeChange,
                         onThemeChange = onThemeChange,
                         onTextBrightnessChange = onTextBrightnessChange,
-                        onInvertedScrollChange = onInvertedScrollChange
+                        onInvertedScrollChange = onInvertedScrollChange,
                     )
                 }
             }
@@ -1006,12 +1109,12 @@ private fun ReaderMenuOverlay(
 @Composable
 private fun ChapterImages(
     imagePaths: List<String>,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
 ) {
     val context = LocalContext.current
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(items = imagePaths, key = { it }) { relativePath ->
             val file = remember(relativePath) { File(context.filesDir, relativePath) }
@@ -1019,17 +1122,19 @@ private fun ChapterImages(
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     tonalElevation = 2.dp,
-                    modifier = Modifier
+                    modifier =
+                    Modifier
                         .size(width = 220.dp, height = 160.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp)),
                 ) {
                     AsyncImage(
                         model = file,
                         contentDescription = null,
-                        modifier = Modifier
+                        modifier =
+                        Modifier
                             .fillMaxSize()
                             .clickable { onImageClick(relativePath) },
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
                     )
                 }
             }
@@ -1040,7 +1145,7 @@ private fun ChapterImages(
 @Composable
 private fun InlineImageBlock(
     imagePath: String,
-    onOpen: (String) -> Unit
+    onOpen: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val file = remember(imagePath) { resolveImageFile(context, imagePath) }
@@ -1050,26 +1155,28 @@ private fun InlineImageBlock(
     Surface(
         shape = shape,
         tonalElevation = 1.dp,
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxWidth()
-            .clickable { onOpen(imagePath) }
+            .clickable { onOpen(imagePath) },
     ) {
         SubcomposeAsyncImage(
             model = file,
             contentDescription = "Illustration",
             contentScale = ContentScale.FillWidth,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             val size = painter.intrinsicSize
-            val contentModifier = if (size.width.isFinite() && size.height.isFinite() && size.height > 0f) {
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(size.width / size.height)
-            } else {
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 180.dp, max = 420.dp)
-            }
+            val contentModifier =
+                if (size.width.isFinite() && size.height.isFinite() && size.height > 0f) {
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(size.width / size.height)
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 180.dp, max = 420.dp)
+                }
             SubcomposeAsyncImageContent(modifier = contentModifier)
         }
     }
@@ -1078,57 +1185,61 @@ private fun InlineImageBlock(
 @Composable
 private fun FullScreenImageViewer(
     imagePath: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val file = remember(imagePath) { resolveImageFile(context, imagePath) }
 
     Box(
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.96f))
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .pointerInput(imagePath) {
                 detectTapGestures(onTap = { onDismiss() })
-            }
+            },
     ) {
         if (file.exists()) {
             SubcomposeAsyncImage(
                 model = file,
                 contentDescription = "Full screen image",
                 contentScale = ContentScale.Fit,
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxSize()
-                    .padding(24.dp)
+                    .padding(24.dp),
             )
         } else {
             Text(
                 text = "Image not found",
                 color = Color.White,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
             )
         }
 
         IconButton(
             onClick = onDismiss,
-            modifier = Modifier.align(Alignment.TopEnd)
+            modifier = Modifier.align(Alignment.TopEnd),
         ) {
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Close image viewer",
-                tint = Color.White
+                tint = Color.White,
             )
         }
     }
 }
 
-private fun resolveImageFile(context: android.content.Context, imagePath: String): File {
-    return if (imagePath.startsWith("/")) {
+private fun resolveImageFile(
+    context: android.content.Context,
+    imagePath: String,
+): File =
+    if (imagePath.startsWith("/")) {
         File(imagePath)
     } else {
         File(context.filesDir, imagePath)
     }
-}
 
 @Composable
 private fun ParagraphText(
@@ -1137,77 +1248,122 @@ private fun ParagraphText(
     fontSizeSp: Float,
     textBrightness: Float,
     onFocusChange: (Int) -> Unit,
-    onStartRsvp: (Int) -> Unit
+    onStartRsvp: (Int) -> Unit,
 ) {
-    val baseStyle = TextStyle(
-        fontFamily = MerriweatherFontFamily,
-        fontSize = fontSizeSp.sp,
-        lineHeight = (fontSizeSp * 1.6f).sp,
-        color = MaterialTheme.colorScheme.onBackground.copy(alpha = textBrightness.coerceIn(0.55f, 1.0f))
-    )
-    val paragraphIndent = remember(fontSizeSp) {
-        ParagraphStyle(textIndent = TextIndent(firstLine = (fontSizeSp * 0.7f).sp))
-    }
-    val primary = MaterialTheme.colorScheme.primary
-    val focusStyle = remember(primary) {
-        SpanStyle(
-            fontWeight = FontWeight.SemiBold,
-            color = primary,
-            textDecoration = TextDecoration.Underline
+    val baseStyle =
+        TextStyle(
+            fontFamily = MerriweatherFontFamily,
+            fontSize = fontSizeSp.sp,
+            lineHeight = (fontSizeSp * 1.6f).sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(
+                alpha = textBrightness.coerceIn(0.55f, 1.0f)
+            ),
         )
-    }
-
-    val annotated = remember(paragraph.tokens, paragraph.startIndex, focusIndex, primary, paragraphIndent) {
-        buildAnnotatedString {
-            paragraph.tokens.forEachIndexed { localIndex, token ->
-                if (token.type == TokenType.PARAGRAPH_BREAK || token.type == TokenType.PAGE_BREAK) return@forEachIndexed
-                val globalIndex = paragraph.startIndex + localIndex
-
-                val prevToken = if (localIndex > 0) paragraph.tokens[localIndex - 1] else null
-                val needsSpaceBefore = shouldInsertSpaceBeforeToken(token, prevToken, localIndex)
-
-                if (needsSpaceBefore) append(" ")
-
-                val start = length
-                append(token.text)
-                val end = length
-
-                addStringAnnotation(tag = "tokenIndex", annotation = globalIndex.toString(), start = start, end = end)
-                if (globalIndex == focusIndex) addStyle(focusStyle, start, end)
-            }
-            addStyle(paragraphIndent, start = 0, end = length)
+    val paragraphIndent =
+        remember(fontSizeSp) {
+            ParagraphStyle(textIndent = TextIndent(firstLine = (fontSizeSp * 0.7f).sp))
         }
-    }
+    val primary = MaterialTheme.colorScheme.primary
+    val focusStyle =
+        remember(primary) {
+            SpanStyle(
+                fontWeight = FontWeight.SemiBold,
+                color = primary,
+                textDecoration = TextDecoration.Underline,
+            )
+        }
+
+    val annotated =
+        remember(paragraph.tokens, paragraph.startIndex, focusIndex, primary, paragraphIndent) {
+            buildAnnotatedString {
+                paragraph.tokens.forEachIndexed { localIndex, token ->
+                    if (token.type == TokenType.PARAGRAPH_BREAK ||
+                        token.type == TokenType.PAGE_BREAK
+                    ) {
+                        return@forEachIndexed
+                    }
+                    val globalIndex = paragraph.startIndex + localIndex
+
+                    val prevToken = if (localIndex > 0) paragraph.tokens[localIndex - 1] else null
+                    val needsSpaceBefore =
+                        shouldInsertSpaceBeforeToken(token, prevToken, localIndex)
+
+                    if (needsSpaceBefore) append(" ")
+
+                    val start = length
+                    append(token.text)
+                    val end = length
+
+                    addStringAnnotation(
+                        tag = "tokenIndex",
+                        annotation = globalIndex.toString(),
+                        start = start,
+                        end = end
+                    )
+                    if (globalIndex == focusIndex) addStyle(focusStyle, start, end)
+                }
+                addStyle(paragraphIndent, start = 0, end = length)
+            }
+        }
 
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     Text(
         text = annotated,
         style = baseStyle,
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxWidth()
             .pointerInput(annotated, focusIndex) {
                 detectTapGestures(
                     onTap = { position ->
                         val layout = layoutResult ?: return@detectTapGestures
-                        val offset = layout.getOffsetForPosition(position).coerceIn(0, (annotated.length - 1).coerceAtLeast(0))
-                        val hit = annotated.getStringAnnotations("tokenIndex", offset, offset).firstOrNull()
-                            ?: return@detectTapGestures
+                        val offset = layout.getOffsetForPosition(position).coerceIn(
+                            0,
+                            (
+                                annotated.length -
+                                    1
+                                ).coerceAtLeast(0)
+                        )
+                        val hit =
+                            annotated.getStringAnnotations(
+                                "tokenIndex",
+                                offset,
+                                offset
+                            ).firstOrNull()
+                                ?: return@detectTapGestures
                         val tokenIndex = hit.item.toIntOrNull() ?: return@detectTapGestures
-                        if (tokenIndex == focusIndex) onStartRsvp(tokenIndex) else onFocusChange(tokenIndex)
+                        if (tokenIndex ==
+                            focusIndex
+                        ) {
+                            onStartRsvp(tokenIndex)
+                        } else {
+                            onFocusChange(tokenIndex)
+                        }
                     },
                     onLongPress = { position ->
                         val layout = layoutResult ?: return@detectTapGestures
-                        val offset = layout.getOffsetForPosition(position).coerceIn(0, (annotated.length - 1).coerceAtLeast(0))
-                        val hit = annotated.getStringAnnotations("tokenIndex", offset, offset).firstOrNull()
-                            ?: return@detectTapGestures
+                        val offset = layout.getOffsetForPosition(position).coerceIn(
+                            0,
+                            (
+                                annotated.length -
+                                    1
+                                ).coerceAtLeast(0)
+                        )
+                        val hit =
+                            annotated.getStringAnnotations(
+                                "tokenIndex",
+                                offset,
+                                offset
+                            ).firstOrNull()
+                                ?: return@detectTapGestures
                         val tokenIndex = hit.item.toIntOrNull() ?: return@detectTapGestures
                         if (tokenIndex != focusIndex) onFocusChange(tokenIndex)
                         onStartRsvp(tokenIndex)
-                    }
+                    },
                 )
             },
-        onTextLayout = { layoutResult = it }
+        onTextLayout = { layoutResult = it },
     )
 }
 
@@ -1219,57 +1375,62 @@ private fun ParagraphText(
 private fun ChapterListSheet(
     book: Book,
     currentChapterIndex: Int,
-    onChapterSelected: (Int) -> Unit
+    onChapterSelected: (Int) -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier =
+        Modifier
+            .fillMaxSize(),
     ) {
         Text(
             text = "Table of Contents",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )
 
         HorizontalDivider()
 
         LazyColumn(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f),
         ) {
             itemsIndexed(
                 items = book.chapters,
-                key = { index, _ -> index }
+                key = { index, _ -> index },
             ) { index, chapter ->
                 val isCurrentChapter = index == currentChapterIndex
 
                 Row(
-                    modifier = Modifier
+                    modifier =
+                    Modifier
                         .fillMaxWidth()
                         .clickable { onChapterSelected(index) }
                         .background(
-                            if (isCurrentChapter)
+                            if (isCurrentChapter) {
                                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                            else
+                            } else {
                                 MaterialTheme.colorScheme.surface
-                        )
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                            },
+                        ).padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = chapter.title ?: "Chapter ${index + 1}",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (isCurrentChapter) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isCurrentChapter)
+                            color =
+                            if (isCurrentChapter) {
                                 MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface,
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         // Use pre-computed word count from Chapter model
                         // If not available, show nothing rather than computing on-the-fly
@@ -1283,23 +1444,26 @@ private fun ChapterListSheet(
                     }
 
                     Box(
-                        modifier = Modifier
+                        modifier =
+                        Modifier
                             .clip(RoundedCornerShape(4.dp))
                             .background(
-                                if (isCurrentChapter)
+                                if (isCurrentChapter) {
                                     MaterialTheme.colorScheme.primary
-                                else
+                                } else {
                                     MaterialTheme.colorScheme.surfaceVariant
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                },
+                            ).padding(horizontal = 8.dp, vertical = 4.dp),
                     ) {
                         Text(
                             text = "${index + 1}",
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (isCurrentChapter)
+                            color =
+                            if (isCurrentChapter) {
                                 MaterialTheme.colorScheme.onPrimary
-                            else
+                            } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                         )
                     }
                 }
@@ -1307,7 +1471,7 @@ private fun ChapterListSheet(
                 if (index < book.chapters.lastIndex) {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     )
                 }
             }
