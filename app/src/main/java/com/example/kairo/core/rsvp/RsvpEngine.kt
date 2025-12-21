@@ -427,6 +427,22 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
         duration *= multiWordPenalty(words.size)
 
+        // Apply flow and rhythm smoothing to word duration BEFORE adding punctuation pauses.
+        // This ensures punctuation pauses are not reduced by the smoothing algorithms.
+        val hardBoundary = isHardBoundary(frameTokens, nextToken)
+        val difficulty = frameDifficulty(words)
+        duration *=
+            flow.apply(
+                difficulty = difficulty,
+                speedStrength = speedStrength,
+                isBoundary = hardBoundary,
+            )
+
+        val smoothedWordDuration = rhythm.apply(duration, isBoundary = hardBoundary)
+
+        // Now add punctuation pauses on top of the smoothed word duration.
+        // These pauses are intentionally NOT smoothed so they remain prominent.
+        var totalDuration = smoothedWordDuration
         val pauseScale = pauseScale(msPerWord, config)
         frameTokens.forEachIndexed { index, token ->
             if (token.type != TokenType.PUNCTUATION) return@forEachIndexed
@@ -453,7 +469,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     TokenType.WORD
             }
 
-            duration +=
+            totalDuration +=
                 punctuationPauseMs(
                     token = token,
                     prevWord = prevWordInFrame ?: prevToken,
@@ -464,24 +480,14 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 )
         }
         if (paragraphBreaks > 0) {
-            duration += config.paragraphPauseMs * pauseScale * paragraphBreaks
+            totalDuration += config.paragraphPauseMs * pauseScale * paragraphBreaks
         }
         if (pageBreaks > 0) {
             val scaled = pageBreakBasePauseMs(config) * pauseScale
-            duration += max(scaled, MIN_PAGE_BREAK_MS) * pageBreaks
+            totalDuration += max(scaled, MIN_PAGE_BREAK_MS) * pageBreaks
         }
 
-        val hardBoundary = isHardBoundary(frameTokens, nextToken)
-        val difficulty = frameDifficulty(words)
-        duration *=
-            flow.apply(
-                difficulty = difficulty,
-                speedStrength = speedStrength,
-                isBoundary = hardBoundary,
-            )
-
-        val smoothed = rhythm.apply(duration, isBoundary = hardBoundary)
-        return smoothed
+        return totalDuration
             .toLong()
             .coerceAtLeast(MIN_FRAME_MS)
     }

@@ -472,9 +472,19 @@ fun RsvpSettingsContent(
         },
         valueRange = 0f..200f,
     )
-
     DeferredSliderRow(
-        title = "Pause scaling",
+        title = "Paragraph",
+        valueLabel = { "${it.toLong()}ms" },
+        rawValue = config.paragraphPauseMs.toFloat(),
+        onCommit = { newValue ->
+            updateConfig { it.copy(paragraphPauseMs = newValue.toLong().coerceIn(0L, 500L)) }
+        },
+        valueRange = 0f..500f,
+    )
+
+    Text("Pause scaling", style = MaterialTheme.typography.titleSmall)
+    DeferredSliderRow(
+        title = "Scale exponent",
         subtitle = "Compress pauses at high speed (floors still apply).",
         valueLabel = { "${it.toInt()}%" },
         rawValue = (config.pauseScaleExponent * 100).toFloat(),
@@ -482,6 +492,16 @@ fun RsvpSettingsContent(
             updateConfig { it.copy(pauseScaleExponent = (newValue / 100.0).coerceIn(0.2, 0.9)) }
         },
         valueRange = 20f..90f,
+    )
+    DeferredSliderRow(
+        title = "Minimum scale",
+        subtitle = "Prevents pauses from vanishing at extreme speeds.",
+        valueLabel = { "${it.toInt()}%" },
+        rawValue = (config.minPauseScale * 100).toFloat(),
+        onCommit = { newValue ->
+            updateConfig { it.copy(minPauseScale = (newValue / 100.0).coerceIn(0.3, 1.0)) }
+        },
+        valueRange = 30f..100f,
     )
 
     Text("Context shaping", style = MaterialTheme.typography.titleSmall)
