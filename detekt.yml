@@ -1,5 +1,13 @@
 # Detekt configuration for import hygiene.
+config:
+  validation: true
+  warningsAsErrors: true
+
 style:
   active: true
   UnusedImport:
     active: true
+
+  UnusedVariable:
+    active: true
+    allowedNames: 'ignored|_'

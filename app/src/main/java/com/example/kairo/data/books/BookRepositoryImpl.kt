@@ -9,7 +9,6 @@ import com.example.kairo.core.model.Chapter
 import com.example.kairo.data.local.BookDao
 import com.example.kairo.data.local.toDomain
 import com.example.kairo.data.local.toEntity
-import com.example.kairo.sample.SampleBooks
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -42,39 +41,37 @@ class BookRepositoryImpl(
 
     private fun resolveExtension(uri: Uri): String {
         // Try to get extension from the display name (most reliable for file pickers)
-        val displayName = try {
+        val displayName = runCatching {
             appContext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                 val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                 if (cursor.moveToFirst() && nameIndex >= 0) {
                     cursor.getString(nameIndex)
                 } else null
             }
-        } catch (e: Exception) {
-            null
-        }
+        }.getOrNull()
 
-        if (displayName != null) {
-            val ext = displayName.substringAfterLast('.', "").lowercase()
-            if (ext.isNotEmpty()) {
-                return ext
-            }
-        }
+        val extFromDisplay = displayName
+            ?.substringAfterLast('.', "")
+            ?.lowercase()
+            .orEmpty()
 
         // Check the MIME type
         val mime = appContext.contentResolver.getType(uri)?.lowercase().orEmpty()
-        when {
-            mime.contains("epub") || mime == "application/epub+zip" -> return "epub"
-            mime.contains("mobi") || mime.contains("x-mobipocket") -> return "mobi"
+        val extFromMime = when {
+            mime.contains("epub") || mime == "application/epub+zip" -> "epub"
+            mime.contains("mobi") || mime.contains("x-mobipocket") -> "mobi"
+            else -> ""
         }
 
         // Try path segment as fallback
         val pathExt = uri.lastPathSegment?.substringAfterLast('.', "")?.lowercase().orEmpty()
-        if (pathExt.isNotEmpty()) {
-            return pathExt
-        }
 
-        // Default to epub for unknown files from file picker
-        return "epub"
+        return when {
+            extFromDisplay.isNotEmpty() -> extFromDisplay
+            extFromMime.isNotEmpty() -> extFromMime
+            pathExt.isNotEmpty() -> pathExt
+            else -> DEFAULT_EXTENSION
+        }
     }
 
     override suspend fun getBook(bookId: BookId): Book {
@@ -123,13 +120,13 @@ class BookRepositoryImpl(
 
             try {
                 val out = ByteArrayOutputStream()
-                var quality = 90
+                var quality = INITIAL_COVER_JPEG_QUALITY
                 var encoded: ByteArray
                 do {
                     out.reset()
                     bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
                     encoded = out.toByteArray()
-                    quality -= 10
+                    quality -= JPEG_QUALITY_STEP
                 } while (encoded.size > MAX_COVER_DB_BYTES && quality >= MIN_COVER_JPEG_QUALITY)
                 encoded
             } finally {
@@ -151,8 +148,11 @@ class BookRepositoryImpl(
     }
 
     private companion object {
+        private const val DEFAULT_EXTENSION = "epub"
         private const val MAX_COVER_DB_BYTES = 256 * 1024
         private const val COVER_MAX_DIM_PX = 1080
+        private const val INITIAL_COVER_JPEG_QUALITY = 90
+        private const val JPEG_QUALITY_STEP = 10
         private const val MIN_COVER_JPEG_QUALITY = 60
     }
 }

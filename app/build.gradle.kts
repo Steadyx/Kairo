@@ -5,7 +5,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.detekt)
-    id("org.jetbrains.kotlin.kapt")
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -46,37 +47,28 @@ android {
     }
 }
 
+
 detekt {
     buildUponDefaultConfig = true
     allRules = false
     config.setFrom(files("$rootDir/detekt.yml"))
     autoCorrect = false
+
+    // Big speed win on multicore machines
+    parallel = true
 }
 
 tasks.withType<Detekt>().configureEach {
-    // Only the folders where your Kotlin actually is
-    setSource(
-        files(
-            "src/main/java",
-            "src/test/java",
-            "src/androidTest/java",
-            "src/debug/java",
-            "src/release/java",
-        )
-    )
+    exclude("**/build/**", "**/generated/**")
+}
 
-    include("**/*.kt", "**/*.kts")
 
-    // Exclude everything that wastes time
-    exclude(
-        "**/build/**",
-        "**/.gradle/**",
-        "**/.idea/**",
-        "**/.kotlin/**",
-        "**/generated/**",
-        "**/resources/**",
-        "**/tmp/**"
-    )
+ktlint {
+    filter {
+        exclude("**/androidTest/**")
+        exclude("**/build/**")
+        exclude("**/*.gradle.kts")
+    }
 }
 
 dependencies {
@@ -97,7 +89,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.coil.compose)

@@ -8,7 +8,34 @@ data class Book(
     val authors: List<String>,
     val chapters: List<Chapter>,
     val coverImage: ByteArray? = null
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Book) return false
+
+        if (id != other.id) return false
+        if (title != other.title) return false
+        if (authors != other.authors) return false
+        if (chapters != other.chapters) return false
+        if (coverImage != null) {
+            if (other.coverImage == null) return false
+            if (!coverImage.contentEquals(other.coverImage)) return false
+        } else if (other.coverImage != null) {
+            return false
+        }
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + title.hashCode()
+        result = 31 * result + authors.hashCode()
+        result = 31 * result + chapters.hashCode()
+        result = 31 * result + (coverImage?.contentHashCode() ?: 0)
+        return result
+    }
+}
 
 data class Chapter(
     val index: Int,
@@ -262,13 +289,13 @@ data class UserPreferences(
      * -1f = top, 0f = center, 1f = bottom.
      * Default is slightly above center to match prior layout.
      */
-    val rsvpVerticalBias: Float = -0.15f,
+    val rsvpVerticalBias: Float = DEFAULT_RSVP_VERTICAL_BIAS,
     /**
      * Horizontal bias for RSVP ORP display.
      * -1f = left, 0f = center, 1f = right.
-     * Default is slightly left to give long words more right-side space.
+     * Default is centered so words stay balanced unless adjusted.
      */
-    val rsvpHorizontalBias: Float = -0.12f,
+    val rsvpHorizontalBias: Float = DEFAULT_RSVP_HORIZONTAL_BIAS,
     val unlockExtremeSpeed: Boolean = false,
     // Focus mode
     val focusModeEnabled: Boolean = false,
@@ -283,3 +310,6 @@ enum class ReaderTheme { LIGHT, DARK, SEPIA, NORD, CYBERPUNK, FOREST }
 enum class RsvpFontFamily { INTER, ROBOTO }
 
 enum class RsvpFontWeight { LIGHT, NORMAL, MEDIUM }
+
+private const val DEFAULT_RSVP_VERTICAL_BIAS = -0.15f
+private const val DEFAULT_RSVP_HORIZONTAL_BIAS = 0f

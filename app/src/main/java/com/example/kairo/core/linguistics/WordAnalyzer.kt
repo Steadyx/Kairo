@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.example.kairo.core.linguistics
 
 /**
@@ -10,10 +12,10 @@ object WordAnalyzer {
      * Estimates syllable count using linguistic rules.
      * Based on vowel groupings with adjustments for silent e, dipthongs, etc.
      */
+    @Suppress("CyclomaticComplexMethod")
     fun countSyllables(word: String): Int {
         if (word.isEmpty()) return 0
         val lower = word.lowercase().trim()
-        if (lower.length <= 2) return 1
 
         var count = 0
         var prevWasVowel = false
@@ -56,7 +58,8 @@ object WordAnalyzer {
             }
         }
 
-        return count.coerceAtLeast(1)
+        val adjusted = if (lower.length <= 2) 1 else count
+        return adjusted.coerceAtLeast(1)
     }
 
     /**
@@ -64,6 +67,7 @@ object WordAnalyzer {
      * Score from 0.0 (very rare) to 1.0 (extremely common).
      * Common words need less display time; rare words need more.
      */
+    @Suppress("CyclomaticComplexMethod")
     fun getFrequencyScore(word: String): Double {
         val lower = word.lowercase()
 
@@ -80,7 +84,6 @@ object WordAnalyzer {
             "back", "after", "use", "two", "how", "our", "work", "first", "well", "way",
             "even", "new", "want", "because", "any", "these", "give", "day", "most", "us"
         )
-        if (lower in veryCommon) return 1.0
 
         // Common words (score: 0.85)
         val common = setOf(
@@ -93,7 +96,6 @@ object WordAnalyzer {
             "three", "small", "between", "always", "next", "few", "house", "put",
             "thought", "eyes", "many", "head", "away", "once", "upon", "home"
         )
-        if (lower in common) return 0.85
 
         // Moderately common words (score: 0.7)
         val moderate = setOf(
@@ -104,7 +106,6 @@ object WordAnalyzer {
             "became", "woman", "children", "called", "really", "young", "asked",
             "father", "mother", "going", "looking", "night", "money", "water"
         )
-        if (lower in moderate) return 0.7
 
         // Heuristic for unknown words based on word length and structure
         val lengthPenalty = when {
@@ -127,12 +128,20 @@ object WordAnalyzer {
             else -> 0.0
         }
 
-        return (lengthPenalty + patternBonus).coerceIn(0.1, 0.6)
+        val score = when (lower) {
+            in veryCommon -> 1.0
+            in common -> 0.85
+            in moderate -> 0.7
+            else -> (lengthPenalty + patternBonus).coerceIn(0.1, 0.6)
+        }
+
+        return score
     }
 
     /**
      * Detects if a word is likely part of dialogue (quoted speech).
      */
+    @Suppress("unused")
     fun isDialogueMarker(text: String): Boolean {
         return text.contains('"') || text.contains('\u201C') || text.contains('\u201D') ||
                text.contains('\'') || text.contains('\u2018') || text.contains('\u2019')
@@ -141,6 +150,7 @@ object WordAnalyzer {
     /**
      * Detects speaker attribution patterns (he said, she asked, etc.)
      */
+    @Suppress("unused")
     fun isSpeakerAttribution(words: List<String>): Boolean {
         val lower = words.map { it.lowercase() }
         val attributionVerbs = setOf(
@@ -221,34 +231,30 @@ object ClauseDetector {
         val nextLower = nextWord?.lowercase()
 
         // Subordinate clause starters get a slight pause
-        if (lower in clauseStarters) {
-            return 1.15
-        }
+        val pauseForClauseStarter = lower in clauseStarters
 
         // Coordinating conjunctions between clauses
-        if (lower in coordinatingConjunctions && nextLower != null) {
-            // "and" before a pronoun or noun often starts new thought
-            if (nextLower in setOf("i", "he", "she", "they", "we", "it", "the", "a", "an")) {
-                return 1.2
-            }
-        }
+        val pauseForConjunction = lower in coordinatingConjunctions &&
+            nextLower != null &&
+            nextLower in setOf("i", "he", "she", "they", "we", "it", "the", "a", "an")
 
-        return 1.0
+        return when {
+            pauseForClauseStarter -> 1.15
+            pauseForConjunction -> 1.2
+            else -> 1.0
+        }
     }
 
     /**
      * Detects parenthetical asides (text in parentheses, em-dashes, etc.)
      */
+    @Suppress("unused")
     fun isParentheticalMarker(text: String): Boolean {
         return text.contains('(') || text.contains(')') ||
                text.contains('—') || text.contains("--") ||
                text.contains('–')
     }
 
-    /**
-     * Returns suggested pause for parenthetical content.
-     */
-    fun getParentheticalPause(): Long = 180L
 }
 
 /**
@@ -274,6 +280,7 @@ object DialogueAnalyzer {
     /**
      * Tracks dialogue state and returns appropriate timing multiplier.
      */
+    @Suppress("unused")
     fun processToken(text: String): Double {
         // Simple quote tracking using unicode escapes for smart quotes
         // \u201C = " (left double quote), \u201D = " (right double quote)
@@ -294,10 +301,11 @@ object DialogueAnalyzer {
         if (words.isEmpty()) return false
 
         val lower = words.map { it.lowercase() }
-        if (!lower.any { it in speakerVerbs }) return false
-
+        val hasVerb = lower.any { it in speakerVerbs }
         val text = lower.joinToString(" ")
-        return speakerPatterns.any { it.containsMatchIn(text) }
+        val matchesPattern = speakerPatterns.any { it.containsMatchIn(text) }
+
+        return hasVerb && matchesPattern
     }
 
     fun isSpeakerVerb(word: String): Boolean {
@@ -308,7 +316,7 @@ object DialogueAnalyzer {
     /**
      * Returns timing multiplier for speaker tags (read faster).
      */
-    fun getSpeakerTagMultiplier(): Double = 0.85
+    const val SPEAKER_TAG_MULTIPLIER: Double = 0.85
 
     fun reset() {
         inDialogue = false

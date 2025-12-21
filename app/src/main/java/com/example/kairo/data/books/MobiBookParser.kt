@@ -1,11 +1,17 @@
+@file:Suppress(
+    "CyclomaticComplexMethod",
+    "LongMethod",
+    "MagicNumber"
+)
+
 package com.example.kairo.data.books
 
 import android.content.Context
 import android.net.Uri
+import com.example.kairo.core.dispatchers.DispatcherProvider
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Chapter
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.nio.ByteBuffer
@@ -26,41 +32,42 @@ import java.util.UUID
  * DRM-protected files are not supported.
  * For full MOBI/AZW3/KF8 support, consider using a dedicated library.
  */
-class MobiBookParser : BookParser {
+class MobiBookParser(
+    private val dispatcherProvider: DispatcherProvider
+) : BookParser {
 
     companion object {
         // Max file size (50 MB) to prevent OOM
         private const val MAX_FILE_SIZE = 50 * 1024 * 1024
+        private const val MIN_MOBI_SIZE_BYTES = 78
+        private const val MIN_MOBI_RECORDS = 2
     }
 
-    override suspend fun parse(context: Context, uri: Uri): Book = withContext(Dispatchers.IO) {
-        val fileName = uri.lastPathSegment ?: "book.mobi"
+    override suspend fun parse(context: Context, uri: Uri): Book =
+        withContext(dispatcherProvider.io) {
+            val fileName = uri.lastPathSegment ?: "book.mobi"
 
-        // Check file size before reading
-        val fileSize = context.contentResolver.openInputStream(uri)?.use { input ->
-            input.available().toLong()
-        } ?: 0L
+            // Check file size before reading
+            val fileSize = context.contentResolver.openInputStream(uri)?.use { input ->
+                input.available().toLong()
+            } ?: 0L
 
-        if (fileSize > MAX_FILE_SIZE) {
-            throw IllegalArgumentException("MOBI file too large (max ${MAX_FILE_SIZE / 1024 / 1024}MB)")
+            require(fileSize <= MAX_FILE_SIZE) {
+                "MOBI file too large (max ${MAX_FILE_SIZE / 1024 / 1024}MB)"
+            }
+
+            val data = requireNotNull(context.contentResolver.openInputStream(uri)) {
+                "Unable to read MOBI file"
+            }.use { input ->
+                BufferedInputStream(input).readBytes()
+            }
+
+            // Validate minimum size
+            require(data.size >= MIN_MOBI_SIZE_BYTES) { "File too small to be a valid MOBI" }
+
+            runCatching { parseMobiFile(data, fileName) }
+                .getOrElse { fallbackParse(data, fileName) }
         }
-
-        val data = context.contentResolver.openInputStream(uri)?.use { input ->
-            BufferedInputStream(input).readBytes()
-        } ?: throw IllegalArgumentException("Unable to read MOBI file")
-
-        // Validate minimum size
-        if (data.size < 78) {
-            throw IllegalArgumentException("File too small to be a valid MOBI")
-        }
-
-        try {
-            parseMobiFile(data, fileName)
-        } catch (e: Exception) {
-            // Fallback to simple text extraction if MOBI parsing fails
-            fallbackParse(data, fileName)
-        }
-    }
 
     override fun supports(extension: String): Boolean =
         extension == "mobi" || extension == "prc" || extension == "azw"
@@ -81,13 +88,11 @@ class MobiBookParser : BookParser {
         buffer.position(76)
         val numRecords = buffer.short.toInt() and 0xFFFF
 
-        if (numRecords < 2) {
-            throw IllegalArgumentException("Invalid MOBI: too few records")
-        }
+        require(numRecords >= MIN_MOBI_RECORDS) { "Invalid MOBI: too few records" }
 
         // Read record offsets (8 bytes each: 4 offset + 4 attributes)
         val recordOffsets = mutableListOf<Int>()
-        for (i in 0 until numRecords) {
+        repeat(numRecords) {
             recordOffsets.add(buffer.int)
             buffer.int  // Skip attributes
         }
@@ -101,14 +106,14 @@ class MobiBookParser : BookParser {
         val palmDocBuffer = ByteBuffer.wrap(record0).order(ByteOrder.BIG_ENDIAN)
         val compression = palmDocBuffer.short.toInt() and 0xFFFF
         palmDocBuffer.short  // unused
-        val textLength = palmDocBuffer.int
+        palmDocBuffer.int
         val recordCount = palmDocBuffer.short.toInt() and 0xFFFF
-        val recordSize = palmDocBuffer.short.toInt() and 0xFFFF
+        palmDocBuffer.short
 
         // Check for MOBI header (at offset 16 of record 0)
         var title = bookName
-        var author: String? = null
-        var coverData: ByteArray? = null
+        val author: String? = null
+        val coverData: ByteArray? = null
 
         if (record0.size > 20) {
             val mobiCheck = String(record0.copyOfRange(16, 20))
@@ -181,9 +186,9 @@ class MobiBookParser : BookParser {
             val byte = data[i].toInt() and 0xFF
             i++
 
-            when {
-                byte == 0 -> output.append('\u0000')
-                byte in 1..8 -> {
+            when (byte) {
+                0 -> output.append('\u0000')
+                in 1..8 -> {
                     // Copy next 1-8 bytes as-is
                     repeat(byte) {
                         if (i < data.size) {
@@ -192,8 +197,8 @@ class MobiBookParser : BookParser {
                         }
                     }
                 }
-                byte in 9..0x7F -> output.append(byte.toChar())
-                byte in 0x80..0xBF -> {
+                in 9..0x7F -> output.append(byte.toChar())
+                in 0x80..0xBF -> {
                     // LZ77 distance-length pair
                     if (i < data.size) {
                         val next = data[i].toInt() and 0xFF
@@ -211,7 +216,7 @@ class MobiBookParser : BookParser {
                         }
                     }
                 }
-                byte in 0xC0..0xFF -> {
+                else -> {
                     // Space + character
                     output.append(' ')
                     output.append((byte xor 0x80).toChar())
@@ -248,21 +253,21 @@ class MobiBookParser : BookParser {
             val paragraphs = text.split(Regex("\n\\s*\n")).filter { it.isNotBlank() }
             val wordsPerChapter = 2000
             val chunks = mutableListOf<List<String>>()
-            var currentChunk = mutableListOf<String>()
+            val currentChunk = mutableListOf<String>()
             var wordCount = 0
 
             for (para in paragraphs) {
                 val paraWords = para.split(Regex("\\s+")).size
                 if (wordCount + paraWords > wordsPerChapter && currentChunk.isNotEmpty()) {
                     chunks.add(currentChunk.toList())
-                    currentChunk = mutableListOf()
+                    currentChunk.clear()
                     wordCount = 0
                 }
                 currentChunk.add(para)
                 wordCount += paraWords
             }
             if (currentChunk.isNotEmpty()) {
-                chunks.add(currentChunk)
+                chunks.add(currentChunk.toList())
             }
 
             chunks.mapIndexed { index, chunk ->

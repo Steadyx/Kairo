@@ -1,3 +1,14 @@
+@file:Suppress(
+    "AssignedValueIsNeverRead",
+    "ComplexCondition",
+    "CyclomaticComplexMethod",
+    "FunctionNaming",
+    "LongMethod",
+    "LongParameterList",
+    "MagicNumber",
+    "MaxLineLength"
+)
+
 package com.example.kairo.ui.settings
 
 import android.app.NotificationManager
@@ -21,6 +32,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -48,7 +60,7 @@ import com.example.kairo.core.model.RsvpProfileIds
 import com.example.kairo.core.model.description
 import com.example.kairo.core.model.displayName
 import com.example.kairo.core.rsvp.RsvpPaceEstimator
-import kotlinx.coroutines.Dispatchers
+import com.example.kairo.ui.LocalDispatcherProvider
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -280,8 +292,11 @@ fun RsvpSettingsContent(
     )
 
     var estimatedWpm by remember { mutableStateOf(0) }
+    val dispatcherProvider = LocalDispatcherProvider.current
     LaunchedEffect(config) {
-        estimatedWpm = withContext(Dispatchers.Default) { RsvpPaceEstimator.estimateWpm(config) }
+        estimatedWpm = withContext(dispatcherProvider.default) {
+            RsvpPaceEstimator.estimateWpm(config)
+        }
     }
     val estimatedText = if (estimatedWpm > 0) {
         "Estimated pace: $estimatedWpm WPM"
@@ -605,7 +620,7 @@ private fun RsvpProfileSelector(
             supportingText = { Text(selectedDescription) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
-                .menuAnchor()
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                 .fillMaxWidth()
         )
 
@@ -677,7 +692,7 @@ private fun RsvpProfileSelector(
     androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedButton(
             onClick = {
-                saveName = if (isUserProfileSelected) selectedCustom?.name.orEmpty() else ""
+                saveName = if (isUserProfileSelected) selectedCustom.name else ""
                 showSaveDialog = true
             },
             modifier = Modifier.weight(1f)

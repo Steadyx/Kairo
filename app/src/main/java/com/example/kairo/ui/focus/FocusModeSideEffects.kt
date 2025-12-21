@@ -1,3 +1,5 @@
+@file:Suppress("FunctionNaming")
+
 package com.example.kairo.ui.focus
 
 import android.app.Activity
@@ -61,7 +63,7 @@ fun SystemBarsStyleSideEffect(
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
-        if (Build.VERSION.SDK_INT >= 29) {
+        if (Build.VERSION.SDK_INT >= MIN_CONTRAST_API) {
             window.isStatusBarContrastEnforced = false
             window.isNavigationBarContrastEnforced = false
         }
@@ -105,3 +107,5 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> null
 }
+
+private const val MIN_CONTRAST_API = 29

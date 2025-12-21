@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.detekt) apply false
+    alias(libs.plugins.ktlint) apply false
+    alias(libs.plugins.ksp) apply false
 }
 
 subprojects {
@@ -14,8 +16,8 @@ subprojects {
     }
 }
 
-tasks.matching { it.name == "detekt" }.configureEach {
-    dependsOn(":app:detektMain")
-    // optionally:
-    // dependsOn(":app:detektTest")
+tasks.register("detektFull") {
+    group = "verification"
+    description = "Runs Detekt with type resolution"
+    dependsOn(":app:detektFull") // the custom task we defined earlier
 }

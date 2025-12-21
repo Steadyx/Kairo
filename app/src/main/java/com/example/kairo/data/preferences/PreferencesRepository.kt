@@ -6,6 +6,7 @@ import com.example.kairo.core.model.RsvpFontWeight
 import com.example.kairo.core.model.UserPreferences
 import kotlinx.coroutines.flow.Flow
 
+@Suppress("TooManyFunctions")
 interface PreferencesRepository {
     val preferences: Flow<UserPreferences>
     suspend fun updateRsvpConfig(updater: (RsvpConfig) -> RsvpConfig)

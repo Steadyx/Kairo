@@ -3,7 +3,6 @@ package com.example.kairo.data.library
 import android.content.Context
 import android.net.Uri
 import com.example.kairo.core.model.Book
-import com.example.kairo.core.model.BookId
 import com.example.kairo.data.books.BookRepository
 import com.example.kairo.data.local.BookDao
 import com.example.kairo.data.local.BookmarkDao

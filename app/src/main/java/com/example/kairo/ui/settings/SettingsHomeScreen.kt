@@ -1,3 +1,5 @@
+@file:Suppress("FunctionNaming")
+
 package com.example.kairo.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement

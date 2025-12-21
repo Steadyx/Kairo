@@ -10,7 +10,32 @@ data class BookEntity(
     val title: String,
     val authors: List<String>,
     val coverImage: ByteArray?
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is BookEntity) return false
+
+        if (id != other.id) return false
+        if (title != other.title) return false
+        if (authors != other.authors) return false
+        if (coverImage != null) {
+            if (other.coverImage == null) return false
+            if (!coverImage.contentEquals(other.coverImage)) return false
+        } else if (other.coverImage != null) {
+            return false
+        }
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + title.hashCode()
+        result = 31 * result + authors.hashCode()
+        result = 31 * result + (coverImage?.contentHashCode() ?: 0)
+        return result
+    }
+}
 
 @Entity(tableName = "chapters", primaryKeys = ["bookId", "index"])
 data class ChapterEntity(
