@@ -3,29 +3,36 @@ package com.example.kairo.data.token
 import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
+import com.example.kairo.core.dispatchers.DispatcherProvider
 import com.example.kairo.core.tokenization.Tokenizer
 import com.example.kairo.data.books.BookRepository
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TokenRepositoryImpl(
-    private val bookRepository: BookRepository
+    private val bookRepository: BookRepository,
+    private val dispatcherProvider: DispatcherProvider
 ) : TokenRepository {
 
     // LRU cache with max 10 chapters to prevent unbounded memory growth
-    private val cache = object : LinkedHashMap<String, List<Token>>(16, 0.75f, true) {
+    private val cache = object : LinkedHashMap<String, List<Token>>(
+        CACHE_INITIAL_CAPACITY,
+        CACHE_LOAD_FACTOR,
+        true
+    ) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Token>>?): Boolean {
             return size > MAX_CACHED_CHAPTERS
         }
     }
     private val mutex = Mutex()
-    private val tokenizationDispatcher = Dispatchers.Default.limitedParallelism(1)
-    private val prefetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val tokenizationDispatcher = dispatcherProvider.default.limitedParallelism(1)
+    private val prefetchScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
 
     override suspend fun getTokens(bookId: BookId, chapterIndex: Int, chapter: Chapter?): List<Token> {
         val key = "${bookId.value}-$chapterIndex"
@@ -36,7 +43,7 @@ class TokenRepositoryImpl(
         }
 
         val resolvedChapter = chapter
-            ?: withContext(Dispatchers.IO) { bookRepository.getChapter(bookId, chapterIndex) }
+            ?: withContext(dispatcherProvider.io) { bookRepository.getChapter(bookId, chapterIndex) }
         val tokens = withContext(tokenizationDispatcher) { Tokenizer().tokenize(resolvedChapter) }
         mutex.withLock { cache[key] = tokens }
         prefetchNextChapter(bookId, chapterIndex + 1)
@@ -49,16 +56,15 @@ class TokenRepositoryImpl(
             val cached = mutex.withLock { cache.containsKey(key) }
             if (cached) return@launch
 
-            try {
-                val chapter = withContext(Dispatchers.IO) { bookRepository.getChapter(bookId, nextIndex) }
-                val tokens = withContext(tokenizationDispatcher) { Tokenizer().tokenize(chapter) }
-                mutex.withLock { cache[key] = tokens }
-            } catch (e: Exception) {
-                // Chapter doesn't exist, ignore
-            }
+            val chapter = runCatching {
+                withContext(dispatcherProvider.io) { bookRepository.getChapter(bookId, nextIndex) }
+            }.getOrNull() ?: return@launch
+            val tokens = withContext(tokenizationDispatcher) { Tokenizer().tokenize(chapter) }
+            mutex.withLock { cache[key] = tokens }
         }
     }
 
+    @Suppress("unused")
     fun clearCache() {
         prefetchScope.launch {
             mutex.withLock {
@@ -68,6 +74,8 @@ class TokenRepositoryImpl(
     }
 
     companion object {
+        private const val CACHE_INITIAL_CAPACITY = 16
+        private const val CACHE_LOAD_FACTOR = 0.75f
         private const val MAX_CACHED_CHAPTERS = 10
     }
 }

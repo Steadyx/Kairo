@@ -1,3 +1,14 @@
+@file:Suppress(
+    "ComplexCondition",
+    "CyclomaticComplexMethod",
+    "FunctionNaming",
+    "LongMethod",
+    "LongParameterList",
+    "LoopWithTooManyJumpStatements",
+    "MagicNumber",
+    "MaxLineLength"
+)
+
 package com.example.kairo.ui.reader
 
 import android.os.SystemClock
@@ -50,7 +61,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -106,7 +116,6 @@ import coil.request.ImageRequest
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.math.abs
@@ -186,10 +195,10 @@ fun ReaderScreen(
     val coverImage = book.coverImage
 
     // Pre-computed chapter data (done off-thread)
-    val blocks = uiState.chapterData?.blocks ?: emptyList()
-    val tokens = uiState.chapterData?.tokens ?: emptyList()
+    val blocks = uiState.chapterData?.blocks.orEmpty()
+    val tokens = uiState.chapterData?.tokens.orEmpty()
     val firstWordIndex = uiState.chapterData?.firstWordIndex ?: -1
-    val imagePaths = uiState.chapterData?.imagePaths ?: emptyList()
+    val imagePaths = uiState.chapterData?.imagePaths.orEmpty()
     val onSafeFocusChange = remember(tokens, onFocusChange) {
         { index: Int ->
             if (tokens.isNotEmpty()) {
@@ -310,8 +319,14 @@ fun ReaderScreen(
 
                 is InvertedScrollCommand.Fling -> {
                     flingJob?.cancel()
-                    flingJob = launch {
+                    val newJob = launch {
                         performInvertedFling(listState, command.velocityY)
+                    }
+                    flingJob = newJob
+                    newJob.invokeOnCompletion {
+                        if (flingJob === newJob) {
+                            flingJob = null
+                        }
                     }
                 }
             }
@@ -439,9 +454,10 @@ fun ReaderScreen(
 
                         var totalX = 0f
                         var totalY = 0f
-                        var axis: Axis? = null
+                        var axis = Axis.Horizontal
+                        var axisResolved = false
 
-                        var tracker = VelocityTracker()
+                        val tracker = VelocityTracker()
                         tracker.addPosition(SystemClock.uptimeMillis(), down.position)
 
                         while (true) {
@@ -454,11 +470,12 @@ fun ReaderScreen(
                             totalX += dx
                             totalY += dy
 
-                            if (axis == null) {
+                            if (!axisResolved) {
                                 val absX = abs(totalX)
                                 val absY = abs(totalY)
                                 if (absX > touchSlop || absY > touchSlop) {
                                     axis = if (absX > absY) Axis.Horizontal else Axis.Vertical
+                                    axisResolved = true
                                 } else {
                                     continue
                                 }
@@ -474,26 +491,30 @@ fun ReaderScreen(
                                     tracker.addPosition(SystemClock.uptimeMillis(), change.position)
                                     invertedScrollCommands.tryEmit(InvertedScrollCommand.Drag(dy))
                                 }
-                                null -> Unit
                             }
                         }
 
-                        when (axis) {
-                            Axis.Horizontal -> {
-                                when {
-                                    totalX <= -swipeThreshold -> onChapterChange((chapterIndex + 1).coerceAtMost(book.chapters.lastIndex))
-                                    totalX >= swipeThreshold -> onChapterChange((chapterIndex - 1).coerceAtLeast(0))
+                        if (axisResolved) {
+                            when (axis) {
+                                Axis.Horizontal -> {
+                                    when {
+                                        totalX <= -swipeThreshold -> onChapterChange(
+                                            (chapterIndex + 1).coerceAtMost(book.chapters.lastIndex)
+                                        )
+                                        totalX >= swipeThreshold -> onChapterChange(
+                                            (chapterIndex - 1).coerceAtLeast(0)
+                                        )
+                                    }
                                 }
-                            }
-                            Axis.Vertical -> {
-                                if (invertedScroll) {
-                                    val velocity = tracker.calculateVelocity().y
-                                    if (abs(velocity) > 200f) {
-                                        invertedScrollCommands.tryEmit(InvertedScrollCommand.Fling(velocity))
+                                Axis.Vertical -> {
+                                    if (invertedScroll) {
+                                        val velocity = tracker.calculateVelocity().y
+                                        if (abs(velocity) > 200f) {
+                                            invertedScrollCommands.tryEmit(InvertedScrollCommand.Fling(velocity))
+                                        }
                                     }
                                 }
                             }
-                            null -> Unit
                         }
                     }
                 }
@@ -633,7 +654,7 @@ fun ReaderScreen(
                 onAddBookmark = {
                     if (tokens.isEmpty()) return@ReaderMenuOverlay
                     val safeTokenIndex = tokens.nearestWordIndex(focusIndex).coerceIn(0, tokens.lastIndex)
-                    val preview = tokens.getOrNull(safeTokenIndex)?.text ?: ""
+                    val preview = tokens.getOrNull(safeTokenIndex)?.text.orEmpty()
                     onAddBookmark(chapterIndex, safeTokenIndex, preview)
                     showReaderMenu = false
                 },

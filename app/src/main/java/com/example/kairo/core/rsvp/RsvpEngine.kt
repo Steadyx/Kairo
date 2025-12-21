@@ -1,3 +1,15 @@
+@file:Suppress(
+    "ComplexCondition",
+    "CyclomaticComplexMethod",
+    "LongMethod",
+    "LongParameterList",
+    "LoopWithTooManyJumpStatements",
+    "MagicNumber",
+    "MaxLineLength",
+    "ReturnCount",
+    "UnreachableCode"
+)
+
 package com.example.kairo.core.rsvp
 
 import com.example.kairo.core.linguistics.ClauseDetector
@@ -33,6 +45,7 @@ interface RsvpEngine {
  *
  * The result is a calm, legible cadence where long words and punctuation never "flash" away.
  */
+@Suppress("LargeClass", "TooManyFunctions")
 class ComprehensionRsvpEngine : RsvpEngine {
 
     override fun generateFrames(tokens: List<Token>, startIndex: Int, config: RsvpConfig): List<RsvpFrame> {
@@ -435,7 +448,6 @@ class ComprehensionRsvpEngine : RsvpEngine {
     ): Double {
         val ch = token.text.firstOrNull() ?: return 0.0
         val prevText = prevWord?.text.orEmpty()
-        val nextText = nextToken?.text.orEmpty()
 
         var base = when {
             ch == '.' -> {
@@ -452,7 +464,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
             ch == '\u2014' || ch == '\u2013' || ch == '-' -> config.dashPauseMs.toDouble()
             ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' -> config.parenthesesPauseMs.toDouble()
             ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019' -> config.quotePauseMs.toDouble()
-            isMidSentencePunctuation(ch) -> (config.commaPauseMs * 0.85).toDouble()
+            isMidSentencePunctuation(ch) -> config.commaPauseMs * 0.85
             else -> 0.0
         }
 
@@ -573,7 +585,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
 
         val matchesTag = candidates.any { DialogueAnalyzer.isSpeakerTag(it) }
-        return if (matchesTag) DialogueAnalyzer.getSpeakerTagMultiplier() else 1.0
+        return if (matchesTag) DialogueAnalyzer.SPEAKER_TAG_MULTIPLIER else 1.0
     }
 
     private fun transitionHoldMs(
@@ -711,15 +723,12 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val prevIsPunct = prevToken?.type == TokenType.PUNCTUATION
         val nextIsPunct = nextToken?.type == TokenType.PUNCTUATION
         val prevCh = prevToken?.text?.firstOrNull()
-        val nextCh = nextToken?.text?.firstOrNull()
 
         if (isQuoteOrBracket(ch) && (prevIsPunct || nextIsPunct)) return true
 
         val isSentenceEnd = isSentenceEndingPunctuation(ch) || ch == '.'
         val prevIsSentenceEnd = prevCh != null && (isSentenceEndingPunctuation(prevCh) || prevCh == '.')
-        if (isSentenceEnd && prevIsSentenceEnd) return true
-
-        return false
+        return isSentenceEnd && prevIsSentenceEnd
     }
 
     private fun isOpeningPunctuationChar(ch: Char): Boolean = ch == '"' || ch in OPENING_PUNCTUATION
@@ -767,8 +776,6 @@ class ComprehensionRsvpEngine : RsvpEngine {
         max(config.paragraphPauseMs.toDouble() * 1.75, config.sentenceEndPauseMs.toDouble() * 1.4)
 
     private fun startBoostMultiplier(msPerWord: Double, boundaryBefore: BoundaryBefore): Double {
-        if (boundaryBefore == BoundaryBefore.NONE) return 1.0
-
         val strength = speedStrength(msPerWord)
         val maxExtra = when (boundaryBefore) {
             BoundaryBefore.SENTENCE -> 0.10
@@ -816,7 +823,6 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 }
                 TokenType.WORD -> return BoundaryBefore.NONE
             }
-            cursor--
         }
         return BoundaryBefore.NONE
     }
@@ -856,7 +862,6 @@ class ComprehensionRsvpEngine : RsvpEngine {
     }
 
     private fun applyBlinkSeparation(frames: MutableList<RsvpFrame>, config: RsvpConfig) {
-        if (config.blinkMode == BlinkMode.OFF) return
         if (frames.size < 2) return
 
         val strength = speedStrength(config.tempoMsPerWord.toDouble())
@@ -875,7 +880,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
             val frame = frames[i]
             val next = frames.getOrNull(i + 1)
             val hasWord = frame.tokens.any { it.type == TokenType.WORD }
-            val nextHasWord = next?.tokens?.any { it.type == TokenType.WORD } == true
+            val nextTokens = next?.tokens.orEmpty()
+            val nextHasWord = nextTokens.any { it.type == TokenType.WORD }
 
             if (hasWord && nextHasWord) {
                 val firstWord = frame.tokens.firstOrNull { it.type == TokenType.WORD }
@@ -883,7 +889,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     output += frame
                     continue
                 }
-                val nextWord = next?.tokens?.firstOrNull { it.type == TokenType.WORD }
+                val nextWord = nextTokens.firstOrNull { it.type == TokenType.WORD }
                 if (nextWord != null &&
                     frame.tokens.none { it.type == TokenType.PUNCTUATION } &&
                     shouldPreferHold(firstWord, nextWord)
@@ -895,7 +901,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     output += frame
                     continue
                 }
-                val floorMs = max(wordFloorMs(firstWord, config), MIN_FRAME_MS).toLong()
+                val floorMs = max(wordFloorMs(firstWord, config), MIN_FRAME_MS)
                 val maxBlink = (frame.durationMs - floorMs).coerceAtLeast(0L)
                 val punctuationFactor = blinkPunctuationFactor(frame.tokens)
                 val weight = when (config.blinkMode) {
@@ -961,8 +967,6 @@ class ComprehensionRsvpEngine : RsvpEngine {
             private set
         var inDialogue: Boolean = false
             private set
-
-        val inParenthetical: Boolean get() = parentheticalDepth > 0
 
         fun snapshot(): ContextSnapshot = ContextSnapshot(
             parentheticalDepth = parentheticalDepth,

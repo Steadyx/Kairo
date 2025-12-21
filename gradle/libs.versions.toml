@@ -1,6 +1,6 @@
 [versions]
-agp = "8.13.1"
-kotlin = "2.0.21"
+agp = "8.13.2"
+kotlin = "2.1.0"
 compileSdk = "34"
 minSdk = "24"
 coroutines = "1.8.1"
@@ -19,6 +19,8 @@ espressoCore = "3.5.1"
 appcompat = "1.6.1"
 material = "1.10.0"
 detekt = "2.0.0-alpha.1"
+ktlint = "14.0.1"
+ksp = "2.1.0-1.0.29"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,4 +53,6 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

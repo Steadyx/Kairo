@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+@file:OptIn(ExperimentalTextApi::class)
 
 package com.example.kairo.ui.theme
 

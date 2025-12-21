@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber", "MaxLineLength")
+
 package com.example.kairo.data.local
 
 import androidx.room.migration.Migration

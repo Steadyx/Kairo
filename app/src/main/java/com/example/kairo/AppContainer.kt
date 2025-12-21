@@ -2,6 +2,7 @@ package com.example.kairo
 
 import android.content.Context
 import androidx.room.Room
+import com.example.kairo.core.dispatchers.DispatcherProvider
 import com.example.kairo.data.bookmarks.BookmarkRepository
 import com.example.kairo.data.bookmarks.BookmarkRepositoryImpl
 import com.example.kairo.core.rsvp.ComprehensionRsvpEngine
@@ -26,7 +27,10 @@ import com.example.kairo.data.seed.SampleSeeder
 import com.example.kairo.data.token.TokenRepository
 import com.example.kairo.data.token.TokenRepositoryImpl
 
-class AppContainer(private val context: Context) {
+class AppContainer(
+    context: Context,
+    val dispatcherProvider: DispatcherProvider
+) {
     private val database: KairoDatabase = Room.databaseBuilder(
         context.applicationContext,
         KairoDatabase::class.java,
@@ -35,12 +39,15 @@ class AppContainer(private val context: Context) {
         .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .build()
 
-    private val parsers = listOf(EpubBookParser(), MobiBookParser())
+    private val parsers = listOf(
+        EpubBookParser(dispatcherProvider),
+        MobiBookParser(dispatcherProvider)
+    )
 
     val bookRepository: BookRepository =
         BookRepositoryImpl(database.bookDao(), parsers, context.applicationContext)
     val tokenRepository: TokenRepository =
-        TokenRepositoryImpl(bookRepository)
+        TokenRepositoryImpl(bookRepository, dispatcherProvider)
     val readingPositionRepository: ReadingPositionRepository =
         ReadingPositionRepositoryImpl(database.readingPositionDao())
     val bookmarkRepository: BookmarkRepository =
@@ -56,6 +63,6 @@ class AppContainer(private val context: Context) {
         )
     val rsvpEngine: RsvpEngine = ComprehensionRsvpEngine()
     val rsvpFrameRepository: RsvpFrameRepository =
-        RsvpFrameRepositoryImpl(tokenRepository, rsvpEngine)
+        RsvpFrameRepositoryImpl(tokenRepository, rsvpEngine, dispatcherProvider)
     val sampleSeeder = SampleSeeder(database.bookDao())
 }

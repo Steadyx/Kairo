@@ -1,3 +1,5 @@
+@file:Suppress("MaxLineLength")
+
 package com.example.kairo.core.tokenization
 
 import com.example.kairo.core.model.Chapter
@@ -142,25 +144,25 @@ class Tokenizer {
         val tagRegex = Regex("<\\s*(h[1-6]|li|blockquote|pre|p|div|br)\\b[^>]*>", RegexOption.IGNORE_CASE)
         val emphasisRegex = Regex("<\\s*(em|i)\\b", RegexOption.IGNORE_CASE)
         val matches = tagRegex.findAll(cleaned).toList()
-        if (matches.isEmpty()) return emptyList()
-
         val cues = mutableListOf<BlockCue>()
-        for (i in matches.indices) {
-            val match = matches[i]
-            val tag = match.groupValues[1].lowercase()
-            val start = match.range.first
-            val end = if (i < matches.lastIndex) matches[i + 1].range.first else cleaned.length
-            val content = cleaned.substring(start, end)
-            val hasEmphasis = emphasisRegex.containsMatchIn(content)
+        if (matches.isNotEmpty()) {
+            for (i in matches.indices) {
+                val match = matches[i]
+                val tag = match.groupValues[1].lowercase()
+                val start = match.range.first
+                val end = if (i < matches.lastIndex) matches[i + 1].range.first else cleaned.length
+                val content = cleaned.substring(start, end)
+                val hasEmphasis = emphasisRegex.containsMatchIn(content)
 
-            val type = when {
-                tag.startsWith("h") -> BlockType.HEADING
-                tag == "li" -> BlockType.LIST_ITEM
-                tag == "blockquote" -> BlockType.BLOCKQUOTE
-                tag == "pre" -> BlockType.PREFORMATTED
-                else -> BlockType.PARAGRAPH
+                val type = when {
+                    tag.startsWith("h") -> BlockType.HEADING
+                    tag == "li" -> BlockType.LIST_ITEM
+                    tag == "blockquote" -> BlockType.BLOCKQUOTE
+                    tag == "pre" -> BlockType.PREFORMATTED
+                    else -> BlockType.PARAGRAPH
+                }
+                cues += BlockCue(type, hasEmphasis)
             }
-            cues += BlockCue(type, hasEmphasis)
         }
 
         return cues
@@ -213,8 +215,8 @@ class Tokenizer {
 
     private fun isPageBreakParagraph(paragraph: String): Boolean {
         if (paragraph.isBlank()) return false
-        if (paragraph == "\u000C") return true
-        return PAGE_BREAK_REGEX.matches(paragraph)
+        val isFormFeed = paragraph == "\u000C"
+        return isFormFeed || PAGE_BREAK_REGEX.matches(paragraph)
     }
 
     companion object {
@@ -226,9 +228,6 @@ class Tokenizer {
         private const val PREFORMATTED_AFTER_MS = 160L
         private const val LIST_END_AFTER_MS = 120L
         private const val EMPHASIS_AFTER_MS = 60L
-
-        // Apostrophe characters used in contractions (straight and curly)
-        private const val APOSTROPHES = "'\u2019\u2018"  // ' ' '
 
         // All punctuation characters we want to handle (NOT including apostrophes used in contractions)
         private val PUNCTUATION = setOf(

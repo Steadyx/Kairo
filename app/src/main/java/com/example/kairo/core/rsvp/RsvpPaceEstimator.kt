@@ -39,10 +39,11 @@ object RsvpPaceEstimator {
         val frames = engine.generateFrames(tokens, startIndex = 0, config = steadyConfig)
         val totalMs = frames.sumOf { it.durationMs }.coerceAtLeast(1L)
 
-        val wpm = (wordCount * 60_000.0) / totalMs.toDouble()
+        val wpm = (wordCount * MS_PER_MINUTE) / totalMs.toDouble()
         return wpm.roundToInt().coerceAtLeast(1)
     }
 
+    private const val MS_PER_MINUTE = 60_000.0
     private const val SAMPLE_TEXT =
         "Kairo is built for calm comprehension, even at high speed. " +
         "When a sentence turns—unexpectedly—your eyes should not feel rushed. " +
@@ -51,4 +52,3 @@ object RsvpPaceEstimator {
         "A parenthetical aside (like this) should read naturally, not abruptly. " +
         "\"Quoted dialogue\" can move a bit faster, but remains legible."
 }
-

@@ -5,6 +5,7 @@ import android.net.Uri
 import com.example.kairo.core.model.Book
 import com.example.kairo.sample.SampleBooks
 
+@Suppress("unused")
 class SampleBookParser : BookParser {
     override suspend fun parse(context: Context, uri: Uri): Book {
         return SampleBooks.defaultSample()

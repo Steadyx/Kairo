@@ -1,14 +1,27 @@
+@file:Suppress(
+    "ComplexCondition",
+    "CyclomaticComplexMethod",
+    "LongMethod",
+    "LoopWithTooManyJumpStatements",
+    "MagicNumber",
+    "MaxLineLength",
+    "ReturnCount",
+    "TooManyFunctions"
+)
+
 package com.example.kairo.data.books
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
+import com.example.kairo.core.dispatchers.DispatcherProvider
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Chapter
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.xml.sax.InputSource
 import java.io.StringReader
+import java.io.IOException
 import java.io.File
 import java.util.UUID
 import java.util.zip.ZipInputStream
@@ -24,9 +37,12 @@ import javax.xml.parsers.DocumentBuilderFactory
  * - Spine → Defines reading order of chapters
  * - XHTML files → Actual chapter content
  */
-class EpubBookParser : BookParser {
+class EpubBookParser(
+    private val dispatcherProvider: DispatcherProvider
+) : BookParser {
 
     companion object {
+        private const val TAG = "EpubBookParser"
         // Max size per text entry (5 MB) to prevent OOM on large embedded files
         private const val MAX_ENTRY_SIZE = 5 * 1024 * 1024
         // Max size per image entry (2 MB)
@@ -39,13 +55,16 @@ class EpubBookParser : BookParser {
         private const val BUFFER_SIZE = 8192
     }
 
-    override suspend fun parse(context: Context, uri: Uri): Book = withContext(Dispatchers.IO) {
+    override suspend fun parse(context: Context, uri: Uri): Book =
+        withContext(dispatcherProvider.io) {
         val bookId = BookId(UUID.randomUUID().toString())
         val zipTextEntries = mutableMapOf<String, ByteArray>() // key = lowercased path
 
         // Pass 1: read only text/XML resources (OPF, XHTML, container.xml) so we can discover
         // the cover and referenced images without keeping all binary assets in memory.
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+        requireNotNull(context.contentResolver.openInputStream(uri)) {
+            "Unable to read EPUB file"
+        }.use { inputStream ->
             ZipInputStream(inputStream).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
@@ -69,10 +88,10 @@ class EpubBookParser : BookParser {
                     entry = zip.nextEntry
                 }
             }
-        } ?: throw IllegalArgumentException("Unable to read EPUB file")
+        }
 
-        if (zipTextEntries.isEmpty()) {
-            throw IllegalArgumentException("EPUB file appears to be empty or corrupted")
+        require(zipTextEntries.isNotEmpty()) {
+            "EPUB file appears to be empty or corrupted"
         }
 
         // Parse container.xml to find the OPF file location
@@ -83,11 +102,12 @@ class EpubBookParser : BookParser {
         } else {
             // Fallback: search for OPF file directly
             zipTextEntries.keys.find { it.endsWith(".opf", ignoreCase = true) }
-                ?: throw IllegalArgumentException("Invalid EPUB: cannot find OPF file")
         }
+        requireNotNull(opfPath) { "Invalid EPUB: cannot find OPF file" }
 
-        val opfContent = zipTextEntries[opfPath.lowercase()]
-            ?: throw IllegalArgumentException("Invalid EPUB: missing OPF file at $opfPath")
+        val opfContent = requireNotNull(zipTextEntries[opfPath.lowercase()]) {
+            "Invalid EPUB: missing OPF file at $opfPath"
+        }
 
         // Get the base directory of the OPF file for resolving relative paths
         val opfDir = opfPath.substringBeforeLast('/', "")
@@ -230,7 +250,8 @@ class EpubBookParser : BookParser {
      * Parses container.xml to find the path to the OPF file.
      */
     private fun parseContainerXml(xml: String): String {
-        return try {
+        val fallback = "OEBPS/content.opf"
+        return runCatching {
             val factory = DocumentBuilderFactory.newInstance()
             factory.isNamespaceAware = true
             val builder = factory.newDocumentBuilder()
@@ -239,13 +260,13 @@ class EpubBookParser : BookParser {
             val rootfiles = doc.getElementsByTagName("rootfile")
             if (rootfiles.length > 0) {
                 rootfiles.item(0).attributes.getNamedItem("full-path")?.nodeValue
-                    ?: "OEBPS/content.opf"
+                    ?: fallback
             } else {
-                "OEBPS/content.opf"
+                fallback
             }
-        } catch (e: Exception) {
-            // Fallback to common locations
-            "OEBPS/content.opf"
+        }.getOrElse { error ->
+            Log.w(TAG, "Failed to parse container.xml", error)
+            fallback
         }
     }
 
@@ -266,7 +287,8 @@ class EpubBookParser : BookParser {
      * Parses the OPF file to extract metadata, manifest, and spine.
      */
     private fun parseOpfFile(xml: String): OpfData {
-        return try {
+        val fallback = OpfData(null, emptyList(), null, emptyMap(), emptyList())
+        return runCatching {
             val factory = DocumentBuilderFactory.newInstance()
             factory.isNamespaceAware = true
             val builder = factory.newDocumentBuilder()
@@ -341,9 +363,9 @@ class EpubBookParser : BookParser {
             }
 
             OpfData(title, authors, coverHref, manifest, spineItems)
-        } catch (e: Exception) {
-            // Return empty data on parse failure
-            OpfData(null, emptyList(), null, emptyMap(), emptyList())
+        }.getOrElse { error ->
+            Log.w(TAG, "Failed to parse OPF metadata", error)
+            fallback
         }
     }
 
@@ -458,10 +480,10 @@ class EpubBookParser : BookParser {
             .replace("&apos;", "'")
             .replace("&#39;", "'")
             .replace(Regex("&#(\\d+);")) { match ->
-                match.groupValues[1].toIntOrNull()?.toChar()?.toString() ?: ""
+                match.groupValues[1].toIntOrNull()?.toChar()?.toString().orEmpty()
             }
             .replace(Regex("&#x([0-9a-fA-F]+);")) { match ->
-                match.groupValues[1].toIntOrNull(16)?.toChar()?.toString() ?: ""
+                match.groupValues[1].toIntOrNull(16)?.toChar()?.toString().orEmpty()
             }
             // Clean up whitespace
             .replace(Regex("[ \\t]+"), " ")
@@ -504,7 +526,7 @@ class EpubBookParser : BookParser {
         val output = java.io.ByteArrayOutputStream()
         var totalRead = 0
 
-        try {
+        return try {
             var bytesRead: Int
             while (zip.read(buffer).also { bytesRead = it } != -1) {
                 totalRead += bytesRead
@@ -514,10 +536,11 @@ class EpubBookParser : BookParser {
                 }
                 output.write(buffer, 0, bytesRead)
             }
-            return output.toByteArray()
-        } catch (e: Exception) {
-            // Handle read errors gracefully
-            return null
+            output.toByteArray()
+        } catch (e: IOException) {
+            Log.w(TAG, "Failed to read EPUB entry", e)
+            null
         }
     }
+
 }

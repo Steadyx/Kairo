@@ -3,6 +3,7 @@ package com.example.kairo.ui.reader
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.kairo.core.dispatchers.DispatcherProvider
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
@@ -10,7 +11,7 @@ import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.data.books.BookRepository
 import com.example.kairo.data.token.TokenRepository
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,25 +19,33 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private const val HEX_RADIX = 16
+
 /**
  * ViewModel for the Reader screen.
  * Handles chapter loading, tokenization, and paragraph computation off the main thread.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReaderViewModel(
     private val bookRepository: BookRepository,
-    private val tokenRepository: TokenRepository
+    private val tokenRepository: TokenRepository,
+    private val dispatcherProvider: DispatcherProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
 
     // LRU cache for processed chapters - avoids re-tokenizing when switching back
-    private val chapterCache = object : LinkedHashMap<Int, ChapterData>(5, 0.75f, true) {
+    private val chapterCache = object : LinkedHashMap<Int, ChapterData>(
+        CHAPTER_CACHE_INITIAL_CAPACITY,
+        CHAPTER_CACHE_LOAD_FACTOR,
+        true
+    ) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, ChapterData>?): Boolean {
-            return size > 5
+            return size > MAX_CACHED_CHAPTERS
         }
     }
-    private val tokenizationDispatcher = Dispatchers.Default.limitedParallelism(1)
+    private val tokenizationDispatcher = dispatcherProvider.default.limitedParallelism(1)
 
     private var currentBook: Book? = null
 
@@ -59,11 +68,12 @@ class ReaderViewModel(
      */
     fun loadChapter(chapterIndex: Int) {
         val book = currentBook ?: return
-        
+
         if (chapterIndex !in book.chapters.indices) return
 
         // Check cache first - instant load if available
-        chapterCache[chapterIndex]?.let { cached ->
+        val cached = chapterCache[chapterIndex]
+        if (cached != null) {
             // Use pending focus if set, otherwise use first word
             val focusIdx = pendingFocusIndex?.let { cached.tokens.nearestWordIndex(it) }
                 ?: cached.firstWordIndex.coerceAtLeast(0)
@@ -79,55 +89,58 @@ class ReaderViewModel(
             }
             // Preload adjacent chapters in background
             preloadAdjacentChapters(chapterIndex)
-            return
-        }
-
-        // Not cached - show loading state immediately (UI stays responsive)
-        _uiState.update { 
-            it.copy(
-                isLoading = true, 
-                chapterIndex = chapterIndex,
-                chapterData = null  // Clear old data while loading
-            ) 
-        }
-
-        viewModelScope.launch {
-            val chapter = runCatching {
-                withContext(Dispatchers.IO) { bookRepository.getChapter(book.id, chapterIndex) }
-            }.getOrNull()
-
-            val tokens = if (chapter != null) {
-                runCatching { tokenRepository.getTokens(book.id, chapterIndex, chapter) }.getOrNull()
-            } else {
-                null
-            }
-
-            val result = if (chapter != null && tokens != null) {
-                processChapter(chapter, tokens)
-            } else {
-                null
-            }
-
-            // Cache the result
-            result?.let { chapterCache[chapterIndex] = it }
-
-            // Use pending focus if set, otherwise use first word
-            val focusIdx = if (result != null) {
-                pendingFocusIndex?.let { result.tokens.nearestWordIndex(it) }
-                    ?: result.firstWordIndex.coerceAtLeast(0)
-            } else 0
-            pendingFocusIndex = null
-
+        } else {
+            // Not cached - show loading state immediately (UI stays responsive)
             _uiState.update {
                 it.copy(
-                    isLoading = false,
-                    chapterData = result,
-                    focusIndex = focusIdx
+                    isLoading = true,
+                    chapterIndex = chapterIndex,
+                    chapterData = null  // Clear old data while loading
                 )
             }
 
-            // Preload adjacent chapters after current one loads
-            preloadAdjacentChapters(chapterIndex)
+            viewModelScope.launch {
+                val chapter = runCatching {
+                    withContext(dispatcherProvider.io) {
+                        bookRepository.getChapter(book.id, chapterIndex)
+                    }
+                }.getOrNull()
+
+                val tokens = if (chapter != null) {
+                    runCatching {
+                        tokenRepository.getTokens(book.id, chapterIndex, chapter)
+                    }.getOrNull()
+                } else {
+                    null
+                }
+
+                val result = if (chapter != null && tokens != null) {
+                    processChapter(chapter, tokens)
+                } else {
+                    null
+                }
+
+                // Cache the result
+                result?.let { chapterCache[chapterIndex] = it }
+
+                // Use pending focus if set, otherwise use first word
+                val focusIdx = if (result != null) {
+                    pendingFocusIndex?.let { result.tokens.nearestWordIndex(it) }
+                        ?: result.firstWordIndex.coerceAtLeast(0)
+                } else 0
+                pendingFocusIndex = null
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        chapterData = result,
+                        focusIndex = focusIdx
+                    )
+                }
+
+                // Preload adjacent chapters after current one loads
+                preloadAdjacentChapters(chapterIndex)
+            }
         }
     }
 
@@ -173,7 +186,7 @@ class ReaderViewModel(
                 .filter { it !in chapterCache }
                 .forEach { index ->
                     val chapter = runCatching {
-                        withContext(Dispatchers.IO) { bookRepository.getChapter(book.id, index) }
+                        withContext(dispatcherProvider.io) { bookRepository.getChapter(book.id, index) }
                     }.getOrNull() ?: return@forEach
 
                     val tokens = runCatching { tokenRepository.getTokens(book.id, index, chapter) }.getOrNull()
@@ -188,6 +201,7 @@ class ReaderViewModel(
         _uiState.update { it.copy(focusIndex = index) }
     }
 
+    @Suppress("unused")
     fun nextChapter() {
         val book = currentBook ?: return
         val nextIndex = (_uiState.value.chapterIndex + 1).coerceAtMost(book.chapters.lastIndex)
@@ -196,6 +210,7 @@ class ReaderViewModel(
         }
     }
 
+    @Suppress("unused")
     fun previousChapter() {
         val prevIndex = (_uiState.value.chapterIndex - 1).coerceAtLeast(0)
         if (prevIndex != _uiState.value.chapterIndex) {
@@ -212,12 +227,20 @@ class ReaderViewModel(
     }
 
     companion object {
-        fun factory(bookRepository: BookRepository, tokenRepository: TokenRepository): ViewModelProvider.Factory =
+        private const val CHAPTER_CACHE_INITIAL_CAPACITY = 5
+        private const val CHAPTER_CACHE_LOAD_FACTOR = 0.75f
+        private const val MAX_CACHED_CHAPTERS = 5
+
+        fun factory(
+            bookRepository: BookRepository,
+            tokenRepository: TokenRepository,
+            dispatcherProvider: DispatcherProvider
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     if (modelClass.isAssignableFrom(ReaderViewModel::class.java)) {
-                        return ReaderViewModel(bookRepository, tokenRepository) as T
+                        return ReaderViewModel(bookRepository, tokenRepository, dispatcherProvider) as T
                     }
                     throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
                 }
@@ -273,7 +296,7 @@ fun List<Token>.toParagraphs(): List<Paragraph> {
     if (isEmpty()) return emptyList()
 
     val paragraphs = mutableListOf<Paragraph>()
-    var currentTokens = mutableListOf<Token>()
+    val currentTokens = mutableListOf<Token>()
     var startIndex = 0
 
     forEachIndexed { index, token ->
@@ -281,7 +304,7 @@ fun List<Token>.toParagraphs(): List<Paragraph> {
             TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> {
                 if (currentTokens.isNotEmpty()) {
                     paragraphs.add(Paragraph(currentTokens.toList(), startIndex))
-                    currentTokens = mutableListOf()
+                    currentTokens.clear()
                 }
                 startIndex = index + 1
             }
@@ -309,7 +332,9 @@ private fun buildReaderBlocks(
     paragraphs: List<Paragraph>,
     imagePaths: List<String>
 ): List<ReaderBlock> {
-    if (paragraphs.isEmpty() && imagePaths.isEmpty()) return emptyList()
+    if (paragraphs.isEmpty() && imagePaths.isEmpty()) {
+        return emptyList()
+    }
 
     val markers = extractHtmlBlockMarkers(htmlContent, imagePaths)
     val blocks = mutableListOf<ReaderBlock>()
@@ -317,26 +342,28 @@ private fun buildReaderBlocks(
     var imageIndex = 0
 
     if (markers.isEmpty() && paragraphs.isEmpty() && imagePaths.isNotEmpty()) {
-        return imagePaths.mapIndexed { index, path -> ReaderImageBlock(path, index) }
-    }
-
-    markers.forEach { marker ->
-        when (marker) {
-            HtmlBlockMarker.Paragraph -> {
-                val paragraph = paragraphs.getOrNull(paragraphIndex) ?: return@forEach
-                blocks.add(ReaderParagraphBlock(paragraph))
-                paragraphIndex += 1
-            }
-            is HtmlBlockMarker.Image -> {
-                blocks.add(ReaderImageBlock(marker.path, imageIndex))
-                imageIndex += 1
+        imagePaths.forEachIndexed { index, path ->
+            blocks.add(ReaderImageBlock(path, index))
+        }
+    } else {
+        for (marker in markers) {
+            when (marker) {
+                HtmlBlockMarker.Paragraph -> {
+                    val paragraph = paragraphs.getOrNull(paragraphIndex) ?: continue
+                    blocks.add(ReaderParagraphBlock(paragraph))
+                    paragraphIndex += 1
+                }
+                is HtmlBlockMarker.Image -> {
+                    blocks.add(ReaderImageBlock(marker.path, imageIndex))
+                    imageIndex += 1
+                }
             }
         }
-    }
 
-    while (paragraphIndex < paragraphs.size) {
-        blocks.add(ReaderParagraphBlock(paragraphs[paragraphIndex]))
-        paragraphIndex += 1
+        while (paragraphIndex < paragraphs.size) {
+            blocks.add(ReaderParagraphBlock(paragraphs[paragraphIndex]))
+            paragraphIndex += 1
+        }
     }
 
     return blocks
@@ -387,10 +414,10 @@ private fun extractHtmlBlockMarkers(htmlContent: String, imagePaths: List<String
             .replace("&apos;", "'")
             .replace("&#39;", "'")
             .replace(Regex("&#(\\d+);")) { match ->
-                match.groupValues[1].toIntOrNull()?.toChar()?.toString() ?: ""
+                match.groupValues[1].toIntOrNull()?.toChar()?.toString().orEmpty()
             }
             .replace(Regex("&#x([0-9a-fA-F]+);")) { match ->
-                match.groupValues[1].toIntOrNull(16)?.toChar()?.toString() ?: ""
+                match.groupValues[1].toIntOrNull(HEX_RADIX)?.toChar()?.toString().orEmpty()
             }
             .replace(Regex("[ \\t]+"), " ")
             .trim()
@@ -411,16 +438,14 @@ private fun resolveInlineImagePath(
     fallbackIndex: Int
 ): Pair<String, Int>? {
     val src = sanitizeInlineSrc(rawSrc)
-    if (src.isBlank()) return null
-    if (src.startsWith("data:", ignoreCase = true)) return null
-    if (src.startsWith("http://", ignoreCase = true) || src.startsWith("https://", ignoreCase = true)) return null
-
-    if (src.startsWith("kairo_epub_assets/")) {
-        return src to fallbackIndex
+    return when {
+        src.isBlank() -> null
+        src.startsWith("data:", ignoreCase = true) -> null
+        src.startsWith("http://", ignoreCase = true) -> null
+        src.startsWith("https://", ignoreCase = true) -> null
+        src.startsWith("kairo_epub_assets/") -> src to fallbackIndex
+        else -> imagePaths.getOrNull(fallbackIndex)?.let { it to (fallbackIndex + 1) }
     }
-
-    val fallback = imagePaths.getOrNull(fallbackIndex) ?: return null
-    return fallback to (fallbackIndex + 1)
 }
 
 private fun sanitizeInlineSrc(rawSrc: String): String {

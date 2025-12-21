@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.example.kairo.core.model
 
 import com.example.kairo.core.linguistics.WordAnalyzer
@@ -15,8 +17,7 @@ import kotlin.math.max
  */
 fun calculateOrpIndex(word: String): Int {
     val length = word.length
-    if (length <= 1) return 0
-    if (length == 2) return 0  // For 2-letter words, first char is optimal
+    if (length <= 2) return 0
 
     // Get word frequency (common words can have later pivot)
     val frequency = WordAnalyzer.getFrequencyScore(word)
@@ -45,6 +46,7 @@ fun calculateOrpIndex(word: String): Int {
  * Alternative ORP calculation that considers syllable structure.
  * Places pivot at the vowel of the most stressed syllable (approximated).
  */
+@Suppress("unused")
 fun calculateOrpIndexAdvanced(word: String): Int {
     val length = word.length
     if (length <= 2) return 0
@@ -54,7 +56,6 @@ fun calculateOrpIndexAdvanced(word: String): Int {
 
     // Find vowel positions
     val vowelPositions = lower.indices.filter { lower[it] in vowels }
-    if (vowelPositions.isEmpty()) return length / 3  // No vowels, use 1/3 position
 
     // For most English words, stress is often on first or second syllable
     // Use the first vowel in the optimal recognition zone (20-35% into word)
@@ -62,9 +63,13 @@ fun calculateOrpIndexAdvanced(word: String): Int {
     val optimalEnd = (length * 0.35).toInt()
 
     // Find first vowel in or near optimal zone
-    val optimalVowel = vowelPositions.firstOrNull { it in optimalStart..optimalEnd }
-        ?: vowelPositions.firstOrNull { it <= optimalEnd }
-        ?: vowelPositions.first()
+    val optimalVowel = if (vowelPositions.isEmpty()) {
+        length / 3  // No vowels, use 1/3 position
+    } else {
+        vowelPositions.firstOrNull { it in optimalStart..optimalEnd }
+            ?: vowelPositions.firstOrNull { it <= optimalEnd }
+            ?: vowelPositions.first()
+    }
 
     return optimalVowel.coerceIn(0, length - 1)
 }
@@ -82,6 +87,7 @@ fun normalizeWhitespace(input: String): String =
         line.trim().replace(Regex("\\s+"), " ")
     }.trim()
 
+@Suppress("unused")
 fun calculatePause(type: TokenType, config: RsvpConfig): Long = when (type) {
     TokenType.PARAGRAPH_BREAK -> config.paragraphPauseMs
     TokenType.PAGE_BREAK -> max(config.paragraphPauseMs * 2, config.sentenceEndPauseMs + (config.paragraphPauseMs / 2))
@@ -99,15 +105,25 @@ fun calculatePause(type: TokenType, config: RsvpConfig): Long = when (type) {
 fun List<Token>.nearestWordIndex(fromIndex: Int): Int {
     if (isEmpty()) return 0
     val clamped = fromIndex.coerceIn(0, lastIndex)
-    if (this[clamped].type == TokenType.WORD) return clamped
+    var resolved = if (this[clamped].type == TokenType.WORD) clamped else null
 
-    for (offset in 1..lastIndex) {
-        val forward = clamped + offset
-        if (forward <= lastIndex && this[forward].type == TokenType.WORD) return forward
-        val backward = clamped - offset
-        if (backward >= 0 && this[backward].type == TokenType.WORD) return backward
+    if (resolved == null) {
+        var offset = 1
+        while (offset <= lastIndex && resolved == null) {
+            val forward = clamped + offset
+            if (forward <= lastIndex && this[forward].type == TokenType.WORD) {
+                resolved = forward
+            } else {
+                val backward = clamped - offset
+                if (backward >= 0 && this[backward].type == TokenType.WORD) {
+                    resolved = backward
+                }
+            }
+            offset += 1
+        }
     }
-    return 0
+
+    return resolved ?: 0
 }
 
 /**
@@ -119,18 +135,18 @@ fun List<Token>.nearestWordIndex(fromIndex: Int): Int {
  */
 fun splitHyphenatedToken(token: Token): List<Token> {
     // Only split WORD tokens that contain hyphens
-    if (token.type != TokenType.WORD || !token.text.contains('-')) {
-        return listOf(token)
-    }
+    val shouldSplit = token.type == TokenType.WORD && token.text.contains('-')
 
     // Don't split leading hyphens used as numeric signs (e.g., "-35c", "-10", "-3.14").
     // Those should be treated as a single unit for RSVP.
-    if (token.text.length > 1 && token.text[0] == '-' && token.text[1].isDigit()) {
-        return listOf(token)
-    }
+    val startsWithNumericDash = token.text.length > 1 &&
+        token.text[0] == '-' &&
+        token.text[1].isDigit()
 
     val parts = token.text.split('-')
-    if (parts.size <= 1) return listOf(token)
+    val canSplit = shouldSplit && !startsWithNumericDash && parts.size > 1
+
+    if (!canSplit) return listOf(token)
 
     return parts.mapIndexed { index, part ->
         val isLast = index == parts.lastIndex
@@ -148,69 +164,4 @@ fun splitHyphenatedToken(token: Token): List<Token> {
             isDialogue = token.isDialogue
         )
     }
-}
-
-private val openingPunctuationCharsForDisplay = setOf('"', '\u201C', '\u2018', '(', '[', '{')
-private val closingPunctuationCharsForDisplay = setOf(
-    '.', ',', ';', ':', '!', '?',
-    '"', '\u201D', '\u2019',
-    ')', ']', '}',
-    '\u2014', '\u2013', // Em-dash — and en-dash –
-    '\u2026'            // Ellipsis …
-)
-
-private val dashJoinersForDisplay = setOf('\u2014', '\u2013')
-
-private fun Token.singleCharOrNull(): Char? = if (text.length == 1) text[0] else null
-
-private fun Token.isPunctuationIn(chars: Set<Char>): Boolean =
-    type == TokenType.PUNCTUATION && singleCharOrNull()?.let(chars::contains) == true
-
-/**
- * Returns whether a space should be inserted before [token] when rendering tokens as human-readable text.
- *
- * This is used by the scrollable Reader view so punctuation spacing stays stable regardless of the original
- * whitespace in the source.
- */
-fun shouldInsertSpaceBeforeToken(token: Token, prevToken: Token?, tokenIndexInParagraph: Int): Boolean {
-    if (tokenIndexInParagraph == 0) return false
-
-    if (token.isPunctuationIn(closingPunctuationCharsForDisplay)) return false
-
-    val prevWasOpening = prevToken?.isPunctuationIn(openingPunctuationCharsForDisplay) == true
-    if (prevWasOpening) return false
-
-    val prevWasDashJoiner = prevToken?.isPunctuationIn(dashJoinersForDisplay) == true
-    val dashWasNotParagraphStart = prevWasDashJoiner && tokenIndexInParagraph >= 2
-    if (dashWasNotParagraphStart) return false
-
-    if (token.isPunctuationIn(openingPunctuationCharsForDisplay)) return true
-
-    return true
-}
-
-/**
- * Joins [tokens] into a readable string using [shouldInsertSpaceBeforeToken].
- *
- * Paragraph break tokens are treated as paragraph boundaries.
- */
-fun joinTokensForDisplay(tokens: List<Token>): String {
-    val builder = StringBuilder()
-    var paragraphIndex = 0
-    var prevNonBreakToken: Token? = null
-
-    for (token in tokens) {
-        if (token.type == TokenType.PARAGRAPH_BREAK || token.type == TokenType.PAGE_BREAK) {
-            paragraphIndex = 0
-            prevNonBreakToken = null
-            continue
-        }
-
-        if (shouldInsertSpaceBeforeToken(token, prevNonBreakToken, paragraphIndex)) builder.append(' ')
-        builder.append(token.text)
-        prevNonBreakToken = token
-        paragraphIndex++
-    }
-
-    return builder.toString()
 }

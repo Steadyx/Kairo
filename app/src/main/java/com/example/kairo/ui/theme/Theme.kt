@@ -1,3 +1,5 @@
+@file:Suppress("FunctionNaming", "LongMethod")
+
 package com.example.kairo.ui.theme
 
 import androidx.compose.material3.MaterialTheme

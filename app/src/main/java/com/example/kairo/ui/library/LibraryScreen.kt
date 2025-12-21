@@ -1,3 +1,5 @@
+@file:Suppress("FunctionNaming", "LongMethod", "LongParameterList", "MagicNumber")
+
 package com.example.kairo.ui.library
 
 import android.net.Uri
@@ -14,7 +16,6 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -162,19 +163,19 @@ fun LibraryScreen(
                         .groupBy { it.book.id.value }
                         .values
                         .map { group ->
-                            val first = group.first()
-                            group.sortedByDescending { it.bookmark.createdAt } to first
+                            val firstItem = group.first()
+                            group.sortedByDescending { it.bookmark.createdAt } to firstItem
                         }
-                        .sortedBy { (_, first) -> first.book.title.lowercase() }
+                        .sortedBy { (_, firstItem) -> firstItem.book.title.lowercase() }
                 }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    grouped.forEach { (group, first) ->
-                        item(key = "header_${first.book.id.value}") {
+                    grouped.forEach { (group, firstItem) ->
+                        item(key = "header_${firstItem.book.id.value}") {
                             BookmarkBookHeader(
-                                book = first.book,
+                                book = firstItem.book,
                                 bookmarkCount = group.size
                             )
                         }
@@ -393,13 +394,12 @@ private fun BookCover(
             contentScale = ContentScale.Crop
         )
     } else {
-        PlaceholderCover(title = title, modifier = modifier)
+        PlaceholderCover(modifier = modifier)
     }
 }
 
 @Composable
 private fun PlaceholderCover(
-    title: String,
     modifier: Modifier = Modifier
 ) {
     Box(
