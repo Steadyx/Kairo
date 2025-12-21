@@ -4,35 +4,39 @@ import com.example.kairo.core.model.BlinkMode
 import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
+import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.abs
 
 class ComprehensionRsvpEngineHeuristicsTest {
-
     private val engine = ComprehensionRsvpEngine()
 
     private fun w(text: String) =
-        Token(text = text, type = TokenType.WORD, frequencyScore = 1.0, complexityMultiplier = 1.0, syllableCount = 1)
+        Token(
+            text = text,
+            type = TokenType.WORD,
+            frequencyScore = 1.0,
+            complexityMultiplier = 1.0,
+            syllableCount = 1
+        )
 
-    private fun p(text: String) =
-        Token(text = text, type = TokenType.PUNCTUATION)
+    private fun p(text: String) = Token(text = text, type = TokenType.PUNCTUATION)
 
-    private fun pageBreak() =
-        Token(text = "\u000C", type = TokenType.PAGE_BREAK)
+    private fun pageBreak() = Token(text = "\u000C", type = TokenType.PAGE_BREAK)
 
-    private val stableConfig = RsvpConfig(
-        tempoMsPerWord = 200L,
-        startDelayMs = 0L,
-        endDelayMs = 0L,
-        rampUpFrames = 0,
-        rampDownFrames = 0,
-        smoothingAlpha = 1.0,
-        maxSpeedupFactor = 1000.0,
-        maxSlowdownFactor = 1000.0,
-        enablePhraseChunking = false
-    )
+    private val stableConfig =
+        RsvpConfig(
+            tempoMsPerWord = 200L,
+            startDelayMs = 0L,
+            endDelayMs = 0L,
+            rampUpFrames = 0,
+            rampDownFrames = 0,
+            smoothingAlpha = 1.0,
+            maxSpeedupFactor = 1000.0,
+            maxSlowdownFactor = 1000.0,
+            enablePhraseChunking = false,
+        )
 
     @Test
     fun abbreviationDotsDoNotCauseSentencePause() {
@@ -45,22 +49,31 @@ class ComprehensionRsvpEngineHeuristicsTest {
         assertTrue(abbrevFrames.isNotEmpty() && normalFrames.isNotEmpty())
         assertTrue(
             "Abbreviation dot should be shorter than sentence dot",
-            abbrevFrames[0].durationMs < normalFrames[0].durationMs - 80
+            abbrevFrames[0].durationMs < normalFrames[0].durationMs - 80,
         )
     }
 
     @Test
     fun abbreviationAtSentenceEndKeepsSentencePause() {
-        val config = stableConfig.copy(
-            rarityExtraMaxMs = 0L,
-            syllableExtraMs = 0L,
-            complexityStrength = 0.0,
-            lengthStrength = 0.0,
-            lengthExponent = 1.0
-        )
+        val config =
+            stableConfig.copy(
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+            )
 
-        val abbrevEnd = engine.generateFrames(tokens = listOf(w("Dr"), p(".")), startIndex = 0, config = config)
-        val normalEnd = engine.generateFrames(tokens = listOf(w("Hello"), p(".")), startIndex = 0, config = config)
+        val abbrevEnd = engine.generateFrames(
+            tokens = listOf(w("Dr"), p(".")),
+            startIndex = 0,
+            config = config
+        )
+        val normalEnd = engine.generateFrames(
+            tokens = listOf(w("Hello"), p(".")),
+            startIndex = 0,
+            config = config
+        )
 
         assertTrue(abbrevEnd.isNotEmpty() && normalEnd.isNotEmpty())
         val diff = abs(abbrevEnd[0].durationMs - normalEnd[0].durationMs)
@@ -78,38 +91,56 @@ class ComprehensionRsvpEngineHeuristicsTest {
         assertTrue(decimalFrames.isNotEmpty() && sentenceFrames.isNotEmpty())
         assertTrue(
             "Decimal point should not cause a sentence pause",
-            decimalFrames[0].durationMs < sentenceFrames[0].durationMs - 80
+            decimalFrames[0].durationMs < sentenceFrames[0].durationMs - 80,
         )
     }
 
     @Test
     fun openingQuoteDoesNotAddExtraPause() {
-        val config = stableConfig.copy(
-            rarityExtraMaxMs = 0L,
-            syllableExtraMs = 0L,
-            complexityStrength = 0.0,
-            lengthStrength = 0.0,
-            lengthExponent = 1.0
-        )
+        val config =
+            stableConfig.copy(
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+            )
 
-        val plain = engine.generateFrames(tokens = listOf(w("Hello")), startIndex = 0, config = config)[0].durationMs
-        val quoted = engine.generateFrames(tokens = listOf(p("\""), w("Hello")), startIndex = 0, config = config)[0].durationMs
+        val plain = engine.generateFrames(
+            tokens = listOf(w("Hello")),
+            startIndex = 0,
+            config = config
+        )[0].durationMs
+        val quoted = engine.generateFrames(
+            tokens = listOf(p("\""), w("Hello")),
+            startIndex = 0,
+            config = config
+        )[0].durationMs
 
         assertTrue("Expected opening quote to avoid adding pause", abs(quoted - plain) <= 5L)
     }
 
     @Test
     fun closingQuoteDoesNotDoubleSentencePause() {
-        val config = stableConfig.copy(
-            rarityExtraMaxMs = 0L,
-            syllableExtraMs = 0L,
-            complexityStrength = 0.0,
-            lengthStrength = 0.0,
-            lengthExponent = 1.0
-        )
+        val config =
+            stableConfig.copy(
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+            )
 
-        val base = engine.generateFrames(tokens = listOf(w("Hello"), p(".")), startIndex = 0, config = config)[0].durationMs
-        val withQuote = engine.generateFrames(tokens = listOf(w("Hello"), p("."), p("\"")), startIndex = 0, config = config)[0].durationMs
+        val base = engine.generateFrames(
+            tokens = listOf(w("Hello"), p(".")),
+            startIndex = 0,
+            config = config
+        )[0].durationMs
+        val withQuote = engine.generateFrames(
+            tokens = listOf(w("Hello"), p("."), p("\"")),
+            startIndex = 0,
+            config = config
+        )[0].durationMs
 
         assertTrue("Expected closing quote not to add extra pause", abs(withQuote - base) <= 5L)
     }
@@ -125,26 +156,31 @@ class ComprehensionRsvpEngineHeuristicsTest {
         assertTrue(numberFrames.isNotEmpty() && commaFrames.isNotEmpty())
         assertTrue(
             "Comma inside number should be shorter than a normal comma pause",
-            numberFrames[0].durationMs < commaFrames[0].durationMs - 40
+            numberFrames[0].durationMs < commaFrames[0].durationMs - 40,
         )
     }
 
     @Test
     fun hyphenatedWordsAddMicroPauseBetweenParts() {
-        val config = stableConfig.copy(
-            rarityExtraMaxMs = 0L,
-            syllableExtraMs = 0L,
-            complexityStrength = 0.0,
-            lengthStrength = 0.0
-        )
+        val config =
+            stableConfig.copy(
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+            )
 
-        val frames = engine.generateFrames(tokens = listOf(w("self-aware")), startIndex = 0, config = config)
+        val frames = engine.generateFrames(
+            tokens = listOf(w("self-aware")),
+            startIndex = 0,
+            config = config
+        )
 
         assertEquals(2, frames.size)
         val expectedFirst = config.tempoMsPerWord + (config.tempoMsPerWord / 4)
         assertTrue(
             "Expected first hyphen-part frame around ${expectedFirst}ms, got ${frames[0].durationMs}ms",
-            frames[0].durationMs in (expectedFirst - 2)..(expectedFirst + 2)
+            frames[0].durationMs in (expectedFirst - 2)..(expectedFirst + 2),
         )
     }
 
@@ -154,7 +190,12 @@ class ComprehensionRsvpEngineHeuristicsTest {
         val frames = engine.generateFrames(tokens, 0, stableConfig)
 
         assertEquals(1, frames.size)
-        val word = frames.first().tokens.first { it.type == TokenType.WORD }.text
+        val word =
+            frames
+                .first()
+                .tokens
+                .first { it.type == TokenType.WORD }
+                .text
         assertEquals("-35c", word)
     }
 
@@ -162,30 +203,45 @@ class ComprehensionRsvpEngineHeuristicsTest {
     fun pageBreakAddsMeaningfulPause() {
         val config = stableConfig.copy(tempoMsPerWord = 60L)
 
-        val frames = engine.generateFrames(tokens = listOf(w("Hello"), pageBreak(), w("Next")), startIndex = 0, config = config)
+        val frames = engine.generateFrames(
+            tokens = listOf(w("Hello"), pageBreak(), w("Next")),
+            startIndex = 0,
+            config = config
+        )
         assertTrue("Expected at least 3 frames (word + break + word)", frames.size >= 3)
 
         val breakFrame = frames[1]
-        assertTrue("Expected break frame to contain no WORD tokens", breakFrame.tokens.none { it.type == TokenType.WORD })
+        assertTrue(
+            "Expected break frame to contain no WORD tokens",
+            breakFrame.tokens.none {
+                it.type ==
+                    TokenType.WORD
+            }
+        )
         assertTrue("Expected page break pause to be meaningful", breakFrame.durationMs >= 240L)
     }
 
     @Test
     fun trailingQuotesStayWithSentenceEnd() {
-        val frames = engine.generateFrames(
-            tokens = listOf(
-                p("\""),
-                w("Hello"),
-                p("."),
-                p("\""),
-                w("Next")
-            ),
-            startIndex = 0,
-            config = stableConfig
-        )
+        val frames =
+            engine.generateFrames(
+                tokens =
+                listOf(
+                    p("\""),
+                    w("Hello"),
+                    p("."),
+                    p("\""),
+                    w("Next"),
+                ),
+                startIndex = 0,
+                config = stableConfig,
+            )
 
         assertTrue(frames.size >= 2)
-        val quoteCount = frames[0].tokens.count { it.type == TokenType.PUNCTUATION && it.text == "\"" }
+        val quoteCount = frames[0].tokens.count {
+            it.type == TokenType.PUNCTUATION &&
+                it.text == "\""
+        }
         assertEquals("Expected opening + closing quote in the first unit", 2, quoteCount)
         assertEquals("Next", frames[1].tokens.first { it.type == TokenType.WORD }.text)
     }
@@ -194,49 +250,82 @@ class ComprehensionRsvpEngineHeuristicsTest {
     fun sentenceStartGetsABoostAtHighSpeed() {
         val config = stableConfig.copy(tempoMsPerWord = 60L, sentenceEndPauseMs = 0L)
 
-        val plainNext = engine.generateFrames(tokens = listOf(w("Hello"), w("Next")), startIndex = 0, config = config)[1].durationMs
-        val boundaryNext = engine.generateFrames(tokens = listOf(w("Hello"), p("."), w("Next")), startIndex = 0, config = config)[1].durationMs
+        val plainNext = engine.generateFrames(
+            tokens = listOf(w("Hello"), w("Next")),
+            startIndex = 0,
+            config = config
+        )[1].durationMs
+        val boundaryNext =
+            engine
+                .generateFrames(
+                    tokens = listOf(w("Hello"), p("."), w("Next")),
+                    startIndex = 0,
+                    config = config,
+                )[1]
+                .durationMs
 
-        assertTrue("Expected a sentence-start boost after a full stop", boundaryNext - plainNext >= 4L)
+        assertTrue(
+            "Expected a sentence-start boost after a full stop",
+            boundaryNext - plainNext >= 4L
+        )
     }
 
     @Test
     fun clauseStartersGetExtraTimeAtHighSpeed() {
-        val baseConfig = stableConfig.copy(
-            tempoMsPerWord = 60L,
-            startDelayMs = 0L,
-            endDelayMs = 0L,
-            rampUpFrames = 0,
-            rampDownFrames = 0,
-            rarityExtraMaxMs = 0L,
-            syllableExtraMs = 0L,
-            complexityStrength = 0.0,
-            lengthStrength = 0.0,
-            lengthExponent = 1.0,
-            sentenceEndPauseMs = 0L
+        val baseConfig =
+            stableConfig.copy(
+                tempoMsPerWord = 60L,
+                startDelayMs = 0L,
+                endDelayMs = 0L,
+                rampUpFrames = 0,
+                rampDownFrames = 0,
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+                sentenceEndPauseMs = 0L,
+            )
+
+        val withoutClause =
+            engine
+                .generateFrames(
+                    tokens = listOf(w("because")),
+                    startIndex = 0,
+                    config = baseConfig.copy(useClausePausing = false)
+                )
+                .first()
+                .durationMs
+        val withClause =
+            engine
+                .generateFrames(
+                    tokens = listOf(w("because")),
+                    startIndex = 0,
+                    config = baseConfig.copy(useClausePausing = true)
+                )
+                .first()
+                .durationMs
+
+        assertTrue(
+            "Expected clause pacing to slow clause starters at high speed",
+            withClause > withoutClause
         )
-
-        val withoutClause = engine.generateFrames(tokens = listOf(w("because")), startIndex = 0, config = baseConfig.copy(useClausePausing = false))
-            .first().durationMs
-        val withClause = engine.generateFrames(tokens = listOf(w("because")), startIndex = 0, config = baseConfig.copy(useClausePausing = true))
-            .first().durationMs
-
-        assertTrue("Expected clause pacing to slow clause starters at high speed", withClause > withoutClause)
     }
 
     @Test
     fun blinkSeparationInsertsBlankFramesBetweenWords() {
-        val config = stableConfig.copy(
-            tempoMsPerWord = 80L,
-            blinkMode = BlinkMode.SUBTLE,
-            rarityExtraMaxMs = 0L,
-            syllableExtraMs = 0L,
-            complexityStrength = 0.0,
-            lengthStrength = 0.0,
-            lengthExponent = 1.0,
-            sentenceEndPauseMs = 0L,
-            useClausePausing = false
-        )
+        val config =
+            stableConfig.copy(
+                tempoMsPerWord = 80L,
+                blinkMode = BlinkMode.SUBTLE,
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+                sentenceEndPauseMs = 0L,
+                useClausePausing = false,
+            )
 
         val tokens = listOf(w("test"), w("test"))
 
@@ -252,52 +341,60 @@ class ComprehensionRsvpEngineHeuristicsTest {
 
     @Test
     fun structuralPauseAddsExtraTimeToBreakFrames() {
-        val config = stableConfig.copy(
-            tempoMsPerWord = 200L,
-            paragraphPauseMs = 0L,
-            startDelayMs = 0L,
-            endDelayMs = 0L,
-            rampUpFrames = 0,
-            rampDownFrames = 0
-        )
+        val config =
+            stableConfig.copy(
+                tempoMsPerWord = 200L,
+                paragraphPauseMs = 0L,
+                startDelayMs = 0L,
+                endDelayMs = 0L,
+                rampUpFrames = 0,
+                rampDownFrames = 0,
+            )
 
-        val tokens = listOf(
-            w("Hello"),
-            Token(text = "\n", type = TokenType.PARAGRAPH_BREAK, pauseAfterMs = 200L),
-            w("Next")
-        )
+        val tokens =
+            listOf(
+                w("Hello"),
+                Token(text = "\n", type = TokenType.PARAGRAPH_BREAK, pauseAfterMs = 200L),
+                w("Next"),
+            )
 
         val frames = engine.generateFrames(tokens, 0, config)
-        val breakFrame = frames.firstOrNull { it.tokens.none { t -> t.type == TokenType.WORD } }
-            ?: error("Expected a break frame")
+        val breakFrame =
+            frames.firstOrNull { it.tokens.none { t -> t.type == TokenType.WORD } }
+                ?: error("Expected a break frame")
 
         assertTrue("Expected break frame to include extra pause", breakFrame.durationMs >= 340L)
     }
 
     @Test
     fun speakerTagsReadFasterWhenDialogueDetectionEnabled() {
-        val baseConfig = stableConfig.copy(
-            tempoMsPerWord = 200L,
-            rarityExtraMaxMs = 0L,
-            syllableExtraMs = 0L,
-            complexityStrength = 0.0,
-            lengthStrength = 0.0,
-            lengthExponent = 1.0,
-            sentenceEndPauseMs = 0L,
-            commaPauseMs = 0L,
-            semicolonPauseMs = 0L,
-            colonPauseMs = 0L,
-            dashPauseMs = 0L,
-            parenthesesPauseMs = 0L,
-            quotePauseMs = 0L,
-            paragraphPauseMs = 0L,
-            useClausePausing = false,
-            useDialogueDetection = false
-        )
+        val baseConfig =
+            stableConfig.copy(
+                tempoMsPerWord = 200L,
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+                sentenceEndPauseMs = 0L,
+                commaPauseMs = 0L,
+                semicolonPauseMs = 0L,
+                colonPauseMs = 0L,
+                dashPauseMs = 0L,
+                parenthesesPauseMs = 0L,
+                quotePauseMs = 0L,
+                paragraphPauseMs = 0L,
+                useClausePausing = false,
+                useDialogueDetection = false,
+            )
 
         val tokens = listOf(w("he"), w("said"))
         val withoutDetection = engine.generateFrames(tokens, 0, baseConfig)
-        val withDetection = engine.generateFrames(tokens, 0, baseConfig.copy(useDialogueDetection = true))
+        val withDetection = engine.generateFrames(
+            tokens,
+            0,
+            baseConfig.copy(useDialogueDetection = true)
+        )
 
         assertTrue(withoutDetection.size >= 2 && withDetection.size >= 2)
         assertTrue(withDetection[0].durationMs < withoutDetection[0].durationMs)

@@ -9,11 +9,10 @@ import com.example.kairo.data.local.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class BookmarkRepositoryImpl(
-    private val bookmarkDao: BookmarkDao
-) : BookmarkRepository {
-    override fun observeBookmarks(): Flow<List<BookmarkItem>> =
-        bookmarkDao.observeWithBook().map { items -> items.map { it.toDomain() } }
+class BookmarkRepositoryImpl(private val bookmarkDao: BookmarkDao,) : BookmarkRepository {
+    override fun observeBookmarks(): Flow<List<BookmarkItem>> = bookmarkDao.observeWithBook().map { items ->
+        items.map { it.toDomain() }
+    }
 
     override fun observeBookmarksForBook(bookId: BookId): Flow<List<Bookmark>> =
         bookmarkDao.observeForBook(bookId.value).map { items -> items.map { it.toDomain() } }
@@ -30,4 +29,3 @@ class BookmarkRepositoryImpl(
         bookmarkDao.deleteForBook(bookId.value)
     }
 }
-

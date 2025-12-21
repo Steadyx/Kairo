@@ -6,7 +6,7 @@
     "LongMethod",
     "LongParameterList",
     "MagicNumber",
-    "MaxLineLength"
+    "MaxLineLength",
 )
 
 package com.example.kairo.ui.settings
@@ -33,8 +33,8 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,14 +72,14 @@ fun ReaderSettingsContent(
     onFontSizeChange: (Float) -> Unit,
     onThemeChange: (ReaderTheme) -> Unit,
     onTextBrightnessChange: (Float) -> Unit,
-    onInvertedScrollChange: (Boolean) -> Unit
+    onInvertedScrollChange: (Boolean) -> Unit,
 ) {
     SettingsSliderRow(
         title = "Font size",
         valueLabel = "${fontSizeSp.toInt()}sp",
         value = fontSizeSp,
         onValueChange = { onFontSizeChange(it.coerceIn(14f, 32f)) },
-        valueRange = 14f..32f
+        valueRange = 14f..32f,
     )
 
     ThemeSelector(selected = readerTheme, onThemeChange = onThemeChange)
@@ -90,7 +90,7 @@ fun ReaderSettingsContent(
         valueLabel = "${(textBrightness.coerceIn(0.55f, 1.0f) * 100).toInt()}%",
         value = textBrightness.coerceIn(0.55f, 1.0f),
         onValueChange = { onTextBrightnessChange(it.coerceIn(0.55f, 1.0f)) },
-        valueRange = 0.55f..1.0f
+        valueRange = 0.55f..1.0f,
     )
 
     Text("Scrolling", style = MaterialTheme.typography.titleMedium)
@@ -98,7 +98,7 @@ fun ReaderSettingsContent(
         title = "Invert vertical swipe",
         subtitle = "Swipe up to move down, swipe down to move up.",
         checked = invertedScroll,
-        onCheckedChange = onInvertedScrollChange
+        onCheckedChange = onInvertedScrollChange,
     )
 }
 
@@ -113,17 +113,18 @@ fun FocusSettingsContent(
     onFocusHideStatusBarChange: (Boolean) -> Unit,
     onFocusPauseNotificationsChange: (Boolean) -> Unit,
     onFocusApplyInReaderChange: (Boolean) -> Unit,
-    onFocusApplyInRsvpChange: (Boolean) -> Unit
+    onFocusApplyInRsvpChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
-    val hasDndAccess = (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-        .isNotificationPolicyAccessGranted
+    val hasDndAccess =
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .isNotificationPolicyAccessGranted
 
     SettingsSwitchRow(
         title = "Enable focus mode",
         subtitle = "Hide system chrome while reading.",
         checked = focusModeEnabled,
-        onCheckedChange = onFocusModeEnabledChange
+        onCheckedChange = onFocusModeEnabledChange,
     )
 
     SettingsSwitchRow(
@@ -131,7 +132,7 @@ fun FocusSettingsContent(
         subtitle = "Hides the top bar (time, notifications).",
         checked = focusHideStatusBar,
         onCheckedChange = onFocusHideStatusBarChange,
-        enabled = focusModeEnabled
+        enabled = focusModeEnabled,
     )
 
     SettingsSwitchRow(
@@ -139,22 +140,22 @@ fun FocusSettingsContent(
         subtitle = "Uses Do Not Disturb while focus mode is active.",
         checked = focusPauseNotifications,
         onCheckedChange = onFocusPauseNotificationsChange,
-        enabled = focusModeEnabled
+        enabled = focusModeEnabled,
     )
 
     if (focusModeEnabled && focusPauseNotifications && !hasDndAccess) {
         Text(
             "Grant Do Not Disturb access to pause notifications.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedButton(
             onClick = {
                 context.startActivity(
                     Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 )
-            }
+            },
         ) {
             Text("Open DND access settings")
         }
@@ -168,14 +169,14 @@ fun FocusSettingsContent(
         subtitle = "Use focus mode in the scroll reader.",
         checked = focusApplyInReader,
         onCheckedChange = onFocusApplyInReaderChange,
-        enabled = focusModeEnabled
+        enabled = focusModeEnabled,
     )
     SettingsSwitchRow(
         title = "Apply in RSVP",
         subtitle = "Use focus mode in RSVP playback.",
         checked = focusApplyInRsvp,
         onCheckedChange = onFocusApplyInRsvpChange,
-        enabled = focusModeEnabled
+        enabled = focusModeEnabled,
     )
 }
 
@@ -186,7 +187,7 @@ private fun DeferredSliderRow(
     rawValue: Float,
     onCommit: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
-    subtitle: String? = null
+    subtitle: String? = null,
 ) {
     var localValue by remember { mutableFloatStateOf(rawValue) }
     LaunchedEffect(rawValue) {
@@ -201,53 +202,69 @@ private fun DeferredSliderRow(
         value = coercedValue,
         onValueChange = { localValue = it },
         onValueChangeFinished = { onCommit(coercedValue) },
-        valueRange = valueRange
+        valueRange = valueRange,
     )
 }
 
 @Composable
 private fun BlinkModeSelector(
     selected: BlinkMode,
-    onSelect: (BlinkMode) -> Unit
+    onSelect: (BlinkMode) -> Unit,
 ) {
     val options = listOf(BlinkMode.OFF, BlinkMode.SUBTLE, BlinkMode.ADAPTIVE)
-    val subtitle = when (selected) {
-        BlinkMode.OFF -> "No blink between words."
-        BlinkMode.SUBTLE -> "Small, steady blink at higher speeds."
-        BlinkMode.ADAPTIVE -> "Blink adapts to easier words and clean stretches."
-    }
+    val subtitle =
+        when (selected) {
+            BlinkMode.OFF -> "No blink between words."
+            BlinkMode.SUBTLE -> "Small, steady blink at higher speeds."
+            BlinkMode.ADAPTIVE -> "Blink adapts to easier words and clean stretches."
+        }
 
     Text("Blink mode", style = MaterialTheme.typography.bodyLarge)
-    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(
+        subtitle,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
     Spacer(modifier = Modifier.height(6.dp))
 
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(options, key = { it.name }) { mode ->
             val isSelected = mode == selected
-            val label = when (mode) {
-                BlinkMode.OFF -> "Off"
-                BlinkMode.SUBTLE -> "Subtle"
-                BlinkMode.ADAPTIVE -> "Adaptive"
-            }
+            val label =
+                when (mode) {
+                    BlinkMode.OFF -> "Off"
+                    BlinkMode.SUBTLE -> "Subtle"
+                    BlinkMode.ADAPTIVE -> "Adaptive"
+                }
 
             Surface(
-                modifier = Modifier
+                modifier =
+                Modifier
                     .clip(RoundedCornerShape(12.dp))
                     .clickable { onSelect(mode) },
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isSelected) 0.7f else 0.4f),
-                border = BorderStroke(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(
+                    alpha = if (isSelected) 0.7f else 0.4f
+                ),
+                border =
+                BorderStroke(
                     1.dp,
-                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-                )
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant.copy(
+                            alpha = 0.45f
+                        )
+                    },
+                ),
             ) {
                 Text(
                     label,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
             }
         }
@@ -276,7 +293,7 @@ fun RsvpSettingsContent(
     onRsvpFontWeightChange: (RsvpFontWeight) -> Unit,
     onRsvpFontFamilyChange: (RsvpFontFamily) -> Unit,
     onRsvpVerticalBiasChange: (Float) -> Unit,
-    onRsvpHorizontalBiasChange: (Float) -> Unit
+    onRsvpHorizontalBiasChange: (Float) -> Unit,
 ) {
     fun updateConfig(updater: (RsvpConfig) -> RsvpConfig) {
         onConfigChange(updater(config))
@@ -288,21 +305,23 @@ fun RsvpSettingsContent(
         config = config,
         onSelectProfile = onSelectProfile,
         onSaveCustomProfile = onSaveCustomProfile,
-        onDeleteCustomProfile = onDeleteCustomProfile
+        onDeleteCustomProfile = onDeleteCustomProfile,
     )
 
     var estimatedWpm by remember { mutableStateOf(0) }
     val dispatcherProvider = LocalDispatcherProvider.current
     LaunchedEffect(config) {
-        estimatedWpm = withContext(dispatcherProvider.default) {
-            RsvpPaceEstimator.estimateWpm(config)
+        estimatedWpm =
+            withContext(dispatcherProvider.default) {
+                RsvpPaceEstimator.estimateWpm(config)
+            }
+    }
+    val estimatedText =
+        if (estimatedWpm > 0) {
+            "Estimated pace: $estimatedWpm WPM"
+        } else {
+            "Estimating pace..."
         }
-    }
-    val estimatedText = if (estimatedWpm > 0) {
-        "Estimated pace: $estimatedWpm WPM"
-    } else {
-        "Estimating pace..."
-    }
     Text(estimatedText, style = MaterialTheme.typography.bodyMedium)
 
     SettingsSwitchRow(
@@ -314,7 +333,7 @@ fun RsvpSettingsContent(
             if (!enabled && config.tempoMsPerWord < 30L) {
                 updateConfig { it.copy(tempoMsPerWord = 30L) }
             }
-        }
+        },
     )
 
     val minTempoMs = if (unlockExtremeSpeed) 10L else 30L
@@ -326,7 +345,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(tempoMsPerWord = newValue.toLong().coerceIn(minTempoMs, 240L)) }
         },
-        valueRange = minTempoMs.toFloat()..240f
+        valueRange = minTempoMs.toFloat()..240f,
     )
 
     Text("Readability floors", style = MaterialTheme.typography.titleSmall)
@@ -338,7 +357,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(minWordMs = newValue.toLong().coerceIn(30L, 140L)) }
         },
-        valueRange = 30f..140f
+        valueRange = 30f..140f,
     )
     DeferredSliderRow(
         title = "Long-word minimum",
@@ -348,7 +367,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(longWordMinMs = newValue.toLong().coerceIn(80L, 300L)) }
         },
-        valueRange = 80f..300f
+        valueRange = 80f..300f,
     )
     DeferredSliderRow(
         title = "Long-word threshold",
@@ -357,7 +376,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(longWordChars = newValue.toInt().coerceIn(8, 14)) }
         },
-        valueRange = 8f..14f
+        valueRange = 8f..14f,
     )
 
     Text("Difficulty model", style = MaterialTheme.typography.titleSmall)
@@ -368,7 +387,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(syllableExtraMs = newValue.toLong().coerceIn(0L, 45L)) }
         },
-        valueRange = 0f..45f
+        valueRange = 0f..45f,
     )
     DeferredSliderRow(
         title = "Rarity boost",
@@ -377,7 +396,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(rarityExtraMaxMs = newValue.toLong().coerceIn(0L, 200L)) }
         },
-        valueRange = 0f..200f
+        valueRange = 0f..200f,
     )
     DeferredSliderRow(
         title = "Complexity strength",
@@ -386,7 +405,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(complexityStrength = (newValue / 100.0).coerceIn(0.0, 1.0)) }
         },
-        valueRange = 0f..100f
+        valueRange = 0f..100f,
     )
 
     Text("Punctuation pauses", style = MaterialTheme.typography.titleSmall)
@@ -397,7 +416,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(commaPauseMs = newValue.toLong().coerceIn(0L, 260L)) }
         },
-        valueRange = 0f..260f
+        valueRange = 0f..260f,
     )
     DeferredSliderRow(
         title = "Dash",
@@ -406,7 +425,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(dashPauseMs = newValue.toLong().coerceIn(0L, 320L)) }
         },
-        valueRange = 0f..320f
+        valueRange = 0f..320f,
     )
     DeferredSliderRow(
         title = "Semicolon",
@@ -415,7 +434,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(semicolonPauseMs = newValue.toLong().coerceIn(0L, 360L)) }
         },
-        valueRange = 0f..360f
+        valueRange = 0f..360f,
     )
     DeferredSliderRow(
         title = "Colon",
@@ -424,7 +443,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(colonPauseMs = newValue.toLong().coerceIn(0L, 360L)) }
         },
-        valueRange = 0f..360f
+        valueRange = 0f..360f,
     )
     DeferredSliderRow(
         title = "Sentence end",
@@ -433,7 +452,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(sentenceEndPauseMs = newValue.toLong().coerceIn(0L, 500L)) }
         },
-        valueRange = 0f..500f
+        valueRange = 0f..500f,
     )
     DeferredSliderRow(
         title = "Parentheses",
@@ -442,7 +461,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(parenthesesPauseMs = newValue.toLong().coerceIn(0L, 320L)) }
         },
-        valueRange = 0f..320f
+        valueRange = 0f..320f,
     )
     DeferredSliderRow(
         title = "Quotes",
@@ -451,7 +470,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(quotePauseMs = newValue.toLong().coerceIn(0L, 200L)) }
         },
-        valueRange = 0f..200f
+        valueRange = 0f..200f,
     )
 
     DeferredSliderRow(
@@ -462,7 +481,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(pauseScaleExponent = (newValue / 100.0).coerceIn(0.2, 0.9)) }
         },
-        valueRange = 20f..90f
+        valueRange = 20f..90f,
     )
 
     Text("Context shaping", style = MaterialTheme.typography.titleSmall)
@@ -471,9 +490,11 @@ fun RsvpSettingsContent(
         valueLabel = { "+${(it).toInt()}%" },
         rawValue = ((config.parentheticalMultiplier - 1.0) * 100).toFloat(),
         onCommit = { newValue ->
-            updateConfig { it.copy(parentheticalMultiplier = (1.0 + newValue / 100.0).coerceIn(1.0, 1.35)) }
+            updateConfig {
+                it.copy(parentheticalMultiplier = (1.0 + newValue / 100.0).coerceIn(1.0, 1.35))
+            }
         },
-        valueRange = 0f..35f
+        valueRange = 0f..35f,
     )
     DeferredSliderRow(
         title = "Dialogue pace",
@@ -482,7 +503,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(dialogueMultiplier = (newValue / 100.0).coerceIn(0.85, 1.05)) }
         },
-        valueRange = 85f..105f
+        valueRange = 85f..105f,
     )
 
     Text("Rhythm", style = MaterialTheme.typography.titleSmall)
@@ -494,7 +515,7 @@ fun RsvpSettingsContent(
         onCommit = { newValue ->
             updateConfig { it.copy(smoothingAlpha = (newValue / 100.0).coerceIn(0.0, 1.0)) }
         },
-        valueRange = 0f..100f
+        valueRange = 0f..100f,
     )
 
     SettingsSwitchRow(
@@ -503,7 +524,7 @@ fun RsvpSettingsContent(
         checked = config.useClausePausing,
         onCheckedChange = { enabled ->
             updateConfig { it.copy(useClausePausing = enabled) }
-        }
+        },
     )
 
     DeferredSliderRow(
@@ -512,14 +533,16 @@ fun RsvpSettingsContent(
         valueLabel = { "+${it.toInt()}%" },
         rawValue = ((config.clausePauseFactor.coerceIn(1.0, 1.6) - 1.0) * 100).toFloat(),
         onCommit = { newValue ->
-            updateConfig { it.copy(clausePauseFactor = (1.0 + newValue / 100.0).coerceIn(1.0, 1.6)) }
+            updateConfig {
+                it.copy(clausePauseFactor = (1.0 + newValue / 100.0).coerceIn(1.0, 1.6))
+            }
         },
-        valueRange = 0f..60f
+        valueRange = 0f..60f,
     )
 
     BlinkModeSelector(
         selected = config.blinkMode,
-        onSelect = { mode -> updateConfig { it.copy(blinkMode = mode) } }
+        onSelect = { mode -> updateConfig { it.copy(blinkMode = mode) } },
     )
 
     SettingsSwitchRow(
@@ -528,7 +551,7 @@ fun RsvpSettingsContent(
         checked = config.enablePhraseChunking,
         onCheckedChange = { enabled ->
             updateConfig { it.copy(enablePhraseChunking = enabled) }
-        }
+        },
     )
 
     Spacer(modifier = Modifier.height(8.dp))
@@ -539,7 +562,7 @@ fun RsvpSettingsContent(
         valueLabel = { "${it.toInt()}sp" },
         rawValue = rsvpFontSizeSp,
         onCommit = { onRsvpFontSizeChange(it.coerceIn(28f, 64f)) },
-        valueRange = 28f..64f
+        valueRange = 28f..64f,
     )
 
     DeferredSliderRow(
@@ -548,7 +571,7 @@ fun RsvpSettingsContent(
         valueLabel = { "${(it.coerceIn(0.55f, 1.0f) * 100).toInt()}%" },
         rawValue = rsvpTextBrightness.coerceIn(0.55f, 1.0f),
         onCommit = { onRsvpTextBrightnessChange(it.coerceIn(0.55f, 1.0f)) },
-        valueRange = 0.55f..1.0f
+        valueRange = 0.55f..1.0f,
     )
 
     RsvpFontFamilySelector(selected = rsvpFontFamily, onFontFamilyChange = onRsvpFontFamilyChange)
@@ -559,14 +582,14 @@ fun RsvpSettingsContent(
         valueLabel = { "${(it * 100).toInt()}%" },
         rawValue = rsvpVerticalBias,
         onCommit = onRsvpVerticalBiasChange,
-        valueRange = -0.6f..0.6f
+        valueRange = -0.6f..0.6f,
     )
     DeferredSliderRow(
         title = "Left bias",
         valueLabel = { "${(it * 100).toInt()}%" },
         rawValue = rsvpHorizontalBias,
         onCommit = onRsvpHorizontalBiasChange,
-        valueRange = -0.6f..0.6f
+        valueRange = -0.6f..0.6f,
     )
 }
 
@@ -578,7 +601,7 @@ private fun RsvpProfileSelector(
     config: RsvpConfig,
     onSelectProfile: (String) -> Unit,
     onSaveCustomProfile: (String, RsvpConfig) -> Unit,
-    onDeleteCustomProfile: (String) -> Unit
+    onDeleteCustomProfile: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
@@ -586,30 +609,35 @@ private fun RsvpProfileSelector(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     val builtInOptions = remember { RsvpProfile.entries.toList() }
-    val selectedBuiltIn = remember(selectedProfileId) { RsvpProfileIds.parseBuiltIn(selectedProfileId) }
-    val selectedCustom = remember(selectedProfileId, customProfiles) {
-        customProfiles.firstOrNull { it.id == selectedProfileId }
-    }
-    val isCustomSelected = selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED || selectedCustom != null
+    val selectedBuiltIn =
+        remember(selectedProfileId) { RsvpProfileIds.parseBuiltIn(selectedProfileId) }
+    val selectedCustom =
+        remember(selectedProfileId, customProfiles) {
+            customProfiles.firstOrNull { it.id == selectedProfileId }
+        }
+    val isCustomSelected =
+        selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED || selectedCustom != null
     val isUserProfileSelected = selectedCustom != null
 
-    val selectedLabel = when {
-        selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED -> "Custom"
-        selectedBuiltIn != null -> selectedBuiltIn.displayName()
-        selectedCustom != null -> selectedCustom.name
-        else -> "Custom"
-    }
-    val selectedDescription = when {
-        selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED -> "Unsaved tweaks"
-        selectedBuiltIn != null -> selectedBuiltIn.description()
-        selectedCustom != null -> "Saved profile"
-        else -> "Unsaved tweaks"
-    }
+    val selectedLabel =
+        when {
+            selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED -> "Custom"
+            selectedBuiltIn != null -> selectedBuiltIn.displayName()
+            selectedCustom != null -> selectedCustom.name
+            else -> "Custom"
+        }
+    val selectedDescription =
+        when {
+            selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED -> "Unsaved tweaks"
+            selectedBuiltIn != null -> selectedBuiltIn.description()
+            selectedCustom != null -> "Saved profile"
+            else -> "Unsaved tweaks"
+        }
 
     Text("RSVP profile", style = MaterialTheme.typography.titleMedium)
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
+        onExpandedChange = { expanded = !expanded },
     ) {
         OutlinedTextField(
             value = selectedLabel,
@@ -619,14 +647,15 @@ private fun RsvpProfileSelector(
             label = { Text("Profile") },
             supportingText = { Text(selectedDescription) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
+            modifier =
+            Modifier
                 .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
-                .fillMaxWidth()
+                .fillMaxWidth(),
         )
 
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
         ) {
             DropdownMenuItem(
                 text = {
@@ -635,14 +664,14 @@ private fun RsvpProfileSelector(
                         Text(
                             "Unsaved tweaks",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
                 onClick = {
                     expanded = false
                     onSelectProfile(RsvpProfileIds.CUSTOM_UNSAVED)
-                }
+                },
             )
 
             builtInOptions.forEach { option ->
@@ -654,14 +683,14 @@ private fun RsvpProfileSelector(
                             Text(
                                 option.description(),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     },
                     onClick = {
                         expanded = false
                         onSelectProfile(optionId)
-                    }
+                    },
                 )
             }
 
@@ -674,14 +703,14 @@ private fun RsvpProfileSelector(
                                 Text(
                                     "Saved profile",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         },
                         onClick = {
                             expanded = false
                             onSelectProfile(option.id)
-                        }
+                        },
                     )
                 }
             }
@@ -695,7 +724,7 @@ private fun RsvpProfileSelector(
                 saveName = if (isUserProfileSelected) selectedCustom.name else ""
                 showSaveDialog = true
             },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             Text(if (isCustomSelected) "Save as profile" else "Save current")
         }
@@ -703,7 +732,7 @@ private fun RsvpProfileSelector(
         if (isUserProfileSelected) {
             OutlinedButton(
                 onClick = { showDeleteDialog = true },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 Text("Delete")
             }
@@ -720,12 +749,12 @@ private fun RsvpProfileSelector(
                         value = saveName,
                         onValueChange = { saveName = it },
                         singleLine = true,
-                        label = { Text("Profile name") }
+                        label = { Text("Profile name") },
                     )
                     Text(
                         "Saves the current RSVP settings as a named profile.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             },
@@ -735,12 +764,12 @@ private fun RsvpProfileSelector(
                         onSaveCustomProfile(saveName, config)
                         showSaveDialog = false
                         saveName = ""
-                    }
+                    },
                 ) { Text("Save") }
             },
             dismissButton = {
                 TextButton(onClick = { showSaveDialog = false }) { Text("Cancel") }
-            }
+            },
         )
     }
 
@@ -752,7 +781,7 @@ private fun RsvpProfileSelector(
                 Text(
                     "This can’t be undone.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
             confirmButton = {
@@ -760,12 +789,12 @@ private fun RsvpProfileSelector(
                     onClick = {
                         onDeleteCustomProfile(selectedProfileId)
                         showDeleteDialog = false
-                    }
+                    },
                 ) { Text("Delete") }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
-            }
+            },
         )
     }
 }
@@ -773,7 +802,7 @@ private fun RsvpProfileSelector(
 @Composable
 private fun RsvpFontFamilySelector(
     selected: RsvpFontFamily,
-    onFontFamilyChange: (RsvpFontFamily) -> Unit
+    onFontFamilyChange: (RsvpFontFamily) -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text("Font", style = MaterialTheme.typography.bodyLarge)
@@ -782,11 +811,17 @@ private fun RsvpFontFamilySelector(
             RsvpFontFamily.entries.forEach { family ->
                 OutlinedButton(
                     onClick = { onFontFamilyChange(family) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(
                         text = family.name.lowercase().replaceFirstChar { it.titlecase() },
-                        color = if (family == selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                        color = if (family ==
+                            selected
+                        ) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onBackground
+                        },
                     )
                 }
             }
@@ -797,7 +832,7 @@ private fun RsvpFontFamilySelector(
 @Composable
 private fun RsvpFontWeightSelector(
     selected: RsvpFontWeight,
-    onFontWeightChange: (RsvpFontWeight) -> Unit
+    onFontWeightChange: (RsvpFontWeight) -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text("Weight", style = MaterialTheme.typography.bodyLarge)
@@ -806,11 +841,17 @@ private fun RsvpFontWeightSelector(
             RsvpFontWeight.entries.forEach { weight ->
                 OutlinedButton(
                     onClick = { onFontWeightChange(weight) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(
                         text = weight.name.lowercase().replaceFirstChar { it.titlecase() },
-                        color = if (weight == selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                        color = if (weight ==
+                            selected
+                        ) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onBackground
+                        },
                     )
                 }
             }

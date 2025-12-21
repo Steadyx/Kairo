@@ -22,26 +22,32 @@ import androidx.compose.ui.text.style.TextOverflow
 @Composable
 internal fun OrpStaticLine(color: Color) {
     Box(
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxWidth()
             .height(ORP_LINE_HEIGHT)
-            .background(color)
+            .background(color),
     )
 }
 
 @Composable
-internal fun OrpPointer(guideBias: Float, color: Color) {
+internal fun OrpPointer(
+    guideBias: Float,
+    color: Color,
+) {
     Box(
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxWidth()
-            .height(ORP_POINTER_HEIGHT)
+            .height(ORP_POINTER_HEIGHT),
     ) {
         Box(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .align(BiasAlignment(horizontalBias = guideBias, verticalBias = CENTER_BIAS))
                 .width(ORP_POINTER_WIDTH)
                 .fillMaxHeight()
-                .background(color)
+                .background(color),
         )
     }
 }
@@ -50,12 +56,13 @@ internal fun OrpPointer(guideBias: Float, color: Color) {
 internal fun OrpTextLine(
     rendering: OrpTextRendering,
     textColor: Color,
-    translationX: Float
+    translationX: Float,
 ) {
     Box(
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxWidth()
-            .clipToBounds()
+            .clipToBounds(),
     ) {
         Text(
             text = rendering.annotatedText,
@@ -65,15 +72,17 @@ internal fun OrpTextLine(
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Clip,
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxWidth()
                 .graphicsLayer {
-                    transformOrigin = TransformOrigin(
-                        ORP_TRANSFORM_ORIGIN_X,
-                        ORP_TRANSFORM_ORIGIN_Y
-                    )
+                    transformOrigin =
+                        TransformOrigin(
+                            ORP_TRANSFORM_ORIGIN_X,
+                            ORP_TRANSFORM_ORIGIN_Y,
+                        )
                     this.translationX = translationX
-                }
+                },
         )
     }
 }

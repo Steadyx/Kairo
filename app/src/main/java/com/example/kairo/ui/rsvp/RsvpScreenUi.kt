@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -31,21 +31,23 @@ internal fun RsvpPlaybackSurface(context: RsvpUiContext) {
     val runtime = context.runtime
     val frames = context.frameState.frames
     val currentFrame = frames.getOrNull(runtime.frameIndex)
-    val typography = OrpTypography(
-        fontSizeSp = runtime.currentFontSizeSp,
-        fontFamily = resolveFontFamily(runtime.currentFontFamily),
-        fontWeight = resolveFontWeight(runtime.currentFontWeight)
-    )
+    val typography =
+        OrpTypography(
+            fontSizeSp = runtime.currentFontSizeSp,
+            fontFamily = resolveFontFamily(runtime.currentFontFamily),
+            fontWeight = resolveFontWeight(runtime.currentFontWeight),
+        )
     val colors = rememberRsvpTextColors(runtime.currentTextBrightness)
     val interactionSource = remember { MutableInteractionSource() }
     val estimatedWpm = rememberEstimatedWpm(frames, context.timing.tempoScale)
 
     Box(
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .rsvpGestureModifier(context, interactionSource),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         RsvpFocusWord(context, currentFrame, typography, colors)
         RsvpPositionGuide(context)
@@ -62,19 +64,23 @@ internal fun RsvpPlaybackSurface(context: RsvpUiContext) {
 @Composable
 private fun rememberEstimatedWpm(
     frames: List<com.example.kairo.core.model.RsvpFrame>,
-    tempoScale: Double
+    tempoScale: Double,
 ): Int {
-    val baseFrameStats = remember(frames) {
-        val wordCount = frames.sumOf { frame -> frame.tokens.count { it.type == TokenType.WORD } }
-            .coerceAtLeast(MIN_WORD_COUNT)
-        val totalMs = frames.sumOf { it.durationMs }.coerceAtLeast(MIN_TOTAL_MS)
-        wordCount to totalMs
-    }
+    val baseFrameStats =
+        remember(frames) {
+            val wordCount =
+                frames
+                    .sumOf { frame -> frame.tokens.count { it.type == TokenType.WORD } }
+                    .coerceAtLeast(MIN_WORD_COUNT)
+            val totalMs = frames.sumOf { it.durationMs }.coerceAtLeast(MIN_TOTAL_MS)
+            wordCount to totalMs
+        }
     return remember(baseFrameStats, tempoScale) {
         val wordCount = baseFrameStats.first
-        val totalMs = (baseFrameStats.second * tempoScale)
-            .roundToLong()
-            .coerceAtLeast(MIN_TOTAL_MS)
+        val totalMs =
+            (baseFrameStats.second * tempoScale)
+                .roundToLong()
+                .coerceAtLeast(MIN_TOTAL_MS)
         ((wordCount * MS_PER_MINUTE) / totalMs.toDouble()).toInt().coerceAtLeast(MIN_WORD_COUNT)
     }
 }
@@ -82,12 +88,13 @@ private fun rememberEstimatedWpm(
 @Composable
 private fun rememberRsvpTextColors(textBrightness: Float): OrpColors {
     val clampedBrightness = textBrightness.coerceIn(TEXT_BRIGHTNESS_MIN, TEXT_BRIGHTNESS_MAX)
-    val pivotLineAlpha = (PIVOT_LINE_ALPHA_BASE * clampedBrightness)
-        .coerceIn(PIVOT_LINE_ALPHA_MIN, PIVOT_LINE_ALPHA_MAX)
+    val pivotLineAlpha =
+        (PIVOT_LINE_ALPHA_BASE * clampedBrightness)
+            .coerceIn(PIVOT_LINE_ALPHA_MIN, PIVOT_LINE_ALPHA_MAX)
     return OrpColors(
         pivotColor = MaterialTheme.colorScheme.primary,
         pivotLineColor = MaterialTheme.colorScheme.onBackground.copy(alpha = pivotLineAlpha),
-        textColor = MaterialTheme.colorScheme.onBackground.copy(alpha = clampedBrightness)
+        textColor = MaterialTheme.colorScheme.onBackground.copy(alpha = clampedBrightness),
     )
 }
 
@@ -96,7 +103,7 @@ private fun RsvpFocusWord(
     context: RsvpUiContext,
     frame: com.example.kairo.core.model.RsvpFrame?,
     typography: OrpTypography,
-    colors: OrpColors
+    colors: OrpColors,
 ) {
     val runtime = context.runtime
     val profile = context.state.profile
@@ -104,23 +111,27 @@ private fun RsvpFocusWord(
 
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = BiasAlignment(
+        contentAlignment =
+        BiasAlignment(
             horizontalBias = CENTER_BIAS,
-            verticalBias = runtime.currentVerticalBias.coerceIn(
+            verticalBias =
+            runtime.currentVerticalBias.coerceIn(
                 VERTICAL_BIAS_MIN,
-                VERTICAL_BIAS_MAX
-            )
-        )
+                VERTICAL_BIAS_MAX,
+            ),
+        ),
     ) {
         OrpAlignedText(
             tokens = frame.tokens,
             typography = typography,
             colors = colors,
-            layout = OrpTextLayout(
+            layout =
+            OrpTextLayout(
                 horizontalBias = runtime.currentHorizontalBias,
-                lockPivot = profile.config.enablePhraseChunking &&
-                    profile.config.maxWordsPerUnit > ORP_LOCK_PIVOT_WORDS
-            )
+                lockPivot =
+                profile.config.enablePhraseChunking &&
+                    profile.config.maxWordsPerUnit > ORP_LOCK_PIVOT_WORDS,
+            ),
         )
     }
 }
@@ -135,41 +146,42 @@ private fun RsvpPositionGuide(context: RsvpUiContext) {
         visible = visible,
         enter = fadeIn(),
         exit = fadeOut(),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = BiasAlignment(
+            contentAlignment =
+            BiasAlignment(
                 horizontalBias = CENTER_BIAS,
-                verticalBias = runtime.currentVerticalBias.coerceIn(
+                verticalBias =
+                runtime.currentVerticalBias.coerceIn(
                     VERTICAL_BIAS_MIN,
-                    VERTICAL_BIAS_MAX
-                )
-            )
+                    VERTICAL_BIAS_MAX,
+                ),
+            ),
         ) {
             Box(
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
                     .height(POSITION_GUIDE_HEIGHT)
                     .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = POSITIONING_LINE_ALPHA)
-                    )
+                        MaterialTheme.colorScheme.primary.copy(alpha = POSITIONING_LINE_ALPHA),
+                    ),
             )
         }
     }
 }
 
-private fun resolveFontFamily(fontFamily: RsvpFontFamily): FontFamily {
-    return when (fontFamily) {
+private fun resolveFontFamily(fontFamily: RsvpFontFamily): FontFamily =
+    when (fontFamily) {
         RsvpFontFamily.INTER -> InterFontFamily
         RsvpFontFamily.ROBOTO -> RobotoFontFamily
     }
-}
 
-private fun resolveFontWeight(fontWeight: RsvpFontWeight): FontWeight {
-    return when (fontWeight) {
+private fun resolveFontWeight(fontWeight: RsvpFontWeight): FontWeight =
+    when (fontWeight) {
         RsvpFontWeight.LIGHT -> FontWeight.Light
         RsvpFontWeight.NORMAL -> FontWeight.Normal
         RsvpFontWeight.MEDIUM -> FontWeight.Medium
     }
-}

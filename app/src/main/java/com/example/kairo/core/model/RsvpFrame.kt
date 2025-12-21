@@ -5,5 +5,5 @@ data class RsvpFrame(
     val durationMs: Long,
     // Index into the original (non-expanded) token list for position tracking
     // Used when syncing RSVP position back to the reader view
-    val originalTokenIndex: Int = 0
+    val originalTokenIndex: Int = 0,
 )

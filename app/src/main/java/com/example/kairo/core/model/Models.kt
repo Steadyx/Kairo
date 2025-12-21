@@ -1,13 +1,13 @@
 package com.example.kairo.core.model
 
-data class BookId(val value: String)
+data class BookId(val value: String,)
 
 data class Book(
     val id: BookId,
     val title: String,
     val authors: List<String>,
     val chapters: List<Chapter>,
-    val coverImage: ByteArray? = null
+    val coverImage: ByteArray? = null,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -42,14 +42,10 @@ data class Chapter(
     val title: String?,
     val htmlContent: String,
     val plainText: String,
-    val imagePaths: List<String> = emptyList()
+    val imagePaths: List<String> = emptyList(),
 )
 
-data class ReadingPosition(
-    val bookId: BookId,
-    val chapterIndex: Int,
-    val tokenIndex: Int
-)
+data class ReadingPosition(val bookId: BookId, val chapterIndex: Int, val tokenIndex: Int,)
 
 data class Bookmark(
     val id: String,
@@ -57,14 +53,10 @@ data class Bookmark(
     val chapterIndex: Int,
     val tokenIndex: Int,
     val previewText: String,
-    val createdAt: Long
+    val createdAt: Long,
 )
 
-data class BookmarkItem(
-    val bookmark: Bookmark,
-    val book: Book,
-    val chapterCount: Int
-)
+data class BookmarkItem(val bookmark: Bookmark, val book: Book, val chapterCount: Int,)
 
 enum class TokenType { WORD, PUNCTUATION, PARAGRAPH_BREAK, PAGE_BREAK }
 
@@ -75,10 +67,10 @@ data class Token(
     val pauseAfterMs: Long = 0L,
     // Advanced linguistic metadata
     val syllableCount: Int = 1,
-    val frequencyScore: Double = 0.5,  // 0.0 = rare, 1.0 = very common
-    val complexityMultiplier: Double = 1.0,  // Timing multiplier
+    val frequencyScore: Double = 0.5, // 0.0 = rare, 1.0 = very common
+    val complexityMultiplier: Double = 1.0, // Timing multiplier
     val isClauseBoundary: Boolean = false,
-    val isDialogue: Boolean = false
+    val isDialogue: Boolean = false,
 )
 
 data class RsvpConfig(
@@ -92,7 +84,6 @@ data class RsvpConfig(
      * An estimated WPM can be derived from this, but WPM is not the direct control.
      */
     val tempoMsPerWord: Long = 115L,
-
     /**
      * Word timing floors.
      * These prevent "flashing" at very high WPM and keep long/complex words readable.
@@ -100,7 +91,6 @@ data class RsvpConfig(
     val minWordMs: Long = 45L,
     val longWordMinMs: Long = 120L,
     val longWordChars: Int = 10,
-
     /**
      * Difficulty model.
      * - syllableExtraMs: additional time per syllable beyond the first.
@@ -110,14 +100,12 @@ data class RsvpConfig(
     val syllableExtraMs: Long = 16L,
     val rarityExtraMaxMs: Long = 65L,
     val complexityStrength: Double = 0.65,
-
     /**
      * Length curve. Adds time for longer words smoothly instead of abrupt thresholds.
      * lengthStrength controls overall impact; lengthExponent controls how quickly it grows.
      */
     val lengthStrength: Double = 0.9,
     val lengthExponent: Double = 1.35,
-
     /**
      * Chunking / units.
      * The engine can show short phrase units (e.g., "in the") to reduce flicker and improve flow.
@@ -125,7 +113,6 @@ data class RsvpConfig(
     val enablePhraseChunking: Boolean = false,
     val maxWordsPerUnit: Int = 2,
     val maxCharsPerUnit: Int = 14,
-
     /**
      * Punctuation pauses (milliseconds).
      * These are *breath* values; they are further shaped by pauseScaleExponent at very high WPM.
@@ -138,21 +125,18 @@ data class RsvpConfig(
     val quotePauseMs: Long = 60L,
     val sentenceEndPauseMs: Long = 200L,
     val paragraphPauseMs: Long = 240L,
-
     /**
      * How punctuation pauses scale as WPM increases.
      * Values < 1 compress pauses at high WPM, but floors still apply so punctuation doesn't vanish.
      */
     val pauseScaleExponent: Double = 0.6,
     val minPauseScale: Double = 0.6,
-
     /**
      * Context shaping.
      * Parentheticals and quoted speech are paced slightly differently for comprehension/flow.
      */
     val parentheticalMultiplier: Double = 1.12,
     val dialogueMultiplier: Double = 0.97,
-
     /**
      * Rhythm shaping.
      * smoothingAlpha is EMA smoothing (0..1). Lower = steadier but less responsive.
@@ -161,7 +145,6 @@ data class RsvpConfig(
     val smoothingAlpha: Double = 0.35,
     val maxSpeedupFactor: Double = 1.25,
     val maxSlowdownFactor: Double = 1.45,
-
     /**
      * ORP + session ramping.
      */
@@ -170,7 +153,6 @@ data class RsvpConfig(
     val endDelayMs: Long = 350L,
     val rampUpFrames: Int = 5,
     val rampDownFrames: Int = 3,
-
     /**
      * Legacy/compat fields (kept for older persistence & UI wiring).
      *
@@ -187,7 +169,7 @@ data class RsvpConfig(
     val useDialogueDetection: Boolean = true,
     val complexWordThreshold: Double = 1.3,
     val clausePauseFactor: Double = 1.25,
-    val blinkMode: BlinkMode = BlinkMode.OFF
+    val blinkMode: BlinkMode = BlinkMode.OFF,
 )
 
 enum class BlinkMode { OFF, SUBTLE, ADAPTIVE }
@@ -201,75 +183,80 @@ enum class RsvpProfile {
 
 object RsvpProfileIds {
     const val CUSTOM_UNSAVED: String = "custom:unsaved"
+
     fun builtIn(profile: RsvpProfile): String = "builtin:${profile.name}"
+
     fun isBuiltIn(id: String): Boolean = id.startsWith("builtin:")
+
     fun isCustom(id: String): Boolean = id.startsWith("user:")
+
     fun parseBuiltIn(id: String): RsvpProfile? {
         val name = id.removePrefix("builtin:")
         return runCatching { RsvpProfile.valueOf(name) }.getOrNull()
     }
 }
 
-data class RsvpCustomProfile(
-    val id: String,
-    val name: String,
-    val config: RsvpConfig,
-    val updatedAtMs: Long
-)
+data class RsvpCustomProfile(val id: String, val name: String, val config: RsvpConfig, val updatedAtMs: Long,)
 
-fun RsvpProfile.displayName(): String = when (this) {
-    RsvpProfile.BALANCED -> "Balanced"
-    RsvpProfile.CHILL -> "Chill"
-    RsvpProfile.SPRINT -> "Sprint"
-    RsvpProfile.STUDY -> "Study"
-}
+fun RsvpProfile.displayName(): String =
+    when (this) {
+        RsvpProfile.BALANCED -> "Balanced"
+        RsvpProfile.CHILL -> "Chill"
+        RsvpProfile.SPRINT -> "Sprint"
+        RsvpProfile.STUDY -> "Study"
+    }
 
-fun RsvpProfile.description(): String = when (this) {
-    RsvpProfile.BALANCED -> "Smooth, readable default"
-    RsvpProfile.CHILL -> "More breathing room and stronger pauses"
-    RsvpProfile.SPRINT -> "Fast, lighter pauses, higher flow"
-    RsvpProfile.STUDY -> "Deliberate pacing for comprehension"
-}
+fun RsvpProfile.description(): String =
+    when (this) {
+        RsvpProfile.BALANCED -> "Smooth, readable default"
+        RsvpProfile.CHILL -> "More breathing room and stronger pauses"
+        RsvpProfile.SPRINT -> "Fast, lighter pauses, higher flow"
+        RsvpProfile.STUDY -> "Deliberate pacing for comprehension"
+    }
 
-fun RsvpProfile.defaultConfig(): RsvpConfig = when (this) {
-    RsvpProfile.BALANCED -> RsvpConfig()
-    RsvpProfile.CHILL -> RsvpConfig().copy(
-        tempoMsPerWord = 140L,
-        minWordMs = 55L,
-        longWordMinMs = 145L,
-        commaPauseMs = 120L,
-        sentenceEndPauseMs = 250L,
-        paragraphPauseMs = 330L,
-        smoothingAlpha = 0.28,
-        maxSlowdownFactor = 1.55
-    )
-    RsvpProfile.SPRINT -> RsvpConfig().copy(
-        tempoMsPerWord = 85L,
-        minWordMs = 40L,
-        longWordMinMs = 105L,
-        commaPauseMs = 70L,
-        sentenceEndPauseMs = 150L,
-        paragraphPauseMs = 190L,
-        pauseScaleExponent = 0.5,
-        smoothingAlpha = 0.45,
-        maxSpeedupFactor = 1.35,
-        maxSlowdownFactor = 1.35
-    )
-    RsvpProfile.STUDY -> RsvpConfig().copy(
-        tempoMsPerWord = 130L,
-        minWordMs = 55L,
-        longWordMinMs = 165L,
-        rarityExtraMaxMs = 85L,
-        complexityStrength = 0.8,
-        enablePhraseChunking = false,
-        maxWordsPerUnit = 1,
-        commaPauseMs = 115L,
-        sentenceEndPauseMs = 260L,
-        paragraphPauseMs = 380L,
-        smoothingAlpha = 0.25,
-        maxSlowdownFactor = 1.6
-    )
-}
+fun RsvpProfile.defaultConfig(): RsvpConfig =
+    when (this) {
+        RsvpProfile.BALANCED -> RsvpConfig()
+        RsvpProfile.CHILL ->
+            RsvpConfig().copy(
+                tempoMsPerWord = 140L,
+                minWordMs = 55L,
+                longWordMinMs = 145L,
+                commaPauseMs = 120L,
+                sentenceEndPauseMs = 250L,
+                paragraphPauseMs = 330L,
+                smoothingAlpha = 0.28,
+                maxSlowdownFactor = 1.55,
+            )
+        RsvpProfile.SPRINT ->
+            RsvpConfig().copy(
+                tempoMsPerWord = 85L,
+                minWordMs = 40L,
+                longWordMinMs = 105L,
+                commaPauseMs = 70L,
+                sentenceEndPauseMs = 150L,
+                paragraphPauseMs = 190L,
+                pauseScaleExponent = 0.5,
+                smoothingAlpha = 0.45,
+                maxSpeedupFactor = 1.35,
+                maxSlowdownFactor = 1.35,
+            )
+        RsvpProfile.STUDY ->
+            RsvpConfig().copy(
+                tempoMsPerWord = 130L,
+                minWordMs = 55L,
+                longWordMinMs = 165L,
+                rarityExtraMaxMs = 85L,
+                complexityStrength = 0.8,
+                enablePhraseChunking = false,
+                maxWordsPerUnit = 1,
+                commaPauseMs = 115L,
+                sentenceEndPauseMs = 260L,
+                paragraphPauseMs = 380L,
+                smoothingAlpha = 0.25,
+                maxSlowdownFactor = 1.6,
+            )
+    }
 
 data class UserPreferences(
     val rsvpConfig: RsvpConfig = RsvpConfig(),
@@ -302,7 +289,7 @@ data class UserPreferences(
     val focusHideStatusBar: Boolean = true,
     val focusPauseNotifications: Boolean = false,
     val focusApplyInReader: Boolean = true,
-    val focusApplyInRsvp: Boolean = true
+    val focusApplyInRsvp: Boolean = true,
 )
 
 enum class ReaderTheme { LIGHT, DARK, SEPIA, NORD, CYBERPUNK, FOREST }

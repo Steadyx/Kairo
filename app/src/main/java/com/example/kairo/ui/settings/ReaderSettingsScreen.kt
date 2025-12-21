@@ -19,16 +19,17 @@ fun ReaderSettingsScreen(
     onThemeChange: (ReaderTheme) -> Unit,
     onTextBrightnessChange: (Float) -> Unit,
     onInvertedScrollChange: (Boolean) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
 
     SettingsScaffold(title = "Reader settings", onBack = onBack) { modifier ->
         Column(
-            modifier = modifier
+            modifier =
+            modifier
                 .verticalScroll(scrollState)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ReaderSettingsContent(
                 fontSizeSp = preferences.readerFontSizeSp,
@@ -38,7 +39,7 @@ fun ReaderSettingsScreen(
                 onFontSizeChange = onFontSizeChange,
                 onThemeChange = onThemeChange,
                 onTextBrightnessChange = onTextBrightnessChange,
-                onInvertedScrollChange = onInvertedScrollChange
+                onInvertedScrollChange = onInvertedScrollChange,
             )
         }
     }

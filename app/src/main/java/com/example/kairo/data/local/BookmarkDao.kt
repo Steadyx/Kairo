@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 data class BookmarkWithBookEntity(
     @Embedded val bookmark: BookmarkEntity,
     @Embedded(prefix = "book_") val book: BookEntity,
-    val chapterCount: Int
+    val chapterCount: Int,
 )
 
 @Dao
@@ -44,7 +44,7 @@ interface BookmarkDao {
         FROM bookmarks
         JOIN books ON bookmarks.bookId = books.id
         ORDER BY bookmarks.createdAt DESC
-        """
+        """,
     )
     fun observeWithBook(): Flow<List<BookmarkWithBookEntity>>
 }

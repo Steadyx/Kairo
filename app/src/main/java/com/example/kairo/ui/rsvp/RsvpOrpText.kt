@@ -20,20 +20,21 @@ internal fun OrpAlignedText(
     tokens: List<Token>,
     typography: OrpTypography,
     colors: OrpColors,
-    layout: OrpTextLayout
+    layout: OrpTextLayout,
 ) {
     val content = remember(tokens) { buildOrpTextContent(tokens) }
-    val rendering = rememberOrpRendering(
-        fullText = content.fullText,
-        typography = typography,
-        pivotPosition = content.pivotPosition,
-        pivotColor = colors.pivotColor
-    )
+    val rendering =
+        rememberOrpRendering(
+            fullText = content.fullText,
+            typography = typography,
+            pivotPosition = content.pivotPosition,
+            pivotColor = colors.pivotColor,
+        )
     OrpAlignedTextLayout(
         content = content,
         layout = layout,
         colors = colors,
-        rendering = rendering
+        rendering = rendering,
     )
 }
 
@@ -42,69 +43,75 @@ private fun rememberOrpRendering(
     fullText: String,
     typography: OrpTypography,
     pivotPosition: Int,
-    pivotColor: Color
+    pivotColor: Color,
 ): OrpTextRendering {
     val baseStyle = MaterialTheme.typography.displayMedium
-    val textStyle = remember(typography, baseStyle) {
-        baseStyle.copy(
-            fontSize = typography.fontSizeSp.sp,
-            fontFamily = typography.fontFamily,
-            fontWeight = typography.fontWeight,
-            letterSpacing = ORP_LETTER_SPACING_SP.sp
-        )
-    }
-    val annotatedText = remember(fullText, pivotPosition, pivotColor) {
-        buildOrpAnnotatedText(fullText, pivotPosition, pivotColor)
-    }
+    val textStyle =
+        remember(typography, baseStyle) {
+            baseStyle.copy(
+                fontSize = typography.fontSizeSp.sp,
+                fontFamily = typography.fontFamily,
+                fontWeight = typography.fontWeight,
+                letterSpacing = ORP_LETTER_SPACING_SP.sp,
+            )
+        }
+    val annotatedText =
+        remember(fullText, pivotPosition, pivotColor) {
+            buildOrpAnnotatedText(fullText, pivotPosition, pivotColor)
+        }
     val textMeasurer = rememberTextMeasurer()
     return OrpTextRendering(
         annotatedText = annotatedText,
         textStyle = textStyle,
-        textMeasurer = textMeasurer
+        textMeasurer = textMeasurer,
     )
 }
 
 private fun buildOrpAnnotatedText(
     fullText: String,
     pivotPosition: Int,
-    pivotColor: Color
-): AnnotatedString {
-    return buildAnnotatedString {
+    pivotColor: Color,
+): AnnotatedString =
+    buildAnnotatedString {
         append(fullText)
         if (fullText.isNotEmpty()) {
             val safeIndex = pivotPosition.coerceIn(0, fullText.lastIndex)
             addStyle(
                 style = SpanStyle(color = pivotColor),
                 start = safeIndex,
-                end = (safeIndex + 1).coerceAtMost(fullText.length)
+                end = (safeIndex + 1).coerceAtMost(fullText.length),
             )
         }
     }
-}
 
 private fun buildOrpTextContent(tokens: List<Token>): OrpTextContent {
     val state = OrpTextBuildState()
     val wordCount = tokens.count { it.type == TokenType.WORD }
-    val fullText = buildString {
-        tokens.forEach { token ->
-            when (token.type) {
-                TokenType.WORD -> appendWord(token, state, this)
-                TokenType.PUNCTUATION -> appendPunctuation(token, state, this)
-                TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> Unit
+    val fullText =
+        buildString {
+            tokens.forEach { token ->
+                when (token.type) {
+                    TokenType.WORD -> appendWord(token, state, this)
+                    TokenType.PUNCTUATION -> appendPunctuation(token, state, this)
+                    TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> Unit
+                }
             }
         }
-    }
 
     return OrpTextContent(
         fullText = fullText,
         firstWordStart = state.firstWordStart,
         firstWordEndExclusive = state.firstWordEndExclusive,
         pivotPosition = resolvePivotPosition(state),
-        wordCount = wordCount
+        wordCount = wordCount,
     )
 }
 
-private fun appendWord(token: Token, state: OrpTextBuildState, builder: StringBuilder) {
+private fun appendWord(
+    token: Token,
+    state: OrpTextBuildState,
+    builder: StringBuilder,
+) {
     if (state.needsSpace) builder.append(' ')
     val start = builder.length
     builder.append(token.text)
@@ -115,7 +122,11 @@ private fun appendWord(token: Token, state: OrpTextBuildState, builder: StringBu
     state.needsSpace = true
 }
 
-private fun appendPunctuation(token: Token, state: OrpTextBuildState, builder: StringBuilder) {
+private fun appendPunctuation(
+    token: Token,
+    state: OrpTextBuildState,
+    builder: StringBuilder,
+) {
     val ch = token.text.singleOrNull()
     val isOpening = isOpeningPunctuation(ch, state.needsSpace)
     if (isOpening && state.needsSpace) builder.append(' ')
@@ -123,14 +134,16 @@ private fun appendPunctuation(token: Token, state: OrpTextBuildState, builder: S
     state.needsSpace = !isOpening
 }
 
-private fun isOpeningPunctuation(ch: Char?, needsSpace: Boolean): Boolean {
-    return when (ch) {
+private fun isOpeningPunctuation(
+    ch: Char?,
+    needsSpace: Boolean,
+): Boolean =
+    when (ch) {
         null -> false
         '"' -> !needsSpace
         in ORP_OPENING_PUNCTUATION -> true
         else -> false
     }
-}
 
 private fun resolvePivotPosition(state: OrpTextBuildState): Int {
     val wordStart = state.firstWordStart

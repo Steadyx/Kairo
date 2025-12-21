@@ -38,32 +38,32 @@ internal fun BoxScope.RsvpBottomControls(context: RsvpUiContext) {
         visible = runtime.showControls,
         enter = fadeIn(),
         exit = fadeOut(),
-        modifier = Modifier.align(Alignment.BottomCenter)
+        modifier = Modifier.align(Alignment.BottomCenter),
     ) {
         Column(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .background(
                     MaterialTheme.colorScheme.surface.copy(
-                        alpha = QUICK_SETTINGS_BACKGROUND_ALPHA
-                    )
-                )
-                .padding(CONTROLS_PADDING),
-            horizontalAlignment = Alignment.CenterHorizontally
+                        alpha = QUICK_SETTINGS_BACKGROUND_ALPHA,
+                    ),
+                ).padding(CONTROLS_PADDING),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             RsvpPlaybackControlsRow(context)
             Spacer(modifier = Modifier.height(CONTROLS_SPACER))
             Text(
                 "${runtime.frameIndex + 1} / ${context.frameState.frames.size}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = PROGRESS_TEXT_ALPHA)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = PROGRESS_TEXT_ALPHA),
             )
             Spacer(modifier = Modifier.height(CONTROLS_HINT_SPACER))
             Text(
                 "Tap anywhere to resume",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = RESUME_TEXT_ALPHA)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = RESUME_TEXT_ALPHA),
             )
         }
     }
@@ -75,7 +75,7 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(CONTROLS_ROW_SPACING),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = {
             runtime.frameIndex = (runtime.frameIndex - 1).coerceAtLeast(0)
@@ -85,7 +85,7 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
                 Icons.Default.SkipPrevious,
                 contentDescription = "Previous",
                 modifier = Modifier.size(SKIP_ICON_SIZE),
-                tint = MaterialTheme.colorScheme.onSurface
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         }
 
@@ -94,15 +94,16 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
                 runtime.isPlaying = !runtime.isPlaying
                 if (runtime.isPlaying) runtime.showControls = false
             },
-            modifier = Modifier
+            modifier =
+            Modifier
                 .size(PLAY_BUTTON_SIZE)
-                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                .background(MaterialTheme.colorScheme.primary, CircleShape),
         ) {
             Icon(
                 if (runtime.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                 contentDescription = if (runtime.isPlaying) "Pause" else "Play",
                 modifier = Modifier.size(PLAY_ICON_SIZE),
-                tint = MaterialTheme.colorScheme.onPrimary
+                tint = MaterialTheme.colorScheme.onPrimary,
             )
         }
 
@@ -111,7 +112,7 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
                 Icons.Default.SkipNext,
                 contentDescription = "Next",
                 modifier = Modifier.size(SKIP_ICON_SIZE),
-                tint = MaterialTheme.colorScheme.onSurface
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         }
     }

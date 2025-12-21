@@ -2,14 +2,14 @@
 
 package com.example.kairo.core.tokenization
 
+import com.example.kairo.core.linguistics.ClauseDetector
+import com.example.kairo.core.linguistics.DialogueAnalyzer
+import com.example.kairo.core.linguistics.WordAnalyzer
 import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.calculateOrpIndex
 import com.example.kairo.core.model.normalizeWhitespace
-import com.example.kairo.core.linguistics.WordAnalyzer
-import com.example.kairo.core.linguistics.ClauseDetector
-import com.example.kairo.core.linguistics.DialogueAnalyzer
 
 class Tokenizer {
     // Track dialogue state across tokenization
@@ -27,20 +27,22 @@ class Tokenizer {
         inDialogue = false
         DialogueAnalyzer.reset()
 
-        val paragraphs = withPageBreaks
-            .split(Regex("\\n\\s*\\n"))
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
+        val paragraphs =
+            withPageBreaks
+                .split(Regex("\\n\\s*\\n"))
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
         val tokens = mutableListOf<Token>()
 
         paragraphs.forEachIndexed { index, paragraph ->
             val isPageBreak = isPageBreakParagraph(paragraph)
             if (isPageBreak) {
-                tokens += Token(
-                    text = "\u000C",
-                    type = TokenType.PAGE_BREAK,
-                    pauseAfterMs = 0L
-                )
+                tokens +=
+                    Token(
+                        text = "\u000C",
+                        type = TokenType.PAGE_BREAK,
+                        pauseAfterMs = 0L,
+                    )
             } else {
                 tokens += tokenizeParagraph(paragraph)
             }
@@ -51,11 +53,12 @@ class Tokenizer {
                 val currentCue = blockCues.getOrNull(index) ?: BlockCue(BlockType.PARAGRAPH, false)
                 val nextCue = blockCues.getOrNull(index + 1)
                 val extraPause = structuralPauseMs(currentCue, nextCue)
-                tokens += Token(
-                    text = "\n",
-                    type = TokenType.PARAGRAPH_BREAK,
-                    pauseAfterMs = extraPause
-                )
+                tokens +=
+                    Token(
+                        text = "\n",
+                        type = TokenType.PARAGRAPH_BREAK,
+                        pauseAfterMs = extraPause,
+                    )
             }
         }
         return tokens
@@ -69,24 +72,30 @@ class Tokenizer {
             val part = matcher.group()
             when {
                 part.isEmpty() -> continue
-                part.length == 1 && (PUNCTUATION.contains(part[0]) ||
-                    OPENING_QUOTES.contains(part[0]) || CLOSING_QUOTES.contains(part[0])) -> {
+                part.length == 1 &&
+                    (
+                        PUNCTUATION.contains(part[0]) ||
+                            OPENING_QUOTES.contains(part[0]) ||
+                            CLOSING_QUOTES.contains(part[0])
+                        ) -> {
                     // Track dialogue state with quotes
                     val char = part[0]
-                    inDialogue = when {
-                        // Straight quotes are ambiguous; toggle on each occurrence.
-                        char == '"' -> !inDialogue
-                        OPENING_QUOTES.contains(char) -> true
-                        CLOSING_QUOTES.contains(char) -> false
-                        else -> inDialogue
-                    }
+                    inDialogue =
+                        when {
+                            // Straight quotes are ambiguous; toggle on each occurrence.
+                            char == '"' -> !inDialogue
+                            OPENING_QUOTES.contains(char) -> true
+                            CLOSING_QUOTES.contains(char) -> false
+                            else -> inDialogue
+                        }
 
-                    tokens += Token(
-                        text = part,
-                        type = TokenType.PUNCTUATION,
-                        pauseAfterMs = 0L,
-                        isDialogue = inDialogue
-                    )
+                    tokens +=
+                        Token(
+                            text = part,
+                            type = TokenType.PUNCTUATION,
+                            pauseAfterMs = 0L,
+                            isDialogue = inDialogue,
+                        )
                 }
                 else -> {
                     // This is a word (possibly with contractions like "don't" or hyphenation)
@@ -95,23 +104,27 @@ class Tokenizer {
                     val complexity = WordAnalyzer.getComplexityMultiplier(part)
                     val isClause = ClauseDetector.isClauseBoundary(part)
 
-                    tokens += Token(
-                        text = part,
-                        type = TokenType.WORD,
-                        orpIndex = calculateOrpIndex(part),
-                        syllableCount = syllables,
-                        frequencyScore = frequency,
-                        complexityMultiplier = complexity,
-                        isClauseBoundary = isClause,
-                        isDialogue = inDialogue
-                    )
+                    tokens +=
+                        Token(
+                            text = part,
+                            type = TokenType.WORD,
+                            orpIndex = calculateOrpIndex(part),
+                            syllableCount = syllables,
+                            frequencyScore = frequency,
+                            complexityMultiplier = complexity,
+                            isClauseBoundary = isClause,
+                            isDialogue = inDialogue,
+                        )
                 }
             }
         }
         return tokens
     }
 
-    private fun structuralPauseMs(current: BlockCue, next: BlockCue?): Long {
+    private fun structuralPauseMs(
+        current: BlockCue,
+        next: BlockCue?,
+    ): Long {
         var extra = 0L
 
         when (current.type) {
@@ -137,11 +150,13 @@ class Tokenizer {
     private fun extractBlockCues(html: String): List<BlockCue> {
         if (html.isBlank()) return emptyList()
 
-        val cleaned = html
-            .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
+        val cleaned =
+            html
+                .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
 
-        val tagRegex = Regex("<\\s*(h[1-6]|li|blockquote|pre|p|div|br)\\b[^>]*>", RegexOption.IGNORE_CASE)
+        val tagRegex =
+            Regex("<\\s*(h[1-6]|li|blockquote|pre|p|div|br)\\b[^>]*>", RegexOption.IGNORE_CASE)
         val emphasisRegex = Regex("<\\s*(em|i)\\b", RegexOption.IGNORE_CASE)
         val matches = tagRegex.findAll(cleaned).toList()
         val cues = mutableListOf<BlockCue>()
@@ -154,13 +169,14 @@ class Tokenizer {
                 val content = cleaned.substring(start, end)
                 val hasEmphasis = emphasisRegex.containsMatchIn(content)
 
-                val type = when {
-                    tag.startsWith("h") -> BlockType.HEADING
-                    tag == "li" -> BlockType.LIST_ITEM
-                    tag == "blockquote" -> BlockType.BLOCKQUOTE
-                    tag == "pre" -> BlockType.PREFORMATTED
-                    else -> BlockType.PARAGRAPH
-                }
+                val type =
+                    when {
+                        tag.startsWith("h") -> BlockType.HEADING
+                        tag == "li" -> BlockType.LIST_ITEM
+                        tag == "blockquote" -> BlockType.BLOCKQUOTE
+                        tag == "pre" -> BlockType.PREFORMATTED
+                        else -> BlockType.PARAGRAPH
+                    }
                 cues += BlockCue(type, hasEmphasis)
             }
         }
@@ -181,21 +197,24 @@ class Tokenizer {
         text = text.replace(Regex("(?<!-)--(?!-)"), "\u2014")
 
         // Fix common mojibake sequences from EPUB decoding (e.g., "Â°" for degree sign).
-        text = text
-            .replace("Â°", "°")
-            .replace("Âº", "º")
+        text =
+            text
+                .replace("Â°", "°")
+                .replace("Âº", "º")
 
         // Collapse a minus-like sign separated from a number:
         // " - 35c" / " – 35c" / " — 35c" / "‑35c" -> "-35c"
-        text = text.replace(Regex("(^|[^\\w])[-−–—‐‑‒﹣－]\\s*(\\d)")) { match ->
-            "${match.groupValues[1]}-${match.groupValues[2]}"
-        }
+        text =
+            text.replace(Regex("(^|[^\\w])[-−–—‐‑‒﹣－]\\s*(\\d)")) { match ->
+                "${match.groupValues[1]}-${match.groupValues[2]}"
+            }
 
         // Normalize temperature and percent spacing:
         // "20 ° C" -> "20°C", "20 ºF" -> "20°F"
-        text = text.replace(Regex("(\\d)\\s*[°º]\\s*([cCfFkK])")) { match ->
-            "${match.groupValues[1]}°${match.groupValues[2]}"
-        }
+        text =
+            text.replace(Regex("(\\d)\\s*[°º]\\s*([cCfFkK])")) { match ->
+                "${match.groupValues[1]}°${match.groupValues[2]}"
+            }
         // "20 ℃" -> "20℃"
         text = text.replace(Regex("(\\d)\\s*([℃℉])"), "$1$2")
         // "50 %" -> "50%"
@@ -230,50 +249,73 @@ class Tokenizer {
         private const val EMPHASIS_AFTER_MS = 60L
 
         // All punctuation characters we want to handle (NOT including apostrophes used in contractions)
-        private val PUNCTUATION = setOf(
-            '.', ',', ';', ':', '!', '?',  // Basic punctuation
-            '"',                            // Straight double quote
-            '\u201C', '\u201D',             // Curly double quotes " "
-            '\u2014', '\u2013',             // Em-dash — and en-dash –
-            '\u2026',                       // Ellipsis …
-            '(', ')', '[', ']', '{', '}',  // Brackets
-            '-', '\u2212',                  // Hyphen/minus (but not when inside words)
-            '°', 'º', '℃', '℉',             // Temperature symbols
-            '%',                            // Percent
-            '$', '€', '£', '¥'              // Common currency symbols
-        )
+        private val PUNCTUATION =
+            setOf(
+                '.',
+                ',',
+                ';',
+                ':',
+                '!',
+                '?', // Basic punctuation
+                '"', // Straight double quote
+                '\u201C',
+                '\u201D', // Curly double quotes " "
+                '\u2014',
+                '\u2013', // Em-dash — and en-dash –
+                '\u2026', // Ellipsis …
+                '(',
+                ')',
+                '[',
+                ']',
+                '{',
+                '}', // Brackets
+                '-',
+                '\u2212', // Hyphen/minus (but not when inside words)
+                '°',
+                'º',
+                '℃',
+                '℉', // Temperature symbols
+                '%', // Percent
+                '$',
+                '€',
+                '£',
+                '¥', // Common currency symbols
+            )
 
         // Opening quotes that start dialogue
         private val OPENING_QUOTES = setOf('"', '\u201C', '\u2018')
+
         // Closing quotes that end dialogue
         private val CLOSING_QUOTES = setOf('"', '\u201D', '\u2019')
 
         // Common "scene break" markers: "***", "* * *", "---", "— — —", "• • •", "___", etc.
         // These frequently represent page breaks or scene breaks in ebooks.
-        private val PAGE_BREAK_REGEX = Regex(
-            """^\s*(?:(?:\*\s*){3,}|(?:-\s*){3,}|(?:_\s*){3,}|(?:~\s*){3,}|(?:\u2014\s*){2,}|(?:\u2013\s*){2,}|(?:\u2022\s*){3,}|(?:\u00B7\s*){3,})\s*$"""
-        )
+        private val PAGE_BREAK_REGEX =
+            Regex(
+                """^\s*(?:(?:\*\s*){3,}|(?:-\s*){3,}|(?:_\s*){3,}|(?:~\s*){3,}|(?:\u2014\s*){2,}|(?:\u2013\s*){2,}|(?:\u2022\s*){3,}|(?:\u00B7\s*){3,})\s*$""",
+            )
 
         // Regex to match:
         // 1. Words with contractions: "don't", "he'd", "it's" - apostrophes (straight or curly) embedded in words
         // 2. Hyphenated words: "self-aware", "mother-in-law"
         // 3. Standalone punctuation marks
-        private val TOKEN_REGEX = Regex(
-            // Numeric + unit patterns: temperatures and percentages.
-            // Examples: "20°C", "-35c", "–35c", "‑35c", "20°F", "20℃", "50%"
-            """[-−–—‐‑‒﹣－]?\d+(?:[.,]\d+)?(?:[℃℉]|%|[°º]?[cCfFkK](?![a-zA-Z]))""" +
-            "|" +
-            // Numeric patterns with separators (decimals / thousands).
-            // Examples: "3.14", "1,000", "1,000,000", "-2.5"
-            """[-−–—‐‑‒﹣－]?\d+(?:[.,]\d+)+""" +
-            "|" +
-            // Word pattern: word chars, optionally followed by (apostrophe + word chars) or (hyphen + word chars)
-            // This captures contractions like "don't" and hyphenated words like "self-aware"
-            """[\w]+(?:[\u0027\u2019\u2018][\w]+|-[\w]+)*""" +
-            "|" +
-            // Punctuation pattern: single punctuation characters (quotes, periods, etc.)
-            """[.,;:!?\u201C\u201D\u201E\u0022\u2018\u2019\u2014\u2013\u2026()\[\]{}\-\u2212°º%$€£¥℃℉]"""
-        )
+        private val TOKEN_REGEX =
+            Regex(
+                // Numeric + unit patterns: temperatures and percentages.
+                // Examples: "20°C", "-35c", "–35c", "‑35c", "20°F", "20℃", "50%"
+                """[-−–—‐‑‒﹣－]?\d+(?:[.,]\d+)?(?:[℃℉]|%|[°º]?[cCfFkK](?![a-zA-Z]))""" +
+                    "|" +
+                    // Numeric patterns with separators (decimals / thousands).
+                    // Examples: "3.14", "1,000", "1,000,000", "-2.5"
+                    """[-−–—‐‑‒﹣－]?\d+(?:[.,]\d+)+""" +
+                    "|" +
+                    // Word pattern: word chars, optionally followed by (apostrophe + word chars) or (hyphen + word chars)
+                    // This captures contractions like "don't" and hyphenated words like "self-aware"
+                    """[\w]+(?:[\u0027\u2019\u2018][\w]+|-[\w]+)*""" +
+                    "|" +
+                    // Punctuation pattern: single punctuation characters (quotes, periods, etc.)
+                    """[.,;:!?\u201C\u201D\u201E\u0022\u2018\u2019\u2014\u2013\u2026()\[\]{}\-\u2212°º%$€£¥℃℉]""",
+            )
     }
 
     private enum class BlockType {
@@ -281,11 +323,8 @@ class Tokenizer {
         HEADING,
         LIST_ITEM,
         BLOCKQUOTE,
-        PREFORMATTED
+        PREFORMATTED,
     }
 
-    private data class BlockCue(
-        val type: BlockType,
-        val hasEmphasis: Boolean
-    )
+    private data class BlockCue(val type: BlockType, val hasEmphasis: Boolean,)
 }

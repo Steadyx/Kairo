@@ -8,7 +8,13 @@ import kotlinx.coroutines.flow.Flow
 
 interface BookRepository {
     suspend fun importBook(uri: Uri): Book
+
     suspend fun getBook(bookId: BookId): Book
-    suspend fun getChapter(bookId: BookId, chapterIndex: Int): Chapter
+
+    suspend fun getChapter(
+        bookId: BookId,
+        chapterIndex: Int,
+    ): Chapter
+
     fun observeBooks(): Flow<List<Book>>
 }

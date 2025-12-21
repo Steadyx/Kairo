@@ -16,15 +16,16 @@ import androidx.compose.ui.text.style.TextAlign
 @Composable
 internal fun RsvpLoadingState() {
     Box(
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             "Preparing RSVP...",
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = LOADING_TEXT_ALPHA)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = LOADING_TEXT_ALPHA),
         )
     }
 }
@@ -32,17 +33,18 @@ internal fun RsvpLoadingState() {
 @Composable
 internal fun RsvpEmptyState(onExit: () -> Unit) {
     Box(
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .clickable { onExit() },
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             "No content to display.\nTap to go back.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = LOADING_TEXT_ALPHA)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = LOADING_TEXT_ALPHA),
         )
     }
 }

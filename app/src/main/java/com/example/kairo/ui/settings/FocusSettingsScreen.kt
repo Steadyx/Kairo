@@ -19,16 +19,17 @@ fun FocusSettingsScreen(
     onFocusPauseNotificationsChange: (Boolean) -> Unit,
     onFocusApplyInReaderChange: (Boolean) -> Unit,
     onFocusApplyInRsvpChange: (Boolean) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
 
     SettingsScaffold(title = "Focus settings", onBack = onBack) { modifier ->
         Column(
-            modifier = modifier
+            modifier =
+            modifier
                 .verticalScroll(scrollState)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FocusSettingsContent(
                 focusModeEnabled = preferences.focusModeEnabled,
@@ -40,7 +41,7 @@ fun FocusSettingsScreen(
                 onFocusHideStatusBarChange = onFocusHideStatusBarChange,
                 onFocusPauseNotificationsChange = onFocusPauseNotificationsChange,
                 onFocusApplyInReaderChange = onFocusApplyInReaderChange,
-                onFocusApplyInRsvpChange = onFocusApplyInRsvpChange
+                onFocusApplyInRsvpChange = onFocusApplyInRsvpChange,
             )
         }
     }

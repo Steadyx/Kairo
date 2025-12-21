@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RsvpPaceEstimatorTest {
-
     @Test
     fun lowerTempoProducesHigherEstimatedWpm() {
         val slow = RsvpPaceEstimator.estimateWpm(RsvpConfig(tempoMsPerWord = 160L))
@@ -14,4 +13,3 @@ class RsvpPaceEstimatorTest {
         assertTrue("Expected fast($fast) > slow($slow)", fast > slow)
     }
 }
-

@@ -7,15 +7,15 @@ import com.example.kairo.data.books.BookRepository
 import com.example.kairo.data.local.BookDao
 import com.example.kairo.data.local.BookmarkDao
 import com.example.kairo.data.local.ReadingPositionDao
-import kotlinx.coroutines.flow.Flow
 import java.io.File
+import kotlinx.coroutines.flow.Flow
 
 class LibraryRepositoryImpl(
     private val bookRepository: BookRepository,
     private val bookDao: BookDao,
     private val positionDao: ReadingPositionDao,
     private val bookmarkDao: BookmarkDao,
-    private val appContext: Context
+    private val appContext: Context,
 ) : LibraryRepository {
     override fun observeLibrary(): Flow<List<Book>> = bookRepository.observeBooks()
 

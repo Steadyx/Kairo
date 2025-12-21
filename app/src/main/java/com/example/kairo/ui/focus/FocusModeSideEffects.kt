@@ -13,15 +13,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.example.kairo.core.model.ReaderTheme
 
 @Composable
 fun FocusModeSideEffects(
     enabled: Boolean,
     hideStatusBar: Boolean,
-    pauseNotifications: Boolean
+    pauseNotifications: Boolean,
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -50,9 +50,7 @@ fun FocusModeSideEffects(
 }
 
 @Composable
-fun SystemBarsStyleSideEffect(
-    readerTheme: ReaderTheme
-) {
+fun SystemBarsStyleSideEffect(readerTheme: ReaderTheme) {
     val context = LocalContext.current
     val view = LocalView.current
     val activity = remember(context) { context.findActivity() } ?: return
@@ -78,9 +76,10 @@ fun SystemBarsStyleSideEffect(
 @Composable
 private fun FocusDndSideEffect(enabled: Boolean) {
     val context = LocalContext.current
-    val notificationManager = remember(context) {
-        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    }
+    val notificationManager =
+        remember(context) {
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        }
 
     DisposableEffect(enabled) {
         var previousFilter: Int? = null
@@ -89,23 +88,29 @@ private fun FocusDndSideEffect(enabled: Boolean) {
         if (enabled && notificationManager.isNotificationPolicyAccessGranted) {
             previousFilter = notificationManager.currentInterruptionFilter
             if (previousFilter != NotificationManager.INTERRUPTION_FILTER_NONE) {
-                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
+                notificationManager.setInterruptionFilter(
+                    NotificationManager.INTERRUPTION_FILTER_NONE
+                )
                 didChange = true
             }
         }
 
         onDispose {
-            if (didChange && previousFilter != null && notificationManager.isNotificationPolicyAccessGranted) {
+            if (didChange &&
+                previousFilter != null &&
+                notificationManager.isNotificationPolicyAccessGranted
+            ) {
                 notificationManager.setInterruptionFilter(previousFilter)
             }
         }
     }
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
 
 private const val MIN_CONTRAST_API = 29

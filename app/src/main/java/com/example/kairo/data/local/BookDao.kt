@@ -10,7 +10,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BookDao {
     @Transaction
-    suspend fun insertBook(book: BookEntity, chapters: List<ChapterEntity>) {
+    suspend fun insertBook(
+        book: BookEntity,
+        chapters: List<ChapterEntity>,
+    ) {
         insertBookInternal(book)
         insertChapters(chapters)
     }
@@ -29,7 +32,7 @@ interface BookDao {
                    ELSE NULL
                END AS coverImage
         FROM books
-        """
+        """,
     )
     fun getBooks(): Flow<List<BookEntity>>
 
@@ -43,7 +46,7 @@ interface BookDao {
         FROM books
         WHERE id = :bookId
         LIMIT 1
-        """
+        """,
     )
     suspend fun getBook(bookId: String): BookEntity?
 
@@ -56,7 +59,7 @@ interface BookDao {
                END AS coverImage
         FROM books
         LIMIT 1
-        """
+        """,
     )
     suspend fun peekBook(): BookEntity?
 
@@ -66,7 +69,7 @@ interface BookDao {
         FROM chapters
         WHERE bookId = :bookId
         ORDER BY `index`
-        """
+        """,
     )
     suspend fun getChapters(bookId: String): List<ChapterEntity>
 
@@ -76,9 +79,12 @@ interface BookDao {
         FROM chapters
         WHERE bookId = :bookId AND `index` = :index
         LIMIT 1
-        """
+        """,
     )
-    suspend fun getChapter(bookId: String, index: Int): ChapterEntity?
+    suspend fun getChapter(
+        bookId: String,
+        index: Int,
+    ): ChapterEntity?
 
     @Query("DELETE FROM chapters WHERE bookId = :bookId")
     suspend fun deleteChaptersForBook(bookId: String)

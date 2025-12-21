@@ -12,7 +12,7 @@ import com.example.kairo.core.model.nearestWordIndex
 @OptIn(ExperimentalFoundationApi::class)
 internal fun Modifier.rsvpGestureModifier(
     context: RsvpUiContext,
-    interactionSource: MutableInteractionSource
+    interactionSource: MutableInteractionSource,
 ): Modifier {
     val runtime = context.runtime
     return this
@@ -23,14 +23,13 @@ internal fun Modifier.rsvpGestureModifier(
                 onDrag = { change, dragAmount ->
                     handleDrag(context, dragAmount)
                     change.consume()
-                }
+                },
             )
-        }
-        .combinedClickable(
+        }.combinedClickable(
             interactionSource = interactionSource,
             indication = null,
             onClick = { handleTap(context) },
-            onLongClick = { exitAndSavePosition(context) }
+            onLongClick = { exitAndSavePosition(context) },
         )
 }
 
@@ -44,7 +43,10 @@ internal fun enterPositioningMode(runtime: RsvpRuntimeState) {
     runtime.isAdjustingPosition = true
 }
 
-internal fun finishPositioning(context: RsvpUiContext, resumeIfWasPlaying: Boolean) {
+internal fun finishPositioning(
+    context: RsvpUiContext,
+    resumeIfWasPlaying: Boolean,
+) {
     val runtime = context.runtime
     if (!runtime.isPositioningMode) return
 
@@ -61,14 +63,21 @@ internal fun addBookmarkNow(context: RsvpUiContext) {
     val book = context.state.book
     if (book.tokens.isEmpty()) return
 
-    val currentIndex = resolveCurrentTokenIndex(
-        context.frameState.frames,
-        runtime.frameIndex,
-        book.startIndex
-    )
-    val safeIndex = book.tokens.nearestWordIndex(currentIndex)
-        .coerceIn(0, book.tokens.lastIndex)
-    val preview = book.tokens.getOrNull(safeIndex)?.text.orEmpty()
+    val currentIndex =
+        resolveCurrentTokenIndex(
+            context.frameState.frames,
+            runtime.frameIndex,
+            book.startIndex,
+        )
+    val safeIndex =
+        book.tokens
+            .nearestWordIndex(currentIndex)
+            .coerceIn(0, book.tokens.lastIndex)
+    val preview =
+        book.tokens
+            .getOrNull(safeIndex)
+            ?.text
+            .orEmpty()
     context.callbacks.bookmarks.onAddBookmark(safeIndex, preview)
     runtime.showQuickSettings = false
 }
@@ -94,19 +103,22 @@ private fun handleDragStart(runtime: RsvpRuntimeState) {
     runtime.dragStartHorizontalBias = runtime.currentHorizontalBias
 }
 
-private fun handleDrag(context: RsvpUiContext, dragAmount: Offset) {
+private fun handleDrag(
+    context: RsvpUiContext,
+    dragAmount: Offset,
+) {
     val runtime = context.runtime
     if (runtime.isPositioningMode) {
         val biasPerPx = POSITIONING_BIAS_PER_PX
         runtime.currentVerticalBias =
             (runtime.currentVerticalBias + dragAmount.y * biasPerPx).coerceIn(
                 VERTICAL_BIAS_MIN,
-                VERTICAL_BIAS_MAX
+                VERTICAL_BIAS_MAX,
             )
         runtime.currentHorizontalBias =
             (runtime.currentHorizontalBias + dragAmount.x * biasPerPx).coerceIn(
                 HORIZONTAL_BIAS_MIN,
-                HORIZONTAL_BIAS_MAX
+                HORIZONTAL_BIAS_MAX,
             )
         runtime.isAdjustingPosition = true
     } else {

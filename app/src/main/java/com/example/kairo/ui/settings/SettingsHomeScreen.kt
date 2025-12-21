@@ -28,14 +28,15 @@ fun SettingsHomeScreen(
     onOpenReader: () -> Unit,
     onOpenFocus: () -> Unit,
     onReset: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Settings", style = MaterialTheme.typography.titleLarge)
 
@@ -43,19 +44,19 @@ fun SettingsHomeScreen(
             title = "RSVP settings",
             subtitle = "Speed, timing, readability shaping, RSVP typography",
             icon = Icons.Default.Settings,
-            onClick = onOpenRsvp
+            onClick = onOpenRsvp,
         )
         SettingsNavRow(
             title = "Reader settings",
             subtitle = "Font size, theme, scrolling",
             icon = Icons.Default.Settings,
-            onClick = onOpenReader
+            onClick = onOpenReader,
         )
         SettingsNavRow(
             title = "Focus settings",
             subtitle = "Minimal mode and Do Not Disturb options",
             icon = Icons.Default.Settings,
-            onClick = onOpenFocus
+            onClick = onOpenFocus,
         )
 
         Spacer(modifier = Modifier.height(8.dp))
