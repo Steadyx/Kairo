@@ -5,6 +5,10 @@ package com.example.kairo.ui.rsvp
 import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import com.example.kairo.core.model.nearestWordIndex
 import kotlin.math.roundToLong
 import kotlinx.coroutines.delay
@@ -48,7 +52,7 @@ internal fun RsvpFrameAlignmentEffect(context: RsvpUiContext) {
 }
 
 @Composable
-internal fun RsvpSessionResetEffect(context: RsvpUiContext) {
+internal fun RsvpSessionResetEffect(context: RsvpUiContext, sessionKey: String) {
     val runtime = context.runtime
     val book = context.state.book
     val profile = context.state.profile
@@ -56,7 +60,11 @@ internal fun RsvpSessionResetEffect(context: RsvpUiContext) {
     val layoutBias = context.state.layoutBias
     val frames = context.frameState.frames
 
-    LaunchedEffect(book.tokens, book.startIndex) {
+    var lastSessionKey by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(sessionKey) {
+        if (lastSessionKey == sessionKey) return@LaunchedEffect
+        lastSessionKey = sessionKey
         runtime.currentTokenIndex = book.startIndex
         runtime.frameIndex = alignFrameIndex(frames, book.startIndex)
         runtime.isPlaying = true
