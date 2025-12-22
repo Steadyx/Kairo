@@ -222,6 +222,14 @@ class ReaderViewModel(
         _uiState.update { it.copy(focusIndex = index) }
     }
 
+    fun applyFocusIndex(index: Int) {
+        val uiState = _uiState.value
+        if (uiState.isLoading || uiState.chapterData == null) {
+            pendingFocusIndex = index
+        }
+        _uiState.update { it.copy(focusIndex = index) }
+    }
+
     @Suppress("unused")
     fun nextChapter() {
         val book = currentBook ?: return

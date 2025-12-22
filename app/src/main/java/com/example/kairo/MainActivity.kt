@@ -66,6 +66,7 @@ import com.example.kairo.ui.settings.RsvpSettingsScreen
 import com.example.kairo.ui.settings.SettingsHomeScreen
 import com.example.kairo.ui.theme.KairoTheme
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -296,7 +297,16 @@ private fun KairoNavHost(
             LaunchedEffect(safeRsvpResultIndex) {
                 if (safeRsvpResultIndex >= 0) {
                     if (safeRsvpResultIndex != uiState.focusIndex) {
-                        readerViewModel.setFocusIndex(safeRsvpResultIndex)
+                        readerViewModel.applyFocusIndex(safeRsvpResultIndex)
+                    }
+                    coroutineScope.launch(dispatcherProvider.io) {
+                        container.readingPositionRepository.savePosition(
+                            ReadingPosition(
+                                BookId(bookId),
+                                uiState.chapterIndex,
+                                safeRsvpResultIndex,
+                            ),
+                        )
                     }
                     backStackEntry.savedStateHandle["rsvp_result_token_index"] = -1
                 }
@@ -307,7 +317,7 @@ private fun KairoNavHost(
 
             // Load book with saved position on first entry
             LaunchedEffect(book) {
-                if (!hasInitialized) {
+                if (!hasInitialized || uiState.chapterData == null) {
                     val savedPosition = container.readingPositionRepository.getPosition(
                         BookId(bookId)
                     )
@@ -334,11 +344,24 @@ private fun KairoNavHost(
                     ) {
                         val tokens = uiState.chapterData?.tokens
                         if (tokens != null && savedPosition.tokenIndex != uiState.focusIndex) {
-                            readerViewModel.setFocusIndex(
+                            readerViewModel.applyFocusIndex(
                                 savedPosition.tokenIndex.coerceIn(0, tokens.lastIndex)
                             )
                         }
                     }
+                }
+            }
+
+            LaunchedEffect(uiState.chapterIndex, uiState.chapterData) {
+                if (!hasInitialized) return@LaunchedEffect
+                val tokens = uiState.chapterData?.tokens ?: return@LaunchedEffect
+                if (tokens.isEmpty()) return@LaunchedEffect
+                val safeIndex =
+                    tokens.nearestWordIndex(uiState.focusIndex).coerceIn(0, tokens.lastIndex)
+                withContext(dispatcherProvider.io) {
+                    container.readingPositionRepository.savePosition(
+                        ReadingPosition(BookId(bookId), uiState.chapterIndex, safeIndex),
+                    )
                 }
             }
 
@@ -496,14 +519,85 @@ private fun KairoNavHost(
             LaunchedEffect(safeRsvpResultIndex) {
                 if (safeRsvpResultIndex >= 0) {
                     if (safeRsvpResultIndex != uiState.focusIndex) {
-                        readerViewModel.setFocusIndex(safeRsvpResultIndex)
+                        readerViewModel.applyFocusIndex(safeRsvpResultIndex)
+                    }
+                    coroutineScope.launch(dispatcherProvider.io) {
+                        container.readingPositionRepository.savePosition(
+                            ReadingPosition(
+                                BookId(bookId),
+                                uiState.chapterIndex,
+                                safeRsvpResultIndex,
+                            ),
+                        )
                     }
                     backStackEntry.savedStateHandle["rsvp_result_token_index"] = -1
                 }
             }
 
-            LaunchedEffect(book.id, initialChapterIndex, initialTokenIndex) {
-                readerViewModel.loadBook(book, initialChapterIndex, initialTokenIndex)
+            // Track if we've done initial load
+            var hasInitialized by rememberSaveable { mutableStateOf(false) }
+
+            LaunchedEffect(book) {
+                if (!hasInitialized || uiState.chapterData == null) {
+                    val savedPosition =
+                        if (hasInitialized) {
+                            container.readingPositionRepository.getPosition(
+                                BookId(bookId)
+                            )
+                        } else {
+                            null
+                        }
+                    val initialChapter =
+                        if (savedPosition != null) {
+                            savedPosition.chapterIndex
+                        } else {
+                            initialChapterIndex
+                        }
+                    val initialFocus =
+                        if (savedPosition != null) {
+                            savedPosition.tokenIndex
+                        } else {
+                            initialTokenIndex
+                        }
+                    readerViewModel.loadBook(book, initialChapter, initialFocus)
+                    hasInitialized = true
+                }
+            }
+
+            // Sync focus from storage when returning from RSVP (lifecycle resumes)
+            val lifecycleOwner = LocalLifecycleOwner.current
+            val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
+
+            LaunchedEffect(lifecycleState) {
+                if (lifecycleState == Lifecycle.State.RESUMED && hasInitialized) {
+                    if (safeRsvpResultIndex >= 0) return@LaunchedEffect
+                    val savedPosition = container.readingPositionRepository.getPosition(
+                        BookId(bookId)
+                    )
+                    if (savedPosition != null &&
+                        savedPosition.chapterIndex == uiState.chapterIndex
+                    ) {
+                        val tokens = uiState.chapterData?.tokens
+                        if (tokens != null && savedPosition.tokenIndex != uiState.focusIndex) {
+                            readerViewModel.applyFocusIndex(
+                                savedPosition.tokenIndex.coerceIn(0, tokens.lastIndex)
+                            )
+                        }
+                    }
+                }
+            }
+
+            LaunchedEffect(uiState.chapterIndex, uiState.chapterData) {
+                if (!hasInitialized) return@LaunchedEffect
+                val tokens = uiState.chapterData?.tokens ?: return@LaunchedEffect
+                if (tokens.isEmpty()) return@LaunchedEffect
+                val safeIndex =
+                    tokens.nearestWordIndex(uiState.focusIndex).coerceIn(0, tokens.lastIndex)
+                withContext(dispatcherProvider.io) {
+                    container.readingPositionRepository.savePosition(
+                        ReadingPosition(BookId(bookId), uiState.chapterIndex, safeIndex),
+                    )
+                }
             }
 
             val focusEnabledInReader = prefs.focusModeEnabled && prefs.focusApplyInReader
