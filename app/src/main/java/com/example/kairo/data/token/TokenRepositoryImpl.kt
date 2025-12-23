@@ -4,6 +4,7 @@ import com.example.kairo.core.dispatchers.DispatcherProvider
 import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
+import com.example.kairo.core.model.countWords
 import com.example.kairo.core.tokenization.Tokenizer
 import com.example.kairo.data.books.BookRepository
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +52,7 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
                     bookRepository.getChapter(bookId, chapterIndex)
                 }
         val tokens = withContext(tokenizationDispatcher) { Tokenizer().tokenize(resolvedChapter) }
+        updateChapterWordCount(bookId, chapterIndex, tokens)
         mutex.withLock { cache[key] = tokens }
         prefetchNextChapter(bookId, chapterIndex + 1)
         return tokens
@@ -72,8 +74,20 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
                     }
                 }.getOrNull() ?: return@launch
             val tokens = withContext(tokenizationDispatcher) { Tokenizer().tokenize(chapter) }
+            updateChapterWordCount(bookId, nextIndex, tokens)
             mutex.withLock { cache[key] = tokens }
         }
+    }
+
+    private suspend fun updateChapterWordCount(
+        bookId: BookId,
+        chapterIndex: Int,
+        tokens: List<Token>,
+    ) {
+        if (tokens.isEmpty()) return
+        val wordCount = countWords(tokens)
+        if (wordCount <= 0) return
+        bookRepository.updateChapterWordCount(bookId, chapterIndex, wordCount)
     }
 
     @Suppress("unused")

@@ -16,5 +16,11 @@ interface BookRepository {
         chapterIndex: Int,
     ): Chapter
 
+    suspend fun updateChapterWordCount(
+        bookId: BookId,
+        chapterIndex: Int,
+        wordCount: Int,
+    )
+
     fun observeBooks(): Flow<List<Book>>
 }

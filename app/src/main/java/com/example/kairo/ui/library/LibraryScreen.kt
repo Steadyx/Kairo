@@ -57,12 +57,14 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookmarkItem
+import com.example.kairo.core.model.formatDurationMinutes
 import kotlin.math.roundToInt
 
 @Composable
 fun LibraryScreen(
     books: List<Book>,
     bookmarks: List<BookmarkItem>,
+    bookProgress: Map<String, LibraryBookProgress>,
     initialTab: LibraryTab = LibraryTab.Library,
     onOpen: (Book) -> Unit,
     onOpenBookmark: (bookId: String, chapterIndex: Int, tokenIndex: Int) -> Unit,
@@ -148,7 +150,12 @@ fun LibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(books, key = { it.id.value }) { book ->
-                    LibraryCard(book = book, onOpen = onOpen, onDelete = onDelete)
+                    LibraryCard(
+                        book = book,
+                        progress = bookProgress[book.id.value],
+                        onOpen = onOpen,
+                        onDelete = onDelete,
+                    )
                 }
             }
         } else {
@@ -207,6 +214,7 @@ enum class LibraryTab { Library, Bookmarks }
 @Composable
 private fun LibraryCard(
     book: Book,
+    progress: LibraryBookProgress?,
     onOpen: (Book) -> Unit,
     onDelete: (Book) -> Unit,
 ) {
@@ -259,6 +267,25 @@ private fun LibraryCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary,
                 )
+                progress?.let { stats ->
+                    val eta =
+                        stats.remainingMinutes?.let { minutes ->
+                            "~${formatDurationMinutes(minutes)} left"
+                        }
+                    val label =
+                        buildString {
+                            append("${stats.percentComplete}% complete")
+                            if (eta != null) {
+                                append(" • ")
+                                append(eta)
+                            }
+                        }
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             // Delete button

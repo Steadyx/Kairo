@@ -6,6 +6,7 @@ import android.net.Uri
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Chapter
+import com.example.kairo.core.model.countWords
 import com.example.kairo.data.local.BookDao
 import com.example.kairo.data.local.toDomain
 import com.example.kairo.data.local.toEntity
@@ -33,7 +34,18 @@ class BookRepositoryImpl(
 
             // Parse the book - let errors propagate for proper error handling
             val parsedBook = parser.parse(appContext, uri)
-            val book = parsedBook.copy(coverImage = optimizeCoverForDb(parsedBook.coverImage))
+            val book =
+                parsedBook.copy(
+                    coverImage = optimizeCoverForDb(parsedBook.coverImage),
+                    chapters =
+                    parsedBook.chapters.map { chapter ->
+                        if (chapter.wordCount > 0) {
+                            chapter
+                        } else {
+                            chapter.copy(wordCount = countWords(chapter.plainText))
+                        }
+                    },
+                )
 
             // Save to database
             bookDao.insertBook(book.toEntity(), book.chapters.map { it.toEntity(book.id) })
@@ -103,6 +115,15 @@ class BookRepositoryImpl(
         val entity =
             requireNotNull(bookDao.getChapter(bookId.value, chapterIndex)) { "Chapter missing" }
         return entity.toDomain()
+    }
+
+    override suspend fun updateChapterWordCount(
+        bookId: BookId,
+        chapterIndex: Int,
+        wordCount: Int,
+    ) {
+        if (wordCount <= 0) return
+        bookDao.updateChapterWordCount(bookId.value, chapterIndex, wordCount)
     }
 
     override fun observeBooks(): Flow<List<Book>> =

@@ -8,6 +8,7 @@ import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
+import com.example.kairo.core.model.countWords
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.data.books.BookRepository
 import com.example.kairo.data.token.TokenRepository
@@ -64,17 +65,74 @@ class ReaderViewModel(
         currentBook = book
         chapterCache.clear() // Clear cache when loading new book
         pendingFocusIndex = if (initialFocusIndex > 0) initialFocusIndex else null
+        _uiState.update { it.copy(bookWordCounts = emptyList(), bookTotalWords = 0) }
+        loadBookWordCounts(book)
         loadChapter(initialChapterIndex)
+    }
+
+    private fun loadBookWordCounts(book: Book) {
+        val bookId = book.id
+        val initialCounts = book.chapters.map { it.wordCount }
+        _uiState.update {
+            it.copy(
+                bookWordCounts = initialCounts,
+                bookTotalWords = initialCounts.sum(),
+            )
+        }
+        if (initialCounts.all { it > 0 } || book.chapters.isEmpty()) return
+
+        viewModelScope.launch {
+            val counts =
+                runCatching {
+                    withContext(dispatcherProvider.io) {
+                        book.chapters.map { chapter ->
+                            if (chapter.wordCount > 0) {
+                                chapter.wordCount
+                            } else {
+                                val resolved =
+                                    runCatching {
+                                        bookRepository.getChapter(bookId, chapter.index)
+                                    }.getOrNull()
+                                val count =
+                                    if (resolved == null) {
+                                        0
+                                    } else {
+                                        countWords(resolved.plainText)
+                                    }
+                                if (count > 0) {
+                                    bookRepository.updateChapterWordCount(
+                                        bookId,
+                                        chapter.index,
+                                        count,
+                                    )
+                                }
+                                count
+                            }
+                        }
+                    }
+                }.getOrNull() ?: emptyList()
+
+            if (currentBook?.id != bookId) return@launch
+            val total = counts.sum()
+            _uiState.update { it.copy(bookWordCounts = counts, bookTotalWords = total) }
+        }
     }
 
     /**
      * Load a chapter by index. Shows loading state immediately,
      * then processes tokens in background.
      */
-    fun loadChapter(chapterIndex: Int) {
+    fun loadChapter(
+        chapterIndex: Int,
+        initialFocusIndex: Int? = null,
+    ) {
         val book = currentBook ?: return
 
         if (chapterIndex !in book.chapters.indices) return
+
+        if (initialFocusIndex != null) {
+            pendingFocusIndex = initialFocusIndex
+        }
 
         // Check cache first - instant load if available
         val cached = chapterCache[chapterIndex]
@@ -173,6 +231,10 @@ class ReaderViewModel(
 
             if (tokens.isEmpty() && chapter.imagePaths.isEmpty()) return@withContext null
 
+            val wordCountByToken = buildWordCountByToken(tokens)
+            val pages = buildChapterPages(tokens, DEFAULT_WORDS_PER_PAGE)
+            val totalWords = wordCountByToken.lastOrNull() ?: 0
+
             val blocks =
                 buildReaderBlocks(
                     htmlContent = chapter.htmlContent,
@@ -186,6 +248,9 @@ class ReaderViewModel(
                 blocks = blocks,
                 firstWordIndex = firstWordIndex,
                 imagePaths = chapter.imagePaths,
+                pages = pages,
+                wordCountByToken = wordCountByToken,
+                totalWords = totalWords,
             )
         }
     }
@@ -259,6 +324,8 @@ class ReaderViewModel(
         private const val CHAPTER_CACHE_INITIAL_CAPACITY = 5
         private const val CHAPTER_CACHE_LOAD_FACTOR = 0.75f
         private const val MAX_CACHED_CHAPTERS = 5
+        // Approximate page size for progress + time estimates (not layout-bound).
+        private const val DEFAULT_WORDS_PER_PAGE = 250
 
         fun factory(
             bookRepository: BookRepository,
@@ -290,6 +357,8 @@ data class ReaderUiState(
     val chapterIndex: Int = 0,
     val focusIndex: Int = 0,
     val chapterData: ChapterData? = null,
+    val bookWordCounts: List<Int> = emptyList(),
+    val bookTotalWords: Int = 0,
 )
 
 data class ChapterData(
@@ -298,6 +367,9 @@ data class ChapterData(
     val blocks: List<ReaderBlock>,
     val firstWordIndex: Int,
     val imagePaths: List<String>,
+    val pages: List<ChapterPage>,
+    val wordCountByToken: IntArray,
+    val totalWords: Int,
 )
 
 /**
@@ -305,6 +377,13 @@ data class ChapterData(
  * Stores the starting index for mapping back to the original token list.
  */
 data class Paragraph(val tokens: List<Token>, val startIndex: Int,)
+
+data class ChapterPage(
+    val index: Int,
+    val startTokenIndex: Int,
+    val endTokenIndex: Int,
+    val wordCount: Int,
+)
 
 sealed interface ReaderBlock {
     val key: String
@@ -350,6 +429,83 @@ fun List<Token>.toParagraphs(): List<Paragraph> {
     }
 
     return paragraphs
+}
+
+private fun buildWordCountByToken(tokens: List<Token>): IntArray {
+    if (tokens.isEmpty()) return IntArray(0)
+    val counts = IntArray(tokens.size)
+    var total = 0
+    tokens.forEachIndexed { index, token ->
+        if (token.type == TokenType.WORD) {
+            total += 1
+        }
+        counts[index] = total
+    }
+    return counts
+}
+
+private fun buildChapterPages(
+    tokens: List<Token>,
+    wordsPerPage: Int,
+): List<ChapterPage> {
+    if (tokens.isEmpty() || wordsPerPage <= 0) return emptyList()
+
+    val pages = mutableListOf<ChapterPage>()
+    var pageStartTokenIndex = -1
+    var pageWordCount = 0
+    var lastWordTokenIndex = -1
+
+    tokens.forEachIndexed { index, token ->
+        when (token.type) {
+            TokenType.WORD -> {
+                if (pageStartTokenIndex == -1) {
+                    pageStartTokenIndex = index
+                }
+                pageWordCount += 1
+                lastWordTokenIndex = index
+                if (pageWordCount >= wordsPerPage) {
+                    pages.add(
+                        ChapterPage(
+                            index = pages.size,
+                            startTokenIndex = pageStartTokenIndex,
+                            endTokenIndex = lastWordTokenIndex,
+                            wordCount = pageWordCount,
+                        ),
+                    )
+                    pageStartTokenIndex = -1
+                    pageWordCount = 0
+                }
+            }
+            TokenType.PAGE_BREAK -> {
+                if (pageStartTokenIndex != -1 && lastWordTokenIndex >= pageStartTokenIndex) {
+                    pages.add(
+                        ChapterPage(
+                            index = pages.size,
+                            startTokenIndex = pageStartTokenIndex,
+                            endTokenIndex = lastWordTokenIndex,
+                            wordCount = pageWordCount,
+                        ),
+                    )
+                }
+                pageStartTokenIndex = -1
+                pageWordCount = 0
+            }
+            else -> Unit
+        }
+    }
+
+    if (pageStartTokenIndex != -1 && lastWordTokenIndex >= pageStartTokenIndex) {
+        pages.add(
+            ChapterPage(
+                index = pages.size,
+                startTokenIndex = pageStartTokenIndex,
+                endTokenIndex = lastWordTokenIndex,
+                wordCount = pageWordCount,
+            ),
+        )
+    }
+
+    return pages
 }
 
 private sealed interface HtmlBlockMarker {
