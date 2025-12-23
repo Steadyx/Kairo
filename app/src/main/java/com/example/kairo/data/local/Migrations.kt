@@ -52,3 +52,10 @@ val MIGRATION_3_4 =
             db.execSQL("ALTER TABLE chapters ADD COLUMN imagePaths TEXT NOT NULL DEFAULT ''")
         }
     }
+
+val MIGRATION_4_5 =
+    object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE chapters ADD COLUMN wordCount INTEGER NOT NULL DEFAULT 0")
+        }
+    }

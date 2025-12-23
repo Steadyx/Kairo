@@ -43,6 +43,7 @@ data class Chapter(
     val htmlContent: String,
     val plainText: String,
     val imagePaths: List<String> = emptyList(),
+    val wordCount: Int = 0,
 )
 
 data class ReadingPosition(val bookId: BookId, val chapterIndex: Int, val tokenIndex: Int,)

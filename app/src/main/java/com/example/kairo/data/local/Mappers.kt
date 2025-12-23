@@ -5,6 +5,7 @@ import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Bookmark
 import com.example.kairo.core.model.BookmarkItem
 import com.example.kairo.core.model.Chapter
+import com.example.kairo.core.model.countWords
 
 private const val IMAGE_PATHS_DELIMITER = "|||"
 
@@ -35,6 +36,7 @@ fun Chapter.toEntity(bookId: BookId): ChapterEntity =
         htmlContent = htmlContent,
         plainText = plainText,
         imagePaths = encodeImagePaths(imagePaths),
+        wordCount = if (wordCount > 0) wordCount else countWords(plainText),
     )
 
 fun BookEntity.toDomain(chapters: List<ChapterEntity>): Book =
@@ -53,6 +55,7 @@ fun ChapterEntity.toDomain(): Chapter =
         htmlContent = htmlContent,
         plainText = plainText,
         imagePaths = decodeImagePaths(imagePaths),
+        wordCount = wordCount,
     )
 
 fun ReadingPositionEntity.toDomain(): com.example.kairo.core.model.ReadingPosition =

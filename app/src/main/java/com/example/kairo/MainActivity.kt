@@ -44,6 +44,8 @@ import com.example.kairo.ui.focus.FocusModeSideEffects
 import com.example.kairo.ui.focus.SystemBarsStyleSideEffect
 import com.example.kairo.ui.library.LibraryScreen
 import com.example.kairo.ui.library.LibraryTab
+import com.example.kairo.ui.library.LibraryBookProgress
+import com.example.kairo.ui.library.buildLibraryProgress
 import com.example.kairo.ui.reader.ReaderScreen
 import com.example.kairo.ui.reader.ReaderViewModel
 import com.example.kairo.ui.rsvp.RsvpBookContext
@@ -65,6 +67,7 @@ import com.example.kairo.ui.settings.ReaderSettingsScreen
 import com.example.kairo.ui.settings.RsvpSettingsScreen
 import com.example.kairo.ui.settings.SettingsHomeScreen
 import com.example.kairo.ui.theme.KairoTheme
+import com.example.kairo.core.rsvp.RsvpPaceEstimator
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -109,8 +112,35 @@ private fun KairoNavHost(
     val books by libraryFlow.collectAsState(initial = emptyList())
     val bookmarksFlow = container.bookmarkRepository.observeBookmarks()
     val bookmarks by bookmarksFlow.collectAsState(initial = emptyList())
+    val positionsFlow = container.readingPositionRepository.observePositions()
+    val positions by positionsFlow.collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
     val dispatcherProvider = container.dispatcherProvider
+
+    val estimatedWpm by produceState(initialValue = 0, prefs.rsvpConfig) {
+        value =
+            withContext(dispatcherProvider.default) {
+                runCatching { RsvpPaceEstimator.estimateWpm(prefs.rsvpConfig) }
+                    .getOrElse { 0 }
+            }
+    }
+    val libraryProgress by produceState(
+        initialValue = emptyMap<String, LibraryBookProgress>(),
+        books,
+        positions,
+        estimatedWpm,
+    ) {
+        value =
+            withContext(dispatcherProvider.io) {
+                buildLibraryProgress(
+                    books = books,
+                    positions = positions,
+                    estimatedWpm = estimatedWpm,
+                    bookRepository = container.bookRepository,
+                    tokenRepository = container.tokenRepository,
+                )
+            }
+    }
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
@@ -134,6 +164,7 @@ private fun KairoNavHost(
             LibraryScreen(
                 books = books,
                 bookmarks = bookmarks,
+                bookProgress = libraryProgress,
                 initialTab = LibraryTab.Library,
                 onOpen = { book ->
                     // Navigate to reader - saved position will be restored there
@@ -192,6 +223,7 @@ private fun KairoNavHost(
             LibraryScreen(
                 books = books,
                 bookmarks = bookmarks,
+                bookProgress = libraryProgress,
                 initialTab = initialTab,
                 onOpen = { book ->
                     navController.navigate("reader/${book.id.value}")
@@ -373,6 +405,7 @@ private fun KairoNavHost(
                 invertedScroll = prefs.invertedScroll,
                 readerTheme = prefs.readerTheme,
                 textBrightness = prefs.readerTextBrightness,
+                estimatedWpm = estimatedWpm,
                 onFontSizeChange = { size ->
                     coroutineScope.launch {
                         container.preferencesRepository.updateFontSize(size)
@@ -443,8 +476,8 @@ private fun KairoNavHost(
                     }
                     navController.navigate("rsvp/$bookId/${uiState.chapterIndex}/$start")
                 },
-                onChapterChange = { newIndex ->
-                    readerViewModel.loadChapter(newIndex)
+                onChapterChange = { newIndex, focusIndex ->
+                    readerViewModel.loadChapter(newIndex, focusIndex)
                 },
             )
         }
@@ -608,6 +641,7 @@ private fun KairoNavHost(
                 invertedScroll = prefs.invertedScroll,
                 readerTheme = prefs.readerTheme,
                 textBrightness = prefs.readerTextBrightness,
+                estimatedWpm = estimatedWpm,
                 onFontSizeChange = { size ->
                     coroutineScope.launch {
                         container.preferencesRepository.updateFontSize(size)
@@ -676,8 +710,8 @@ private fun KairoNavHost(
                     }
                     navController.navigate("rsvp/$bookId/${uiState.chapterIndex}/$start")
                 },
-                onChapterChange = { newIndex ->
-                    readerViewModel.loadChapter(newIndex)
+                onChapterChange = { newIndex, focusIndex ->
+                    readerViewModel.loadChapter(newIndex, focusIndex)
                 },
             )
         }

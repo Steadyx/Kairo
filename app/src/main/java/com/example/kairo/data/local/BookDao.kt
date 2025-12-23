@@ -26,12 +26,14 @@ interface BookDao {
 
     @Query(
         """
-        SELECT id, title, authors,
+        SELECT books.id, books.title, books.authors,
                CASE
                    WHEN coverImage IS NOT NULL AND length(coverImage) <= 1900000 THEN coverImage
                    ELSE NULL
                END AS coverImage
         FROM books
+        LEFT JOIN chapters ON chapters.bookId = books.id
+        GROUP BY books.id
         """,
     )
     fun getBooks(): Flow<List<BookEntity>>
@@ -65,7 +67,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths
+        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount
         FROM chapters
         WHERE bookId = :bookId
         ORDER BY `index`
@@ -75,7 +77,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, plainText, imagePaths
+        SELECT bookId, `index`, title, '' AS htmlContent, plainText, imagePaths, wordCount
         FROM chapters
         WHERE bookId = :bookId AND `index` = :index
         LIMIT 1
@@ -85,6 +87,19 @@ interface BookDao {
         bookId: String,
         index: Int,
     ): ChapterEntity?
+
+    @Query(
+        """
+        UPDATE chapters
+        SET wordCount = :wordCount
+        WHERE bookId = :bookId AND `index` = :index AND wordCount <= 0
+        """,
+    )
+    suspend fun updateChapterWordCount(
+        bookId: String,
+        index: Int,
+        wordCount: Int,
+    )
 
     @Query("DELETE FROM chapters WHERE bookId = :bookId")
     suspend fun deleteChaptersForBook(bookId: String)
