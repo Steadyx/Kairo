@@ -11,148 +11,35 @@
 
 package com.example.kairo.ui.reader
 
-import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.ParagraphStyle
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextIndent
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
-import coil.request.ImageRequest
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.ReaderTheme
-import com.example.kairo.core.model.TokenType
-import com.example.kairo.core.model.estimateMinutesForWords
-import com.example.kairo.core.model.formatDurationMinutes
 import com.example.kairo.core.model.nearestWordIndex
-import com.example.kairo.core.model.shouldInsertSpaceBeforeToken
-import com.example.kairo.ui.settings.ReaderSettingsContent
-import com.example.kairo.ui.settings.SettingsNavRow
-import com.example.kairo.ui.settings.SettingsSwitchRow
-import com.example.kairo.ui.theme.MerriweatherFontFamily
-import java.io.File
-import kotlin.math.abs
-import kotlin.math.exp
-import kotlin.math.roundToInt
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.launch
-
-private sealed interface InvertedScrollCommand {
-    data class Drag(val dy: Float,) : InvertedScrollCommand
-
-    data class Fling(val velocityY: Float,) : InvertedScrollCommand
-}
-
-private enum class Axis { Horizontal, Vertical }
-
-private suspend fun performInvertedFling(
-    listState: androidx.compose.foundation.lazy.LazyListState,
-    initialVelocityY: Float,
-) {
-    var velocity = initialVelocityY
-    var lastFrameNanos = withFrameNanos { it }
-    val stopVelocityPxPerSec = 40f
-    val frictionPerSecond = 8f
-
-    while (abs(velocity) > stopVelocityPxPerSec) {
-        val frameNanos = withFrameNanos { it }
-        val dtSec = ((frameNanos - lastFrameNanos).coerceAtLeast(0L)) / 1_000_000_000f
-        lastFrameNanos = frameNanos
-
-        val dy = velocity * dtSec
-        val consumed = listState.scrollBy(dy)
-        if (consumed == 0f) break
-
-        velocity *= exp(-frictionPerSecond * dtSec)
-    }
-}
 
 /**
  * Main reader screen - can be called directly with ViewModel state.
@@ -198,381 +85,68 @@ fun ReaderScreen(
     val chapter = book.chapters.getOrNull(chapterIndex)
     val coverImage = book.coverImage
 
-    // Pre-computed chapter data (done off-thread)
-    val blocks = uiState.chapterData?.blocks.orEmpty()
-    val tokens = uiState.chapterData?.tokens.orEmpty()
-    val pages = uiState.chapterData?.pages.orEmpty()
-    val wordCountByToken = uiState.chapterData?.wordCountByToken
-    val totalChapterWords = uiState.chapterData?.totalWords ?: 0
-    val firstWordIndex = uiState.chapterData?.firstWordIndex ?: -1
-    val imagePaths = uiState.chapterData?.imagePaths.orEmpty()
+    val renderState =
+        rememberReaderRenderState(
+            chapterIndex = chapterIndex,
+            focusIndex = focusIndex,
+            coverImage = coverImage,
+            chapterData = uiState.chapterData,
+        )
     val onSafeFocusChange =
-        remember(tokens, onFocusChange) {
+        remember(renderState.tokens, onFocusChange) {
             { index: Int ->
-                if (tokens.isNotEmpty()) {
-                    onFocusChange(tokens.nearestWordIndex(index))
+                if (renderState.tokens.isNotEmpty()) {
+                    onFocusChange(renderState.tokens.nearestWordIndex(index))
                 }
             }
         }
 
-    val isCoverChapter = chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
-    val wordCount = totalChapterWords
-    val safeFocusIndex =
-        remember(tokens, focusIndex) {
-            if (tokens.isEmpty()) {
-                0
-            } else {
-                tokens.nearestWordIndex(focusIndex).coerceIn(0, tokens.lastIndex)
-            }
-        }
-    val isPagedChapter = pages.isNotEmpty()
-    val resolvedPageIndex =
-        remember(pages, safeFocusIndex) {
-            if (pages.isEmpty()) {
-                -1
-            } else {
-                val index =
-                    pages.indexOfFirst { page ->
-                        safeFocusIndex in page.startTokenIndex..page.endTokenIndex
-                    }
-                if (index >= 0) index else 0
-            }
-        }
-    val currentPage =
-        remember(pages, resolvedPageIndex) {
-            if (resolvedPageIndex >= 0) pages.getOrNull(resolvedPageIndex) else null
-        }
-
-    val fullScreenTitlePageImagePath =
-        remember(chapterIndex, isCoverChapter, imagePaths, wordCount) {
-            if (imagePaths.isEmpty()) return@remember null
-
-            when {
-                // If we already render a metadata cover image, the first extracted image in chapter 0 is often a duplicate
-                // cover. Prefer the second image as the title page (do not fall back to the first, to avoid rendering the
-                // same cover twice).
-                chapterIndex == 0 && isCoverChapter -> imagePaths.getOrNull(1)
-
-                // Some EPUBs store the title page as a single-image chapter (often chapter 1).
-                chapterIndex == 1 && imagePaths.size == 1 -> imagePaths.first()
-
-                // If we don't have a metadata cover, chapter 0's first image is usually the title page.
-                chapterIndex == 0 && !isCoverChapter -> imagePaths.first()
-
-                // Fallback: if the chapter has no words and only a single image, treat it as a full-page image chapter.
-                imagePaths.size == 1 && wordCount == 0 -> imagePaths.first()
-
-                else -> null
-            }
-        }
-
-    val headerCarouselImages =
-        remember(chapterIndex, isCoverChapter, fullScreenTitlePageImagePath, imagePaths) {
-            if (imagePaths.isEmpty()) return@remember emptyList()
-
-            when {
-                chapterIndex == 0 && isCoverChapter -> {
-                    val skip =
-                        when {
-                            fullScreenTitlePageImagePath == null -> 1
-                            imagePaths.size >= 2 -> 2
-                            else -> 1
-                        }
-                    imagePaths.drop(skip)
-                }
-                fullScreenTitlePageImagePath != null -> imagePaths.drop(1)
-                else -> imagePaths
-            }
-        }
-
-    val excludedInlineImages =
-        remember(
-            isCoverChapter,
-            fullScreenTitlePageImagePath,
-            imagePaths,
-        ) {
-            buildSet {
-                if (isCoverChapter) {
-                    imagePaths.firstOrNull()?.let { add(it) }
-                }
-                fullScreenTitlePageImagePath?.let { add(it) }
-            }
-        }
-    val visibleBlocks =
-        remember(blocks, excludedInlineImages) {
-            if (excludedInlineImages.isEmpty()) {
-                blocks
-            } else {
-                blocks.filterNot { block ->
-                    block is ReaderImageBlock && block.imagePath in excludedInlineImages
-                }
-            }
-        }
-    val displayBlocks =
-        remember(visibleBlocks, currentPage) {
-            if (currentPage == null) {
-                visibleBlocks
-            } else {
-                sliceBlocksForPage(
-                    blocks = visibleBlocks,
-                    pageStart = currentPage.startTokenIndex,
-                    pageEnd = currentPage.endTokenIndex,
-                )
-            }
-        }
-    val focusBlockIndex =
-        remember(focusIndex, displayBlocks) {
-            if (displayBlocks.isEmpty()) {
-                0
-            } else {
-                displayBlocks
-                    .indexOfFirst { block ->
-                        val paragraph =
-                            (block as? ReaderParagraphBlock)?.paragraph ?: return@indexOfFirst false
-                        val endIndex = paragraph.startIndex + paragraph.tokens.size - 1
-                        focusIndex in paragraph.startIndex..endIndex
-                    }.coerceAtLeast(0)
-            }
-        }
-    val showHeaderCarousel =
-        remember(headerCarouselImages, displayBlocks, resolvedPageIndex, isPagedChapter) {
-            headerCarouselImages.isNotEmpty() &&
-                displayBlocks.none { it is ReaderImageBlock } &&
-                (!isPagedChapter || resolvedPageIndex <= 0)
-        }
-    val listHeaderCount =
-        remember(
-            isCoverChapter,
-            fullScreenTitlePageImagePath,
-            showHeaderCarousel,
-            resolvedPageIndex,
-            isPagedChapter,
-        ) {
-            if (isPagedChapter && resolvedPageIndex > 0) {
-                0
-            } else {
-                (if (isCoverChapter) 1 else 0) +
-                    (if (fullScreenTitlePageImagePath != null) 1 else 0) +
-                    (if (showHeaderCarousel) 1 else 0)
-            }
-        }
-    val focusListIndex = remember(focusBlockIndex, listHeaderCount) {
-        focusBlockIndex +
-            listHeaderCount
-    }
-
-    // Use a key that changes when we need to reset the list position
-    // This forces a new LazyListState with the correct initial position
-    val listStateKey =
-        remember(chapterIndex, uiState.chapterData, resolvedPageIndex, isPagedChapter) {
-            if (isPagedChapter && resolvedPageIndex >= 0) {
-                "$chapterIndex-${uiState.chapterData?.hashCode() ?: 0}-p$resolvedPageIndex"
-            } else {
-                "$chapterIndex-${uiState.chapterData?.hashCode() ?: 0}"
-            }
-        }
-
-    val listState =
-        key(listStateKey) {
-            rememberLazyListState(
-                initialFirstVisibleItemIndex = focusListIndex,
-            )
-        }
-
-    val invertedScrollCommands =
-        remember(listStateKey) {
-            MutableSharedFlow<InvertedScrollCommand>(
-                extraBufferCapacity = 64,
-                onBufferOverflow = BufferOverflow.DROP_OLDEST,
-            )
-        }
-
-    LaunchedEffect(listStateKey, invertedScroll) {
-        if (!invertedScroll) return@LaunchedEffect
-        var flingJob: Job? = null
-        invertedScrollCommands.collect { command ->
-            when (command) {
-                is InvertedScrollCommand.Drag -> {
-                    flingJob?.cancel()
-                    listState.scrollBy(command.dy)
-                }
-
-                is InvertedScrollCommand.Fling -> {
-                    flingJob?.cancel()
-                    val newJob =
-                        launch {
-                            performInvertedFling(listState, command.velocityY)
-                        }
-                    flingJob = newJob
-                    newJob.invokeOnCompletion {
-                        if (flingJob === newJob) {
-                            flingJob = null
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Scroll instantly when focus changes (e.g., returning from RSVP)
-    LaunchedEffect(focusListIndex, listStateKey) {
-        if (displayBlocks.isNotEmpty() && listState.firstVisibleItemIndex != focusListIndex) {
-            listState.scrollToItem(focusListIndex)
-        }
-    }
+    val listStateHolder =
+        rememberReaderListState(
+            listStateKey = renderState.listStateKey,
+            focusListIndex = renderState.focusListIndex,
+            displayBlocks = renderState.displayBlocks,
+            invertedScroll = invertedScroll,
+        )
 
     // Chapter list bottom sheet state
     val showChapterList = remember { mutableStateOf(false) }
     var showReaderMenu by remember { mutableStateOf(false) }
     var fullScreenImagePath by remember { mutableStateOf<String?>(null) }
 
-    val coroutineScope = rememberCoroutineScope()
-    val isRsvpEnabled = !uiState.isLoading && firstWordIndex != -1 && tokens.isNotEmpty()
-    val progressPercent =
-        remember(safeFocusIndex, totalChapterWords, wordCountByToken) {
-            if (totalChapterWords <= 0 || wordCountByToken == null || wordCountByToken.isEmpty()) {
-                0
-            } else {
-                val currentWordIndex = wordCountByToken[safeFocusIndex].coerceAtLeast(0)
-                ((currentWordIndex.toFloat() / totalChapterWords.toFloat()) * 100f)
-                    .roundToInt()
-                    .coerceIn(0, 100)
-            }
-        }
-    val progressFraction by remember(progressPercent) {
-        derivedStateOf { (progressPercent / 100f).coerceIn(0f, 1f) }
-    }
-    val currentWordIndex =
-        remember(safeFocusIndex, wordCountByToken) {
-            if (wordCountByToken == null || wordCountByToken.isEmpty()) {
-                0
-            } else {
-                wordCountByToken.getOrNull(safeFocusIndex) ?: 0
-            }
-        }
-    val pageLabel =
-        remember(resolvedPageIndex, pages) {
-            if (resolvedPageIndex >= 0 && pages.isNotEmpty()) {
-                "Page ${resolvedPageIndex + 1} of ${pages.size}"
-            } else {
-                null
-            }
-        }
-    val wordsReadInPage =
-        remember(currentPage, wordCountByToken, currentWordIndex) {
-            if (currentPage == null || wordCountByToken == null || wordCountByToken.isEmpty()) {
-                0
-            } else {
-                val startWordIndex =
-                    if (currentPage.startTokenIndex > 0) {
-                        wordCountByToken.getOrNull(currentPage.startTokenIndex - 1) ?: 0
-                    } else {
-                        0
-                    }
-                (currentWordIndex - startWordIndex).coerceAtLeast(0)
-            }
-        }
-    val remainingPageWords =
-        remember(currentPage, wordsReadInPage) {
-            (currentPage?.wordCount ?: 0).minus(wordsReadInPage).coerceAtLeast(0)
-        }
-    val remainingChapterWords =
-        remember(totalChapterWords, currentWordIndex) {
-            (totalChapterWords - currentWordIndex).coerceAtLeast(0)
-        }
-    val bookWordCounts = uiState.bookWordCounts
-    val adjustedBookWordCounts =
-        remember(bookWordCounts, chapterIndex, totalChapterWords, book.chapters.size) {
-            if (bookWordCounts.isEmpty()) {
-                if (totalChapterWords > 0) {
-                    val fallback =
-                        MutableList(book.chapters.size.coerceAtLeast(1)) { 0 }
-                    if (chapterIndex in fallback.indices) {
-                        fallback[chapterIndex] = totalChapterWords
-                    }
-                    fallback
-                } else {
-                    emptyList()
+    val isRsvpEnabled =
+        !uiState.isLoading && renderState.firstWordIndex != -1 && renderState.tokens.isNotEmpty()
+    val onStartRsvpForToken =
+        remember(isRsvpEnabled, renderState.tokens, onStartRsvp) {
+            { tokenIndex: Int ->
+                if (isRsvpEnabled && renderState.tokens.isNotEmpty()) {
+                    onStartRsvp(renderState.tokens.nearestWordIndex(tokenIndex))
                 }
-            } else {
-                val updated = bookWordCounts.toMutableList()
-                if (chapterIndex in updated.indices && totalChapterWords > 0) {
-                    updated[chapterIndex] = totalChapterWords
-                }
-                updated.toList()
             }
         }
-    val wordsBeforeChapter =
-        remember(adjustedBookWordCounts, chapterIndex) {
-            adjustedBookWordCounts.take(chapterIndex).sum()
-        }
-    val totalBookWords =
-        remember(adjustedBookWordCounts) {
-            adjustedBookWordCounts.sum()
-        }
-    val wordsReadOverall =
-        remember(wordsBeforeChapter, currentWordIndex) {
-            wordsBeforeChapter + currentWordIndex
-        }
-    val remainingBookWords =
-        remember(totalBookWords, wordsReadOverall) {
-            (totalBookWords - wordsReadOverall).coerceAtLeast(0)
-        }
-    val etaLabel =
-        remember(
-            estimatedWpm,
-            remainingPageWords,
-            remainingChapterWords,
-            remainingBookWords,
-        ) {
-            if (estimatedWpm <= 0) return@remember null
-            val parts = mutableListOf<String>()
-            if (remainingPageWords > 0) {
-                parts += "page ~${formatDurationMinutes(estimateMinutesForWords(remainingPageWords, estimatedWpm))}"
-            }
-            if (remainingChapterWords > 0) {
-                parts += "chapter ~${formatDurationMinutes(estimateMinutesForWords(remainingChapterWords, estimatedWpm))}"
-            }
-            if (remainingBookWords > 0) {
-                parts += "book ~${formatDurationMinutes(estimateMinutesForWords(remainingBookWords, estimatedWpm))}"
-            }
-            if (parts.isEmpty()) null else "ETA: ${parts.joinToString(" • ")}"
-        }
-    val hasProgressMeta = pageLabel != null || etaLabel != null
-    val canGoPrevPage =
-        if (isPagedChapter && pages.isNotEmpty()) {
-            resolvedPageIndex > 0 || chapterIndex > 0
-        } else {
-            chapterIndex > 0
-        }
-    val canGoNextPage =
-        if (isPagedChapter && pages.isNotEmpty()) {
-            resolvedPageIndex < pages.lastIndex || chapterIndex < book.chapters.lastIndex
-        } else {
-            chapterIndex < book.chapters.lastIndex
-        }
-    val onPrevPage = {
-        if (pages.isNotEmpty()) {
-            if (resolvedPageIndex > 0) {
-                onFocusChange(pages[resolvedPageIndex - 1].startTokenIndex)
-            } else if (chapterIndex > 0) {
-                onChapterChange(chapterIndex - 1, Int.MAX_VALUE)
-            }
-        } else if (chapterIndex > 0) {
-            onChapterChange(chapterIndex - 1, 0)
-        }
-    }
-    val onNextPage = {
-        if (pages.isNotEmpty()) {
-            if (resolvedPageIndex < pages.lastIndex) {
-                onFocusChange(pages[resolvedPageIndex + 1].startTokenIndex)
-            } else if (chapterIndex < book.chapters.lastIndex) {
-                onChapterChange(chapterIndex + 1, 0)
-            }
-        } else if (chapterIndex < book.chapters.lastIndex) {
-            onChapterChange(chapterIndex + 1, 0)
-        }
-    }
+    val progressState =
+        rememberReaderProgressState(
+            safeFocusIndex = renderState.safeFocusIndex,
+            totalChapterWords = renderState.totalChapterWords,
+            wordCountByToken = renderState.wordCountByToken,
+            resolvedPageIndex = renderState.resolvedPageIndex,
+            pages = renderState.pages,
+            currentPage = renderState.currentPage,
+            estimatedWpm = estimatedWpm,
+            bookWordCounts = uiState.bookWordCounts,
+            chapterIndex = chapterIndex,
+            chapterCount = book.chapters.size,
+        )
+    val navigationState =
+        buildReaderNavigationState(
+            pages = renderState.pages,
+            isPagedChapter = renderState.isPagedChapter,
+            resolvedPageIndex = renderState.resolvedPageIndex,
+            chapterIndex = chapterIndex,
+            lastChapterIndex = book.chapters.lastIndex,
+            onFocusChange = onFocusChange,
+            onChapterChange = onChapterChange,
+        )
     val bottomInsetPadding = WindowInsets.safeDrawing.only(
         WindowInsetsSides.Bottom
     ).asPaddingValues()
@@ -606,291 +180,52 @@ fun ReaderScreen(
                 chapterIndex = chapterIndex,
                 chapterTitle = chapter?.title,
                 coverImage = coverImage,
-                canGoPrev = canGoPrevPage,
-                canGoNext = canGoNextPage,
-                onPrev = onPrevPage,
-                onNext = onNextPage,
+                canGoPrev = navigationState.canGoPrevPage,
+                canGoNext = navigationState.canGoNextPage,
+                onPrev = navigationState.onPrevPage,
+                onNext = navigationState.onNextPage,
                 onShowMenu = { showReaderMenu = !showReaderMenu },
             )
 
-            if (hasProgressMeta) {
+            if (progressState.hasProgressMeta) {
                 ReaderProgressMeta(
-                    pageLabel = pageLabel,
-                    progressPercent = if (totalChapterWords > 0) progressPercent else null,
-                    etaLabel = etaLabel,
+                    pageLabel = progressState.pageLabel,
+                    progressPercent =
+                    if (renderState.totalChapterWords > 0) progressState.progressPercent else null,
+                    etaLabel = progressState.etaLabel,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             } else {
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Show loading indicator or content
-            if (uiState.isLoading) {
-                val isCoverChapter =
-                    chapterIndex == 0 && coverImage != null && coverImage.isNotEmpty()
-                if (isCoverChapter) {
-                    Box(
-                        modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        val context = LocalContext.current
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            tonalElevation = 2.dp,
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            AsyncImage(
-                                model =
-                                remember(coverImage, book.id.value) {
-                                    ImageRequest
-                                        .Builder(context)
-                                        .data(coverImage)
-                                        .memoryCacheKey("book_cover_full_${book.id.value}")
-                                        .crossfade(false)
-                                        .build()
-                                },
-                                contentDescription = "Cover of ${book.title}",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit,
-                            )
-                        }
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    Box(
-                        modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-            } else if (displayBlocks.isEmpty() &&
-                !isCoverChapter &&
-                fullScreenTitlePageImagePath == null &&
-                headerCarouselImages.isEmpty()
-            ) {
-                Box(
-                    modifier =
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "No content in this chapter",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                val gestureModifier =
-                    Modifier.pointerInput(listStateKey, invertedScroll, chapterIndex) {
-                        awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
-                            val pointerId = down.id
-
-                            val touchSlop = viewConfiguration.touchSlop
-                            val swipeThreshold = touchSlop * 4f
-
-                            var totalX = 0f
-                            var totalY = 0f
-                            var axis = Axis.Horizontal
-                            var axisResolved = false
-
-                            val tracker = VelocityTracker()
-                            tracker.addPosition(SystemClock.uptimeMillis(), down.position)
-
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change =
-                                    event.changes.firstOrNull { it.id == pointerId } ?: break
-                                if (!change.pressed) break
-
-                                val dx = change.position.x - change.previousPosition.x
-                                val dy = change.position.y - change.previousPosition.y
-                                totalX += dx
-                                totalY += dy
-
-                                if (!axisResolved) {
-                                    val absX = abs(totalX)
-                                    val absY = abs(totalY)
-                                    if (absX > touchSlop || absY > touchSlop) {
-                                        axis = if (absX > absY) Axis.Horizontal else Axis.Vertical
-                                        axisResolved = true
-                                    } else {
-                                        continue
-                                    }
-                                }
-
-                                when (axis) {
-                                    Axis.Horizontal -> Unit // wait for drag end to switch chapter
-                                    Axis.Vertical -> {
-                                        if (!invertedScroll) {
-                                            // Let LazyColumn handle normal vertical scrolling.
-                                            break
-                                        }
-                                        tracker.addPosition(
-                                            SystemClock.uptimeMillis(),
-                                            change.position
-                                        )
-                                        invertedScrollCommands.tryEmit(
-                                            InvertedScrollCommand.Drag(dy)
-                                        )
-                                    }
-                                }
-                            }
-
-                            if (axisResolved) {
-                                when (axis) {
-                                    Axis.Horizontal -> {
-                                        when {
-                                            totalX <= -swipeThreshold -> onNextPage()
-                                            totalX >= swipeThreshold -> onPrevPage()
-                                        }
-                                    }
-                                    Axis.Vertical -> {
-                                        if (invertedScroll) {
-                                            val velocity = tracker.calculateVelocity().y
-                                            if (abs(velocity) > 200f) {
-                                                invertedScrollCommands.tryEmit(
-                                                    InvertedScrollCommand.Fling(velocity)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                Box(
-                    modifier =
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .then(gestureModifier),
-                ) {
-                    val viewportHeight = LocalConfiguration.current.screenHeightDp.dp
-
-                    // LAZY block-based rendering (text + images)
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = !invertedScroll,
-                        verticalArrangement = Arrangement.spacedBy(18.dp), // Paragraph spacing
-                        contentPadding = PaddingValues(bottom = bottomInset + 96.dp),
-                    ) {
-                        if (isCoverChapter && (!isPagedChapter || resolvedPageIndex <= 0)) {
-                            item(key = "book_cover_full_${book.id.value}") {
-                                val context = LocalContext.current
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    tonalElevation = 2.dp,
-                                    modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(viewportHeight)
-                                        .clip(RoundedCornerShape(14.dp)),
-                                ) {
-                                    AsyncImage(
-                                        model =
-                                        remember(coverImage, book.id.value) {
-                                            ImageRequest
-                                                .Builder(context)
-                                                .data(coverImage)
-                                                .memoryCacheKey(
-                                                    "book_cover_full_${book.id.value}"
-                                                )
-                                                .crossfade(false)
-                                                .build()
-                                        },
-                                        contentDescription = "Cover of ${book.title}",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Fit,
-                                    )
-                                }
-                            }
-                        }
-                        if (fullScreenTitlePageImagePath != null &&
-                            (!isPagedChapter || resolvedPageIndex <= 0)
-                        ) {
-                            item(
-                                key = "title_page_full_${book.id.value}_$fullScreenTitlePageImagePath"
-                            ) {
-                                val context = LocalContext.current
-                                val file =
-                                    remember(fullScreenTitlePageImagePath) {
-                                        File(context.filesDir, fullScreenTitlePageImagePath)
-                                    }
-                                if (file.exists()) {
-                                    Surface(
-                                        shape = RoundedCornerShape(14.dp),
-                                        tonalElevation = 2.dp,
-                                        modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .height(viewportHeight)
-                                            .clip(RoundedCornerShape(14.dp)),
-                                    ) {
-                                        AsyncImage(
-                                            model = file,
-                                            contentDescription = "Title page of ${book.title}",
-                                            modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .clickable {
-                                                    fullScreenImagePath =
-                                                        fullScreenTitlePageImagePath
-                                                },
-                                            contentScale = ContentScale.Fit,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        if (showHeaderCarousel) {
-                            item(key = "chapter_images_$chapterIndex") {
-                                ChapterImages(
-                                    imagePaths = headerCarouselImages,
-                                    onImageClick = { fullScreenImagePath = it },
-                                )
-                            }
-                        }
-                        items(
-                        items = displayBlocks,
-                        key = { it.key },
-                    ) { block ->
-                            when (block) {
-                                is ReaderParagraphBlock -> {
-                                    ParagraphText(
-                                        paragraph = block.paragraph,
-                                        focusIndex = focusIndex,
-                                        fontSizeSp = fontSizeSp,
-                                        textBrightness = textBrightness,
-                                        onFocusChange = onSafeFocusChange,
-                                        onStartRsvp = { tokenIndex ->
-                                            if (!isRsvpEnabled) return@ParagraphText
-                                            onStartRsvp(tokens.nearestWordIndex(tokenIndex))
-                                        },
-                                    )
-                                }
-                                is ReaderImageBlock -> {
-                                    InlineImageBlock(
-                                        imagePath = block.imagePath,
-                                        onOpen = { fullScreenImagePath = it },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            ReaderContent(
+                modifier = Modifier.weight(1f),
+                book = book,
+                chapterIndex = chapterIndex,
+                coverImage = coverImage,
+                isLoading = uiState.isLoading,
+                isCoverChapter = renderState.isCoverChapter,
+                isPagedChapter = renderState.isPagedChapter,
+                resolvedPageIndex = renderState.resolvedPageIndex,
+                fullScreenTitlePageImagePath = renderState.fullScreenTitlePageImagePath,
+                headerCarouselImages = renderState.headerCarouselImages,
+                showHeaderCarousel = renderState.showHeaderCarousel,
+                displayBlocks = renderState.displayBlocks,
+                listState = listStateHolder.listState,
+                listStateKey = renderState.listStateKey,
+                invertedScroll = invertedScroll,
+                bottomInset = bottomInset,
+                focusIndex = focusIndex,
+                fontSizeSp = fontSizeSp,
+                textBrightness = textBrightness,
+                onSafeFocusChange = onSafeFocusChange,
+                onStartRsvpForToken = onStartRsvpForToken,
+                onPrevPage = navigationState.onPrevPage,
+                onNextPage = navigationState.onNextPage,
+                onOpenFullScreenImage = { fullScreenImagePath = it },
+                invertedScrollCommands = listStateHolder.invertedScrollCommands,
+            )
         }
 
         if (showChapterList.value) {
@@ -920,11 +255,11 @@ fun ReaderScreen(
                 focusModeEnabled = focusModeEnabled,
                 onFocusModeEnabledChange = onFocusModeEnabledChange,
                 onAddBookmark = {
-                    if (tokens.isEmpty()) return@ReaderMenuOverlay
-                    val safeTokenIndex = tokens.nearestWordIndex(
+                    if (renderState.tokens.isEmpty()) return@ReaderMenuOverlay
+                    val safeTokenIndex = renderState.tokens.nearestWordIndex(
                         focusIndex
-                    ).coerceIn(0, tokens.lastIndex)
-                    val preview = tokens.getOrNull(safeTokenIndex)?.text.orEmpty()
+                    ).coerceIn(0, renderState.tokens.lastIndex)
+                    val preview = renderState.tokens.getOrNull(safeTokenIndex)?.text.orEmpty()
                     onAddBookmark(chapterIndex, safeTokenIndex, preview)
                     showReaderMenu = false
                 },
@@ -949,77 +284,16 @@ fun ReaderScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = 16.dp + bottomInset),
         ) {
-            var dragAccumulator by remember { mutableFloatStateOf(0f) }
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier =
-                Modifier
-                    .pointerInput(focusListIndex) {
-                        detectTapGestures(
-                            onLongPress = {
-                                coroutineScope.launch {
-                                    listState.animateScrollToItem(focusListIndex)
-                                }
-                            },
-                        )
-                    }.pointerInput(tokens, focusIndex, invertedScroll) {
-                        val thresholdPx = 22f
-                        var gestureFocusIndex = 0
-                        detectVerticalDragGestures(
-                            onDragStart = {
-                                dragAccumulator = 0f
-                                gestureFocusIndex =
-                                    if (tokens.isNotEmpty()) {
-                                        tokens.nearestWordIndex(
-                                            focusIndex
-                                        ).coerceIn(0, tokens.lastIndex)
-                                    } else {
-                                        0
-                                    }
-                            },
-                            onDragEnd = { dragAccumulator = 0f },
-                            onVerticalDrag = { change, dragAmount ->
-                                if (tokens.isEmpty()) return@detectVerticalDragGestures
-                                dragAccumulator += dragAmount
-                                val steps = (dragAccumulator / thresholdPx).toInt()
-                                if (steps == 0) return@detectVerticalDragGestures
-
-                                // Swipe up (negative drag) moves forward by default.
-                                val rawDirection = -steps
-                                val effectiveDirection = if (invertedScroll) -rawDirection else rawDirection
-                                val next =
-                                    tokens.nearestWordIndex(
-                                        (gestureFocusIndex + effectiveDirection).coerceIn(
-                                            0,
-                                            tokens.lastIndex
-                                        ),
-                                    )
-                                gestureFocusIndex = next
-                                onFocusChange(next)
-                                dragAccumulator -= steps * thresholdPx
-                            },
-                        )
-                    },
-            ) {
-                CircularProgressIndicator(
-                    progress = { progressFraction },
-                    modifier = Modifier.size(76.dp),
-                    strokeWidth = 4.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.60f),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f),
-                )
-                FloatingActionButton(
-                    onClick = {
-                        val safeIndex = tokens.nearestWordIndex(focusIndex)
-                        onStartRsvp(safeIndex)
-                    },
-                    shape = CircleShape,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = "Start RSVP")
-                }
-            }
+            ReaderRsvpLauncher(
+                tokens = renderState.tokens,
+                focusIndex = focusIndex,
+                invertedScroll = invertedScroll,
+                listState = listStateHolder.listState,
+                focusListIndex = renderState.focusListIndex,
+                progressFraction = progressState.progressFraction,
+                onFocusChange = onFocusChange,
+                onStartRsvp = onStartRsvp,
+            )
         }
 
         fullScreenImagePath?.let { path ->
@@ -1028,732 +302,6 @@ fun ReaderScreen(
                 imagePath = path,
                 onDismiss = { fullScreenImagePath = null },
             )
-        }
-    }
-}
-
-@Composable
-private fun ChapterListOverlay(
-    book: Book,
-    currentChapterIndex: Int,
-    onDismiss: () -> Unit,
-    onChapterSelected: (Int) -> Unit,
-) {
-    Box(
-        modifier =
-        Modifier
-            .fillMaxSize(),
-    ) {
-        Box(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { onDismiss() })
-                },
-        )
-
-        Surface(
-            modifier =
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxSize(),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 3.dp,
-        ) {
-            Box(
-                modifier =
-                Modifier.windowInsetsPadding(
-                    WindowInsets.displayCutout.only(
-                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                    ),
-                ),
-            ) {
-                ChapterListSheet(
-                    book = book,
-                    currentChapterIndex = currentChapterIndex,
-                    onChapterSelected = onChapterSelected,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReaderHeader(
-    book: Book,
-    chapterIndex: Int,
-    chapterTitle: String?,
-    coverImage: ByteArray?,
-    canGoPrev: Boolean,
-    canGoNext: Boolean,
-    onPrev: () -> Unit,
-    onNext: () -> Unit,
-    onShowMenu: () -> Unit,
-) {
-    val context = LocalContext.current
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (coverImage != null && coverImage.isNotEmpty()) {
-                AsyncImage(
-                    model =
-                    remember(coverImage, book.id.value) {
-                        ImageRequest
-                            .Builder(context)
-                            .data(coverImage)
-                            .memoryCacheKey("book_cover_thumb_${book.id.value}")
-                            .crossfade(false)
-                            .build()
-                    },
-                    contentDescription = null,
-                    modifier =
-                    Modifier
-                        .size(width = 44.dp, height = 56.dp)
-                        .clip(RoundedCornerShape(10.dp)),
-                    contentScale = ContentScale.Crop,
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-            }
-
-            Column {
-                Text(
-                    text = book.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = chapterTitle ?: "Chapter ${chapterIndex + 1}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "Chapter ${chapterIndex + 1} of ${book.chapters.size}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            IconButton(onClick = onPrev, enabled = canGoPrev) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Previous page",
-                    tint =
-                    if (canGoPrev) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                    },
-                )
-            }
-            IconButton(onClick = onNext, enabled = canGoNext) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next page",
-                    tint =
-                    if (canGoNext) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                    },
-                )
-            }
-            IconButton(onClick = onShowMenu) {
-                Icon(
-                    Icons.Default.Settings,
-                    contentDescription = "Reader menu",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReaderProgressMeta(
-    pageLabel: String?,
-    progressPercent: Int?,
-    etaLabel: String?,
-) {
-    if (pageLabel == null && progressPercent == null && etaLabel == null) return
-
-    val metaLine =
-        listOfNotNull(
-            pageLabel,
-            progressPercent?.let { "$it%" },
-        ).joinToString(" • ")
-
-    Column(
-        modifier = Modifier.padding(top = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        if (metaLine.isNotBlank()) {
-            Text(
-                text = metaLine,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (etaLabel != null) {
-            Text(
-                text = etaLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ReaderMenuOverlay(
-    fontSizeSp: Float,
-    readerTheme: ReaderTheme,
-    textBrightness: Float,
-    invertedScroll: Boolean,
-    onFontSizeChange: (Float) -> Unit,
-    onThemeChange: (ReaderTheme) -> Unit,
-    onTextBrightnessChange: (Float) -> Unit,
-    onInvertedScrollChange: (Boolean) -> Unit,
-    focusModeEnabled: Boolean,
-    onFocusModeEnabledChange: (Boolean) -> Unit,
-    onAddBookmark: () -> Unit,
-    onOpenBookmarks: () -> Unit,
-    onShowToc: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var showReaderSettings by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.35f))
-                .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) },
-        )
-
-        Surface(
-            modifier =
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-            tonalElevation = 3.dp,
-        ) {
-            Column(
-                modifier =
-                Modifier
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Box(
-                    modifier =
-                    Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .size(width = 42.dp, height = 4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)),
-                )
-
-                if (!showReaderSettings) {
-                    SettingsNavRow(
-                        title = "Bookmarks",
-                        subtitle = "Open saved bookmarks",
-                        icon = Icons.Default.Bookmark,
-                        onClick = onOpenBookmarks,
-                    )
-                    SettingsNavRow(
-                        title = "Add bookmark",
-                        subtitle = "Save this position",
-                        icon = Icons.Default.Bookmark,
-                        showChevron = false,
-                        onClick = onAddBookmark,
-                    )
-
-                    SettingsNavRow(
-                        title = "Reader settings",
-                        subtitle = "Font size, theme, scrolling",
-                        icon = Icons.Default.Settings,
-                        onClick = { showReaderSettings = true },
-                    )
-
-                    SettingsSwitchRow(
-                        title = "Focus mode",
-                        subtitle = "Hide system chrome while reading.",
-                        checked = focusModeEnabled,
-                        onCheckedChange = onFocusModeEnabledChange,
-                    )
-
-                    SettingsNavRow(
-                        title = "Table of contents",
-                        subtitle = "Jump to a chapter",
-                        icon = Icons.AutoMirrored.Filled.ArrowForward,
-                        showChevron = false,
-                        onClick = onShowToc,
-                    )
-                } else {
-                    SettingsNavRow(
-                        title = "Back",
-                        icon = Icons.AutoMirrored.Filled.ArrowBack,
-                        showChevron = false,
-                        onClick = { showReaderSettings = false },
-                    )
-                    Text("Reader settings", style = MaterialTheme.typography.titleMedium)
-                    ReaderSettingsContent(
-                        fontSizeSp = fontSizeSp,
-                        readerTheme = readerTheme,
-                        textBrightness = textBrightness,
-                        invertedScroll = invertedScroll,
-                        onFontSizeChange = onFontSizeChange,
-                        onThemeChange = onThemeChange,
-                        onTextBrightnessChange = onTextBrightnessChange,
-                        onInvertedScrollChange = onInvertedScrollChange,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ChapterImages(
-    imagePaths: List<String>,
-    onImageClick: (String) -> Unit,
-) {
-    val context = LocalContext.current
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        items(items = imagePaths, key = { it }) { relativePath ->
-            val file = remember(relativePath) { File(context.filesDir, relativePath) }
-            if (file.exists()) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    tonalElevation = 2.dp,
-                    modifier =
-                    Modifier
-                        .size(width = 220.dp, height = 160.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                ) {
-                    AsyncImage(
-                        model = file,
-                        contentDescription = null,
-                        modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .clickable { onImageClick(relativePath) },
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InlineImageBlock(
-    imagePath: String,
-    onOpen: (String) -> Unit,
-) {
-    val context = LocalContext.current
-    val file = remember(imagePath) { resolveImageFile(context, imagePath) }
-    if (!file.exists()) return
-
-    val shape = RoundedCornerShape(14.dp)
-    Surface(
-        shape = shape,
-        tonalElevation = 1.dp,
-        modifier =
-        Modifier
-            .fillMaxWidth()
-            .clickable { onOpen(imagePath) },
-    ) {
-        SubcomposeAsyncImage(
-            model = file,
-            contentDescription = "Illustration",
-            contentScale = ContentScale.FillWidth,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            val size = painter.intrinsicSize
-            val contentModifier =
-                if (size.width.isFinite() && size.height.isFinite() && size.height > 0f) {
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(size.width / size.height)
-                } else {
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 180.dp, max = 420.dp)
-                }
-            SubcomposeAsyncImageContent(modifier = contentModifier)
-        }
-    }
-}
-
-@Composable
-private fun FullScreenImageViewer(
-    imagePath: String,
-    onDismiss: () -> Unit,
-) {
-    val context = LocalContext.current
-    val file = remember(imagePath) { resolveImageFile(context, imagePath) }
-
-    Box(
-        modifier =
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.96f))
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .pointerInput(imagePath) {
-                detectTapGestures(onTap = { onDismiss() })
-            },
-    ) {
-        if (file.exists()) {
-            SubcomposeAsyncImage(
-                model = file,
-                contentDescription = "Full screen image",
-                contentScale = ContentScale.Fit,
-                modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-            )
-        } else {
-            Text(
-                text = "Image not found",
-                color = Color.White,
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
-
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier.align(Alignment.TopEnd),
-        ) {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close image viewer",
-                tint = Color.White,
-            )
-        }
-    }
-}
-
-private fun resolveImageFile(
-    context: android.content.Context,
-    imagePath: String,
-): File =
-    if (imagePath.startsWith("/")) {
-        File(imagePath)
-    } else {
-        File(context.filesDir, imagePath)
-    }
-
-private fun sliceBlocksForPage(
-    blocks: List<ReaderBlock>,
-    pageStart: Int,
-    pageEnd: Int,
-): List<ReaderBlock> {
-    if (blocks.isEmpty()) return emptyList()
-    val sliced = mutableListOf<ReaderBlock>()
-    var lastParagraphIncluded = false
-
-    for (block in blocks) {
-        when (block) {
-            is ReaderParagraphBlock -> {
-                val paragraph = block.paragraph
-                val blockStart = paragraph.startIndex
-                val blockEnd = paragraph.startIndex + paragraph.tokens.size - 1
-
-                if (blockEnd < pageStart) {
-                    lastParagraphIncluded = false
-                    continue
-                }
-                if (blockStart > pageEnd) break
-
-                val localStart = (pageStart - blockStart).coerceAtLeast(0)
-                val localEnd =
-                    (pageEnd - blockStart).coerceAtMost(paragraph.tokens.lastIndex)
-                if (localStart > localEnd) {
-                    lastParagraphIncluded = false
-                    continue
-                }
-
-                val slicedParagraph =
-                    if (localStart == 0 && localEnd == paragraph.tokens.lastIndex) {
-                        paragraph
-                    } else {
-                        Paragraph(
-                            tokens = paragraph.tokens.subList(localStart, localEnd + 1),
-                            startIndex = blockStart + localStart,
-                        )
-                    }
-
-                sliced.add(ReaderParagraphBlock(slicedParagraph))
-                lastParagraphIncluded = true
-            }
-            is ReaderImageBlock -> {
-                if (lastParagraphIncluded) {
-                    sliced.add(block)
-                }
-            }
-        }
-    }
-
-    return sliced
-}
-
-@Composable
-private fun ParagraphText(
-    paragraph: Paragraph,
-    focusIndex: Int,
-    fontSizeSp: Float,
-    textBrightness: Float,
-    onFocusChange: (Int) -> Unit,
-    onStartRsvp: (Int) -> Unit,
-) {
-    val baseStyle =
-        TextStyle(
-            fontFamily = MerriweatherFontFamily,
-            fontSize = fontSizeSp.sp,
-            lineHeight = (fontSizeSp * 1.6f).sp,
-            color = MaterialTheme.colorScheme.onBackground.copy(
-                alpha = textBrightness.coerceIn(0.55f, 1.0f)
-            ),
-        )
-    val paragraphIndent =
-        remember(fontSizeSp) {
-            ParagraphStyle(textIndent = TextIndent(firstLine = (fontSizeSp * 0.7f).sp))
-        }
-    val primary = MaterialTheme.colorScheme.primary
-    val focusStyle =
-        remember(primary) {
-            SpanStyle(
-                fontWeight = FontWeight.SemiBold,
-                color = primary,
-                textDecoration = TextDecoration.Underline,
-            )
-        }
-
-    val annotated =
-        remember(paragraph.tokens, paragraph.startIndex, focusIndex, primary, paragraphIndent) {
-            buildAnnotatedString {
-                paragraph.tokens.forEachIndexed { localIndex, token ->
-                    if (token.type == TokenType.PARAGRAPH_BREAK ||
-                        token.type == TokenType.PAGE_BREAK
-                    ) {
-                        return@forEachIndexed
-                    }
-                    val globalIndex = paragraph.startIndex + localIndex
-
-                    val prevToken = if (localIndex > 0) paragraph.tokens[localIndex - 1] else null
-                    val needsSpaceBefore =
-                        shouldInsertSpaceBeforeToken(token, prevToken, localIndex)
-
-                    if (needsSpaceBefore) append(" ")
-
-                    val start = length
-                    append(token.text)
-                    val end = length
-
-                    addStringAnnotation(
-                        tag = "tokenIndex",
-                        annotation = globalIndex.toString(),
-                        start = start,
-                        end = end
-                    )
-                    if (globalIndex == focusIndex) addStyle(focusStyle, start, end)
-                }
-                addStyle(paragraphIndent, start = 0, end = length)
-            }
-        }
-
-    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-
-    Text(
-        text = annotated,
-        style = baseStyle,
-        modifier =
-        Modifier
-            .fillMaxWidth()
-            .pointerInput(annotated, focusIndex) {
-                detectTapGestures(
-                    onTap = { position ->
-                        val layout = layoutResult ?: return@detectTapGestures
-                        val offset = layout.getOffsetForPosition(position).coerceIn(
-                            0,
-                            (
-                                annotated.length -
-                                    1
-                                ).coerceAtLeast(0)
-                        )
-                        val hit =
-                            annotated.getStringAnnotations(
-                                "tokenIndex",
-                                offset,
-                                offset
-                            ).firstOrNull()
-                                ?: return@detectTapGestures
-                        val tokenIndex = hit.item.toIntOrNull() ?: return@detectTapGestures
-                        if (tokenIndex ==
-                            focusIndex
-                        ) {
-                            onStartRsvp(tokenIndex)
-                        } else {
-                            onFocusChange(tokenIndex)
-                        }
-                    },
-                    onLongPress = { position ->
-                        val layout = layoutResult ?: return@detectTapGestures
-                        val offset = layout.getOffsetForPosition(position).coerceIn(
-                            0,
-                            (
-                                annotated.length -
-                                    1
-                                ).coerceAtLeast(0)
-                        )
-                        val hit =
-                            annotated.getStringAnnotations(
-                                "tokenIndex",
-                                offset,
-                                offset
-                            ).firstOrNull()
-                                ?: return@detectTapGestures
-                        val tokenIndex = hit.item.toIntOrNull() ?: return@detectTapGestures
-                        if (tokenIndex != focusIndex) onFocusChange(tokenIndex)
-                        onStartRsvp(tokenIndex)
-                    },
-                )
-            },
-        onTextLayout = { layoutResult = it },
-    )
-}
-
-/**
- * Bottom sheet displaying the table of contents / chapter list.
- * Now expects pre-computed word counts in Chapter model.
- */
-@Composable
-private fun ChapterListSheet(
-    book: Book,
-    currentChapterIndex: Int,
-    onChapterSelected: (Int) -> Unit,
-) {
-    Column(
-        modifier =
-        Modifier
-            .fillMaxSize(),
-    ) {
-        Text(
-            text = "Table of Contents",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-        )
-
-        HorizontalDivider()
-
-        LazyColumn(
-            modifier =
-            Modifier
-                .fillMaxWidth()
-                .weight(1f),
-        ) {
-            itemsIndexed(
-                items = book.chapters,
-                key = { index, _ -> index },
-            ) { index, chapter ->
-                val isCurrentChapter = index == currentChapterIndex
-
-                Row(
-                    modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { onChapterSelected(index) }
-                        .background(
-                            if (isCurrentChapter) {
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                            } else {
-                                MaterialTheme.colorScheme.surface
-                            },
-                        ).padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = chapter.title ?: "Chapter ${index + 1}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (isCurrentChapter) FontWeight.Bold else FontWeight.Normal,
-                            color =
-                            if (isCurrentChapter) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        // Use pre-computed word count from Chapter model
-                        // If not available, show nothing rather than computing on-the-fly
-                        // chapter.wordCount?.let { count ->
-                        //     Text(
-                        //         text = "$count words",
-                        //         style = MaterialTheme.typography.bodySmall,
-                        //         color = MaterialTheme.colorScheme.onSurfaceVariant
-                        //     )
-                        // }
-                    }
-
-                    Box(
-                        modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(
-                                if (isCurrentChapter) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                },
-                            ).padding(horizontal = 8.dp, vertical = 4.dp),
-                    ) {
-                        Text(
-                            text = "${index + 1}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color =
-                            if (isCurrentChapter) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    }
-                }
-
-                if (index < book.chapters.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                    )
-                }
-            }
         }
     }
 }
