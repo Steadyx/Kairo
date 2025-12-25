@@ -522,7 +522,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
      * Extracts plain text from HTML/XHTML content.
      */
     private fun extractPlainText(html: String): String =
-        html
+        normalizePageBreakElements(html)
             // Remove scripts and styles
             .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
             .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
@@ -556,6 +556,39 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             .replace(Regex("[ \\t]+"), " ")
             .replace(Regex("\\n\\s*\\n+"), "\n\n")
             .trim()
+
+    private fun normalizePageBreakElements(html: String): String {
+        val pageBreakToken = "\n\n\u000C\n\n"
+        var text = html
+
+        val epubPageBreak =
+            Regex(
+                "<[^>]+\\b(epub:type|role)\\s*=\\s*['\\\"](?:pagebreak|doc-pagebreak)['\\\"][^>]*>[\\s\\S]*?</[^>]+>",
+                RegexOption.IGNORE_CASE,
+            )
+        val epubPageBreakSelfClosing =
+            Regex(
+                "<[^>]+\\b(epub:type|role)\\s*=\\s*['\\\"](?:pagebreak|doc-pagebreak)['\\\"][^>]*/?>",
+                RegexOption.IGNORE_CASE,
+            )
+        val classPageBreak =
+            Regex(
+                "<[^>]+\\bclass\\s*=\\s*['\\\"][^'\\\"]*(?:pagebreak|page-break)[^'\\\"]*['\\\"][^>]*>[\\s\\S]*?</[^>]+>",
+                RegexOption.IGNORE_CASE,
+            )
+        val classPageBreakSelfClosing =
+            Regex(
+                "<[^>]+\\bclass\\s*=\\s*['\\\"][^'\\\"]*(?:pagebreak|page-break)[^'\\\"]*['\\\"][^>]*>",
+                RegexOption.IGNORE_CASE,
+            )
+
+        text = text.replace(epubPageBreak, pageBreakToken)
+        text = text.replace(epubPageBreakSelfClosing, pageBreakToken)
+        text = text.replace(classPageBreak, pageBreakToken)
+        text = text.replace(classPageBreakSelfClosing, pageBreakToken)
+
+        return text
+    }
 
     /**
      * Extracts chapter title from HTML content.

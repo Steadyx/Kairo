@@ -12,6 +12,7 @@ import com.example.kairo.core.model.countWords
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.data.books.BookRepository
 import com.example.kairo.data.token.TokenRepository
+import kotlin.math.roundToInt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +22,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val HEX_RADIX = 16
+private const val PAGE_MIN_WORD_FRACTION = 0.75f
+private const val PAGE_MAX_WORD_FRACTION = 1.25f
+private const val PAGE_TARGET_FRACTION = 0.9f
+private const val PAGE_EXTRA_WORD_FRACTION = 0.2f
+private const val PAGE_EXTRA_WORDS_MIN = 10
+private const val PAGE_EXTRA_WORDS_MAX = 60
 
 /**
  * ViewModel for the Reader screen.
@@ -450,62 +457,223 @@ private fun buildChapterPages(
 ): List<ChapterPage> {
     if (tokens.isEmpty() || wordsPerPage <= 0) return emptyList()
 
+    val minWords =
+        (wordsPerPage * PAGE_MIN_WORD_FRACTION)
+            .roundToInt()
+            .coerceAtLeast(1)
+    val maxWords =
+        (wordsPerPage * PAGE_MAX_WORD_FRACTION)
+            .roundToInt()
+            .coerceAtLeast(minWords)
+    val targetWords = wordsPerPage.coerceAtLeast(1)
+    val minTargetWords = (targetWords * PAGE_TARGET_FRACTION).roundToInt()
+    val maxExtraWords =
+        (wordsPerPage * PAGE_EXTRA_WORD_FRACTION)
+            .roundToInt()
+            .coerceIn(PAGE_EXTRA_WORDS_MIN, PAGE_EXTRA_WORDS_MAX)
+
     val pages = mutableListOf<ChapterPage>()
-    var pageStartTokenIndex = -1
-    var pageWordCount = 0
-    var lastWordTokenIndex = -1
+    var cursor = 0
 
-    tokens.forEachIndexed { index, token ->
-        when (token.type) {
-            TokenType.WORD -> {
-                if (pageStartTokenIndex == -1) {
-                    pageStartTokenIndex = index
+    outer@ while (cursor < tokens.size) {
+        val pageStartTokenIndex = nextWordTokenIndex(tokens, cursor) ?: break
+        var wordCount = 0
+        var endWordTokenIndex = pageStartTokenIndex
+        var boundaryIndex = -1
+        var boundaryWordCount = 0
+        var parenDepth = 0
+
+        var i = pageStartTokenIndex
+        while (i < tokens.size) {
+            val token = tokens[i]
+            when (token.type) {
+                TokenType.WORD -> {
+                    wordCount += 1
+                    endWordTokenIndex = i
                 }
-                pageWordCount += 1
-                lastWordTokenIndex = index
-                if (pageWordCount >= wordsPerPage) {
-                    pages.add(
-                        ChapterPage(
-                            index = pages.size,
-                            startTokenIndex = pageStartTokenIndex,
-                            endTokenIndex = lastWordTokenIndex,
-                            wordCount = pageWordCount,
-                        ),
-                    )
-                    pageStartTokenIndex = -1
-                    pageWordCount = 0
+                TokenType.PAGE_BREAK -> {
+                    if (wordCount > 0) {
+                        val endTokenIndex = extendTrailingPunctuation(tokens, endWordTokenIndex)
+                        pages.add(
+                            ChapterPage(
+                                index = pages.size,
+                                startTokenIndex = pageStartTokenIndex,
+                                endTokenIndex = endTokenIndex,
+                                wordCount = wordCount,
+                            ),
+                        )
+                    }
+                    cursor = i + 1
+                    continue@outer
+                }
+                TokenType.PARAGRAPH_BREAK -> {
+                    if (wordCount >= minWords && parenDepth == 0) {
+                        boundaryIndex = endWordTokenIndex
+                        boundaryWordCount = wordCount
+                    }
+                }
+                TokenType.PUNCTUATION -> {
+                    if (isOpeningBracket(token)) {
+                        parenDepth += 1
+                    } else if (isClosingBracket(token)) {
+                        parenDepth = (parenDepth - 1).coerceAtLeast(0)
+                    }
+                    if (wordCount >= minWords && parenDepth == 0 && isSentenceEnding(token)) {
+                        boundaryIndex = endWordTokenIndex
+                        boundaryWordCount = wordCount
+                    }
                 }
             }
-            TokenType.PAGE_BREAK -> {
-                if (pageStartTokenIndex != -1 && lastWordTokenIndex >= pageStartTokenIndex) {
-                    pages.add(
-                        ChapterPage(
-                            index = pages.size,
-                            startTokenIndex = pageStartTokenIndex,
-                            endTokenIndex = lastWordTokenIndex,
-                            wordCount = pageWordCount,
-                        ),
-                    )
-                }
-                pageStartTokenIndex = -1
-                pageWordCount = 0
+
+            val hasNearBoundary = boundaryIndex != -1 && boundaryWordCount >= minTargetWords
+            if (wordCount >= maxWords || (wordCount >= targetWords && hasNearBoundary)) {
+                break
             }
-            else -> Unit
+            i += 1
         }
-    }
 
-    if (pageStartTokenIndex != -1 && lastWordTokenIndex >= pageStartTokenIndex) {
+        if (wordCount <= 0) {
+            cursor = pageStartTokenIndex + 1
+            continue
+        }
+
+        val useBoundary =
+            boundaryIndex != -1 &&
+                (boundaryWordCount >= minTargetWords || wordCount >= maxWords)
+        var chosenWordIndex = if (useBoundary) boundaryIndex else endWordTokenIndex
+        var chosenWordCount = if (useBoundary) boundaryWordCount else wordCount
+
+        if (!useBoundary && maxExtraWords > 0) {
+            val forward =
+                findForwardBoundary(
+                    tokens = tokens,
+                    startIndex = chosenWordIndex + 1,
+                    initialWordCount = chosenWordCount,
+                    maxExtraWords = maxExtraWords,
+                    startingParenDepth = parenDepth,
+                )
+            if (forward != null) {
+                chosenWordIndex = forward.endWordIndex
+                chosenWordCount = forward.wordCount
+            }
+        }
+
+        val endTokenIndex = extendTrailingPunctuation(tokens, chosenWordIndex)
+
         pages.add(
             ChapterPage(
                 index = pages.size,
                 startTokenIndex = pageStartTokenIndex,
-                endTokenIndex = lastWordTokenIndex,
-                wordCount = pageWordCount,
+                endTokenIndex = endTokenIndex,
+                wordCount = chosenWordCount,
             ),
         )
+        cursor = endTokenIndex + 1
     }
 
     return pages
+}
+
+private fun nextWordTokenIndex(
+    tokens: List<Token>,
+    startIndex: Int,
+): Int? {
+    for (i in startIndex until tokens.size) {
+        if (tokens[i].type == TokenType.WORD) return i
+    }
+    return null
+}
+
+private fun extendTrailingPunctuation(
+    tokens: List<Token>,
+    endWordIndex: Int,
+): Int {
+    var endIndex = endWordIndex
+    var i = endWordIndex + 1
+    while (i < tokens.size) {
+        val token = tokens[i]
+        if (token.type == TokenType.PUNCTUATION && token.text !in LEADING_PUNCTUATION) {
+            endIndex = i
+            i += 1
+            continue
+        }
+        if (token.type == TokenType.WORD ||
+            token.type == TokenType.PARAGRAPH_BREAK ||
+            token.type == TokenType.PAGE_BREAK
+        ) {
+            break
+        }
+        break
+    }
+    return endIndex
+}
+
+private fun isSentenceEnding(token: Token): Boolean {
+    if (token.type != TokenType.PUNCTUATION) return false
+    return token.text in SENTENCE_ENDINGS
+}
+
+private val SENTENCE_ENDINGS = setOf(".", "!", "?", "\u2026")
+private val LEADING_PUNCTUATION = setOf("(", "[", "{")
+private val OPENING_BRACKETS = setOf("(", "[", "{")
+private val CLOSING_BRACKETS = setOf(")", "]", "}")
+
+private fun isOpeningBracket(token: Token): Boolean =
+    token.type == TokenType.PUNCTUATION && token.text in OPENING_BRACKETS
+
+private fun isClosingBracket(token: Token): Boolean =
+    token.type == TokenType.PUNCTUATION && token.text in CLOSING_BRACKETS
+
+private data class ForwardBoundary(
+    val endWordIndex: Int,
+    val wordCount: Int,
+)
+
+private fun findForwardBoundary(
+    tokens: List<Token>,
+    startIndex: Int,
+    initialWordCount: Int,
+    maxExtraWords: Int,
+    startingParenDepth: Int,
+): ForwardBoundary? {
+    var wordCount = initialWordCount
+    var lastWordIndex = if (startIndex > 0) startIndex - 1 else -1
+    var parenDepth = startingParenDepth
+
+    var i = startIndex
+    while (i < tokens.size) {
+        val token = tokens[i]
+        when (token.type) {
+            TokenType.WORD -> {
+                wordCount += 1
+                lastWordIndex = i
+                if (wordCount - initialWordCount > maxExtraWords) return null
+            }
+            TokenType.PAGE_BREAK -> return null
+            TokenType.PARAGRAPH_BREAK -> {
+                if (lastWordIndex >= 0 && wordCount > initialWordCount && parenDepth == 0) {
+                    return ForwardBoundary(lastWordIndex, wordCount)
+                }
+            }
+            TokenType.PUNCTUATION -> {
+                if (isOpeningBracket(token)) {
+                    parenDepth += 1
+                } else if (isClosingBracket(token)) {
+                    parenDepth = (parenDepth - 1).coerceAtLeast(0)
+                }
+                if (lastWordIndex >= 0 &&
+                    wordCount > initialWordCount &&
+                    parenDepth == 0 &&
+                    isSentenceEnding(token)
+                ) {
+                    return ForwardBoundary(lastWordIndex, wordCount)
+                }
+            }
+        }
+        i += 1
+    }
+
+    return null
 }
 
 private sealed interface HtmlBlockMarker {
