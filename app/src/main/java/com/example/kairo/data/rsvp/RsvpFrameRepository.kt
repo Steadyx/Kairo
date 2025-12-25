@@ -13,5 +13,13 @@ interface RsvpFrameRepository {
         config: RsvpConfig,
     ): RsvpFrameSet
 
+    fun prefetchFrames(
+        bookId: BookId,
+        chapterIndex: Int,
+        config: RsvpConfig,
+    ) {
+        // Optional optimization; default no-op for implementations without prefetching.
+    }
+
     fun clearCache()
 }
