@@ -397,6 +397,17 @@ private fun KairoNavHost(
                 }
             }
 
+            LaunchedEffect(uiState.chapterIndex, uiState.chapterData, prefs.rsvpConfig) {
+                if (!hasInitialized) return@LaunchedEffect
+                val chapterData = uiState.chapterData ?: return@LaunchedEffect
+                if (chapterData.tokens.isEmpty()) return@LaunchedEffect
+                container.rsvpFrameRepository.prefetchFrames(
+                    BookId(bookId),
+                    uiState.chapterIndex,
+                    prefs.rsvpConfig,
+                )
+            }
+
             val focusEnabledInReader = prefs.focusModeEnabled && prefs.focusApplyInReader
             ReaderScreen(
                 book = book,
@@ -631,6 +642,17 @@ private fun KairoNavHost(
                         ReadingPosition(BookId(bookId), uiState.chapterIndex, safeIndex),
                     )
                 }
+            }
+
+            LaunchedEffect(uiState.chapterIndex, uiState.chapterData, prefs.rsvpConfig) {
+                if (!hasInitialized) return@LaunchedEffect
+                val chapterData = uiState.chapterData ?: return@LaunchedEffect
+                if (chapterData.tokens.isEmpty()) return@LaunchedEffect
+                container.rsvpFrameRepository.prefetchFrames(
+                    BookId(bookId),
+                    uiState.chapterIndex,
+                    prefs.rsvpConfig,
+                )
             }
 
             val focusEnabledInReader = prefs.focusModeEnabled && prefs.focusApplyInReader
