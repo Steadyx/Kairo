@@ -536,6 +536,48 @@ fun RsvpSettingsContent(
         valueRange = 85f..105f,
     )
 
+    Text("Adaptive pacing", style = MaterialTheme.typography.titleSmall)
+    SettingsSwitchRow(
+        title = "Adaptive pacing",
+        subtitle = "Adds extra hold on difficult words and clause boundaries.",
+        checked = config.useAdaptiveTiming,
+        onCheckedChange = { enabled ->
+            updateConfig { it.copy(useAdaptiveTiming = enabled) }
+        },
+    )
+    DeferredSliderRow(
+        title = "Difficulty boost",
+        subtitle = "Max extra hold for difficult words (adaptive pacing).",
+        valueLabel = { "+${it.toLong()}ms" },
+        rawValue = config.adaptiveDifficultyMaxHoldMs.toFloat(),
+        onCommit = { newValue ->
+            updateConfig {
+                it.copy(adaptiveDifficultyMaxHoldMs = newValue.toLong().coerceIn(0L, 200L))
+            }
+        },
+        valueRange = 0f..200f,
+    )
+    DeferredSliderRow(
+        title = "Complex word boost",
+        subtitle = "Extra hold for words above the complexity threshold.",
+        valueLabel = { "+${it.toLong()}ms" },
+        rawValue = config.complexWordHoldMs.toFloat(),
+        onCommit = { newValue ->
+            updateConfig { it.copy(complexWordHoldMs = newValue.toLong().coerceIn(0L, 200L)) }
+        },
+        valueRange = 0f..200f,
+    )
+    DeferredSliderRow(
+        title = "Complex word threshold",
+        subtitle = "Lower = more words considered complex.",
+        valueLabel = { "x${"%.2f".format(it)}" },
+        rawValue = config.complexWordThreshold.toFloat(),
+        onCommit = { newValue ->
+            updateConfig { it.copy(complexWordThreshold = newValue.toDouble().coerceIn(1.0, 1.6)) }
+        },
+        valueRange = 1f..1.6f,
+    )
+
     Text("Rhythm", style = MaterialTheme.typography.titleSmall)
     DeferredSliderRow(
         title = "Stability",

@@ -167,6 +167,17 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
                         rampUpFrames = prefs[keys.rampUpFrames] ?: RsvpConfig().rampUpFrames,
                         rampDownFrames =
                         prefs[keys.rampDownFrames] ?: RsvpConfig().rampDownFrames,
+                        useAdaptiveTiming =
+                        prefs[keys.useAdaptiveTiming] ?: RsvpConfig().useAdaptiveTiming,
+                        adaptiveDifficultyMaxHoldMs =
+                        prefs[keys.adaptiveDifficultyMaxHoldMs]
+                            ?: RsvpConfig().adaptiveDifficultyMaxHoldMs,
+                        complexWordHoldMs =
+                        prefs[keys.complexWordHoldMs]
+                            ?: RsvpConfig().complexWordHoldMs,
+                        complexWordThreshold =
+                        prefs[keys.complexWordThreshold]
+                            ?: RsvpConfig().complexWordThreshold,
                         // Legacy persisted fields
                         wordsPerFrame = prefs[keys.wordsPerFrame] ?: RsvpConfig().wordsPerFrame,
                         maxChunkLength =
@@ -507,6 +518,10 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         o.put("endDelayMs", config.endDelayMs)
         o.put("rampUpFrames", config.rampUpFrames)
         o.put("rampDownFrames", config.rampDownFrames)
+        o.put("useAdaptiveTiming", config.useAdaptiveTiming)
+        o.put("adaptiveDifficultyMaxHoldMs", config.adaptiveDifficultyMaxHoldMs)
+        o.put("complexWordHoldMs", config.complexWordHoldMs)
+        o.put("complexWordThreshold", config.complexWordThreshold)
         o.put("wordsPerFrame", config.wordsPerFrame)
         o.put("maxChunkLength", config.maxChunkLength)
         o.put("punctuationPauseFactor", config.punctuationPauseFactor)
@@ -577,10 +592,17 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
             ),
             longWordMultiplier = obj.optDouble("longWordMultiplier", d.longWordMultiplier),
             baseWpm = d.baseWpm,
-            useAdaptiveTiming = d.useAdaptiveTiming,
+            useAdaptiveTiming = obj.optBoolean("useAdaptiveTiming", d.useAdaptiveTiming),
+            adaptiveDifficultyMaxHoldMs =
+            obj.optLong(
+                "adaptiveDifficultyMaxHoldMs",
+                d.adaptiveDifficultyMaxHoldMs,
+            ),
+            complexWordHoldMs = obj.optLong("complexWordHoldMs", d.complexWordHoldMs),
             useClausePausing = obj.optBoolean("useClausePausing", d.useClausePausing),
             useDialogueDetection = d.useDialogueDetection,
-            complexWordThreshold = d.complexWordThreshold,
+            complexWordThreshold =
+            obj.optDouble("complexWordThreshold", d.complexWordThreshold),
             clausePauseFactor = clausePauseFactor,
             blinkMode = blinkMode,
         )
@@ -624,6 +646,10 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         prefs[keys.endDelayMs] = config.endDelayMs
         prefs[keys.rampUpFrames] = config.rampUpFrames
         prefs[keys.rampDownFrames] = config.rampDownFrames
+        prefs[keys.useAdaptiveTiming] = config.useAdaptiveTiming
+        prefs[keys.adaptiveDifficultyMaxHoldMs] = config.adaptiveDifficultyMaxHoldMs
+        prefs[keys.complexWordHoldMs] = config.complexWordHoldMs
+        prefs[keys.complexWordThreshold] = config.complexWordThreshold
         // Legacy persisted fields
         prefs[keys.wordsPerFrame] = config.wordsPerFrame
         prefs[keys.maxChunkLength] = config.maxChunkLength
@@ -701,6 +727,13 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
             maxSlowdownFactor = prefs[keys.maxSlowdownFactor] ?: RsvpConfig().maxSlowdownFactor,
             rampUpFrames = prefs[keys.rampUpFrames] ?: RsvpConfig().rampUpFrames,
             rampDownFrames = prefs[keys.rampDownFrames] ?: RsvpConfig().rampDownFrames,
+            useAdaptiveTiming = prefs[keys.useAdaptiveTiming] ?: RsvpConfig().useAdaptiveTiming,
+            adaptiveDifficultyMaxHoldMs =
+            prefs[keys.adaptiveDifficultyMaxHoldMs]
+                ?: RsvpConfig().adaptiveDifficultyMaxHoldMs,
+            complexWordHoldMs =
+            prefs[keys.complexWordHoldMs]
+                ?: RsvpConfig().complexWordHoldMs,
             wordsPerFrame = prefs[keys.wordsPerFrame] ?: RsvpConfig().wordsPerFrame,
             maxChunkLength = prefs[keys.maxChunkLength] ?: RsvpConfig().maxChunkLength,
             punctuationPauseFactor =
@@ -708,6 +741,9 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
                 ?: RsvpConfig().punctuationPauseFactor,
             longWordMultiplier = prefs[keys.longWordMultiplier] ?: RsvpConfig().longWordMultiplier,
             useClausePausing = prefs[keys.useClausePausing] ?: RsvpConfig().useClausePausing,
+            complexWordThreshold =
+            prefs[keys.complexWordThreshold]
+                ?: RsvpConfig().complexWordThreshold,
             clausePauseFactor =
             (
                 prefs[keys.clausePauseFactor]?.takeIf { it.isFinite() }
@@ -765,6 +801,10 @@ private object PrefKeys {
     val endDelayMs = longPreferencesKey("end_delay_ms")
     val rampUpFrames = intPreferencesKey("ramp_up_frames")
     val rampDownFrames = intPreferencesKey("ramp_down_frames")
+    val useAdaptiveTiming = booleanPreferencesKey("use_adaptive_timing")
+    val adaptiveDifficultyMaxHoldMs = longPreferencesKey("adaptive_difficulty_max_hold_ms")
+    val complexWordHoldMs = longPreferencesKey("complex_word_hold_ms")
+    val complexWordThreshold = doublePreferencesKey("complex_word_threshold")
     val useClausePausing = booleanPreferencesKey("use_clause_pausing")
     val clausePauseFactor = doublePreferencesKey("clause_pause_factor")
     val blinkMode = stringPreferencesKey("blink_mode")
