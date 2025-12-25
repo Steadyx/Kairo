@@ -173,6 +173,8 @@ data class RsvpConfig(
     val punctuationPauseFactor: Double = 1.6,
     val longWordMultiplier: Double = 1.2,
     val useAdaptiveTiming: Boolean = true,
+    val adaptiveDifficultyMaxHoldMs: Long = 70L,
+    val complexWordHoldMs: Long = 45L,
     val useClausePausing: Boolean = true,
     val useDialogueDetection: Boolean = true,
     val complexWordThreshold: Double = 1.3,

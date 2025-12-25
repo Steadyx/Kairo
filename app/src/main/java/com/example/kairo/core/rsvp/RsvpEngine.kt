@@ -490,10 +490,51 @@ class ComprehensionRsvpEngine : RsvpEngine {
             val scaled = pageBreakBasePauseMs(config) * pauseScale
             totalDuration += max(scaled, MIN_PAGE_BREAK_MS) * pageBreaks
         }
+        if (paragraphBreaks == 0 && pageBreaks == 0) {
+            totalDuration +=
+                adaptiveHoldMs(
+                    words = words,
+                    difficulty = difficulty,
+                    config = config,
+                    speedStrength = speedStrength,
+                    hardBoundary = hardBoundary,
+                    nextWord = nextWord,
+                    clauseConfigStrength = clauseConfigStrength,
+                )
+        }
 
         return totalDuration
             .toLong()
             .coerceAtLeast(MIN_FRAME_MS)
+    }
+
+    private fun adaptiveHoldMs(
+        words: List<Token>,
+        difficulty: Double,
+        config: RsvpConfig,
+        speedStrength: Double,
+        hardBoundary: Boolean,
+        nextWord: Token?,
+        clauseConfigStrength: Double,
+    ): Double {
+        if (!config.useAdaptiveTiming || words.isEmpty() || nextWord == null) return 0.0
+
+        val difficultyScale =
+            ((difficulty - ADAPTIVE_DIFFICULTY_FLOOR).coerceAtLeast(0.0) /
+                (1.0 - ADAPTIVE_DIFFICULTY_FLOOR))
+                .coerceIn(0.0, 1.0)
+        var hold = difficultyScale * config.adaptiveDifficultyMaxHoldMs * speedStrength
+
+        if (words.any { it.complexityMultiplier >= config.complexWordThreshold }) {
+            hold += config.complexWordHoldMs * speedStrength
+        }
+
+        val lastWord = words.lastOrNull()
+        if (!hardBoundary && config.useClausePausing && lastWord?.isClauseBoundary == true) {
+            hold += CLAUSE_BOUNDARY_HOLD_MS * speedStrength * clauseConfigStrength
+        }
+
+        return hold.coerceAtMost(ADAPTIVE_HOLD_MAX_MS * speedStrength)
     }
 
     private fun wordDurationMs(
@@ -1400,6 +1441,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private const val BLINK_EXTRA_MS = 6.0
         private const val BLINK_START_STRENGTH = 0.35
         private const val ADAPTIVE_EASE_THRESHOLD = 0.7
+        private const val ADAPTIVE_DIFFICULTY_FLOOR = 0.35
+        private const val CLAUSE_BOUNDARY_HOLD_MS = 55.0
+        private const val ADAPTIVE_HOLD_MAX_MS = 160.0
         private const val EASY_PAIR_THRESHOLD = 0.72
         private const val TRANSITION_HOLD_BASE_MS = 6.0
         private const val TRANSITION_HOLD_EXTRA_MS = 10.0

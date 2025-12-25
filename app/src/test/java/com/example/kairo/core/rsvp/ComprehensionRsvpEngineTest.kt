@@ -191,4 +191,86 @@ class ComprehensionRsvpEngineTest {
             next >= slow / config.maxSpeedupFactor,
         )
     }
+
+    @Test
+    fun adaptiveHoldAddsTimeForDifficultWords() {
+        val baseConfig =
+            RsvpConfig(
+                tempoMsPerWord = 115L,
+                useAdaptiveTiming = true,
+                useClausePausing = false,
+                startDelayMs = 0L,
+                endDelayMs = 0L,
+                rampUpFrames = 0,
+                rampDownFrames = 0,
+                enablePhraseChunking = false,
+            )
+        val tokens =
+            listOf(
+                Token(
+                    text = "Supercalifragilisticexpialidocious",
+                    type = TokenType.WORD,
+                    syllableCount = 8,
+                    frequencyScore = 0.1,
+                    complexityMultiplier = 1.6,
+                ),
+                Token(text = "okay", type = TokenType.WORD, frequencyScore = 1.0),
+            )
+
+        val adaptive =
+            engine.generateFrames(
+                tokens = tokens,
+                startIndex = 0,
+                config = baseConfig,
+            )
+        val baseline =
+            engine.generateFrames(
+                tokens = tokens,
+                startIndex = 0,
+                config = baseConfig.copy(useAdaptiveTiming = false),
+            )
+
+        assertTrue(adaptive[0].durationMs > baseline[0].durationMs)
+    }
+
+    @Test
+    fun adaptiveHoldRespectsClauseBoundaries() {
+        val baseConfig =
+            RsvpConfig(
+                tempoMsPerWord = 115L,
+                useAdaptiveTiming = true,
+                useClausePausing = true,
+                clausePauseFactor = 1.4,
+                startDelayMs = 0L,
+                endDelayMs = 0L,
+                rampUpFrames = 0,
+                rampDownFrames = 0,
+                enablePhraseChunking = false,
+            )
+        val tokens =
+            listOf(
+                Token(
+                    text = "blue",
+                    type = TokenType.WORD,
+                    frequencyScore = 1.0,
+                    isClauseBoundary = true,
+                ),
+                Token(text = "sky", type = TokenType.WORD, frequencyScore = 1.0),
+            )
+
+        val adaptive =
+            engine.generateFrames(
+                tokens = tokens,
+                startIndex = 0,
+                config = baseConfig,
+            )
+        val baseline =
+            engine.generateFrames(
+                tokens = tokens,
+                startIndex = 0,
+                config = baseConfig.copy(useAdaptiveTiming = false),
+            )
+
+        assertTrue(adaptive[0].durationMs > baseline[0].durationMs)
+    }
 }
