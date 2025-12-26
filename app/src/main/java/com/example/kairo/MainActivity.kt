@@ -68,6 +68,7 @@ import com.example.kairo.ui.settings.RsvpSettingsScreen
 import com.example.kairo.ui.settings.SettingsHomeScreen
 import com.example.kairo.ui.theme.KairoTheme
 import com.example.kairo.core.rsvp.RsvpPaceEstimator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -182,17 +183,20 @@ private fun KairoNavHost(
                     coroutineScope.launch { container.bookmarkRepository.delete(bookmarkId) }
                 },
                 onImportFile = { uri ->
-                    coroutineScope.launch {
+                    coroutineScope.launch(dispatcherProvider.io) {
                         val result = runCatching { container.libraryRepository.import(uri) }
-                        result.onSuccess { book ->
-                            val message = "Imported: ${book.title} (${book.chapters.size} chapters)"
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                        }
-                        result.onFailure { error ->
-                            val message =
-                                error.message?.let { "Import failed: $it" }
-                                    ?: "Import failed: Unknown error"
-                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                        withContext(Dispatchers.Main) {
+                            result.onSuccess { book ->
+                                val message =
+                                    "Imported: ${book.title} (${book.chapters.size} chapters)"
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            }
+                            result.onFailure { error ->
+                                val message =
+                                    error.message?.let { "Import failed: $it" }
+                                        ?: "Import failed: Unknown error"
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            }
                         }
                     }
                 },
@@ -240,17 +244,20 @@ private fun KairoNavHost(
                     coroutineScope.launch { container.bookmarkRepository.delete(bookmarkId) }
                 },
                 onImportFile = { uri ->
-                    coroutineScope.launch {
+                    coroutineScope.launch(dispatcherProvider.io) {
                         val result = runCatching { container.libraryRepository.import(uri) }
-                        result.onSuccess { book ->
-                            val message = "Imported: ${book.title} (${book.chapters.size} chapters)"
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                        }
-                        result.onFailure { error ->
-                            val message =
-                                error.message?.let { "Import failed: $it" }
-                                    ?: "Import failed: Unknown error"
-                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                        withContext(Dispatchers.Main) {
+                            result.onSuccess { book ->
+                                val message =
+                                    "Imported: ${book.title} (${book.chapters.size} chapters)"
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            }
+                            result.onFailure { error ->
+                                val message =
+                                    error.message?.let { "Import failed: $it" }
+                                        ?: "Import failed: Unknown error"
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            }
                         }
                     }
                 },

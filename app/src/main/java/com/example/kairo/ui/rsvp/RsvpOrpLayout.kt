@@ -32,7 +32,7 @@ internal fun OrpAlignedTextLayout(
     typography: OrpTypography,
 ) {
     val density = LocalDensity.current
-    val effectiveBias = layout.horizontalBias.coerceIn(HORIZONTAL_BIAS_MIN, HORIZONTAL_BIAS_MAX)
+    val effectiveBias = layout.horizontalBias.safeCoerceIn(HORIZONTAL_BIAS_MIN, HORIZONTAL_BIAS_MAX)
     val textMeasurer = rememberTextMeasurer()
     val baseStyle = MaterialTheme.typography.displayMedium
     val textStyle =
@@ -71,7 +71,7 @@ internal fun OrpAlignedTextLayout(
             if (display.content.fullText.isEmpty()) {
                 DEFAULT_PIVOT_INDEX
             } else {
-                display.content.pivotPosition.coerceIn(0, display.content.fullText.lastIndex)
+                display.content.pivotPosition.safeCoerceIn(0, display.content.fullText.lastIndex)
             }
         val pivotRange =
             calculatePivotRange(
@@ -194,13 +194,13 @@ private fun buildWindowedContent(
         content.highlightStart >= 0 && content.highlightEndExclusive > content.highlightStart
     val focusStart =
         if (hasHighlight) {
-            content.highlightStart.coerceIn(0, fullText.lastIndex)
+            content.highlightStart.safeCoerceIn(0, fullText.lastIndex)
         } else {
-            content.pivotPosition.coerceIn(0, fullText.lastIndex)
+            content.pivotPosition.safeCoerceIn(0, fullText.lastIndex)
         }
     val focusEndExclusive =
         if (hasHighlight) {
-            content.highlightEndExclusive.coerceIn(focusStart + 1, fullText.length)
+            content.highlightEndExclusive.safeCoerceIn(focusStart + 1, fullText.length)
         } else {
             (focusStart + 1).coerceAtMost(fullText.length)
         }
@@ -224,7 +224,7 @@ private fun buildWindowedContent(
         )
     val highlightStart =
         if (hasHighlight) {
-            (prefixOffset + content.highlightStart - window.start).coerceIn(
+            (prefixOffset + content.highlightStart - window.start).safeCoerceIn(
                 prefixOffset,
                 prefixOffset + visibleLength,
             )
@@ -233,7 +233,7 @@ private fun buildWindowedContent(
         }
     val highlightEndExclusive =
         if (hasHighlight) {
-            (prefixOffset + content.highlightEndExclusive - window.start).coerceIn(
+            (prefixOffset + content.highlightEndExclusive - window.start).safeCoerceIn(
                 highlightStart,
                 prefixOffset + visibleLength,
             )
@@ -244,18 +244,18 @@ private fun buildWindowedContent(
         if (hasHighlight) {
             val length = (highlightEndExclusive - highlightStart).coerceAtLeast(1)
             val centerOffset = ((length - 1) / BIAS_SCALE_FACTOR).roundToInt()
-            (highlightStart + centerOffset).coerceIn(
+            (highlightStart + centerOffset).safeCoerceIn(
                 prefixOffset,
                 prefixOffset + visibleLength - 1,
             )
         } else if (content.pivotPosition in window.start until window.endExclusive) {
-            (prefixOffset + content.pivotPosition - window.start).coerceIn(
+            (prefixOffset + content.pivotPosition - window.start).safeCoerceIn(
                 prefixOffset,
                 prefixOffset + visibleLength - 1,
             )
         } else {
             val centerOffset = ((visibleLength - 1) / BIAS_SCALE_FACTOR).roundToInt()
-            (prefixOffset + centerOffset).coerceIn(
+            (prefixOffset + centerOffset).safeCoerceIn(
                 prefixOffset,
                 prefixOffset + visibleLength - 1,
             )
@@ -283,8 +283,8 @@ private fun resolveWindowRange(
     maxWidthPx: Float,
 ): WindowRange {
     val length = fullText.length
-    var start = focusStart.coerceIn(0, length - 1)
-    var end = focusEndExclusive.coerceIn(start + 1, length)
+    var start = focusStart.safeCoerceIn(0, length - 1)
+    var end = focusEndExclusive.safeCoerceIn(start + 1, length)
 
     fun fits(candidateStart: Int, candidateEnd: Int): Boolean {
         val candidate =
@@ -368,6 +368,26 @@ private fun TextUnit.scaledBy(scale: Float): TextUnit =
         (value * scale).sp
     }
 
+private fun Float.safeCoerceIn(minimum: Float, maximum: Float): Float {
+    val minBound = minOf(minimum, maximum)
+    val maxBound = maxOf(minimum, maximum)
+    return when {
+        this < minBound -> minBound
+        this > maxBound -> maxBound
+        else -> this
+    }
+}
+
+private fun Int.safeCoerceIn(minimum: Int, maximum: Int): Int {
+    val minBound = minOf(minimum, maximum)
+    val maxBound = maxOf(minimum, maximum)
+    return when {
+        this < minBound -> minBound
+        this > maxBound -> maxBound
+        else -> this
+    }
+}
+
 private fun calculateOrpBounds(
     maxWidthPx: Float,
     effectiveBias: Float,
@@ -375,18 +395,33 @@ private fun calculateOrpBounds(
     extraEdgePx: Float,
     measuredWidthPx: Float,
 ): OrpBounds {
+    if (!maxWidthPx.isFinite() || maxWidthPx <= ZERO_FLOAT || !measuredWidthPx.isFinite()) {
+        val safeWidth = if (maxWidthPx.isFinite() && maxWidthPx > ZERO_FLOAT) {
+            maxWidthPx
+        } else {
+            MIN_ORP_WIDTH_PX
+        }
+        val midpoint = safeWidth / BIAS_SCALE_FACTOR
+        return OrpBounds(
+            safeLeftPx = midpoint,
+            safeRightPx = safeWidth - midpoint,
+            desiredPivotX = midpoint,
+            maxTranslationX = ZERO_FLOAT,
+            maxWidthPx = safeWidth,
+        )
+    }
     val rawFraction =
         ((effectiveBias + ONE_FLOAT) / BIAS_SCALE_FACTOR)
-            .coerceIn(ORP_BIAS_FRACTION_MIN, ORP_BIAS_FRACTION_MAX)
+            .safeCoerceIn(ORP_BIAS_FRACTION_MIN, ORP_BIAS_FRACTION_MAX)
     val biasFromCenter = rawFraction - ORP_CENTER_FRACTION
     val leftExtraFactor =
         (biasFromCenter / ORP_CENTER_FRACTION)
             .coerceAtLeast(ZERO_FLOAT)
-            .coerceIn(ZERO_FLOAT, ONE_FLOAT)
+            .safeCoerceIn(ZERO_FLOAT, ONE_FLOAT)
     val rightExtraFactor =
         (-biasFromCenter / ORP_CENTER_FRACTION)
             .coerceAtLeast(ZERO_FLOAT)
-            .coerceIn(ZERO_FLOAT, ONE_FLOAT)
+            .safeCoerceIn(ZERO_FLOAT, ONE_FLOAT)
     var safeLeftPx = baseEdgePx + (leftExtraFactor * extraEdgePx)
     var safeRightPx = baseEdgePx + (rightExtraFactor * extraEdgePx)
     val edgeTotal = safeLeftPx + safeRightPx
@@ -395,8 +430,8 @@ private fun calculateOrpBounds(
         safeLeftPx *= scale
         safeRightPx *= scale
     }
-    val maxPivotXRaw = maxWidthPx - safeRightPx
-    if (maxPivotXRaw < safeLeftPx) {
+    val maxPivotXBefore = maxWidthPx - safeRightPx
+    if (maxPivotXBefore < safeLeftPx) {
         val midpoint = maxWidthPx / BIAS_SCALE_FACTOR
         safeLeftPx = midpoint
         safeRightPx = maxWidthPx - midpoint
@@ -404,21 +439,23 @@ private fun calculateOrpBounds(
 
     var minFraction =
         (safeLeftPx / maxWidthPx)
-            .coerceIn(ORP_EDGE_FRACTION_MIN, ORP_EDGE_FRACTION_MAX)
+            .safeCoerceIn(ORP_EDGE_FRACTION_MIN, ORP_EDGE_FRACTION_MAX)
     var maxFraction =
         ONE_FLOAT -
             (safeRightPx / maxWidthPx)
-                .coerceIn(ORP_EDGE_FRACTION_MIN, ORP_EDGE_FRACTION_MAX)
+                .safeCoerceIn(ORP_EDGE_FRACTION_MIN, ORP_EDGE_FRACTION_MAX)
     if (minFraction > maxFraction) {
         val midpoint = (minFraction + maxFraction) / BIAS_SCALE_FACTOR
         minFraction = midpoint
         maxFraction = midpoint
     }
-    val desiredFraction = rawFraction.coerceIn(minFraction, maxFraction)
-    val maxPivotX = maxWidthPx - safeRightPx
+    val desiredFraction = rawFraction.safeCoerceIn(minFraction, maxFraction)
+    val maxPivotXAfter = maxWidthPx - safeRightPx
+    val minPivotX = minOf(safeLeftPx, maxPivotXAfter)
+    val maxPivotX = maxOf(safeLeftPx, maxPivotXAfter)
     val desiredPivotX =
         (maxWidthPx * desiredFraction)
-            .coerceIn(safeLeftPx, maxPivotX)
+            .safeCoerceIn(minPivotX, maxPivotX)
     val maxTranslationX = maxWidthPx - safeRightPx - measuredWidthPx
 
     return OrpBounds(
@@ -468,16 +505,20 @@ private fun layoutLockedPivot(
     bounds: OrpBounds,
     fullText: String,
 ): OrpLayoutResult {
-    val pivotIndex = pivotRange.safePivotIndex.coerceIn(pivotRange.start, pivotRange.end)
+    val pivotIndex = pivotRange.safePivotIndex.safeCoerceIn(pivotRange.start, pivotRange.end)
     val lastIndex = fullText.lastIndex.coerceAtLeast(DEFAULT_PIVOT_INDEX)
     val pivotCenter = pivotCenterX(measured, pivotIndex, lastIndex)
     val textLeft = measured.getBoundingBox(DEFAULT_PIVOT_INDEX).left
     val textRight = measured.getBoundingBox(lastIndex).right
     val textCenter = (textLeft + textRight) / BIAS_SCALE_FACTOR
     val chunkingShiftPx = pivotCenter - textCenter
-    val minPivotX = bounds.safeLeftPx + pivotCenter
-    val maxPivotX = bounds.maxTranslationX + pivotCenter
-    val guidePivotX = (bounds.desiredPivotX + chunkingShiftPx).coerceIn(minPivotX, maxPivotX)
+    val minPivotXRaw = bounds.safeLeftPx + pivotCenter
+    val maxPivotXRaw = bounds.maxTranslationX + pivotCenter
+    val minPivotX = minOf(minPivotXRaw, maxPivotXRaw)
+    val maxPivotX = maxOf(minPivotXRaw, maxPivotXRaw)
+    val guidePivotX =
+        (bounds.desiredPivotX + chunkingShiftPx)
+            .safeCoerceIn(minPivotX, maxPivotX)
     val translationX = guidePivotX - pivotCenter
     val alignment = alignPivotToPixel(pivotCenter, translationX)
     return OrpLayoutResult(
@@ -493,7 +534,7 @@ private fun layoutWideWord(
     bounds: OrpBounds,
     lastIndex: Int,
 ): OrpLayoutResult {
-    val pivotIndex = pivotRange.safePivotIndex.coerceIn(pivotRange.start, pivotRange.end)
+    val pivotIndex = pivotRange.safePivotIndex.safeCoerceIn(pivotRange.start, pivotRange.end)
     val measuredWidthPx = measured.size.width.toFloat()
     val translationX = (bounds.maxWidthPx - measuredWidthPx) / BIAS_SCALE_FACTOR
     val pivotCenter =
@@ -519,9 +560,11 @@ private fun layoutFlexiblePivot(
     val lastIndex = fullText.lastIndex.coerceAtLeast(DEFAULT_PIVOT_INDEX)
     val basePivotIndex = pivotRange.safePivotIndex
     val pivotCenter = pivotCenterX(measured, basePivotIndex, lastIndex)
+    val minTranslationX = minOf(bounds.safeLeftPx, bounds.maxTranslationX)
+    val maxTranslationX = maxOf(bounds.safeLeftPx, bounds.maxTranslationX)
     val translationX =
         (bounds.desiredPivotX - pivotCenter)
-            .coerceIn(bounds.safeLeftPx, bounds.maxTranslationX)
+            .safeCoerceIn(minTranslationX, maxTranslationX)
     val alignment = alignPivotToPixel(pivotCenter, translationX)
     return OrpLayoutResult(
         pivotIndex = basePivotIndex,
@@ -535,7 +578,7 @@ private fun pivotCenterX(
     index: Int,
     lastIndex: Int,
 ): Float {
-    val safeIndex = index.coerceIn(DEFAULT_PIVOT_INDEX, lastIndex)
+    val safeIndex = index.safeCoerceIn(DEFAULT_PIVOT_INDEX, lastIndex)
     val box = measured.getBoundingBox(safeIndex)
     return box.left + (box.width / BIAS_SCALE_FACTOR)
 }
