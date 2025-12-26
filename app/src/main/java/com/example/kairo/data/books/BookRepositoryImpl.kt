@@ -41,8 +41,11 @@ class BookRepositoryImpl(
                     parsedBook.chapters.map { chapter ->
                         if (chapter.wordCount > 0) {
                             chapter
-                        } else {
+                        } else if (chapter.plainText.length <= MAX_WORD_COUNT_CHARS) {
                             chapter.copy(wordCount = countWords(chapter.plainText))
+                        } else {
+                            // Defer heavy word counts for very large chapters.
+                            chapter
                         }
                     },
                 )
@@ -203,5 +206,6 @@ class BookRepositoryImpl(
         private const val INITIAL_COVER_JPEG_QUALITY = 90
         private const val JPEG_QUALITY_STEP = 10
         private const val MIN_COVER_JPEG_QUALITY = 60
+        private const val MAX_WORD_COUNT_CHARS = 120_000
     }
 }
