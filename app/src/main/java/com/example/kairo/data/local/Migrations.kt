@@ -59,3 +59,12 @@ val MIGRATION_4_5 =
             db.execSQL("ALTER TABLE chapters ADD COLUMN wordCount INTEGER NOT NULL DEFAULT 0")
         }
     }
+
+val MIGRATION_5_6 =
+    object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE reading_positions ADD COLUMN wordIndex INTEGER NOT NULL DEFAULT -1"
+            )
+        }
+    }

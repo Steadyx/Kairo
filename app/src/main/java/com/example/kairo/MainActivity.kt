@@ -38,7 +38,9 @@ import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Bookmark
 import com.example.kairo.core.model.ReadingPosition
 import com.example.kairo.core.model.UserPreferences
+import com.example.kairo.core.model.buildWordCountByToken
 import com.example.kairo.core.model.nearestWordIndex
+import com.example.kairo.core.model.wordIndexForToken
 import com.example.kairo.ui.LocalDispatcherProvider
 import com.example.kairo.ui.focus.FocusModeSideEffects
 import com.example.kairo.ui.focus.SystemBarsStyleSideEffect
@@ -101,6 +103,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private fun resolveWordIndex(
+    wordCountByToken: IntArray?,
+    tokenIndex: Int,
+): Int {
+    if (wordCountByToken == null || wordCountByToken.isEmpty()) return -1
+    return wordIndexForToken(wordCountByToken, tokenIndex)
+}
+
 @Suppress("CyclomaticComplexMethod", "FunctionNaming", "LongMethod")
 @Composable
 private fun KairoNavHost(
@@ -137,8 +147,6 @@ private fun KairoNavHost(
                     books = books,
                     positions = positions,
                     estimatedWpm = estimatedWpm,
-                    bookRepository = container.bookRepository,
-                    tokenRepository = container.tokenRepository,
                 )
             }
     }
@@ -338,12 +346,18 @@ private fun KairoNavHost(
                     if (safeRsvpResultIndex != uiState.focusIndex) {
                         readerViewModel.applyFocusIndex(safeRsvpResultIndex)
                     }
+                    val wordIndex =
+                        resolveWordIndex(
+                            uiState.chapterData?.wordCountByToken,
+                            safeRsvpResultIndex,
+                        )
                     coroutineScope.launch(dispatcherProvider.io) {
                         container.readingPositionRepository.savePosition(
                             ReadingPosition(
                                 BookId(bookId),
                                 uiState.chapterIndex,
                                 safeRsvpResultIndex,
+                                wordIndex,
                             ),
                         )
                     }
@@ -397,9 +411,16 @@ private fun KairoNavHost(
                 if (tokens.isEmpty()) return@LaunchedEffect
                 val safeIndex =
                     tokens.nearestWordIndex(uiState.focusIndex).coerceIn(0, tokens.lastIndex)
+                val wordIndex =
+                    resolveWordIndex(uiState.chapterData?.wordCountByToken, safeIndex)
                 withContext(dispatcherProvider.io) {
                     container.readingPositionRepository.savePosition(
-                        ReadingPosition(BookId(bookId), uiState.chapterIndex, safeIndex),
+                        ReadingPosition(
+                            BookId(bookId),
+                            uiState.chapterIndex,
+                            safeIndex,
+                            wordIndex,
+                        ),
                     )
                 }
             }
@@ -479,17 +500,31 @@ private fun KairoNavHost(
                 onFocusChange = { newFocusIndex ->
                     readerViewModel.setFocusIndex(newFocusIndex)
                     // Save position when focus changes
+                    val wordIndex =
+                        resolveWordIndex(uiState.chapterData?.wordCountByToken, newFocusIndex)
                     coroutineScope.launch {
                         container.readingPositionRepository.savePosition(
-                            ReadingPosition(BookId(bookId), uiState.chapterIndex, newFocusIndex),
+                            ReadingPosition(
+                                BookId(bookId),
+                                uiState.chapterIndex,
+                                newFocusIndex,
+                                wordIndex,
+                            ),
                         )
                     }
                 },
                 onStartRsvp = { start ->
                     // Save current position before navigating to RSVP
+                    val wordIndex =
+                        resolveWordIndex(uiState.chapterData?.wordCountByToken, start)
                     coroutineScope.launch {
                         container.readingPositionRepository.savePosition(
-                            ReadingPosition(BookId(bookId), uiState.chapterIndex, start),
+                            ReadingPosition(
+                                BookId(bookId),
+                                uiState.chapterIndex,
+                                start,
+                                wordIndex,
+                            ),
                         )
                     }
                     navController.navigate("rsvp/$bookId/${uiState.chapterIndex}/$start")
@@ -572,12 +607,18 @@ private fun KairoNavHost(
                     if (safeRsvpResultIndex != uiState.focusIndex) {
                         readerViewModel.applyFocusIndex(safeRsvpResultIndex)
                     }
+                    val wordIndex =
+                        resolveWordIndex(
+                            uiState.chapterData?.wordCountByToken,
+                            safeRsvpResultIndex,
+                        )
                     coroutineScope.launch(dispatcherProvider.io) {
                         container.readingPositionRepository.savePosition(
                             ReadingPosition(
                                 BookId(bookId),
                                 uiState.chapterIndex,
                                 safeRsvpResultIndex,
+                                wordIndex,
                             ),
                         )
                     }
@@ -644,9 +685,16 @@ private fun KairoNavHost(
                 if (tokens.isEmpty()) return@LaunchedEffect
                 val safeIndex =
                     tokens.nearestWordIndex(uiState.focusIndex).coerceIn(0, tokens.lastIndex)
+                val wordIndex =
+                    resolveWordIndex(uiState.chapterData?.wordCountByToken, safeIndex)
                 withContext(dispatcherProvider.io) {
                     container.readingPositionRepository.savePosition(
-                        ReadingPosition(BookId(bookId), uiState.chapterIndex, safeIndex),
+                        ReadingPosition(
+                            BookId(bookId),
+                            uiState.chapterIndex,
+                            safeIndex,
+                            wordIndex,
+                        ),
                     )
                 }
             }
@@ -725,16 +773,30 @@ private fun KairoNavHost(
                 },
                 onFocusChange = { newFocusIndex ->
                     readerViewModel.setFocusIndex(newFocusIndex)
+                    val wordIndex =
+                        resolveWordIndex(uiState.chapterData?.wordCountByToken, newFocusIndex)
                     coroutineScope.launch {
                         container.readingPositionRepository.savePosition(
-                            ReadingPosition(BookId(bookId), uiState.chapterIndex, newFocusIndex),
+                            ReadingPosition(
+                                BookId(bookId),
+                                uiState.chapterIndex,
+                                newFocusIndex,
+                                wordIndex,
+                            ),
                         )
                     }
                 },
                 onStartRsvp = { start ->
+                    val wordIndex =
+                        resolveWordIndex(uiState.chapterData?.wordCountByToken, start)
                     coroutineScope.launch {
                         container.readingPositionRepository.savePosition(
-                            ReadingPosition(BookId(bookId), uiState.chapterIndex, start),
+                            ReadingPosition(
+                                BookId(bookId),
+                                uiState.chapterIndex,
+                                start,
+                                wordIndex,
+                            ),
                         )
                     }
                     navController.navigate("rsvp/$bookId/${uiState.chapterIndex}/$start")
@@ -770,6 +832,7 @@ private fun KairoNavHost(
                         }.getOrElse { emptyList() }
                 }
             val tokens = tokensState.value
+            val wordCountByToken = remember(tokens) { buildWordCountByToken(tokens) }
 
             val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
             val bookIdValue = BookId(bookId)
@@ -847,9 +910,15 @@ private fun KairoNavHost(
                                 } else {
                                     lastIndex.coerceAtLeast(0)
                                 }
+                            val wordIndex = resolveWordIndex(wordCountByToken, resumeIndex)
                             coroutineScope.launch {
                                 container.readingPositionRepository.savePosition(
-                                    ReadingPosition(bookIdValue, chapterIndex, resumeIndex),
+                                    ReadingPosition(
+                                        bookIdValue,
+                                        chapterIndex,
+                                        resumeIndex,
+                                        wordIndex,
+                                    ),
                                 )
                             }
                             navController.previousBackStackEntry
@@ -864,9 +933,15 @@ private fun KairoNavHost(
                                 } else {
                                     0
                                 }
+                            val wordIndex = resolveWordIndex(wordCountByToken, safeIndex)
                             coroutineScope.launch(dispatcherProvider.io) {
                                 container.readingPositionRepository.savePosition(
-                                    ReadingPosition(bookIdValue, chapterIndex, safeIndex),
+                                    ReadingPosition(
+                                        bookIdValue,
+                                        chapterIndex,
+                                        safeIndex,
+                                        wordIndex,
+                                    ),
                                 )
                             }
                         },
@@ -884,9 +959,15 @@ private fun KairoNavHost(
                                 } else {
                                     index.coerceAtLeast(0)
                                 }
+                            val wordIndex = resolveWordIndex(wordCountByToken, resumeIndex)
                             coroutineScope.launch(dispatcherProvider.io) {
                                 container.readingPositionRepository.savePosition(
-                                    ReadingPosition(bookIdValue, chapterIndex, resumeIndex),
+                                    ReadingPosition(
+                                        bookIdValue,
+                                        chapterIndex,
+                                        resumeIndex,
+                                        wordIndex,
+                                    ),
                                 )
                             }
                             navController.previousBackStackEntry

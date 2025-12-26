@@ -8,6 +8,7 @@ import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
+import com.example.kairo.core.model.buildWordCountByToken
 import com.example.kairo.core.model.countWords
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.data.books.BookRepository
@@ -436,19 +437,6 @@ fun List<Token>.toParagraphs(): List<Paragraph> {
     }
 
     return paragraphs
-}
-
-private fun buildWordCountByToken(tokens: List<Token>): IntArray {
-    if (tokens.isEmpty()) return IntArray(0)
-    val counts = IntArray(tokens.size)
-    var total = 0
-    tokens.forEachIndexed { index, token ->
-        if (token.type == TokenType.WORD) {
-            total += 1
-        }
-        counts[index] = total
-    }
-    return counts
 }
 
 private fun buildChapterPages(

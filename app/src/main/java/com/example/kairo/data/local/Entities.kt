@@ -44,7 +44,12 @@ data class ChapterEntity(
 )
 
 @Entity(tableName = "reading_positions")
-data class ReadingPositionEntity(@PrimaryKey val bookId: String, val chapterIndex: Int, val tokenIndex: Int,)
+data class ReadingPositionEntity(
+    @PrimaryKey val bookId: String,
+    val chapterIndex: Int,
+    val tokenIndex: Int,
+    val wordIndex: Int = -1,
+)
 
 @Entity(
     tableName = "bookmarks",

@@ -18,6 +18,7 @@ import com.example.kairo.data.local.MIGRATION_1_2
 import com.example.kairo.data.local.MIGRATION_2_3
 import com.example.kairo.data.local.MIGRATION_3_4
 import com.example.kairo.data.local.MIGRATION_4_5
+import com.example.kairo.data.local.MIGRATION_5_6
 import com.example.kairo.data.preferences.PreferencesRepository
 import com.example.kairo.data.preferences.PreferencesRepositoryImpl
 import com.example.kairo.data.reading.ReadingPositionRepository
@@ -35,7 +36,13 @@ class AppContainer(context: Context, val dispatcherProvider: DispatcherProvider,
                 context.applicationContext,
                 KairoDatabase::class.java,
                 "kairo.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            ).addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+            )
             .build()
 
     private val parsers =

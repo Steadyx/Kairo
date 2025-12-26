@@ -3,11 +3,7 @@ package com.example.kairo.ui.library
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.ReadingPosition
 import com.example.kairo.core.model.countWords
-import com.example.kairo.core.model.countWordsThroughToken
 import com.example.kairo.core.model.estimateMinutesForWords
-import com.example.kairo.core.model.nearestWordIndex
-import com.example.kairo.data.books.BookRepository
-import com.example.kairo.data.token.TokenRepository
 import kotlin.math.roundToInt
 
 data class LibraryBookProgress(
@@ -19,15 +15,13 @@ suspend fun buildLibraryProgress(
     books: List<Book>,
     positions: List<ReadingPosition>,
     estimatedWpm: Int,
-    bookRepository: BookRepository,
-    tokenRepository: TokenRepository,
 ): Map<String, LibraryBookProgress> {
     if (books.isEmpty()) return emptyMap()
     val positionsByBook = positions.associateBy { it.bookId.value }
     val progress = mutableMapOf<String, LibraryBookProgress>()
 
     for (book in books) {
-        var chapterWordCounts =
+        val chapterWordCounts =
             book.chapters.map { chapter ->
                 when {
                     chapter.wordCount > 0 -> chapter.wordCount
@@ -35,22 +29,7 @@ suspend fun buildLibraryProgress(
                     else -> 0
                 }
             }
-        val missingIndices = chapterWordCounts.withIndex().filter { it.value == 0 }.map { it.index }
-        if (missingIndices.isNotEmpty() && book.chapters.isNotEmpty()) {
-            val updated = chapterWordCounts.toMutableList()
-            for (index in missingIndices) {
-                val resolved =
-                    runCatching { bookRepository.getChapter(book.id, index) }.getOrNull()
-                        ?: continue
-                val count = countWords(resolved.plainText)
-                if (count > 0) {
-                    updated[index] = count
-                    bookRepository.updateChapterWordCount(book.id, index, count)
-                }
-            }
-            chapterWordCounts = updated
-        }
-        var totalWords = chapterWordCounts.sum().coerceAtLeast(0)
+        val totalWords = chapterWordCounts.sum().coerceAtLeast(0)
         val position = positionsByBook[book.id.value]
 
         val wordsRead =
@@ -58,37 +37,16 @@ suspend fun buildLibraryProgress(
                 0
             } else {
                 val chapterIndex = position.chapterIndex.coerceIn(0, book.chapters.lastIndex)
-                val chapter = book.chapters.getOrNull(chapterIndex)
-                val chapterWordsRead =
-                    if (chapter != null) {
-                        val tokens =
-                            if (chapter.plainText.isBlank()) {
-                                tokenRepository.getTokens(book.id, chapterIndex, null)
-                            } else {
-                                tokenRepository.getTokens(book.id, chapterIndex, chapter)
-                            }
-                        if (tokens.isNotEmpty()) {
-                            val chapterWordTotal = countWords(tokens)
-                            if (chapterIndex in chapterWordCounts.indices && chapterWordTotal > 0) {
-                                val updated = chapterWordCounts.toMutableList()
-                                updated[chapterIndex] = chapterWordTotal
-                                chapterWordCounts = updated
-                                totalWords = updated.sum().coerceAtLeast(0)
-                            }
-                            val safeIndex =
-                                tokens.nearestWordIndex(position.tokenIndex).coerceIn(
-                                    0,
-                                    tokens.lastIndex
-                                )
-                            countWordsThroughToken(tokens, safeIndex)
-                        } else {
-                            0
-                        }
+                val baseWords = chapterWordCounts.take(chapterIndex).sum()
+                val chapterWordCount = chapterWordCounts.getOrNull(chapterIndex) ?: 0
+                val chapterWordIndex = position.wordIndex.coerceAtLeast(0)
+                val cappedChapterWordIndex =
+                    if (chapterWordCount > 0) {
+                        chapterWordIndex.coerceAtMost(chapterWordCount)
                     } else {
-                        0
+                        chapterWordIndex
                     }
-
-                chapterWordCounts.take(chapterIndex).sum() + chapterWordsRead
+                baseWords + cappedChapterWordIndex
             }
 
         val percentComplete =
