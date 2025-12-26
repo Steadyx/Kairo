@@ -29,6 +29,26 @@ fun countWordsThroughToken(
     return count
 }
 
+fun buildWordCountByToken(tokens: List<Token>): IntArray {
+    if (tokens.isEmpty()) return IntArray(0)
+    val counts = IntArray(tokens.size)
+    var total = 0
+    tokens.forEachIndexed { index, token ->
+        if (token.type == TokenType.WORD) total += 1
+        counts[index] = total
+    }
+    return counts
+}
+
+fun wordIndexForToken(
+    wordCountByToken: IntArray,
+    tokenIndex: Int,
+): Int {
+    if (wordCountByToken.isEmpty()) return 0
+    val clamped = tokenIndex.coerceIn(0, wordCountByToken.lastIndex)
+    return wordCountByToken[clamped]
+}
+
 fun estimateMinutesForWords(
     wordsRemaining: Int,
     wpm: Int,

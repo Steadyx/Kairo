@@ -46,7 +46,12 @@ data class Chapter(
     val wordCount: Int = 0,
 )
 
-data class ReadingPosition(val bookId: BookId, val chapterIndex: Int, val tokenIndex: Int,)
+data class ReadingPosition(
+    val bookId: BookId,
+    val chapterIndex: Int,
+    val tokenIndex: Int,
+    val wordIndex: Int = -1,
+)
 
 data class Bookmark(
     val id: String,
