@@ -548,7 +548,7 @@ object DialogueAnalyzer {
         if ('"' in text || '\u201C' in text || '\u201D' in text) {
             inDialogue = !inDialogue
         }
-
+    
         // Dialogue typically reads slightly faster (mimics speech cadence)
         return if (inDialogue) 0.95 else 1.0
     }
