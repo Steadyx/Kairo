@@ -6,6 +6,7 @@ import com.example.kairo.core.linguistics.ClauseDetector
 import com.example.kairo.core.linguistics.DialogueAnalyzer
 import com.example.kairo.core.linguistics.WordAnalyzer
 import com.example.kairo.core.model.Chapter
+import com.example.kairo.core.model.ChapterLink
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.calculateOrpIndex
@@ -16,7 +17,13 @@ class Tokenizer {
     private var inDialogue = false
 
     fun tokenize(chapter: Chapter): List<Token> {
-        val normalized = normalizeWhitespace(chapter.plainText)
+        val cleanedText =
+            if (shouldStripPageNumbers(chapter.htmlContent)) {
+                stripStandalonePageNumbers(chapter.plainText)
+            } else {
+                chapter.plainText
+            }
+        val normalized = normalizeWhitespace(cleanedText)
         if (normalized.isEmpty()) return emptyList()
 
         val cleaned = normalizeEpubSymbols(normalized)
@@ -61,7 +68,205 @@ class Tokenizer {
                     )
             }
         }
+
+        // Apply links - try multiple strategies
+        return applyLinks(tokens, chapter)
+    }
+
+    /**
+     * Applies links to tokens using pre-computed link positions from the Chapter.
+     * Uses character position tracking to efficiently map links to tokens.
+     */
+    private fun applyLinks(tokens: MutableList<Token>, chapter: Chapter): List<Token> {
+        if (chapter.links.isNotEmpty()) {
+            applyLinksByCharPositions(tokens, chapter.links)
+        }
+        applyLinksFromHtml(tokens, chapter.htmlContent)
         return tokens
+    }
+
+    private fun applyLinksByCharPositions(
+        tokens: MutableList<Token>,
+        links: List<ChapterLink>,
+    ) {
+        if (links.isEmpty()) return
+        val sortedLinks =
+            if (links.size <= 1) {
+                links
+            } else {
+                links.sortedBy { it.startChar }
+            }
+        var linkIndex = 0
+        var currentLink: ChapterLink? = sortedLinks.getOrNull(linkIndex) ?: return
+
+        // Track character position as we iterate through tokens
+        var charPos = 0
+        tokens.forEachIndexed { index, token ->
+            val tokenStart = charPos
+            val tokenEnd = charPos + token.text.length
+
+            while (currentLink != null && tokenStart >= currentLink.endChar) {
+                linkIndex += 1
+                currentLink = sortedLinks.getOrNull(linkIndex)
+            }
+
+            val linkChapterIndex =
+                if (currentLink != null &&
+                    tokenStart >= currentLink.startChar &&
+                    tokenStart < currentLink.endChar
+                ) {
+                    currentLink.targetChapterIndex
+                } else {
+                    null
+                }
+
+            // Update character position (account for spaces between word tokens)
+            charPos = tokenEnd
+            if (index < tokens.lastIndex) {
+                val nextToken = tokens[index + 1]
+                if (token.type == TokenType.WORD && nextToken.type == TokenType.WORD) {
+                    charPos++
+                }
+            }
+
+            if (linkChapterIndex != null && token.linkChapterIndex == null) {
+                tokens[index] = token.copy(linkChapterIndex = linkChapterIndex)
+            }
+        }
+    }
+
+    private fun applyLinksFromHtml(
+        tokens: MutableList<Token>,
+        html: String,
+    ) {
+        if (!html.contains("kairo://chapter/", ignoreCase = true)) return
+
+        val anchorOpenRegex = Regex(
+            "<a\\b[^>]*href\\s*=\\s*['\"]kairo://chapter/(\\d+)['\"][^>]*>",
+            RegexOption.IGNORE_CASE,
+        )
+        val matchable =
+            tokens.mapIndexedNotNull { index, token ->
+                if (token.type == TokenType.WORD || token.type == TokenType.PUNCTUATION) {
+                    index to token.text
+                } else {
+                    null
+                }
+            }
+        if (matchable.isEmpty()) return
+        val tokenTexts = matchable.map { it.second }
+
+        var scanIndex = 0
+        var tokenCursor = 0
+        var processedLinks = 0
+        while (scanIndex < html.length) {
+            if (processedLinks >= MAX_LINKS_PER_CHAPTER) break
+            if (tokenCursor >= tokenTexts.size) break
+            val match = anchorOpenRegex.find(html, scanIndex) ?: break
+            val chapterIndex = match.groupValues[1].toIntOrNull()
+            val contentStart = match.range.last + 1
+            if (chapterIndex == null || contentStart >= html.length) {
+                scanIndex = contentStart.coerceAtMost(html.length)
+                continue
+            }
+            processedLinks += 1
+
+            val closeIndex = html.indexOf("</a>", contentStart, ignoreCase = true)
+            if (closeIndex == -1) {
+                scanIndex = contentStart
+                continue
+            }
+
+            val innerLength = closeIndex - contentStart
+            if (innerLength <= 0 || innerLength > MAX_LINK_TEXT_HTML_CHARS) {
+                scanIndex = closeIndex + 4
+                continue
+            }
+
+            val innerHtml = html.substring(contentStart, closeIndex)
+            val linkText = extractLinkText(innerHtml)
+            if (linkText.isBlank() || isPageNumberText(linkText)) {
+                scanIndex = closeIndex + 4
+                continue
+            }
+
+            val normalizedLinkText = normalizeEpubSymbols(normalizeWhitespace(linkText))
+            val linkTokens = tokenizeInlineText(normalizedLinkText)
+            if (linkTokens.isEmpty()) {
+                scanIndex = closeIndex + 4
+                continue
+            }
+
+            val matchIndex = findTokenSequence(tokenTexts, linkTokens, tokenCursor)
+            if (matchIndex >= 0) {
+                for (offset in linkTokens.indices) {
+                    val tokenIndex = matchable[matchIndex + offset].first
+                    val token = tokens[tokenIndex]
+                    if (token.linkChapterIndex == null) {
+                        tokens[tokenIndex] = token.copy(linkChapterIndex = chapterIndex)
+                    }
+                }
+                tokenCursor = matchIndex + linkTokens.size
+            }
+            scanIndex = closeIndex + 4
+        }
+    }
+
+    private fun tokenizeInlineText(text: String): List<String> {
+        if (text.isBlank()) return emptyList()
+        val matcher = TOKEN_REGEX.toPattern().matcher(text)
+        val parts = mutableListOf<String>()
+        while (matcher.find()) {
+            val part = matcher.group()
+            if (part.isNotBlank()) parts.add(part)
+        }
+        return parts
+    }
+
+    private fun findTokenSequence(
+        tokens: List<String>,
+        sequence: List<String>,
+        startIndex: Int,
+    ): Int {
+        if (sequence.isEmpty() || tokens.isEmpty()) return -1
+        val lastStart = tokens.size - sequence.size
+        var i = startIndex.coerceAtLeast(0)
+        while (i <= lastStart) {
+            var j = 0
+            while (j < sequence.size && tokens[i + j] == sequence[j]) {
+                j += 1
+            }
+            if (j == sequence.size) return i
+            i += 1
+        }
+        return -1
+    }
+
+    private fun extractLinkText(html: String): String =
+        html
+            .replace(Regex("<[^>]+>"), " ")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&#39;", "'")
+            .replace(Regex("&#(\\d+);")) { m ->
+                m.groupValues[1].toIntOrNull()?.toChar()?.toString().orEmpty()
+            }
+            .replace(Regex("&#x([0-9a-fA-F]+);")) { m ->
+                m.groupValues[1].toIntOrNull(16)?.toChar()?.toString().orEmpty()
+            }
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+    private fun isPageNumberText(text: String): Boolean {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return false
+        if (trimmed.all { it.isDigit() }) return true
+        val romanNumeralPattern = Regex("^[ivxlcdm]+$", RegexOption.IGNORE_CASE)
+        return romanNumeralPattern.matches(trimmed)
     }
 
     private fun tokenizeParagraph(paragraph: String): List<Token> {
@@ -119,6 +324,18 @@ class Tokenizer {
             }
         }
         return tokens
+    }
+
+    private fun shouldStripPageNumbers(html: String): Boolean =
+        html.contains("kairo://chapter/", ignoreCase = true)
+
+    private fun stripStandalonePageNumbers(text: String): String {
+        return text.lineSequence()
+            .filterNot { line ->
+                val trimmed = line.trim()
+                trimmed.isNotEmpty() && isPageNumberText(trimmed)
+            }
+            .joinToString("\n")
     }
 
     private fun structuralPauseMs(
@@ -239,6 +456,9 @@ class Tokenizer {
     }
 
     companion object {
+        private const val MAX_LINKS_PER_CHAPTER = 1000
+        private const val MAX_LINK_TEXT_HTML_CHARS = 1200
+
         private const val HEADING_BEFORE_MS = 140L
         private const val HEADING_AFTER_MS = 220L
         private const val BLOCKQUOTE_BEFORE_MS = 90L
