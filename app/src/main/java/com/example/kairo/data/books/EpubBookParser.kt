@@ -55,6 +55,10 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
 
         // Buffer size for reading entries
         private const val BUFFER_SIZE = 8192
+
+        // Guardrails for link extraction to avoid expensive scans on huge TOCs.
+        private const val MAX_LINKS_PER_CHAPTER = 1000
+        private const val MAX_LINK_TEXT_HTML_CHARS = 1200
     }
 
     override suspend fun parse(
@@ -210,47 +214,87 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
                 }
             }
 
-            // Parse chapters from spine
-            val chapters =
-                opfData.spineItems
-                    .mapIndexedNotNull { index, spineItem ->
-                        val href =
-                            opfData.manifest[spineItem.idref] ?: return@mapIndexedNotNull null
-                        val chapterPath = resolvePath(opfDir, href)
-                        val chapterContent =
-                            zipTextEntries[chapterPath.lowercase()] ?: return@mapIndexedNotNull null
+            // Build chapter path to index map for link rewriting
+            // First pass: identify valid chapters and their paths
+            data class ParsedChapter(
+                val pathLower: String,
+                val baseDir: String,
+                val chapter: Chapter,
+            )
 
-                        val originalHtml = String(chapterContent, Charsets.UTF_8)
-                        val chapterDir = chapterPath.substringBeforeLast('/', "")
-                        val imagePaths =
-                            buildChapterImagePaths(
-                                html = originalHtml,
-                                baseDir = chapterDir,
-                                imageRelativePathByEpubPathLower = imageRelativePathByEpubPathLower,
-                            )
-                        val resolvedHtml =
-                            rewriteHtmlImageSrcs(
-                                html = originalHtml,
-                                baseDir = chapterDir,
-                                imageRelativePathByEpubPathLower = imageRelativePathByEpubPathLower,
-                            )
-                        val plainText = extractPlainText(resolvedHtml)
-                        val title = extractChapterTitle(originalHtml) ?: spineItem.idref
+            val parsedChapters = opfData.spineItems
+                .mapIndexedNotNull { index, spineItem ->
+                    val href = opfData.manifest[spineItem.idref] ?: return@mapIndexedNotNull null
+                    val chapterPath = resolvePath(opfDir, href)
+                    val chapterContent =
+                        zipTextEntries[chapterPath.lowercase()] ?: return@mapIndexedNotNull null
 
-                        // Skip empty chapters
-                        if (plainText.isBlank()) return@mapIndexedNotNull null
+                    val originalHtml = String(chapterContent, Charsets.UTF_8)
+                    val chapterDir = chapterPath.substringBeforeLast('/', "")
+                    val imagePaths = buildChapterImagePaths(
+                        html = originalHtml,
+                        baseDir = chapterDir,
+                        imageRelativePathByEpubPathLower = imageRelativePathByEpubPathLower,
+                    )
+                    val resolvedHtml = rewriteHtmlImageSrcs(
+                        html = originalHtml,
+                        baseDir = chapterDir,
+                        imageRelativePathByEpubPathLower = imageRelativePathByEpubPathLower,
+                    )
+                    val plainText = extractPlainText(resolvedHtml)
+                    val title = extractChapterTitle(originalHtml) ?: spineItem.idref
 
-                        Chapter(
+                    // Skip empty chapters
+                    if (plainText.isBlank()) return@mapIndexedNotNull null
+
+                    ParsedChapter(
+                        pathLower = chapterPath.lowercase(),
+                        baseDir = chapterDir,
+                        chapter = Chapter(
                             index = index,
                             title = title,
                             htmlContent = resolvedHtml,
                             plainText = plainText,
                             imagePaths = imagePaths,
-                        )
-                    }.mapIndexed { newIndex, chapter ->
-                        // Re-index after filtering out empty chapters
-                        chapter.copy(index = newIndex)
+                        ),
+                    )
+                }.mapIndexed { newIndex, parsed ->
+                    // Re-index after filtering out empty chapters
+                    parsed.copy(chapter = parsed.chapter.copy(index = newIndex))
+                }
+
+            // Build path to final index map
+            val chapterIndexByPathLower = parsedChapters.associate { it.pathLower to it.chapter.index }
+
+            // Second pass: rewrite anchor hrefs and extract links with positions (TOC-like only).
+            val chapters = parsedChapters.map { parsed ->
+                val html = parsed.chapter.htmlContent
+                val hasAnchors = html.indexOf("<a", ignoreCase = true) != -1
+                val anchorCount =
+                    if (hasAnchors) {
+                        countAnchorTags(html, MAX_LINKS_PER_CHAPTER + 1)
+                    } else {
+                        0
                     }
+                val shouldExtractLinks = anchorCount > 0
+
+                val rewrittenHtml =
+                    if (shouldExtractLinks) {
+                        rewriteHtmlAnchorHrefs(
+                            html = html,
+                            baseDir = parsed.baseDir,
+                            chapterIndexByPathLower = chapterIndexByPathLower,
+                            currentChapterPath = parsed.pathLower,
+                        )
+                    } else {
+                        html
+                    }
+
+                parsed.chapter.copy(
+                    htmlContent = rewrittenHtml,
+                    plainText = parsed.chapter.plainText,
+                )
+            }
 
             // Fallback if no chapters found
             val finalChapters =
@@ -519,6 +563,141 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
     }
 
     /**
+     * Result of extracting text and links from HTML.
+     */
+    private data class ExtractedContent(
+        val plainText: String,
+        val links: List<com.example.kairo.core.model.ChapterLink>,
+    )
+
+    /**
+     * Extracts link positions from HTML using the already parsed plain text.
+     * Links are found by searching for their text content in the final plain text.
+     */
+    private fun extractTextAndLinks(
+        html: String,
+        basePlainText: String,
+    ): ExtractedContent {
+        val plainText = stripStandalonePageNumbers(basePlainText)
+        if (plainText.isBlank()) {
+            return ExtractedContent(plainText, emptyList())
+        }
+
+        val anchorOpenRegex = Regex(
+            "<a\\b[^>]*href\\s*=\\s*['\"]kairo://chapter/(\\d+)['\"][^>]*>",
+            RegexOption.IGNORE_CASE,
+        )
+
+        val links = mutableListOf<com.example.kairo.core.model.ChapterLink>()
+        var searchStart = 0
+        var scanIndex = 0
+
+        while (scanIndex < html.length) {
+            if (links.size >= MAX_LINKS_PER_CHAPTER) break
+            val match = anchorOpenRegex.find(html, scanIndex) ?: break
+            val chapterIndex = match.groupValues[1].toIntOrNull()
+            val contentStart = match.range.last + 1
+            if (chapterIndex == null || contentStart >= html.length) {
+                scanIndex = contentStart.coerceAtMost(html.length)
+                continue
+            }
+
+            val closeIndex = html.indexOf("</a>", contentStart, ignoreCase = true)
+            if (closeIndex == -1) {
+                scanIndex = contentStart
+                continue
+            }
+
+            val innerLength = closeIndex - contentStart
+            if (innerLength <= 0 || innerLength > MAX_LINK_TEXT_HTML_CHARS) {
+                scanIndex = closeIndex + 4
+                continue
+            }
+
+            val innerHtml = html.substring(contentStart, closeIndex)
+            val linkText = extractLinkText(innerHtml)
+            if (linkText.isBlank() ||
+                isPageNumberText(linkText) ||
+                linkText.length > MAX_LINK_TEXT_HTML_CHARS
+            ) {
+                scanIndex = closeIndex + 4
+                continue
+            }
+
+            val startPos = plainText.indexOf(linkText, searchStart)
+            if (startPos >= 0) {
+                links.add(
+                    com.example.kairo.core.model.ChapterLink(
+                        startChar = startPos,
+                        endChar = startPos + linkText.length,
+                        targetChapterIndex = chapterIndex,
+                    )
+                )
+                searchStart = startPos + linkText.length
+            }
+            scanIndex = closeIndex + 4
+        }
+
+        return ExtractedContent(plainText, links)
+    }
+
+    /**
+     * Checks if text is just a page number (Arabic or Roman numerals).
+     * These are typically page-list navigation links that shouldn't be clickable.
+     */
+    private fun isPageNumberText(text: String): Boolean {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return false
+
+        // Check for Arabic numerals (1, 2, 3, etc.)
+        if (trimmed.all { it.isDigit() }) return true
+
+        // Check for Roman numerals (i, ii, iii, iv, v, vi, vii, viii, ix, x, etc.)
+        val romanNumeralPattern = Regex("^[ivxlcdm]+$", RegexOption.IGNORE_CASE)
+        if (romanNumeralPattern.matches(trimmed)) return true
+
+        return false
+    }
+
+    /**
+     * Removes standalone page number lines from plain text.
+     * A standalone page number is a line containing only a number (Arabic or Roman)
+     * with nothing else around it. This catches page markers that weren't wrapped in links.
+     */
+    private fun stripStandalonePageNumbers(text: String): String {
+        return text.lineSequence()
+            .filterNot { line ->
+                val trimmed = line.trim()
+                trimmed.isNotEmpty() && isPageNumberText(trimmed)
+            }
+            .joinToString("\n")
+            .replace(Regex("\n{3,}"), "\n\n") // Clean up excess blank lines
+    }
+
+
+    /**
+     * Extracts plain text from a link's inner HTML.
+     */
+    private fun extractLinkText(html: String): String =
+        html
+            .replace(Regex("<[^>]+>"), " ")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&#39;", "'")
+            .replace(Regex("&#(\\d+);")) { m ->
+                m.groupValues[1].toIntOrNull()?.toChar()?.toString().orEmpty()
+            }
+            .replace(Regex("&#x([0-9a-fA-F]+);")) { m ->
+                m.groupValues[1].toIntOrNull(16)?.toChar()?.toString().orEmpty()
+            }
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+    /**
      * Extracts plain text from HTML/XHTML content.
      */
     private fun extractPlainText(html: String): String =
@@ -645,6 +824,69 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         } catch (e: IOException) {
             Log.w(TAG, "Failed to read EPUB entry", e)
             null
+        }
+    }
+
+    /**
+     * Rewrites internal anchor hrefs to kairo://chapter/X format.
+     * This enables the tokenizer to identify clickable links.
+     */
+    private fun rewriteHtmlAnchorHrefs(
+        html: String,
+        baseDir: String,
+        chapterIndexByPathLower: Map<String, Int>,
+        currentChapterPath: String? = null,
+    ): String {
+        val anchorRegex = Regex(
+            "(<a\\b[^>]*href\\s*=\\s*['\"])([^'\"]+)(['\"][^>]*>)",
+            RegexOption.IGNORE_CASE,
+        )
+
+        return anchorRegex.replace(html) { match ->
+            val prefix = match.groupValues[1]
+            val href = match.groupValues[2]
+            val suffix = match.groupValues[3]
+
+            // Skip external links and data URIs
+            if (href.startsWith("http://", true) ||
+                href.startsWith("https://", true) ||
+                href.startsWith("mailto:", true) ||
+                href.startsWith("data:", true) ||
+                href.startsWith("kairo://", true)
+            ) {
+                return@replace match.value
+            }
+
+            // Extract path and fragment
+            val path = href.substringBefore('#').substringBefore('?')
+            val fragment = href.substringAfter('#', "")
+
+            // Determine target path
+            val targetPath = when {
+                path.isNotBlank() -> resolvePath(baseDir, path).lowercase()
+                fragment.isNotBlank() && currentChapterPath != null -> currentChapterPath.lowercase()
+                else -> return@replace match.value
+            }
+
+            val chapterIndex = chapterIndexByPathLower[targetPath]
+                ?: return@replace match.value
+
+            "${prefix}kairo://chapter/$chapterIndex${suffix}"
+        }
+    }
+
+    private fun countAnchorTags(
+        html: String,
+        limit: Int,
+    ): Int {
+        var count = 0
+        var index = 0
+        while (true) {
+            val found = html.indexOf("<a", index, ignoreCase = true)
+            if (found == -1) return count
+            count += 1
+            if (count >= limit) return count
+            index = found + 2
         }
     }
 }

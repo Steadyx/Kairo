@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -100,8 +101,14 @@ internal fun InlineImageBlock(
             modifier = Modifier.fillMaxWidth(),
         ) {
             val size = painter.intrinsicSize
+            val hasValidSize =
+                size != Size.Unspecified &&
+                    size.width.isFinite() &&
+                    size.height.isFinite() &&
+                    size.width > 0f &&
+                    size.height > 0f
             val contentModifier =
-                if (size.width.isFinite() && size.height.isFinite() && size.height > 0f) {
+                if (hasValidSize) {
                     Modifier
                         .fillMaxWidth()
                         .aspectRatio(size.width / size.height)
