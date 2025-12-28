@@ -19,6 +19,7 @@ fun KairoTheme(
                 darkColorScheme(
                     primary = DeepPurple,
                     secondary = SoftLavender,
+                    tertiary = DarkLink,
                     background = DarkBackground,
                     surface = DarkBackground,
                     surfaceVariant = DarkBackground.copy(alpha = 0.85f),
@@ -34,6 +35,7 @@ fun KairoTheme(
                 darkColorScheme(
                     primary = NordPrimary,
                     secondary = NordSecondary,
+                    tertiary = NordLink,
                     background = NordBackground,
                     surface = NordBackground,
                     surfaceVariant = NordSurfaceVariant,
@@ -49,6 +51,7 @@ fun KairoTheme(
                 darkColorScheme(
                     primary = CyberpunkPrimary,
                     secondary = CyberpunkSecondary,
+                    tertiary = CyberpunkLink,
                     background = CyberpunkBackground,
                     surface = CyberpunkBackground,
                     surfaceVariant = CyberpunkSurfaceVariant,
@@ -64,6 +67,7 @@ fun KairoTheme(
                 darkColorScheme(
                     primary = ForestPrimary,
                     secondary = ForestSecondary,
+                    tertiary = ForestLink,
                     background = ForestBackground,
                     surface = ForestBackground,
                     surfaceVariant = ForestSurfaceVariant,
@@ -79,6 +83,7 @@ fun KairoTheme(
                 lightColorScheme(
                     primary = DeepPurple,
                     secondary = SoftLavender,
+                    tertiary = LightLink,
                     background = LightBackground,
                     surface = LightBackground,
                     surfaceVariant = LightBackground.copy(alpha = 0.92f),
@@ -94,6 +99,7 @@ fun KairoTheme(
                 lightColorScheme(
                     primary = DeepPurple,
                     secondary = SoftLavender,
+                    tertiary = SepiaLink,
                     background = SepiaBackground,
                     surface = SepiaBackground,
                     surfaceVariant = SepiaBackground.copy(alpha = 0.92f),

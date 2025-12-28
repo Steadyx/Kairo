@@ -225,6 +225,7 @@ fun ReaderScreen(
                 onNextPage = navigationState.onNextPage,
                 onOpenFullScreenImage = { fullScreenImagePath = it },
                 invertedScrollCommands = listStateHolder.invertedScrollCommands,
+                onChapterSelected = { index -> onChapterChange(index, 0) },
             )
         }
 

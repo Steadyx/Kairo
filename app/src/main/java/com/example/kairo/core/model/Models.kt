@@ -37,6 +37,16 @@ data class Book(
     }
 }
 
+/**
+ * Represents an internal link within chapter content.
+ * Character positions are relative to plainText.
+ */
+data class ChapterLink(
+    val startChar: Int,
+    val endChar: Int,
+    val targetChapterIndex: Int,
+)
+
 data class Chapter(
     val index: Int,
     val title: String?,
@@ -44,6 +54,8 @@ data class Chapter(
     val plainText: String,
     val imagePaths: List<String> = emptyList(),
     val wordCount: Int = 0,
+    /** Links extracted from HTML with positions relative to plainText */
+    val links: List<ChapterLink> = emptyList(),
 )
 
 data class ReadingPosition(
@@ -80,6 +92,8 @@ data class Token(
     val isClauseBoundary: Boolean = false,
     val isDialogue: Boolean = false,
     val isSubwordChunk: Boolean = false,
+    /** If this token is inside a link, the target chapter index */
+    val linkChapterIndex: Int? = null,
 )
 
 data class RsvpConfig(

@@ -40,3 +40,11 @@ val ForestPrimary = Color(0xFF2EE59D)
 val ForestSecondary = Color(0xFF63D98B)
 val ForestPrimaryContainer = Color(0xFF0D2B1D)
 val ForestOnPrimaryContainer = Color(0xFFCFFFEA)
+
+// Link colors - themed to match each reading mode
+val SepiaLink = Color(0xFF8B5A2B) // Warm brown for sepia
+val LightLink = Color(0xFF2962FF) // Classic blue for light
+val DarkLink = Color(0xFFA78BFA) // Soft purple for dark
+val NordLink = Color(0xFF88C0D0) // Nord frost blue
+val CyberpunkLink = Color(0xFF00E5FF) // Neon cyan
+val ForestLink = Color(0xFF63D98B) // Forest green
