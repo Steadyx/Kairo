@@ -46,7 +46,7 @@ Goal: add automatic language-aware tokenization + pacing while keeping English b
 - Basic RSVP playback sanity tests for CJK and RTL samples.
 
 ## Incremental Rollout
-- Phase 1: language detection + registry wiring, no new tokenizers (still English).
-- Phase 2: CJK tokenizer + pacing overrides.
-- Phase 3: RTL tokenizer + pacing overrides.
-- Phase 4: per-language fine-tuning based on feedback.
+- [x] Phase 1: language detection + registry wiring, no new tokenizers (still English).
+- [ ] Phase 2: CJK tokenizer + pacing overrides.
+- [ ] Phase 3: RTL tokenizer + pacing overrides.
+- [ ] Phase 4: per-language fine-tuning based on feedback.

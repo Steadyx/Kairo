@@ -26,7 +26,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT books.id, books.title, books.authors,
+        SELECT books.id, books.title, books.authors, books.languageTag,
                CASE
                    WHEN coverImage IS NOT NULL AND length(coverImage) <= 1900000 THEN coverImage
                    ELSE NULL
@@ -40,7 +40,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT id, title, authors,
+        SELECT id, title, authors, languageTag,
                CASE
                    WHEN coverImage IS NOT NULL AND length(coverImage) <= 1900000 THEN coverImage
                    ELSE NULL
@@ -54,7 +54,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT id, title, authors,
+        SELECT id, title, authors, languageTag,
                CASE
                    WHEN coverImage IS NOT NULL AND length(coverImage) <= 1900000 THEN coverImage
                    ELSE NULL
@@ -64,6 +64,9 @@ interface BookDao {
         """,
     )
     suspend fun peekBook(): BookEntity?
+
+    @Query("SELECT languageTag FROM books WHERE id = :bookId LIMIT 1")
+    suspend fun getBookLanguageTag(bookId: String): String?
 
     @Query(
         """

@@ -6,6 +6,7 @@ data class Book(
     val id: BookId,
     val title: String,
     val authors: List<String>,
+    val languageTag: String? = null,
     val chapters: List<Chapter>,
     val coverImage: ByteArray? = null,
 ) {
@@ -16,6 +17,7 @@ data class Book(
         if (id != other.id) return false
         if (title != other.title) return false
         if (authors != other.authors) return false
+        if (languageTag != other.languageTag) return false
         if (chapters != other.chapters) return false
         if (coverImage != null) {
             if (other.coverImage == null) return false
@@ -31,6 +33,7 @@ data class Book(
         var result = id.hashCode()
         result = 31 * result + title.hashCode()
         result = 31 * result + authors.hashCode()
+        result = 31 * result + (languageTag?.hashCode() ?: 0)
         result = 31 * result + chapters.hashCode()
         result = 31 * result + (coverImage?.contentHashCode() ?: 0)
         return result

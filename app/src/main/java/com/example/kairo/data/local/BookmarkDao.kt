@@ -39,6 +39,7 @@ interface BookmarkDao {
             books.id AS book_id,
             books.title AS book_title,
             books.authors AS book_authors,
+            books.languageTag AS book_languageTag,
             books.coverImage AS book_coverImage,
             (SELECT COUNT(*) FROM chapters WHERE chapters.bookId = books.id) AS chapterCount
         FROM bookmarks

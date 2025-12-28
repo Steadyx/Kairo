@@ -75,6 +75,7 @@ import com.example.kairo.ui.settings.RsvpSettingsScreen
 import com.example.kairo.ui.settings.SettingsHomeScreen
 import com.example.kairo.ui.theme.KairoTheme
 import com.example.kairo.core.rsvp.RsvpPaceEstimator
+import com.example.kairo.core.rsvp.RsvpConfigResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -477,14 +478,16 @@ private fun KairoNavHost(
                 }
             }
 
-            LaunchedEffect(uiState.chapterIndex, uiState.chapterData, prefs.rsvpConfig) {
+            val resolvedRsvpConfig =
+                RsvpConfigResolver.resolve(prefs.rsvpConfig, book.languageTag)
+            LaunchedEffect(uiState.chapterIndex, uiState.chapterData, resolvedRsvpConfig) {
                 if (!hasInitialized) return@LaunchedEffect
                 val chapterData = uiState.chapterData ?: return@LaunchedEffect
                 if (chapterData.tokens.isEmpty()) return@LaunchedEffect
                 container.rsvpFrameRepository.prefetchFrames(
                     BookId(bookId),
                     uiState.chapterIndex,
-                    prefs.rsvpConfig,
+                    resolvedRsvpConfig,
                 )
             }
 
@@ -755,14 +758,16 @@ private fun KairoNavHost(
                 }
             }
 
-            LaunchedEffect(uiState.chapterIndex, uiState.chapterData, prefs.rsvpConfig) {
+            val resolvedRsvpConfig =
+                RsvpConfigResolver.resolve(prefs.rsvpConfig, book.languageTag)
+            LaunchedEffect(uiState.chapterIndex, uiState.chapterData, resolvedRsvpConfig) {
                 if (!hasInitialized) return@LaunchedEffect
                 val chapterData = uiState.chapterData ?: return@LaunchedEffect
                 if (chapterData.tokens.isEmpty()) return@LaunchedEffect
                 container.rsvpFrameRepository.prefetchFrames(
                     BookId(bookId),
                     uiState.chapterIndex,
-                    prefs.rsvpConfig,
+                    resolvedRsvpConfig,
                 )
             }
 
@@ -897,6 +902,17 @@ private fun KairoNavHost(
             val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
             val bookIdValue = BookId(bookId)
             val safeStartIndex = startIndex.coerceAtLeast(0)
+            val languageTagState =
+                produceState<String?>(
+                    initialValue = null,
+                    bookId,
+                ) {
+                    value =
+                        runCatching { container.bookRepository.getBookLanguageTag(bookIdValue) }
+                            .getOrNull()
+                }
+            val resolvedRsvpConfig =
+                RsvpConfigResolver.resolve(prefs.rsvpConfig, languageTagState.value)
             val rsvpState =
                 RsvpScreenState(
                     book =
@@ -908,7 +924,7 @@ private fun KairoNavHost(
                     ),
                     profile =
                     RsvpProfileContext(
-                        config = prefs.rsvpConfig,
+                        config = resolvedRsvpConfig,
                         selectedProfileId = prefs.rsvpSelectedProfileId,
                         customProfiles = prefs.rsvpCustomProfiles,
                     ),

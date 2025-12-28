@@ -270,6 +270,7 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             id = bookId,
             title = header.title,
             authors = header.authors,
+            languageTag = null,
             coverImage = imageExtraction.coverImage,
             chapters = finalChapters,
         )
@@ -2549,6 +2550,7 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             id = bookId,
             title = fileName.substringBeforeLast('.', "MOBI Import"),
             authors = emptyList(),
+            languageTag = null,
             coverImage = null,
             chapters = chapters,
         )

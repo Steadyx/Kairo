@@ -317,6 +317,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
                     '.'
                 ) ?: "Unknown Book",
                 authors = opfData.authors,
+                languageTag = opfData.languageTag,
                 coverImage = coverImage,
                 chapters = finalChapters,
             )
@@ -358,6 +359,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
     private data class OpfData(
         val title: String?,
         val authors: List<String>,
+        val languageTag: String?,
         val coverHref: String?,
         val manifest: Map<String, String>, // id -> href
         val spineItems: List<SpineItem>,
@@ -369,7 +371,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
      * Parses the OPF file to extract metadata, manifest, and spine.
      */
     private fun parseOpfFile(xml: String): OpfData {
-        val fallback = OpfData(null, emptyList(), null, emptyMap(), emptyList())
+        val fallback = OpfData(null, emptyList(), null, null, emptyMap(), emptyList())
         return runCatching {
             val factory = DocumentBuilderFactory.newInstance()
             factory.isNamespaceAware = true
@@ -384,6 +386,14 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             val authors =
                 (0 until creatorNodes.length).mapNotNull { i ->
                     creatorNodes.item(i).textContent?.takeIf { it.isNotBlank() }
+                }
+
+            val languageNodes = doc.getElementsByTagName("dc:language")
+            val languageTag =
+                if (languageNodes.length > 0) {
+                    languageNodes.item(0).textContent?.takeIf { it.isNotBlank() }
+                } else {
+                    null
                 }
 
             // Find cover image reference
@@ -454,7 +464,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
                 }
             }
 
-            OpfData(title, authors, coverHref, manifest, spineItems)
+            OpfData(title, authors, languageTag, coverHref, manifest, spineItems)
         }.getOrElse { error ->
             Log.w(TAG, "Failed to parse OPF metadata", error)
             fallback

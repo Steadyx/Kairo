@@ -3,6 +3,7 @@ package com.example.kairo.data.books
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import com.example.kairo.core.language.BookLanguageResolver
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Chapter
@@ -34,8 +35,10 @@ class BookRepositoryImpl(
 
             // Parse the book - let errors propagate for proper error handling
             val parsedBook = parser.parse(appContext, uri)
+            val resolvedLanguageTag = BookLanguageResolver.resolve(parsedBook)
             val book =
                 parsedBook.copy(
+                    languageTag = resolvedLanguageTag,
                     coverImage = optimizeCoverForDb(parsedBook.coverImage),
                     chapters =
                     parsedBook.chapters.map { chapter ->
@@ -128,6 +131,9 @@ class BookRepositoryImpl(
         if (wordCount <= 0) return
         bookDao.updateChapterWordCount(bookId.value, chapterIndex, wordCount)
     }
+
+    override suspend fun getBookLanguageTag(bookId: BookId): String? =
+        bookDao.getBookLanguageTag(bookId.value)
 
     override fun observeBooks(): Flow<List<Book>> =
         bookDao.getBooks().map { entities ->

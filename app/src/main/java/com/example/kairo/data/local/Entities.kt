@@ -5,7 +5,13 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "books")
-data class BookEntity(@PrimaryKey val id: String, val title: String, val authors: List<String>, val coverImage: ByteArray?,) {
+data class BookEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    val authors: List<String>,
+    val languageTag: String?,
+    val coverImage: ByteArray?,
+) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is BookEntity) return false
@@ -13,6 +19,7 @@ data class BookEntity(@PrimaryKey val id: String, val title: String, val authors
         if (id != other.id) return false
         if (title != other.title) return false
         if (authors != other.authors) return false
+        if (languageTag != other.languageTag) return false
         if (coverImage != null) {
             if (other.coverImage == null) return false
             if (!coverImage.contentEquals(other.coverImage)) return false
@@ -27,6 +34,7 @@ data class BookEntity(@PrimaryKey val id: String, val title: String, val authors
         var result = id.hashCode()
         result = 31 * result + title.hashCode()
         result = 31 * result + authors.hashCode()
+        result = 31 * result + (languageTag?.hashCode() ?: 0)
         result = 31 * result + (coverImage?.contentHashCode() ?: 0)
         return result
     }
