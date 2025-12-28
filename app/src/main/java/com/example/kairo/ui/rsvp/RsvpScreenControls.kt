@@ -29,6 +29,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.example.kairo.R
 
 @Composable
 internal fun BoxScope.RsvpBottomControls(context: RsvpUiContext) {
@@ -55,13 +57,17 @@ internal fun BoxScope.RsvpBottomControls(context: RsvpUiContext) {
             RsvpPlaybackControlsRow(context)
             Spacer(modifier = Modifier.height(CONTROLS_SPACER))
             Text(
-                "${runtime.frameIndex + 1} / ${context.frameState.frames.size}",
+                stringResource(
+                    R.string.rsvp_frame_progress,
+                    runtime.frameIndex + 1,
+                    context.frameState.frames.size,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = PROGRESS_TEXT_ALPHA),
             )
             Spacer(modifier = Modifier.height(CONTROLS_HINT_SPACER))
             Text(
-                "Tap anywhere to resume",
+                stringResource(R.string.rsvp_tap_to_resume),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = RESUME_TEXT_ALPHA),
             )
@@ -83,7 +89,7 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
         }) {
             Icon(
                 Icons.Default.SkipPrevious,
-                contentDescription = "Previous",
+                contentDescription = stringResource(R.string.content_desc_previous),
                 modifier = Modifier.size(SKIP_ICON_SIZE),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
@@ -101,7 +107,14 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
         ) {
             Icon(
                 if (runtime.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (runtime.isPlaying) "Pause" else "Play",
+                contentDescription =
+                stringResource(
+                    if (runtime.isPlaying) {
+                        R.string.content_desc_pause
+                    } else {
+                        R.string.content_desc_play
+                    },
+                ),
                 modifier = Modifier.size(PLAY_ICON_SIZE),
                 tint = MaterialTheme.colorScheme.onPrimary,
             )
@@ -110,7 +123,7 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
         IconButton(onClick = { advanceFrame(context) }) {
             Icon(
                 Icons.Default.SkipNext,
-                contentDescription = "Next",
+                contentDescription = stringResource(R.string.content_desc_next),
                 modifier = Modifier.size(SKIP_ICON_SIZE),
                 tint = MaterialTheme.colorScheme.onSurface,
             )

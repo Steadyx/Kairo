@@ -11,7 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import com.example.kairo.R
 
 @Composable
 internal fun RsvpLoadingState() {
@@ -23,7 +25,7 @@ internal fun RsvpLoadingState() {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            "Preparing RSVP...",
+            stringResource(R.string.rsvp_preparing),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = LOADING_TEXT_ALPHA),
         )
@@ -41,7 +43,7 @@ internal fun RsvpEmptyState(onExit: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            "No content to display.\nTap to go back.",
+            stringResource(R.string.rsvp_empty_state),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = LOADING_TEXT_ALPHA),

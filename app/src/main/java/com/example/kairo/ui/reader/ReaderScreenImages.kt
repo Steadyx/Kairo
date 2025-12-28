@@ -34,10 +34,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import com.example.kairo.R
 import java.io.File
 
 @Composable
@@ -96,7 +98,7 @@ internal fun InlineImageBlock(
     ) {
         SubcomposeAsyncImage(
             model = file,
-            contentDescription = "Illustration",
+            contentDescription = stringResource(R.string.content_desc_illustration),
             contentScale = ContentScale.FillWidth,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -143,7 +145,7 @@ internal fun FullScreenImageViewer(
         if (file.exists()) {
             SubcomposeAsyncImage(
                 model = file,
-                contentDescription = "Full screen image",
+                contentDescription = stringResource(R.string.content_desc_full_screen_image),
                 contentScale = ContentScale.Fit,
                 modifier =
                 Modifier
@@ -152,7 +154,7 @@ internal fun FullScreenImageViewer(
             )
         } else {
             Text(
-                text = "Image not found",
+                text = stringResource(R.string.reader_image_not_found),
                 color = Color.White,
                 modifier = Modifier.align(Alignment.Center),
             )
@@ -164,7 +166,7 @@ internal fun FullScreenImageViewer(
         ) {
             Icon(
                 Icons.Default.Close,
-                contentDescription = "Close image viewer",
+                contentDescription = stringResource(R.string.content_desc_close_image_viewer),
                 tint = Color.White,
             )
         }

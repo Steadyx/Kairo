@@ -21,7 +21,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.kairo.R
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.nearestWordIndex
 import kotlinx.coroutines.launch
@@ -107,7 +109,10 @@ internal fun ReaderRsvpLauncher(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = "Start RSVP")
+            Icon(
+                Icons.Default.PlayArrow,
+                contentDescription = stringResource(R.string.content_desc_start_rsvp),
+            )
         }
     }
 }

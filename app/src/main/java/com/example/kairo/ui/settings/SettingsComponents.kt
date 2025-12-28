@@ -43,7 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.kairo.R
 import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.ui.theme.CyberpunkBackground
 import com.example.kairo.ui.theme.CyberpunkPrimary
@@ -122,7 +124,7 @@ fun SettingsScaffold(
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.action_back),
                             )
                         }
                     }
@@ -212,7 +214,7 @@ fun ThemeSelector(
     onThemeChange: (ReaderTheme) -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text("Reader theme", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.reader_theme_title), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
 
         val themes =
@@ -233,6 +235,7 @@ fun ThemeSelector(
             items(themes, key = { it.name }) { theme ->
                 val isSelected = theme == selected
                 val (previewBg, previewAccent) = rememberThemePreview(theme)
+                val themeLabel = stringResource(readerThemeLabelRes(theme))
                 Surface(
                     modifier =
                     Modifier
@@ -280,7 +283,7 @@ fun ThemeSelector(
                         }
                         // Label
                         Text(
-                            text = theme.displayName(),
+                            text = themeLabel,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -302,12 +305,12 @@ private fun rememberThemePreview(theme: ReaderTheme): Pair<Color, Color> =
         ReaderTheme.FOREST -> ForestBackground to ForestPrimary
     }
 
-private fun ReaderTheme.displayName(): String =
-    when (this) {
-        ReaderTheme.LIGHT -> "Light"
-        ReaderTheme.SEPIA -> "Sepia"
-        ReaderTheme.DARK -> "Dark"
-        ReaderTheme.NORD -> "Nord"
-        ReaderTheme.CYBERPUNK -> "Cyberpunk"
-        ReaderTheme.FOREST -> "Forest"
+private fun readerThemeLabelRes(theme: ReaderTheme): Int =
+    when (theme) {
+        ReaderTheme.LIGHT -> R.string.reader_theme_light
+        ReaderTheme.SEPIA -> R.string.reader_theme_sepia
+        ReaderTheme.DARK -> R.string.reader_theme_dark
+        ReaderTheme.NORD -> R.string.reader_theme_nord
+        ReaderTheme.CYBERPUNK -> R.string.reader_theme_cyberpunk
+        ReaderTheme.FOREST -> R.string.reader_theme_forest
     }

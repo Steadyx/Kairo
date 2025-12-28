@@ -29,7 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import com.example.kairo.R
 
 @Composable
 internal fun BoxScope.RsvpProgressBar(context: RsvpUiContext) {
@@ -72,7 +74,7 @@ internal fun BoxScope.RsvpTopBar(context: RsvpUiContext) {
         }) {
             Icon(
                 Icons.Default.Settings,
-                contentDescription = "Settings",
+                contentDescription = stringResource(R.string.content_desc_settings),
                 tint = MaterialTheme.colorScheme.onBackground.copy(alpha = TOP_BAR_ICON_ALPHA),
                 modifier = Modifier.size(TOP_BAR_ICON_SIZE),
             )
@@ -80,7 +82,7 @@ internal fun BoxScope.RsvpTopBar(context: RsvpUiContext) {
         IconButton(onClick = { exitAndSavePosition(context) }) {
             Icon(
                 Icons.Default.Close,
-                contentDescription = "Close",
+                contentDescription = stringResource(R.string.content_desc_close),
                 tint = MaterialTheme.colorScheme.onBackground.copy(alpha = TOP_BAR_ICON_ALPHA),
                 modifier = Modifier.size(TOP_BAR_ICON_SIZE),
             )
@@ -116,7 +118,7 @@ internal fun BoxScope.RsvpTempoIndicator(
                 ),
         ) {
             Text(
-                text = "~$estimatedWpm WPM",
+                text = stringResource(R.string.format_estimated_wpm, estimatedWpm),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -149,7 +151,11 @@ internal fun BoxScope.RsvpFontSizeIndicator(context: RsvpUiContext) {
                 ),
         ) {
             Text(
-                text = "${runtime.currentFontSizeSp.toInt()}sp",
+                text =
+                stringResource(
+                    R.string.format_sp,
+                    runtime.currentFontSizeSp.toInt(),
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -183,7 +189,7 @@ internal fun BoxScope.RsvpPositioningIndicator(context: RsvpUiContext) {
                 ),
         ) {
             Text(
-                text = "Positioning mode - swipe to move\nTap here to finish",
+                text = stringResource(R.string.rsvp_positioning_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

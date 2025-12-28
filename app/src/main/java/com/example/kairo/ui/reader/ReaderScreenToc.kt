@@ -31,7 +31,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.example.kairo.core.model.Book
+import com.example.kairo.R
 
 @Composable
 internal fun ChapterListOverlay(
@@ -98,7 +100,7 @@ internal fun ChapterListSheet(
             .fillMaxSize(),
     ) {
         Text(
-            text = "Table of Contents",
+            text = stringResource(R.string.reader_toc_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -135,7 +137,12 @@ internal fun ChapterListSheet(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = chapter.title ?: "Chapter ${index + 1}",
+                            text =
+                            chapter.title
+                                ?: stringResource(
+                                    R.string.reader_chapter_title,
+                                    index + 1,
+                                ),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (isCurrentChapter) FontWeight.Bold else FontWeight.Normal,
                             color =

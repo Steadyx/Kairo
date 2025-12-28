@@ -35,10 +35,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.kairo.R
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -185,18 +187,24 @@ fun ImportProgressOverlay(
                             }
                         }
                         Text(
-                            text = "${(animatedProgress * 100).roundToInt()}%",
+                            text =
+                            stringResource(
+                                R.string.format_percent,
+                                (animatedProgress * 100).roundToInt(),
+                            ),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
                     Text(
-                        text = "Importing",
+                        text = stringResource(R.string.import_status_title),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = state.fileName ?: "Preparing your book",
+                        text =
+                        state.fileName
+                            ?: stringResource(R.string.import_preparing_book),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -204,7 +212,7 @@ fun ImportProgressOverlay(
                         textAlign = TextAlign.Center,
                     )
                     Text(
-                        text = "Parsing chapters and assets",
+                        text = stringResource(R.string.import_parsing_chapters),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,

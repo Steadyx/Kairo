@@ -57,7 +57,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.kairo.R
 import com.example.kairo.core.model.BlinkMode
 import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.core.model.RsvpConfig
@@ -66,8 +68,6 @@ import com.example.kairo.core.model.RsvpFontFamily
 import com.example.kairo.core.model.RsvpFontWeight
 import com.example.kairo.core.model.RsvpProfile
 import com.example.kairo.core.model.RsvpProfileIds
-import com.example.kairo.core.model.description
-import com.example.kairo.core.model.displayName
 import com.example.kairo.core.rsvp.RsvpPaceEstimator
 import com.example.kairo.ui.LocalDispatcherProvider
 import kotlin.math.roundToInt
@@ -85,8 +85,8 @@ fun ReaderSettingsContent(
     onInvertedScrollChange: (Boolean) -> Unit,
 ) {
     SettingsSliderRow(
-        title = "Font size",
-        valueLabel = "${fontSizeSp.toInt()}sp",
+        title = stringResource(R.string.reader_font_size_title),
+        valueLabel = stringResource(R.string.format_sp, fontSizeSp.toInt()),
         value = fontSizeSp,
         onValueChange = { onFontSizeChange(it.coerceIn(14f, 32f)) },
         valueRange = 14f..32f,
@@ -95,18 +95,22 @@ fun ReaderSettingsContent(
     ThemeSelector(selected = readerTheme, onThemeChange = onThemeChange)
 
     SettingsSliderRow(
-        title = "Text brightness",
-        subtitle = "Dims the reader text without changing the theme.",
-        valueLabel = "${(textBrightness.coerceIn(0.55f, 1.0f) * 100).toInt()}%",
+        title = stringResource(R.string.reader_text_brightness_title),
+        subtitle = stringResource(R.string.reader_text_brightness_subtitle),
+        valueLabel =
+        stringResource(
+            R.string.format_percent,
+            (textBrightness.coerceIn(0.55f, 1.0f) * 100).toInt(),
+        ),
         value = textBrightness.coerceIn(0.55f, 1.0f),
         onValueChange = { onTextBrightnessChange(it.coerceIn(0.55f, 1.0f)) },
         valueRange = 0.55f..1.0f,
     )
 
-    Text("Scrolling", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.reader_scrolling_title), style = MaterialTheme.typography.titleMedium)
     SettingsSwitchRow(
-        title = "Invert vertical swipe",
-        subtitle = "Swipe up to move down, swipe down to move up.",
+        title = stringResource(R.string.reader_invert_swipe_title),
+        subtitle = stringResource(R.string.reader_invert_swipe_subtitle),
         checked = invertedScroll,
         onCheckedChange = onInvertedScrollChange,
     )
@@ -131,23 +135,23 @@ fun FocusSettingsContent(
             .isNotificationPolicyAccessGranted
 
     SettingsSwitchRow(
-        title = "Enable focus mode",
-        subtitle = "Hide system chrome while reading.",
+        title = stringResource(R.string.focus_enable_title),
+        subtitle = stringResource(R.string.focus_mode_subtitle),
         checked = focusModeEnabled,
         onCheckedChange = onFocusModeEnabledChange,
     )
 
     SettingsSwitchRow(
-        title = "Hide status bar",
-        subtitle = "Hides the top bar (time, notifications).",
+        title = stringResource(R.string.focus_hide_status_bar_title),
+        subtitle = stringResource(R.string.focus_hide_status_bar_subtitle),
         checked = focusHideStatusBar,
         onCheckedChange = onFocusHideStatusBarChange,
         enabled = focusModeEnabled,
     )
 
     SettingsSwitchRow(
-        title = "Pause notifications",
-        subtitle = "Uses Do Not Disturb while focus mode is active.",
+        title = stringResource(R.string.focus_pause_notifications_title),
+        subtitle = stringResource(R.string.focus_pause_notifications_subtitle),
         checked = focusPauseNotifications,
         onCheckedChange = onFocusPauseNotificationsChange,
         enabled = focusModeEnabled,
@@ -155,7 +159,7 @@ fun FocusSettingsContent(
 
     if (focusModeEnabled && focusPauseNotifications && !hasDndAccess) {
         Text(
-            "Grant Do Not Disturb access to pause notifications.",
+            stringResource(R.string.focus_dnd_permission_message),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -167,23 +171,23 @@ fun FocusSettingsContent(
                 )
             },
         ) {
-            Text("Open DND access settings")
+            Text(stringResource(R.string.focus_dnd_permission_action))
         }
     }
 
     Spacer(modifier = Modifier.height(8.dp))
-    Text("Apply focus mode", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.focus_apply_title), style = MaterialTheme.typography.titleMedium)
 
     SettingsSwitchRow(
-        title = "Apply in Reader",
-        subtitle = "Use focus mode in the scroll reader.",
+        title = stringResource(R.string.focus_apply_reader_title),
+        subtitle = stringResource(R.string.focus_apply_reader_subtitle),
         checked = focusApplyInReader,
         onCheckedChange = onFocusApplyInReaderChange,
         enabled = focusModeEnabled,
     )
     SettingsSwitchRow(
-        title = "Apply in RSVP",
-        subtitle = "Use focus mode in RSVP playback.",
+        title = stringResource(R.string.focus_apply_rsvp_title),
+        subtitle = stringResource(R.string.focus_apply_rsvp_subtitle),
         checked = focusApplyInRsvp,
         onCheckedChange = onFocusApplyInRsvpChange,
         enabled = focusModeEnabled,
@@ -262,9 +266,12 @@ private fun AdvancedSettingsToggle(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Advanced settings", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "All tuning controls, grouped by section.",
+                    stringResource(R.string.settings_advanced_title),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    stringResource(R.string.settings_advanced_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -333,23 +340,62 @@ private fun ExpandableSettingsSection(
     }
 }
 
-private fun formatPercent(value: Double): String = "${(value * 100).roundToInt()}%"
+private fun formatPercent(context: Context, value: Double): String =
+    context.getString(R.string.format_percent, (value * 100).roundToInt())
 
-private fun formatDeltaPercent(multiplier: Double): String {
+private fun formatDeltaPercent(context: Context, multiplier: Double): String {
     val delta = ((multiplier - 1.0) * 100).roundToInt()
-    return if (delta > 0) {
-        "+${delta}%"
-    } else {
-        "${delta}%"
-    }
+    return context.getString(R.string.format_signed_percent, delta)
 }
 
-private fun formatMultiplier(value: Double): String = "x${"%.2f".format(value)}"
+private fun formatMultiplier(context: Context, value: Double): String =
+    context.getString(R.string.format_multiplier, value)
 
-private fun formatTitleCase(value: String): String =
-    value.lowercase().replaceFirstChar { it.titlecase() }
+private fun formatBias(context: Context, value: Float): String =
+    context.getString(R.string.format_percent, (value * 100).roundToInt())
 
-private fun formatBias(value: Float): String = "${(value * 100).roundToInt()}%"
+private fun blinkModeLabelRes(mode: BlinkMode): Int =
+    when (mode) {
+        BlinkMode.OFF -> R.string.blink_mode_off
+        BlinkMode.SUBTLE -> R.string.blink_mode_subtle
+        BlinkMode.ADAPTIVE -> R.string.blink_mode_adaptive
+    }
+
+private fun blinkModeDescriptionRes(mode: BlinkMode): Int =
+    when (mode) {
+        BlinkMode.OFF -> R.string.blink_mode_off_description
+        BlinkMode.SUBTLE -> R.string.blink_mode_subtle_description
+        BlinkMode.ADAPTIVE -> R.string.blink_mode_adaptive_description
+    }
+
+private fun rsvpFontFamilyLabelRes(family: RsvpFontFamily): Int =
+    when (family) {
+        RsvpFontFamily.INTER -> R.string.rsvp_font_family_inter
+        RsvpFontFamily.ROBOTO -> R.string.rsvp_font_family_roboto
+    }
+
+private fun rsvpFontWeightLabelRes(weight: RsvpFontWeight): Int =
+    when (weight) {
+        RsvpFontWeight.LIGHT -> R.string.rsvp_font_weight_light
+        RsvpFontWeight.NORMAL -> R.string.rsvp_font_weight_normal
+        RsvpFontWeight.MEDIUM -> R.string.rsvp_font_weight_medium
+    }
+
+private fun rsvpProfileNameRes(profile: RsvpProfile): Int =
+    when (profile) {
+        RsvpProfile.BALANCED -> R.string.rsvp_profile_balanced
+        RsvpProfile.CHILL -> R.string.rsvp_profile_chill
+        RsvpProfile.SPRINT -> R.string.rsvp_profile_sprint
+        RsvpProfile.STUDY -> R.string.rsvp_profile_study
+    }
+
+private fun rsvpProfileDescriptionRes(profile: RsvpProfile): Int =
+    when (profile) {
+        RsvpProfile.BALANCED -> R.string.rsvp_profile_balanced_description
+        RsvpProfile.CHILL -> R.string.rsvp_profile_chill_description
+        RsvpProfile.SPRINT -> R.string.rsvp_profile_sprint_description
+        RsvpProfile.STUDY -> R.string.rsvp_profile_study_description
+    }
 
 @Composable
 private fun BlinkModeSelector(
@@ -357,14 +403,9 @@ private fun BlinkModeSelector(
     onSelect: (BlinkMode) -> Unit,
 ) {
     val options = listOf(BlinkMode.OFF, BlinkMode.SUBTLE, BlinkMode.ADAPTIVE)
-    val subtitle =
-        when (selected) {
-            BlinkMode.OFF -> "No blink between words."
-            BlinkMode.SUBTLE -> "Small, steady blink at higher speeds."
-            BlinkMode.ADAPTIVE -> "Blink adapts to easier words and clean stretches."
-        }
+    val subtitle = stringResource(blinkModeDescriptionRes(selected))
 
-    Text("Blink mode", style = MaterialTheme.typography.bodyLarge)
+    Text(stringResource(R.string.blink_mode_title), style = MaterialTheme.typography.bodyLarge)
     Text(
         subtitle,
         style = MaterialTheme.typography.bodySmall,
@@ -377,12 +418,7 @@ private fun BlinkModeSelector(
     ) {
         items(options, key = { it.name }) { mode ->
             val isSelected = mode == selected
-            val label =
-                when (mode) {
-                    BlinkMode.OFF -> "Off"
-                    BlinkMode.SUBTLE -> "Subtle"
-                    BlinkMode.ADAPTIVE -> "Adaptive"
-                }
+            val label = stringResource(blinkModeLabelRes(mode))
 
             Surface(
                 modifier =
@@ -440,6 +476,7 @@ fun RsvpSettingsContent(
     onRsvpVerticalBiasChange: (Float) -> Unit,
     onRsvpHorizontalBiasChange: (Float) -> Unit,
 ) {
+    val context = LocalContext.current
     fun updateConfig(updater: (RsvpConfig) -> RsvpConfig) {
         onConfigChange(updater(config))
     }
@@ -463,22 +500,22 @@ fun RsvpSettingsContent(
     }
     val estimatedText =
         if (estimatedWpm > 0) {
-            "Estimated pace: $estimatedWpm WPM"
+            stringResource(R.string.rsvp_estimated_pace, estimatedWpm)
         } else {
-            "Estimating pace..."
+            stringResource(R.string.rsvp_estimating_pace)
         }
     Text(estimatedText, style = MaterialTheme.typography.bodyMedium)
     Spacer(modifier = Modifier.height(10.dp))
 
     val minTempoMs = if (unlockExtremeSpeed) 10L else 30L
     SettingsCard(
-        title = "Quick tune",
-        subtitle = "Start here. Advanced controls are below.",
+        title = stringResource(R.string.rsvp_quick_tune_title),
+        subtitle = stringResource(R.string.rsvp_quick_tune_subtitle),
     ) {
         DeferredSliderRow(
-            title = "Tempo",
-            subtitle = "Lower tempo = faster. This is the overall speed dial.",
-            valueLabel = { "${it.toLong()}ms" },
+            title = stringResource(R.string.rsvp_tempo_title),
+            subtitle = stringResource(R.string.rsvp_tempo_details_subtitle),
+            valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
             rawValue = config.tempoMsPerWord.toFloat(),
             onCommit = { newValue ->
                 updateConfig { it.copy(tempoMsPerWord = newValue.toLong().coerceIn(minTempoMs, 240L)) }
@@ -486,9 +523,9 @@ fun RsvpSettingsContent(
             valueRange = minTempoMs.toFloat()..240f,
         )
         DeferredSliderRow(
-            title = "Minimum word time",
-            subtitle = "Hard floor for any displayed word.",
-            valueLabel = { "${it.toLong()}ms" },
+            title = stringResource(R.string.rsvp_min_word_time_title),
+            subtitle = stringResource(R.string.rsvp_min_word_time_subtitle),
+            valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
             rawValue = config.minWordMs.toFloat(),
             onCommit = { newValue ->
                 updateConfig { it.copy(minWordMs = newValue.toLong().coerceIn(30L, 140L)) }
@@ -496,9 +533,9 @@ fun RsvpSettingsContent(
             valueRange = 30f..140f,
         )
         DeferredSliderRow(
-            title = "Long-word minimum",
-            subtitle = "Extra time for long or technical words.",
-            valueLabel = { "${it.toLong()}ms" },
+            title = stringResource(R.string.rsvp_long_word_min_title),
+            subtitle = stringResource(R.string.rsvp_long_word_min_subtitle),
+            valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
             rawValue = config.longWordMinMs.toFloat(),
             onCommit = { newValue ->
                 updateConfig { it.copy(longWordMinMs = newValue.toLong().coerceIn(80L, 300L)) }
@@ -506,9 +543,9 @@ fun RsvpSettingsContent(
             valueRange = 80f..300f,
         )
         DeferredSliderRow(
-            title = "Sentence end pause",
-            subtitle = "Breathing room at sentence boundaries.",
-            valueLabel = { "${it.toLong()}ms" },
+            title = stringResource(R.string.rsvp_sentence_end_pause_title),
+            subtitle = stringResource(R.string.rsvp_sentence_end_pause_subtitle),
+            valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
             rawValue = config.sentenceEndPauseMs.toFloat(),
             onCommit = { newValue ->
                 updateConfig { it.copy(sentenceEndPauseMs = newValue.toLong().coerceIn(0L, 500L)) }
@@ -516,8 +553,8 @@ fun RsvpSettingsContent(
             valueRange = 0f..500f,
         )
         SettingsSwitchRow(
-            title = "Adaptive pacing",
-            subtitle = "Adds extra hold on difficult words and clauses.",
+            title = stringResource(R.string.rsvp_adaptive_pacing_title),
+            subtitle = stringResource(R.string.rsvp_adaptive_pacing_subtitle),
             checked = config.useAdaptiveTiming,
             onCheckedChange = { enabled ->
                 updateConfig { it.copy(useAdaptiveTiming = enabled) }
@@ -528,21 +565,26 @@ fun RsvpSettingsContent(
     Spacer(modifier = Modifier.height(12.dp))
 
     SettingsCard(
-        title = "Display",
-        subtitle = "Only affects the RSVP screen.",
+        title = stringResource(R.string.rsvp_display_title),
+        subtitle = stringResource(R.string.rsvp_display_subtitle),
     ) {
         DeferredSliderRow(
-            title = "Font size",
-            valueLabel = { "${it.toInt()}sp" },
+            title = stringResource(R.string.reader_font_size_title),
+            valueLabel = { context.getString(R.string.format_sp, it.toInt()) },
             rawValue = rsvpFontSizeSp,
             onCommit = { onRsvpFontSizeChange(it.coerceIn(28f, 64f)) },
             valueRange = 28f..64f,
         )
 
         DeferredSliderRow(
-            title = "Text brightness",
-            subtitle = "Dims the RSVP word display without changing the theme.",
-            valueLabel = { "${(it.coerceIn(0.55f, 1.0f) * 100).toInt()}%" },
+            title = stringResource(R.string.reader_text_brightness_title),
+            subtitle = stringResource(R.string.rsvp_text_brightness_subtitle),
+            valueLabel = {
+                context.getString(
+                    R.string.format_percent,
+                    (it.coerceIn(0.55f, 1.0f) * 100).toInt(),
+                )
+            },
             rawValue = rsvpTextBrightness.coerceIn(0.55f, 1.0f),
             onCommit = { onRsvpTextBrightnessChange(it.coerceIn(0.55f, 1.0f)) },
             valueRange = 0.55f..1.0f,
@@ -561,16 +603,19 @@ fun RsvpSettingsContent(
         Spacer(modifier = Modifier.height(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ExpandableSettingsSection(
-                title = "Speed limits",
-                summary = if (unlockExtremeSpeed) {
-                    "Extreme speeds enabled"
-                } else {
-                    "Extreme speeds off"
-                },
+                title = stringResource(R.string.rsvp_speed_limits_title),
+                summary =
+                stringResource(
+                    if (unlockExtremeSpeed) {
+                        R.string.rsvp_speed_limits_enabled
+                    } else {
+                        R.string.rsvp_speed_limits_disabled
+                    },
+                ),
             ) {
                 SettingsSwitchRow(
-                    title = "Unlock extreme speeds",
-                    subtitle = "Allows very high speeds (can quickly become unreadable).",
+                    title = stringResource(R.string.rsvp_unlock_extreme_speeds_title),
+                    subtitle = stringResource(R.string.rsvp_unlock_extreme_speeds_subtitle_long),
                     checked = unlockExtremeSpeed,
                     onCheckedChange = { enabled ->
                         onUnlockExtremeSpeedChange(enabled)
@@ -582,13 +627,17 @@ fun RsvpSettingsContent(
             }
 
             ExpandableSettingsSection(
-                title = "Readability floors",
+                title = stringResource(R.string.rsvp_readability_floors_title),
                 summary =
-                "Threshold ${config.longWordChars} chars | Split +${config.subwordChunkPauseMs}ms",
+                stringResource(
+                    R.string.rsvp_readability_floors_summary,
+                    config.longWordChars,
+                    config.subwordChunkPauseMs,
+                ),
             ) {
                 DeferredSliderRow(
-                    title = "Long-word threshold",
-                    valueLabel = { "${it.toInt()} chars" },
+                    title = stringResource(R.string.rsvp_long_word_threshold_title),
+                    valueLabel = { context.getString(R.string.format_chars, it.toInt()) },
                     rawValue = config.longWordChars.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(longWordChars = newValue.toInt().coerceIn(8, 14)) }
@@ -596,9 +645,9 @@ fun RsvpSettingsContent(
                     valueRange = 8f..14f,
                 )
                 DeferredSliderRow(
-                    title = "Split-word pause",
-                    subtitle = "Extra time between long-word chunks.",
-                    valueLabel = { "+${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_split_word_pause_title),
+                    subtitle = stringResource(R.string.rsvp_split_word_pause_subtitle),
+                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.subwordChunkPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -610,14 +659,18 @@ fun RsvpSettingsContent(
             }
 
             ExpandableSettingsSection(
-                title = "Difficulty model",
+                title = stringResource(R.string.rsvp_difficulty_model_title),
                 summary =
-                "Syll +${config.syllableExtraMs}ms | Rarity +${config.rarityExtraMaxMs}ms | " +
-                    "Strength ${formatPercent(config.complexityStrength)}",
+                stringResource(
+                    R.string.rsvp_difficulty_model_summary,
+                    config.syllableExtraMs,
+                    config.rarityExtraMaxMs,
+                    formatPercent(context, config.complexityStrength),
+                ),
             ) {
                 DeferredSliderRow(
-                    title = "Syllable boost",
-                    valueLabel = { "+${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_syllable_boost_title),
+                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.syllableExtraMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(syllableExtraMs = newValue.toLong().coerceIn(0L, 45L)) }
@@ -625,8 +678,8 @@ fun RsvpSettingsContent(
                     valueRange = 0f..45f,
                 )
                 DeferredSliderRow(
-                    title = "Rarity boost",
-                    valueLabel = { "+${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_rarity_boost_title),
+                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.rarityExtraMaxMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(rarityExtraMaxMs = newValue.toLong().coerceIn(0L, 200L)) }
@@ -634,8 +687,8 @@ fun RsvpSettingsContent(
                     valueRange = 0f..200f,
                 )
                 DeferredSliderRow(
-                    title = "Complexity strength",
-                    valueLabel = { "${it.toInt()}%" },
+                    title = stringResource(R.string.rsvp_complexity_strength_title),
+                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.complexityStrength * 100).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -647,14 +700,18 @@ fun RsvpSettingsContent(
             }
 
             ExpandableSettingsSection(
-                title = "Punctuation pauses",
+                title = stringResource(R.string.rsvp_punctuation_pauses_title),
                 summary =
-                "Comma ${config.commaPauseMs}ms | Dash ${config.dashPauseMs}ms | " +
-                    "Paragraph ${config.paragraphPauseMs}ms",
+                stringResource(
+                    R.string.rsvp_punctuation_pauses_summary,
+                    config.commaPauseMs,
+                    config.dashPauseMs,
+                    config.paragraphPauseMs,
+                ),
             ) {
                 DeferredSliderRow(
-                    title = "Comma",
-                    valueLabel = { "${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_punctuation_comma),
+                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.commaPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(commaPauseMs = newValue.toLong().coerceIn(0L, 260L)) }
@@ -662,8 +719,8 @@ fun RsvpSettingsContent(
                     valueRange = 0f..260f,
                 )
                 DeferredSliderRow(
-                    title = "Dash",
-                    valueLabel = { "${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_punctuation_dash),
+                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.dashPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(dashPauseMs = newValue.toLong().coerceIn(0L, 320L)) }
@@ -671,8 +728,8 @@ fun RsvpSettingsContent(
                     valueRange = 0f..320f,
                 )
                 DeferredSliderRow(
-                    title = "Semicolon",
-                    valueLabel = { "${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_punctuation_semicolon),
+                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.semicolonPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(semicolonPauseMs = newValue.toLong().coerceIn(0L, 360L)) }
@@ -680,8 +737,8 @@ fun RsvpSettingsContent(
                     valueRange = 0f..360f,
                 )
                 DeferredSliderRow(
-                    title = "Colon",
-                    valueLabel = { "${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_punctuation_colon),
+                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.colonPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(colonPauseMs = newValue.toLong().coerceIn(0L, 360L)) }
@@ -689,8 +746,8 @@ fun RsvpSettingsContent(
                     valueRange = 0f..360f,
                 )
                 DeferredSliderRow(
-                    title = "Parentheses",
-                    valueLabel = { "${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_punctuation_parentheses),
+                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.parenthesesPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -700,8 +757,8 @@ fun RsvpSettingsContent(
                     valueRange = 0f..320f,
                 )
                 DeferredSliderRow(
-                    title = "Quotes",
-                    valueLabel = { "${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_punctuation_quotes),
+                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.quotePauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(quotePauseMs = newValue.toLong().coerceIn(0L, 200L)) }
@@ -709,8 +766,8 @@ fun RsvpSettingsContent(
                     valueRange = 0f..200f,
                 )
                 DeferredSliderRow(
-                    title = "Paragraph",
-                    valueLabel = { "${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_punctuation_paragraph),
+                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.paragraphPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(paragraphPauseMs = newValue.toLong().coerceIn(0L, 500L)) }
@@ -720,15 +777,18 @@ fun RsvpSettingsContent(
             }
 
             ExpandableSettingsSection(
-                title = "Pause scaling",
+                title = stringResource(R.string.rsvp_pause_scaling_title),
                 summary =
-                "Exponent ${formatPercent(config.pauseScaleExponent)} | " +
-                    "Minimum ${formatPercent(config.minPauseScale)}",
+                stringResource(
+                    R.string.rsvp_pause_scaling_summary,
+                    formatPercent(context, config.pauseScaleExponent),
+                    formatPercent(context, config.minPauseScale),
+                ),
             ) {
                 DeferredSliderRow(
-                    title = "Scale exponent",
-                    subtitle = "Compress pauses at high speed (floors still apply).",
-                    valueLabel = { "${it.toInt()}%" },
+                    title = stringResource(R.string.rsvp_scale_exponent_title),
+                    subtitle = stringResource(R.string.rsvp_scale_exponent_subtitle),
+                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.pauseScaleExponent * 100).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -738,9 +798,9 @@ fun RsvpSettingsContent(
                     valueRange = 20f..90f,
                 )
                 DeferredSliderRow(
-                    title = "Minimum scale",
-                    subtitle = "Prevents pauses from vanishing at extreme speeds.",
-                    valueLabel = { "${it.toInt()}%" },
+                    title = stringResource(R.string.rsvp_minimum_scale_title),
+                    subtitle = stringResource(R.string.rsvp_minimum_scale_subtitle),
+                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.minPauseScale * 100).toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(minPauseScale = (newValue / 100.0).coerceIn(0.3, 1.0)) }
@@ -750,14 +810,17 @@ fun RsvpSettingsContent(
             }
 
             ExpandableSettingsSection(
-                title = "Context shaping",
+                title = stringResource(R.string.rsvp_context_shaping_title),
                 summary =
-                "Parentheticals ${formatDeltaPercent(config.parentheticalMultiplier)} | " +
-                    "Dialogue ${formatPercent(config.dialogueMultiplier)}",
+                stringResource(
+                    R.string.rsvp_context_shaping_summary,
+                    formatDeltaPercent(context, config.parentheticalMultiplier),
+                    formatPercent(context, config.dialogueMultiplier),
+                ),
             ) {
                 DeferredSliderRow(
-                    title = "Parentheticals",
-                    valueLabel = { "+${(it).toInt()}%" },
+                    title = stringResource(R.string.rsvp_parentheticals_title),
+                    valueLabel = { context.getString(R.string.format_plus_percent, it.toInt()) },
                     rawValue = ((config.parentheticalMultiplier - 1.0) * 100).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -767,8 +830,8 @@ fun RsvpSettingsContent(
                     valueRange = 0f..35f,
                 )
                 DeferredSliderRow(
-                    title = "Dialogue pace",
-                    valueLabel = { "${it.toInt()}%" },
+                    title = stringResource(R.string.rsvp_dialogue_pace_title),
+                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.dialogueMultiplier * 100).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -780,16 +843,19 @@ fun RsvpSettingsContent(
             }
 
             ExpandableSettingsSection(
-                title = "Adaptive pacing",
+                title = stringResource(R.string.rsvp_adaptive_pacing_title),
                 summary =
-                "Difficulty +${config.adaptiveDifficultyMaxHoldMs}ms | " +
-                    "Complex +${config.complexWordHoldMs}ms | " +
-                    "Threshold ${formatMultiplier(config.complexWordThreshold)}",
+                stringResource(
+                    R.string.rsvp_adaptive_pacing_summary,
+                    config.adaptiveDifficultyMaxHoldMs,
+                    config.complexWordHoldMs,
+                    formatMultiplier(context, config.complexWordThreshold),
+                ),
             ) {
                 DeferredSliderRow(
-                    title = "Difficulty boost",
-                    subtitle = "Max extra hold for difficult words.",
-                    valueLabel = { "+${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_difficulty_boost_title),
+                    subtitle = stringResource(R.string.rsvp_difficulty_boost_subtitle),
+                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.adaptiveDifficultyMaxHoldMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -799,9 +865,9 @@ fun RsvpSettingsContent(
                     valueRange = 0f..200f,
                 )
                 DeferredSliderRow(
-                    title = "Complex word boost",
-                    subtitle = "Extra hold for words above the complexity threshold.",
-                    valueLabel = { "+${it.toLong()}ms" },
+                    title = stringResource(R.string.rsvp_complex_word_boost_title),
+                    subtitle = stringResource(R.string.rsvp_complex_word_boost_subtitle),
+                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.complexWordHoldMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(complexWordHoldMs = newValue.toLong().coerceIn(0L, 200L)) }
@@ -809,9 +875,9 @@ fun RsvpSettingsContent(
                     valueRange = 0f..200f,
                 )
                 DeferredSliderRow(
-                    title = "Complex word threshold",
-                    subtitle = "Lower = more words considered complex.",
-                    valueLabel = { "x${"%.2f".format(it)}" },
+                    title = stringResource(R.string.rsvp_complex_word_threshold_title),
+                    subtitle = stringResource(R.string.rsvp_complex_word_threshold_subtitle),
+                    valueLabel = { context.getString(R.string.format_multiplier, it) },
                     rawValue = config.complexWordThreshold.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -823,16 +889,19 @@ fun RsvpSettingsContent(
             }
 
             ExpandableSettingsSection(
-                title = "Rhythm",
+                title = stringResource(R.string.rsvp_rhythm_title),
                 summary =
-                "Stability ${formatPercent(config.smoothingAlpha)} | " +
-                    "Clause ${formatDeltaPercent(config.clausePauseFactor)} | " +
-                    "Blink ${formatTitleCase(config.blinkMode.name)}",
+                stringResource(
+                    R.string.rsvp_rhythm_summary,
+                    formatPercent(context, config.smoothingAlpha),
+                    formatDeltaPercent(context, config.clausePauseFactor),
+                    stringResource(blinkModeLabelRes(config.blinkMode)),
+                ),
             ) {
                 DeferredSliderRow(
-                    title = "Stability",
-                    subtitle = "Higher = more responsive; lower = steadier cadence.",
-                    valueLabel = { "${it.toInt()}%" },
+                    title = stringResource(R.string.rsvp_stability_title),
+                    subtitle = stringResource(R.string.rsvp_stability_subtitle),
+                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.smoothingAlpha * 100).toFloat(),
                     onCommit = { newValue ->
                         updateConfig { it.copy(smoothingAlpha = (newValue / 100.0).coerceIn(0.0, 1.0)) }
@@ -841,8 +910,8 @@ fun RsvpSettingsContent(
                 )
 
                 SettingsSwitchRow(
-                    title = "Clause pacing",
-                    subtitle = "Adds tiny hesitations at clause starts for more natural phrasing.",
+                    title = stringResource(R.string.rsvp_clause_pacing_title),
+                    subtitle = stringResource(R.string.rsvp_clause_pacing_subtitle),
                     checked = config.useClausePausing,
                     onCheckedChange = { enabled ->
                         updateConfig { it.copy(useClausePausing = enabled) }
@@ -850,9 +919,9 @@ fun RsvpSettingsContent(
                 )
 
                 DeferredSliderRow(
-                    title = "Clause strength",
-                    subtitle = "Extra time at clause starts (only when clause pacing is enabled).",
-                    valueLabel = { "+${it.toInt()}%" },
+                    title = stringResource(R.string.rsvp_clause_strength_title),
+                    subtitle = stringResource(R.string.rsvp_clause_strength_subtitle),
+                    valueLabel = { context.getString(R.string.format_plus_percent, it.toInt()) },
                     rawValue = ((config.clausePauseFactor.coerceIn(1.0, 1.6) - 1.0) * 100).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -868,8 +937,8 @@ fun RsvpSettingsContent(
                 )
 
                 SettingsSwitchRow(
-                    title = "Phrase chunking",
-                    subtitle = "Shows short 2-word units to reduce flicker.",
+                    title = stringResource(R.string.rsvp_phrase_chunking_title),
+                    subtitle = stringResource(R.string.rsvp_phrase_chunking_subtitle),
                     checked = config.enablePhraseChunking,
                     onCheckedChange = { enabled ->
                         updateConfig { it.copy(enablePhraseChunking = enabled) }
@@ -878,10 +947,15 @@ fun RsvpSettingsContent(
             }
 
             ExpandableSettingsSection(
-                title = "Display details",
+                title = stringResource(R.string.rsvp_display_details_title),
                 summary =
-                "${formatTitleCase(rsvpFontFamily.name)} | ${formatTitleCase(rsvpFontWeight.name)} | " +
-                    "Bias ${formatBias(rsvpVerticalBias)}/${formatBias(rsvpHorizontalBias)}",
+                stringResource(
+                    R.string.rsvp_display_details_summary,
+                    stringResource(rsvpFontFamilyLabelRes(rsvpFontFamily)),
+                    stringResource(rsvpFontWeightLabelRes(rsvpFontWeight)),
+                    formatBias(context, rsvpVerticalBias),
+                    formatBias(context, rsvpHorizontalBias),
+                ),
             ) {
                 RsvpFontFamilySelector(
                     selected = rsvpFontFamily,
@@ -892,15 +966,15 @@ fun RsvpSettingsContent(
                     onFontWeightChange = onRsvpFontWeightChange,
                 )
                 DeferredSliderRow(
-                    title = "Vertical position",
-                    valueLabel = { "${(it * 100).toInt()}%" },
+                    title = stringResource(R.string.rsvp_vertical_position_title),
+                    valueLabel = { context.getString(R.string.format_percent, (it * 100).toInt()) },
                     rawValue = rsvpVerticalBias,
                     onCommit = onRsvpVerticalBiasChange,
                     valueRange = -0.6f..0.6f,
                 )
                 DeferredSliderRow(
-                    title = "Left bias",
-                    valueLabel = { "${(it * 100).toInt()}%" },
+                    title = stringResource(R.string.rsvp_left_bias_title),
+                    valueLabel = { context.getString(R.string.format_percent, (it * 100).toInt()) },
                     rawValue = rsvpHorizontalBias,
                     onCommit = onRsvpHorizontalBiasChange,
                     valueRange = -0.6f..0.6f,
@@ -938,20 +1012,22 @@ private fun RsvpProfileSelector(
 
     val selectedLabel =
         when {
-            selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED -> "Custom"
-            selectedBuiltIn != null -> selectedBuiltIn.displayName()
+            selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED ->
+                stringResource(R.string.rsvp_profile_custom)
+            selectedBuiltIn != null -> stringResource(rsvpProfileNameRes(selectedBuiltIn))
             selectedCustom != null -> selectedCustom.name
-            else -> "Custom"
+            else -> stringResource(R.string.rsvp_profile_custom)
         }
     val selectedDescription =
         when {
-            selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED -> "Unsaved tweaks"
-            selectedBuiltIn != null -> selectedBuiltIn.description()
-            selectedCustom != null -> "Saved profile"
-            else -> "Unsaved tweaks"
+            selectedProfileId == RsvpProfileIds.CUSTOM_UNSAVED ->
+                stringResource(R.string.rsvp_profile_unsaved_tweaks)
+            selectedBuiltIn != null -> stringResource(rsvpProfileDescriptionRes(selectedBuiltIn))
+            selectedCustom != null -> stringResource(R.string.rsvp_profile_saved_profile)
+            else -> stringResource(R.string.rsvp_profile_unsaved_tweaks)
         }
 
-    Text("RSVP profile", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.rsvp_profile_title), style = MaterialTheme.typography.titleMedium)
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = !expanded },
@@ -961,7 +1037,7 @@ private fun RsvpProfileSelector(
             onValueChange = {},
             readOnly = true,
             singleLine = true,
-            label = { Text("Profile") },
+            label = { Text(stringResource(R.string.rsvp_profile_label)) },
             supportingText = { Text(selectedDescription) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier =
@@ -977,9 +1053,12 @@ private fun RsvpProfileSelector(
             DropdownMenuItem(
                 text = {
                     Column {
-                        Text("Custom", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            "Unsaved tweaks",
+                            stringResource(R.string.rsvp_profile_custom),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            stringResource(R.string.rsvp_profile_unsaved_tweaks),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -996,9 +1075,12 @@ private fun RsvpProfileSelector(
                 DropdownMenuItem(
                     text = {
                         Column {
-                            Text(option.displayName(), style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                option.description(),
+                                stringResource(rsvpProfileNameRes(option)),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                stringResource(rsvpProfileDescriptionRes(option)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -1018,7 +1100,7 @@ private fun RsvpProfileSelector(
                             Column {
                                 Text(option.name, style = MaterialTheme.typography.bodyLarge)
                                 Text(
-                                    "Saved profile",
+                                    stringResource(R.string.rsvp_profile_saved_profile),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -1043,7 +1125,15 @@ private fun RsvpProfileSelector(
             },
             modifier = Modifier.weight(1f),
         ) {
-            Text(if (isCustomSelected) "Save as profile" else "Save current")
+            Text(
+                stringResource(
+                    if (isCustomSelected) {
+                        R.string.rsvp_profile_save_as
+                    } else {
+                        R.string.rsvp_profile_save_current
+                    },
+                ),
+            )
         }
 
         if (isUserProfileSelected) {
@@ -1051,7 +1141,7 @@ private fun RsvpProfileSelector(
                 onClick = { showDeleteDialog = true },
                 modifier = Modifier.weight(1f),
             ) {
-                Text("Delete")
+                Text(stringResource(R.string.action_delete))
             }
         }
     }
@@ -1059,17 +1149,17 @@ private fun RsvpProfileSelector(
     if (showSaveDialog) {
         AlertDialog(
             onDismissRequest = { showSaveDialog = false },
-            title = { Text("Save profile") },
+            title = { Text(stringResource(R.string.rsvp_profile_save_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = saveName,
                         onValueChange = { saveName = it },
                         singleLine = true,
-                        label = { Text("Profile name") },
+                        label = { Text(stringResource(R.string.rsvp_profile_name_label)) },
                     )
                     Text(
-                        "Saves the current RSVP settings as a named profile.",
+                        stringResource(R.string.rsvp_profile_save_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1082,10 +1172,12 @@ private fun RsvpProfileSelector(
                         showSaveDialog = false
                         saveName = ""
                     },
-                ) { Text("Save") }
+                ) { Text(stringResource(R.string.action_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { showSaveDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showSaveDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }
@@ -1093,10 +1185,10 @@ private fun RsvpProfileSelector(
     if (showDeleteDialog && isUserProfileSelected) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete profile?") },
+            title = { Text(stringResource(R.string.rsvp_profile_delete_title)) },
             text = {
                 Text(
-                    "This can’t be undone.",
+                    stringResource(R.string.rsvp_profile_delete_warning),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1107,10 +1199,12 @@ private fun RsvpProfileSelector(
                         onDeleteCustomProfile(selectedProfileId)
                         showDeleteDialog = false
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }
@@ -1122,7 +1216,7 @@ private fun RsvpFontFamilySelector(
     onFontFamilyChange: (RsvpFontFamily) -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text("Font", style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.rsvp_font_title), style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(8.dp))
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RsvpFontFamily.entries.forEach { family ->
@@ -1131,7 +1225,7 @@ private fun RsvpFontFamilySelector(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        text = family.name.lowercase().replaceFirstChar { it.titlecase() },
+                        text = stringResource(rsvpFontFamilyLabelRes(family)),
                         color = if (family ==
                             selected
                         ) {
@@ -1152,7 +1246,7 @@ private fun RsvpFontWeightSelector(
     onFontWeightChange: (RsvpFontWeight) -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text("Weight", style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.rsvp_weight_title), style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(8.dp))
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RsvpFontWeight.entries.forEach { weight ->
@@ -1161,7 +1255,7 @@ private fun RsvpFontWeightSelector(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        text = weight.name.lowercase().replaceFirstChar { it.titlecase() },
+                        text = stringResource(rsvpFontWeightLabelRes(weight)),
                         color = if (weight ==
                             selected
                         ) {
