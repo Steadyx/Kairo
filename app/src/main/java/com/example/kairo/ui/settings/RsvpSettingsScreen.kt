@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.kairo.R
 import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.model.RsvpFontFamily
 import com.example.kairo.core.model.RsvpFontWeight
@@ -32,7 +34,10 @@ fun RsvpSettingsScreen(
 ) {
     val scrollState = rememberScrollState()
 
-    SettingsScaffold(title = "RSVP settings", onBack = onBack) { modifier ->
+    SettingsScaffold(
+        title = stringResource(R.string.rsvp_settings_title),
+        onBack = onBack,
+    ) { modifier ->
         Column(
             modifier =
             modifier

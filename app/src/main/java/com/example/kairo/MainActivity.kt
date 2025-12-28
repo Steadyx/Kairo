@@ -5,7 +5,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -69,6 +69,7 @@ import com.example.kairo.ui.rsvp.RsvpThemeCallbacks
 import com.example.kairo.ui.rsvp.RsvpUiCallbacks
 import com.example.kairo.ui.rsvp.RsvpUiPreferences
 import com.example.kairo.ui.settings.FocusSettingsScreen
+import com.example.kairo.ui.settings.LanguageSettingsScreen
 import com.example.kairo.ui.settings.ReaderSettingsScreen
 import com.example.kairo.ui.settings.RsvpSettingsScreen
 import com.example.kairo.ui.settings.SettingsHomeScreen
@@ -82,7 +83,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -212,14 +213,21 @@ private fun KairoNavHost(
                 }
                 importState = ImportUiState()
                 result.onSuccess { book ->
+                    val chapterCount = book.chapters.size
                     val message =
-                        "Imported: ${book.title} (${book.chapters.size} chapters)"
+                        context.resources.getQuantityString(
+                            R.plurals.toast_imported_with_chapter_count,
+                            chapterCount,
+                            book.title,
+                            chapterCount,
+                        )
                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                 }
                 result.onFailure { error ->
                     val message =
-                        error.message?.let { "Import failed: $it" }
-                            ?: "Import failed: Unknown error"
+                        error.message?.let {
+                            context.getString(R.string.toast_import_failed_detail, it)
+                        } ?: context.getString(R.string.toast_import_failed_unknown)
                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 }
             }
@@ -232,6 +240,7 @@ private fun KairoNavHost(
         prefs.focusModeEnabled &&
             when (currentRoute) {
                 "settings" -> true
+                "settings/language" -> true
                 "reader/{bookId}" -> prefs.focusApplyInReader
                 "reader/{bookId}/{chapterIndex}/{tokenIndex}" -> prefs.focusApplyInReader
                 "rsvp/{bookId}/{chapterIndex}/{tokenIndex}" -> prefs.focusApplyInRsvp
@@ -534,7 +543,11 @@ private fun KairoNavHost(
                                 createdAt = System.currentTimeMillis(),
                             ),
                         )
-                        Toast.makeText(context, "Bookmark added", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.toast_bookmark_added),
+                            Toast.LENGTH_SHORT,
+                        ).show()
                     }
                 },
                 onOpenBookmarks = {
@@ -808,7 +821,11 @@ private fun KairoNavHost(
                                 createdAt = System.currentTimeMillis(),
                             ),
                         )
-                        Toast.makeText(context, "Bookmark added", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.toast_bookmark_added),
+                            Toast.LENGTH_SHORT,
+                        ).show()
                     }
                 },
                 onOpenBookmarks = {
@@ -933,8 +950,8 @@ private fun KairoNavHost(
                                 )
                                 Toast.makeText(
                                     context,
-                                    "Bookmark added",
-                                    Toast.LENGTH_SHORT
+                                    context.getString(R.string.toast_bookmark_added),
+                                    Toast.LENGTH_SHORT,
                                 ).show()
                             }
                         },
@@ -1128,6 +1145,9 @@ private fun KairoNavHost(
 
         composable("settings") {
             SettingsHomeScreen(
+                onOpenLanguage = {
+                    navController.navigate("settings/language")
+                },
                 onOpenRsvp = { navController.navigate("settings/rsvp") },
                 onOpenReader = { navController.navigate("settings/reader") },
                 onOpenFocus = { navController.navigate("settings/focus") },
@@ -1138,6 +1158,10 @@ private fun KairoNavHost(
                 },
                 onClose = { navController.popBackStack() },
             )
+        }
+
+        composable("settings/language") {
+            LanguageSettingsScreen(onBack = { navController.popBackStack() })
         }
 
         composable("settings/rsvp") {

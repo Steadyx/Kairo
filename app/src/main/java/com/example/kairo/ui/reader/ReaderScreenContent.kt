@@ -28,10 +28,12 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.kairo.R
 import com.example.kairo.core.model.Book
 import java.io.File
 import kotlin.math.abs
@@ -205,7 +207,8 @@ internal fun ReaderContent(
                                     .crossfade(false)
                                     .build()
                             },
-                            contentDescription = "Cover of ${book.title}",
+                            contentDescription =
+                            stringResource(R.string.content_desc_cover_of_title, book.title),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Fit,
                         )
@@ -235,7 +238,11 @@ internal fun ReaderContent(
                         ) {
                             AsyncImage(
                                 model = file,
-                                contentDescription = "Title page of ${book.title}",
+                                contentDescription =
+                                stringResource(
+                                    R.string.content_desc_title_page_of_title,
+                                    book.title,
+                                ),
                                 modifier =
                                 Modifier
                                     .fillMaxSize()
@@ -314,7 +321,8 @@ private fun ReaderLoadingState(
                             .crossfade(false)
                             .build()
                     },
-                    contentDescription = "Cover of ${book.title}",
+                    contentDescription =
+                    stringResource(R.string.content_desc_cover_of_title, book.title),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
                 )
@@ -344,7 +352,7 @@ private fun ReaderEmptyState(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "No content in this chapter",
+            text = stringResource(R.string.reader_empty_chapter),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

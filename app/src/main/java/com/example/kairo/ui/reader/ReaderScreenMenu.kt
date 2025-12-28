@@ -30,8 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.kairo.core.model.ReaderTheme
+import com.example.kairo.R
 import com.example.kairo.ui.settings.ReaderSettingsContent
 import com.example.kairo.ui.settings.SettingsNavRow
 import com.example.kairo.ui.settings.SettingsSwitchRow
@@ -92,48 +94,51 @@ internal fun ReaderMenuOverlay(
 
                 if (!showReaderSettings) {
                     SettingsNavRow(
-                        title = "Bookmarks",
-                        subtitle = "Open saved bookmarks",
+                        title = stringResource(R.string.library_tab_bookmarks),
+                        subtitle = stringResource(R.string.library_bookmarks_subtitle),
                         icon = Icons.Default.Bookmark,
                         onClick = onOpenBookmarks,
                     )
                     SettingsNavRow(
-                        title = "Add bookmark",
-                        subtitle = "Save this position",
+                        title = stringResource(R.string.reader_add_bookmark),
+                        subtitle = stringResource(R.string.reader_add_bookmark_subtitle),
                         icon = Icons.Default.Bookmark,
                         showChevron = false,
                         onClick = onAddBookmark,
                     )
 
                     SettingsNavRow(
-                        title = "Reader settings",
-                        subtitle = "Font size, theme, scrolling",
+                        title = stringResource(R.string.reader_settings_title),
+                        subtitle = stringResource(R.string.reader_settings_subtitle),
                         icon = Icons.Default.Settings,
                         onClick = { showReaderSettings = true },
                     )
 
                     SettingsSwitchRow(
-                        title = "Focus mode",
-                        subtitle = "Hide system chrome while reading.",
+                        title = stringResource(R.string.focus_mode_title),
+                        subtitle = stringResource(R.string.focus_mode_subtitle),
                         checked = focusModeEnabled,
                         onCheckedChange = onFocusModeEnabledChange,
                     )
 
                     SettingsNavRow(
-                        title = "Table of contents",
-                        subtitle = "Jump to a chapter",
+                        title = stringResource(R.string.reader_toc_title),
+                        subtitle = stringResource(R.string.reader_toc_subtitle),
                         icon = Icons.AutoMirrored.Filled.ArrowForward,
                         showChevron = false,
                         onClick = onShowToc,
                     )
                 } else {
                     SettingsNavRow(
-                        title = "Back",
+                        title = stringResource(R.string.action_back),
                         icon = Icons.AutoMirrored.Filled.ArrowBack,
                         showChevron = false,
                         onClick = { showReaderSettings = false },
                     )
-                    Text("Reader settings", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.reader_settings_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                     ReaderSettingsContent(
                         fontSizeSp = fontSizeSp,
                         readerTheme = readerTheme,

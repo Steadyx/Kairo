@@ -24,12 +24,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.kairo.core.model.Book
+import com.example.kairo.R
 
 @Composable
 internal fun ReaderHeader(
@@ -83,14 +85,24 @@ internal fun ReaderHeader(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = chapterTitle ?: "Chapter ${chapterIndex + 1}",
+                    text =
+                    chapterTitle
+                        ?: stringResource(
+                            R.string.reader_chapter_title,
+                            chapterIndex + 1,
+                        ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "Chapter ${chapterIndex + 1} of ${book.chapters.size}",
+                    text =
+                    stringResource(
+                        R.string.reader_chapter_of_total,
+                        chapterIndex + 1,
+                        book.chapters.size,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary,
                 )
@@ -100,7 +112,7 @@ internal fun ReaderHeader(
             IconButton(onClick = onPrev, enabled = canGoPrev) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Previous page",
+                    contentDescription = stringResource(R.string.content_desc_previous_page),
                     tint =
                     if (canGoPrev) {
                         MaterialTheme.colorScheme.onSurface
@@ -112,7 +124,7 @@ internal fun ReaderHeader(
             IconButton(onClick = onNext, enabled = canGoNext) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next page",
+                    contentDescription = stringResource(R.string.content_desc_next_page),
                     tint =
                     if (canGoNext) {
                         MaterialTheme.colorScheme.onSurface
@@ -124,7 +136,7 @@ internal fun ReaderHeader(
             IconButton(onClick = onShowMenu) {
                 Icon(
                     Icons.Default.Settings,
-                    contentDescription = "Reader menu",
+                    contentDescription = stringResource(R.string.content_desc_reader_menu),
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
             }
@@ -140,11 +152,17 @@ internal fun ReaderProgressMeta(
 ) {
     if (pageLabel == null && progressPercent == null && etaLabel == null) return
 
+    val percentLabel =
+        if (progressPercent != null) {
+            stringResource(R.string.format_percent, progressPercent)
+        } else {
+            null
+        }
     val metaLine =
         listOfNotNull(
             pageLabel,
-            progressPercent?.let { "$it%" },
-        ).joinToString(" • ")
+            percentLabel,
+        ).joinToString(stringResource(R.string.meta_separator))
 
     Column(
         modifier = Modifier.padding(top = 6.dp),

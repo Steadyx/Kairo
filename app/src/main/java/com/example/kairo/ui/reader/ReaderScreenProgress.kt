@@ -4,8 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.example.kairo.R
 import com.example.kairo.core.model.estimateMinutesForWords
-import com.example.kairo.core.model.formatDurationMinutes
+import com.example.kairo.ui.format.formatShortDurationMinutes
 import kotlin.math.roundToInt
 
 internal data class ReaderProgressState(
@@ -29,6 +32,8 @@ internal fun rememberReaderProgressState(
     chapterIndex: Int,
     chapterCount: Int,
 ): ReaderProgressState {
+    val context = LocalContext.current
+    val metaSeparator = stringResource(R.string.meta_separator)
     val progressPercent =
         remember(safeFocusIndex, totalChapterWords, wordCountByToken) {
             if (totalChapterWords <= 0 || wordCountByToken == null || wordCountByToken.isEmpty()) {
@@ -52,12 +57,14 @@ internal fun rememberReaderProgressState(
             }
         }
     val pageLabel =
-        remember(resolvedPageIndex, pages) {
-            if (resolvedPageIndex >= 0 && pages.isNotEmpty()) {
-                "Page ${resolvedPageIndex + 1} of ${pages.size}"
-            } else {
-                null
-            }
+        if (resolvedPageIndex >= 0 && pages.isNotEmpty()) {
+            context.getString(
+                R.string.reader_page_of_total,
+                resolvedPageIndex + 1,
+                pages.size,
+            )
+        } else {
+            null
         }
     val wordsReadInPage =
         remember(currentPage, wordCountByToken, currentWordIndex) {
@@ -119,24 +126,48 @@ internal fun rememberReaderProgressState(
             (totalBookWords - wordsReadOverall).coerceAtLeast(0)
         }
     val etaLabel =
-        remember(
-            estimatedWpm,
-            remainingPageWords,
-            remainingChapterWords,
-            remainingBookWords,
-        ) {
-            if (estimatedWpm <= 0) return@remember null
+        if (estimatedWpm <= 0) {
+            null
+        } else {
             val parts = mutableListOf<String>()
             if (remainingPageWords > 0) {
-                parts += "page ~${formatDurationMinutes(estimateMinutesForWords(remainingPageWords, estimatedWpm))}"
+                parts +=
+                    context.getString(
+                        R.string.reader_eta_page,
+                        formatShortDurationMinutes(
+                            context,
+                            estimateMinutesForWords(remainingPageWords, estimatedWpm),
+                        ),
+                    )
             }
             if (remainingChapterWords > 0) {
-                parts += "chapter ~${formatDurationMinutes(estimateMinutesForWords(remainingChapterWords, estimatedWpm))}"
+                parts +=
+                    context.getString(
+                        R.string.reader_eta_chapter,
+                        formatShortDurationMinutes(
+                            context,
+                            estimateMinutesForWords(remainingChapterWords, estimatedWpm),
+                        ),
+                    )
             }
             if (remainingBookWords > 0) {
-                parts += "book ~${formatDurationMinutes(estimateMinutesForWords(remainingBookWords, estimatedWpm))}"
+                parts +=
+                    context.getString(
+                        R.string.reader_eta_book,
+                        formatShortDurationMinutes(
+                            context,
+                            estimateMinutesForWords(remainingBookWords, estimatedWpm),
+                        ),
+                    )
             }
-            if (parts.isEmpty()) null else "ETA: ${parts.joinToString(" • ")}"
+            if (parts.isEmpty()) {
+                null
+            } else {
+                context.getString(
+                    R.string.reader_eta_prefix,
+                    parts.joinToString(metaSeparator),
+                )
+            }
         }
     val hasProgressMeta = pageLabel != null || etaLabel != null
 

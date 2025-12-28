@@ -50,14 +50,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.kairo.R
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookmarkItem
-import com.example.kairo.core.model.formatDurationMinutes
+import com.example.kairo.ui.format.formatShortDurationMinutes
 import kotlin.math.roundToInt
 
 @Composable
@@ -102,15 +105,18 @@ fun LibraryScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
-                    Text("Your Library", style = MaterialTheme.typography.titleLarge)
+                    Text(stringResource(R.string.library_title), style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "Import EPUB or MOBI files to get started.",
+                        stringResource(R.string.library_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = onSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = stringResource(R.string.content_desc_settings),
+                    )
                 }
             }
 
@@ -118,12 +124,12 @@ fun LibraryScreen(
                 Tab(
                     selected = selectedTab == LibraryTab.Library.ordinal,
                     onClick = { selectedTab = LibraryTab.Library.ordinal },
-                    text = { Text("Library") },
+                    text = { Text(stringResource(R.string.library_tab_library)) },
                 )
                 Tab(
                     selected = selectedTab == LibraryTab.Bookmarks.ordinal,
                     onClick = { selectedTab = LibraryTab.Bookmarks.ordinal },
-                    text = { Text("Bookmarks") },
+                    text = { Text(stringResource(R.string.library_tab_bookmarks)) },
                 )
             }
 
@@ -145,7 +151,7 @@ fun LibraryScreen(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Import Book")
+                    Text(stringResource(R.string.library_import_button))
                 }
 
                 LazyColumn(
@@ -168,7 +174,7 @@ fun LibraryScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "No bookmarks yet",
+                            stringResource(R.string.library_no_bookmarks),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -223,6 +229,8 @@ private fun LibraryCard(
     onOpen: (Book) -> Unit,
     onDelete: (Book) -> Unit,
 ) {
+    val context = LocalContext.current
+    val authorSeparator = stringResource(R.string.list_separator)
     Card(
         modifier =
         Modifier
@@ -260,7 +268,7 @@ private fun LibraryCard(
                 )
                 if (book.authors.isNotEmpty()) {
                     Text(
-                        text = book.authors.joinToString(", "),
+                        text = book.authors.joinToString(authorSeparator),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -268,22 +276,35 @@ private fun LibraryCard(
                     )
                 }
                 Text(
-                    text = "${book.chapters.size} chapters",
+                    text =
+                    pluralStringResource(
+                        R.plurals.library_chapter_count,
+                        book.chapters.size,
+                        book.chapters.size,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary,
                 )
                 progress?.let { stats ->
                     val eta =
-                        stats.remainingMinutes?.let { minutes ->
-                            "~${formatDurationMinutes(minutes)} left"
+                        if (stats.remainingMinutes != null) {
+                            stringResource(
+                                R.string.library_time_left,
+                                formatShortDurationMinutes(context, stats.remainingMinutes),
+                            )
+                        } else {
+                            null
                         }
+                    val percentCompleteLabel =
+                        stringResource(
+                            R.string.library_percent_complete,
+                            stats.percentComplete,
+                        )
                     val label =
-                        buildString {
-                            append("${stats.percentComplete}% complete")
-                            if (eta != null) {
-                                append(" • ")
-                                append(eta)
-                            }
+                        if (eta != null) {
+                            percentCompleteLabel + stringResource(R.string.meta_separator) + eta
+                        } else {
+                            percentCompleteLabel
                         }
                     Text(
                         text = label,
@@ -297,7 +318,7 @@ private fun LibraryCard(
             IconButton(onClick = { onDelete(book) }) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = stringResource(R.string.content_desc_delete_book),
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                 )
             }
@@ -310,6 +331,7 @@ private fun BookmarkBookHeader(
     book: Book,
     bookmarkCount: Int,
 ) {
+    val authorSeparator = stringResource(R.string.list_separator)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -341,7 +363,7 @@ private fun BookmarkBookHeader(
                 )
                 if (book.authors.isNotEmpty()) {
                     Text(
-                        text = book.authors.joinToString(", "),
+                        text = book.authors.joinToString(authorSeparator),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -403,7 +425,13 @@ private fun BookmarkRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Chapter ${bookmark.chapterIndex + 1} / $chapterCount • $percent%",
+                    text =
+                    stringResource(
+                        R.string.library_bookmark_progress,
+                        bookmark.chapterIndex + 1,
+                        chapterCount,
+                        percent,
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -418,7 +446,7 @@ private fun BookmarkRow(
             IconButton(onClick = { onDeleteBookmark(bookmark.id) }) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Delete bookmark",
+                    contentDescription = stringResource(R.string.content_desc_delete_bookmark),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -435,6 +463,8 @@ private fun BookCover(
 ) {
     val context = LocalContext.current
     if (coverImage != null && coverImage.isNotEmpty()) {
+        val coverDescription =
+            stringResource(R.string.content_desc_cover_of_title, title)
         AsyncImage(
             model =
             remember(coverImage, cacheKey) {
@@ -445,7 +475,7 @@ private fun BookCover(
                     .crossfade(false)
                     .build()
             },
-            contentDescription = "Cover of $title",
+            contentDescription = coverDescription,
             modifier = modifier.clip(RoundedCornerShape(4.dp)),
             contentScale = ContentScale.Crop,
         )

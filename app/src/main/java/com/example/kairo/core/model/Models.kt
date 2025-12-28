@@ -227,22 +227,6 @@ object RsvpProfileIds {
 
 data class RsvpCustomProfile(val id: String, val name: String, val config: RsvpConfig, val updatedAtMs: Long,)
 
-fun RsvpProfile.displayName(): String =
-    when (this) {
-        RsvpProfile.BALANCED -> "Balanced"
-        RsvpProfile.CHILL -> "Chill"
-        RsvpProfile.SPRINT -> "Sprint"
-        RsvpProfile.STUDY -> "Study"
-    }
-
-fun RsvpProfile.description(): String =
-    when (this) {
-        RsvpProfile.BALANCED -> "Smooth, readable default"
-        RsvpProfile.CHILL -> "More breathing room and stronger pauses"
-        RsvpProfile.SPRINT -> "Fast, lighter pauses, higher flow"
-        RsvpProfile.STUDY -> "Deliberate pacing for comprehension"
-    }
-
 fun RsvpProfile.defaultConfig(): RsvpConfig =
     when (this) {
         RsvpProfile.BALANCED -> RsvpConfig()

@@ -29,6 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.example.kairo.R
 import com.example.kairo.ui.settings.RsvpSettingsContent
 import com.example.kairo.ui.settings.SettingsNavRow
 import com.example.kairo.ui.settings.SettingsSliderRow
@@ -101,7 +103,7 @@ private fun RsvpQuickSettingsMain(
 @Composable
 private fun RsvpQuickSettingsHeader() {
     Text(
-        "Quick Settings",
+        stringResource(R.string.rsvp_quick_settings_title),
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurface,
     )
@@ -115,8 +117,8 @@ private fun RsvpQuickSettingsBookmarks(
     val runtime = context.runtime
 
     SettingsNavRow(
-        title = "Bookmarks",
-        subtitle = "Open saved bookmarks",
+        title = stringResource(R.string.library_tab_bookmarks),
+        subtitle = stringResource(R.string.library_bookmarks_subtitle),
         icon = Icons.Default.Bookmark,
         onClick = {
             runtime.showQuickSettings = false
@@ -124,15 +126,15 @@ private fun RsvpQuickSettingsBookmarks(
         },
     )
     SettingsNavRow(
-        title = "Add bookmark",
-        subtitle = "Save this position",
+        title = stringResource(R.string.reader_add_bookmark),
+        subtitle = stringResource(R.string.reader_add_bookmark_subtitle),
         icon = Icons.Default.Bookmark,
         showChevron = false,
         onClick = { addBookmarkNow(context) },
     )
     SettingsNavRow(
-        title = "RSVP settings",
-        subtitle = "Timing profile, readability, display",
+        title = stringResource(R.string.rsvp_settings_title),
+        subtitle = stringResource(R.string.rsvp_settings_subtitle),
         icon = Icons.Default.Settings,
         onClick = onOpenRsvpSettings,
     )
@@ -145,8 +147,8 @@ private fun RsvpQuickSettingsThemeAndFocus(context: RsvpUiContext) {
         onThemeChange = context.callbacks.theme.onThemeChange,
     )
     SettingsSwitchRow(
-        title = "Focus mode",
-        subtitle = "Hide system chrome while reading.",
+        title = stringResource(R.string.focus_mode_title),
+        subtitle = stringResource(R.string.focus_mode_subtitle),
         checked = context.state.uiPrefs.focusModeEnabled,
         onCheckedChange = context.callbacks.ui.onFocusModeEnabledChange,
     )
@@ -157,8 +159,8 @@ private fun RsvpQuickSettingsPositioningToggle(context: RsvpUiContext) {
     val runtime = context.runtime
 
     SettingsSwitchRow(
-        title = "Positioning mode",
-        subtitle = "Swipe to adjust text position.",
+        title = stringResource(R.string.rsvp_positioning_mode_title),
+        subtitle = stringResource(R.string.rsvp_positioning_mode_subtitle),
         checked = runtime.isPositioningMode,
         onCheckedChange = { enabled ->
             if (enabled) {
@@ -180,14 +182,15 @@ private fun RsvpQuickSettingsTempoControls(
     val maxTempoMs = context.timing.maxTempoMs
 
     Text(
-        "~$estimatedWpm WPM",
+        stringResource(R.string.format_estimated_wpm, estimatedWpm),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     SettingsSliderRow(
-        title = "Tempo",
-        subtitle = "Lower = faster.",
-        valueLabel = "${runtime.currentTempoMsPerWord}ms",
+        title = stringResource(R.string.rsvp_tempo_title),
+        subtitle = stringResource(R.string.rsvp_tempo_subtitle),
+        valueLabel =
+        stringResource(R.string.format_ms, runtime.currentTempoMsPerWord),
         value = runtime.currentTempoMsPerWord.toFloat(),
         onValueChange = { newValue ->
             runtime.currentTempoMsPerWord = newValue.toLong().coerceIn(minTempoMs, maxTempoMs)
@@ -198,8 +201,12 @@ private fun RsvpQuickSettingsTempoControls(
         valueRange = minTempoMs.toFloat()..maxTempoMs.toFloat(),
     )
     SettingsSwitchRow(
-        title = "Unlock extreme speeds",
-        subtitle = "Allows down to ${EXTREME_MIN_TEMPO_MS_PER_WORD}ms (can become unreadable).",
+        title = stringResource(R.string.rsvp_unlock_extreme_speeds_title),
+        subtitle =
+        stringResource(
+            R.string.rsvp_unlock_extreme_speeds_subtitle,
+            EXTREME_MIN_TEMPO_MS_PER_WORD,
+        ),
         checked = context.state.uiPrefs.extremeSpeedUnlocked,
         onCheckedChange = { enabled ->
             context.callbacks.preferences.onExtremeSpeedUnlockedChange(enabled)
@@ -216,8 +223,12 @@ private fun RsvpQuickSettingsTextSizeControls(context: RsvpUiContext) {
     val runtime = context.runtime
 
     SettingsSliderRow(
-        title = "Text size",
-        valueLabel = "${runtime.currentFontSizeSp.toInt()}sp",
+        title = stringResource(R.string.rsvp_text_size_title),
+        valueLabel =
+        stringResource(
+            R.string.format_sp,
+            runtime.currentFontSizeSp.toInt(),
+        ),
         value = runtime.currentFontSizeSp,
         onValueChange = { newValue ->
             runtime.currentFontSizeSp = newValue.coerceIn(MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP)
@@ -233,7 +244,7 @@ private fun RsvpQuickSettingsTextSizeControls(context: RsvpUiContext) {
 @Composable
 private fun RsvpQuickSettingsHints() {
     Text(
-        "Swipe up/down to adjust speed\nUse sliders to preview changes\nLong press to exit",
+        stringResource(R.string.rsvp_quick_settings_hints),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -245,13 +256,13 @@ private fun RsvpQuickSettingsAdvanced(
     onBack: () -> Unit,
 ) {
     SettingsNavRow(
-        title = "Back",
+        title = stringResource(R.string.action_back),
         icon = Icons.AutoMirrored.Filled.ArrowBack,
         showChevron = false,
         onClick = onBack,
     )
     Text(
-        "RSVP settings",
+        stringResource(R.string.rsvp_settings_title),
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurface,
     )

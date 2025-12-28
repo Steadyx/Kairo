@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.kairo.R
 import com.example.kairo.core.model.UserPreferences
 
 @Composable
@@ -23,7 +25,10 @@ fun FocusSettingsScreen(
 ) {
     val scrollState = rememberScrollState()
 
-    SettingsScaffold(title = "Focus settings", onBack = onBack) { modifier ->
+    SettingsScaffold(
+        title = stringResource(R.string.focus_settings_title),
+        onBack = onBack,
+    ) { modifier ->
         Column(
             modifier =
             modifier
