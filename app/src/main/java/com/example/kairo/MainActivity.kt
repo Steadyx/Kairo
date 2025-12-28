@@ -1,6 +1,9 @@
 package com.example.kairo
 
+import android.content.Context
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -44,6 +47,7 @@ import com.example.kairo.core.model.wordIndexForToken
 import com.example.kairo.ui.LocalDispatcherProvider
 import com.example.kairo.ui.focus.FocusModeSideEffects
 import com.example.kairo.ui.focus.SystemBarsStyleSideEffect
+import com.example.kairo.ui.library.ImportUiState
 import com.example.kairo.ui.library.LibraryScreen
 import com.example.kairo.ui.library.LibraryTab
 import com.example.kairo.ui.library.LibraryBookProgress
@@ -71,8 +75,12 @@ import com.example.kairo.ui.settings.SettingsHomeScreen
 import com.example.kairo.ui.theme.KairoTheme
 import com.example.kairo.core.rsvp.RsvpPaceEstimator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,6 +119,31 @@ private fun resolveWordIndex(
     return wordIndexForToken(wordCountByToken, tokenIndex)
 }
 
+private fun resolveImportFileName(
+    context: Context,
+    uri: Uri,
+): String? =
+    runCatching {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (cursor.moveToFirst() && nameIndex >= 0) {
+                cursor.getString(nameIndex)
+            } else {
+                null
+            }
+        }
+    }.getOrNull()
+
+private suspend fun driveImportProgress(onUpdate: (Float) -> Unit) {
+    var progress = 0f
+    onUpdate(progress)
+    while (coroutineContext.isActive && progress < 0.92f) {
+        delay(120)
+        progress = (progress + (1f - progress) * 0.08f).coerceAtMost(0.92f)
+        onUpdate(progress)
+    }
+}
+
 @Suppress("CyclomaticComplexMethod", "FunctionNaming", "LongMethod")
 @Composable
 private fun KairoNavHost(
@@ -127,6 +160,8 @@ private fun KairoNavHost(
     val positions by positionsFlow.collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
     val dispatcherProvider = container.dispatcherProvider
+    var importState by remember { mutableStateOf(ImportUiState()) }
+    var importProgressJob by remember { mutableStateOf<Job?>(null) }
 
     val estimatedWpm by produceState(initialValue = 0, prefs.rsvpConfig) {
         value =
@@ -149,6 +184,46 @@ private fun KairoNavHost(
                     estimatedWpm = estimatedWpm,
                 )
             }
+    }
+
+    fun handleImportFile(uri: Uri) {
+        if (importState.isImporting) return
+        val displayName = resolveImportFileName(context, uri)
+        importState =
+            ImportUiState(
+                isImporting = true,
+                progress = 0f,
+                fileName = displayName,
+            )
+        importProgressJob?.cancel()
+        importProgressJob =
+            coroutineScope.launch {
+                driveImportProgress { progress ->
+                    importState = importState.copy(progress = progress)
+                }
+            }
+        coroutineScope.launch(dispatcherProvider.io) {
+            val result = runCatching { container.libraryRepository.import(uri) }
+            withContext(Dispatchers.Main) {
+                importProgressJob?.cancel()
+                if (result.isSuccess) {
+                    importState = importState.copy(progress = 1f)
+                    delay(200)
+                }
+                importState = ImportUiState()
+                result.onSuccess { book ->
+                    val message =
+                        "Imported: ${book.title} (${book.chapters.size} chapters)"
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+                result.onFailure { error ->
+                    val message =
+                        error.message?.let { "Import failed: $it" }
+                            ?: "Import failed: Unknown error"
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -175,6 +250,7 @@ private fun KairoNavHost(
                 bookmarks = bookmarks,
                 bookProgress = libraryProgress,
                 initialTab = LibraryTab.Library,
+                importState = importState,
                 onOpen = { book ->
                     // Navigate to reader - saved position will be restored there
                     navController.navigate("reader/${book.id.value}")
@@ -190,24 +266,7 @@ private fun KairoNavHost(
                 onDeleteBookmark = { bookmarkId ->
                     coroutineScope.launch { container.bookmarkRepository.delete(bookmarkId) }
                 },
-                onImportFile = { uri ->
-                    coroutineScope.launch(dispatcherProvider.io) {
-                        val result = runCatching { container.libraryRepository.import(uri) }
-                        withContext(Dispatchers.Main) {
-                            result.onSuccess { book ->
-                                val message =
-                                    "Imported: ${book.title} (${book.chapters.size} chapters)"
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            }
-                            result.onFailure { error ->
-                                val message =
-                                    error.message?.let { "Import failed: $it" }
-                                        ?: "Import failed: Unknown error"
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    }
-                },
+                onImportFile = ::handleImportFile,
                 onSettings = { navController.navigate("settings") },
                 onDelete = { book ->
                     coroutineScope.launch { container.libraryRepository.delete(book.id.value) }
@@ -237,6 +296,7 @@ private fun KairoNavHost(
                 bookmarks = bookmarks,
                 bookProgress = libraryProgress,
                 initialTab = initialTab,
+                importState = importState,
                 onOpen = { book ->
                     navController.navigate("reader/${book.id.value}")
                 },
@@ -251,24 +311,7 @@ private fun KairoNavHost(
                 onDeleteBookmark = { bookmarkId ->
                     coroutineScope.launch { container.bookmarkRepository.delete(bookmarkId) }
                 },
-                onImportFile = { uri ->
-                    coroutineScope.launch(dispatcherProvider.io) {
-                        val result = runCatching { container.libraryRepository.import(uri) }
-                        withContext(Dispatchers.Main) {
-                            result.onSuccess { book ->
-                                val message =
-                                    "Imported: ${book.title} (${book.chapters.size} chapters)"
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            }
-                            result.onFailure { error ->
-                                val message =
-                                    error.message?.let { "Import failed: $it" }
-                                        ?: "Import failed: Unknown error"
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    }
-                },
+                onImportFile = ::handleImportFile,
                 onSettings = { navController.navigate("settings") },
                 onDelete = { book ->
                     coroutineScope.launch { container.libraryRepository.delete(book.id.value) }

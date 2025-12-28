@@ -66,6 +66,7 @@ fun LibraryScreen(
     bookmarks: List<BookmarkItem>,
     bookProgress: Map<String, LibraryBookProgress>,
     initialTab: LibraryTab = LibraryTab.Library,
+    importState: ImportUiState = ImportUiState(),
     onOpen: (Book) -> Unit,
     onOpenBookmark: (bookId: String, chapterIndex: Int, tokenIndex: Int) -> Unit,
     onDeleteBookmark: (bookmarkId: String) -> Unit,
@@ -82,130 +83,134 @@ fun LibraryScreen(
         }
     var selectedTab by rememberSaveable(initialTab) { mutableIntStateOf(initialTab.ordinal) }
 
-    Column(
-        modifier =
-        Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(
-                WindowInsets.safeDrawing.only(
-                    WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier =
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(
+                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                    )
                 )
-            )
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column {
-                Text("Your Library", style = MaterialTheme.typography.titleLarge)
-                Text(
-                    "Import EPUB or MOBI files to get started.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            IconButton(onClick = onSettings) {
-                Icon(Icons.Default.Settings, contentDescription = "Settings")
-            }
-        }
-
-        TabRow(selectedTabIndex = selectedTab) {
-            Tab(
-                selected = selectedTab == LibraryTab.Library.ordinal,
-                onClick = { selectedTab = LibraryTab.Library.ordinal },
-                text = { Text("Library") },
-            )
-            Tab(
-                selected = selectedTab == LibraryTab.Bookmarks.ordinal,
-                onClick = { selectedTab = LibraryTab.Bookmarks.ordinal },
-                text = { Text("Bookmarks") },
-            )
-        }
-
-        if (selectedTab == LibraryTab.Library.ordinal) {
-            // Import button
-            Button(
-                onClick = {
-                    filePickerLauncher.launch(
-                        arrayOf(
-                            "application/epub+zip",
-                            "application/x-mobipocket-ebook",
-                            "application/octet-stream",
-                            "*/*",
-                        ),
-                    )
-                },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Import Book")
-            }
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(books, key = { it.id.value }) { book ->
-                    LibraryCard(
-                        book = book,
-                        progress = bookProgress[book.id.value],
-                        onOpen = onOpen,
-                        onDelete = onDelete,
-                    )
-                }
-            }
-        } else {
-            if (bookmarks.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
+                Column {
+                    Text("Your Library", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "No bookmarks yet",
-                        style = MaterialTheme.typography.bodyLarge,
+                        "Import EPUB or MOBI files to get started.",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            } else {
-                val grouped =
-                    remember(bookmarks) {
-                        bookmarks
-                            .groupBy { it.book.id.value }
-                            .values
-                            .map { group ->
-                                val firstItem = group.first()
-                                group.sortedByDescending { it.bookmark.createdAt } to firstItem
-                            }.sortedBy { (_, firstItem) -> firstItem.book.title.lowercase() }
-                    }
+                IconButton(onClick = onSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                }
+            }
+
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == LibraryTab.Library.ordinal,
+                    onClick = { selectedTab = LibraryTab.Library.ordinal },
+                    text = { Text("Library") },
+                )
+                Tab(
+                    selected = selectedTab == LibraryTab.Bookmarks.ordinal,
+                    onClick = { selectedTab = LibraryTab.Bookmarks.ordinal },
+                    text = { Text("Bookmarks") },
+                )
+            }
+
+            if (selectedTab == LibraryTab.Library.ordinal) {
+                // Import button
+                Button(
+                    onClick = {
+                        filePickerLauncher.launch(
+                            arrayOf(
+                                "application/epub+zip",
+                                "application/x-mobipocket-ebook",
+                                "application/octet-stream",
+                                "*/*",
+                            ),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !importState.isImporting,
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Import Book")
+                }
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    grouped.forEach { (group, firstItem) ->
-                        item(key = "header_${firstItem.book.id.value}") {
-                            BookmarkBookHeader(
-                                book = firstItem.book,
-                                bookmarkCount = group.size,
-                            )
+                    items(books, key = { it.id.value }) { book ->
+                        LibraryCard(
+                            book = book,
+                            progress = bookProgress[book.id.value],
+                            onOpen = onOpen,
+                            onDelete = onDelete,
+                        )
+                    }
+                }
+            } else {
+                if (bookmarks.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "No bookmarks yet",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    val grouped =
+                        remember(bookmarks) {
+                            bookmarks
+                                .groupBy { it.book.id.value }
+                                .values
+                                .map { group ->
+                                    val firstItem = group.first()
+                                    group.sortedByDescending { it.bookmark.createdAt } to firstItem
+                                }.sortedBy { (_, firstItem) -> firstItem.book.title.lowercase() }
                         }
-                        items(
-                            items = group,
-                            key = { it.bookmark.id },
-                        ) { item ->
-                            BookmarkRow(
-                                item = item,
-                                onOpenBookmark = onOpenBookmark,
-                                onDeleteBookmark = onDeleteBookmark,
-                            )
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        grouped.forEach { (group, firstItem) ->
+                            item(key = "header_${firstItem.book.id.value}") {
+                                BookmarkBookHeader(
+                                    book = firstItem.book,
+                                    bookmarkCount = group.size,
+                                )
+                            }
+                            items(
+                                items = group,
+                                key = { it.bookmark.id },
+                            ) { item ->
+                                BookmarkRow(
+                                    item = item,
+                                    onOpenBookmark = onOpenBookmark,
+                                    onDeleteBookmark = onDeleteBookmark,
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+        ImportProgressOverlay(state = importState)
     }
 }
 
