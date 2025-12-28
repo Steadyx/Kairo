@@ -64,6 +64,7 @@ internal fun ReaderContent(
     onNextPage: () -> Unit,
     onOpenFullScreenImage: (String) -> Unit,
     invertedScrollCommands: MutableSharedFlow<InvertedScrollCommand>,
+    onChapterSelected: ((Int) -> Unit)? = null,
 ) {
     if (isLoading) {
         ReaderLoadingState(
@@ -268,6 +269,7 @@ internal fun ReaderContent(
                             textBrightness = textBrightness,
                             onFocusChange = onSafeFocusChange,
                             onStartRsvp = onStartRsvpForToken,
+                            onChapterSelected = onChapterSelected,
                         )
                     }
                     is ReaderImageBlock -> {

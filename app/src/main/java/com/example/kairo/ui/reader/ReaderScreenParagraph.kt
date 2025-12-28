@@ -32,6 +32,7 @@ internal fun ParagraphText(
     textBrightness: Float,
     onFocusChange: (Int) -> Unit,
     onStartRsvp: (Int) -> Unit,
+    onChapterSelected: ((Int) -> Unit)? = null,
 ) {
     val baseStyle =
         TextStyle(
@@ -47,6 +48,7 @@ internal fun ParagraphText(
             ParagraphStyle(textIndent = TextIndent(firstLine = (fontSizeSp * 0.7f).sp))
         }
     val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
     val focusStyle =
         remember(primary) {
             SpanStyle(
@@ -55,9 +57,16 @@ internal fun ParagraphText(
                 textDecoration = TextDecoration.Underline,
             )
         }
+    val linkStyle =
+        remember(tertiary) {
+            SpanStyle(
+                color = tertiary,
+                textDecoration = TextDecoration.Underline,
+            )
+        }
 
     val annotated =
-        remember(paragraph.tokens, paragraph.startIndex, focusIndex, primary, paragraphIndent) {
+        remember(paragraph.tokens, paragraph.startIndex, focusIndex, primary, tertiary, paragraphIndent) {
             buildAnnotatedString {
                 paragraph.tokens.forEachIndexed { localIndex, token ->
                     if (token.type == TokenType.PARAGRAPH_BREAK ||
@@ -83,6 +92,18 @@ internal fun ParagraphText(
                         start = start,
                         end = end
                     )
+
+                    // Add link annotation if token has a link
+                    if (token.linkChapterIndex != null) {
+                        addStringAnnotation(
+                            tag = "chapterLink",
+                            annotation = token.linkChapterIndex.toString(),
+                            start = start,
+                            end = end
+                        )
+                        addStyle(linkStyle, start, end)
+                    }
+
                     if (globalIndex == focusIndex) addStyle(focusStyle, start, end)
                 }
                 addStyle(paragraphIndent, start = 0, end = length)
@@ -97,7 +118,7 @@ internal fun ParagraphText(
         modifier =
         Modifier
             .fillMaxWidth()
-            .pointerInput(annotated, focusIndex) {
+            .pointerInput(annotated, focusIndex, onChapterSelected) {
                 detectTapGestures(
                     onTap = { position ->
                         val layout = layoutResult ?: return@detectTapGestures
@@ -108,6 +129,22 @@ internal fun ParagraphText(
                                     1
                                 ).coerceAtLeast(0)
                         )
+
+                        // First check for chapter link tap
+                        val linkHit = annotated.getStringAnnotations(
+                            "chapterLink",
+                            offset,
+                            offset
+                        ).firstOrNull()
+                        if (linkHit != null && onChapterSelected != null) {
+                            val chapterIndex = linkHit.item.toIntOrNull()
+                            if (chapterIndex != null) {
+                                onChapterSelected(chapterIndex)
+                                return@detectTapGestures
+                            }
+                        }
+
+                        // Otherwise handle normal token tap
                         val hit =
                             annotated.getStringAnnotations(
                                 "tokenIndex",

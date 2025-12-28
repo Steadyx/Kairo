@@ -77,7 +77,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, plainText, imagePaths, wordCount
+        SELECT bookId, `index`, title, htmlContent, plainText, imagePaths, wordCount
         FROM chapters
         WHERE bookId = :bookId AND `index` = :index
         LIMIT 1
