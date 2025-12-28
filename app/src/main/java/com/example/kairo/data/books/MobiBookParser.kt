@@ -8,12 +8,15 @@ package com.example.kairo.data.books
 
 import android.content.Context
 import android.net.Uri
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import com.example.kairo.core.dispatchers.DispatcherProvider
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Chapter
 import java.io.BufferedInputStream
 import java.io.File
+import java.net.URLDecoder
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.Charset
@@ -34,7 +37,7 @@ import kotlinx.coroutines.withContext
  * DRM-protected files are not supported.
  * For full MOBI/AZW3/KF8 support, consider using a dedicated library.
  */
-class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : BookParser {
+class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookParser {
     companion object {
         // Max file size (50 MB) to prevent OOM
         private const val MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -47,6 +50,16 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         private const val MAX_FALLBACK_TEXT_CHARS = 250_000
         private const val MAX_CHAPTER_WORDS = 3500
         private const val MAX_CHAPTER_TEXT_CHARS = MAX_CHAPTER_WORDS * 7
+        private const val TOC_ANCHOR_THRESHOLD = 12
+        private const val MAX_TOC_TEXT_CHARS = 200_000
+        private const val MIN_FILEPOS_GAP_CHARS = 1200
+        private const val MAX_FILEPOS_CHAPTERS = 400
+        private const val CHAPTER_START_SCAN_BACK = 20000
+        private const val CHAPTER_START_SCAN_FORWARD = 2000
+        private const val COVER_FALLBACK_IMAGE_SCAN = 12
+        private const val COVER_HTML_SCAN_CHARS = 120_000
+        private const val MIN_COLOR_COVER_AREA = 120_000
+        private const val MIN_COLOR_SCORE = 0.08f
 
         private const val MOBI_HEADER_OFFSET = 16
         private const val EXTH_PRESENT_FLAG = 0x40
@@ -67,7 +80,6 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     input.available().toLong()
                 } ?: 0L
-
             require(fileSize <= MAX_FILE_SIZE) {
                 "MOBI file too large (max ${MAX_FILE_SIZE / 1024 / 1024}MB)"
             }
@@ -133,7 +145,18 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         val recordCount = palmDocBuffer.short.toInt() and 0xFFFF
         palmDocBuffer.short
 
-        val header = parseMobiHeader(record0, bookName, fileName)
+        val headers = parseMobiHeaders(record0, bookName, fileName)
+        val header = headers.primary
+        val imageHeader =
+            headers.kf8?.takeIf { it.firstImageIndex > 0 || it.coverRecordIndex != null } ?: header
+        val kf8CoverRecordIndex =
+            findKf8CoverRecordIndex(
+                data = data,
+                recordOffsets = recordOffsets,
+                textRecordCount = recordCount,
+                charset = header.textCharset,
+            )
+        val resolvedCoverRecordIndex = kf8CoverRecordIndex ?: imageHeader.coverRecordIndex
 
         // Extract text content from records
         val textBuilder = StringBuilder()
@@ -149,7 +172,7 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         for (i in textRecordStart until textRecordEnd) {
             val start = recordOffsets[i]
             val end = if (i + 1 < recordOffsets.size) recordOffsets[i + 1] else data.size
-            if (start >= end || start < 0 || end > data.size) continue
+            if (end !in 0..data.size || start !in 0 until end) continue
             val recordData = data.copyOfRange(start, end)
             if (detectImageType(recordData) != null) continue
 
@@ -168,34 +191,69 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             textBuilder.append(text)
         }
 
-        val rawText = breakLongRuns(cleanMobiHtml(textBuilder.toString()))
-        val html =
-            if (looksLikeHtml(rawText)) {
-                rawText
+        val cleanedText = cleanMobiHtml(textBuilder.toString())
+        val hasHtmlTags = looksLikeHtml(cleanedText)
+        val hasEscapedTags =
+            !hasHtmlTags &&
+                cleanedText.contains("&lt;", ignoreCase = true) &&
+                cleanedText.contains("&gt;", ignoreCase = true)
+        val htmlCandidate =
+            if (hasEscapedTags) {
+                decodeHtmlEntities(cleanedText)
             } else {
-                wrapPlainTextAsHtml(rawText)
+                cleanedText
+            }
+        val html =
+            if (looksLikeHtml(htmlCandidate)) {
+                htmlCandidate
+            } else {
+                wrapPlainTextAsHtml(breakLongRuns(htmlCandidate))
             }
 
+        val coverRecindexCandidates = extractCoverImageRecindices(html)
+        val referencedImages = extractReferencedImageIndices(html, coverRecindexCandidates)
         val imageExtraction =
             extractImages(
                 context = context,
                 bookId = bookId,
                 data = data,
                 recordOffsets = recordOffsets,
-                firstImageIndex = header.firstImageIndex,
-                coverRecordIndex = header.coverRecordIndex,
+                firstImageIndex = imageHeader.firstImageIndex,
+                coverRecordIndex = resolvedCoverRecordIndex,
+                textRecordCount = recordCount,
+                coverRecindexCandidates = coverRecindexCandidates,
+                referencedImageIndices = referencedImages,
             )
 
-        val rewrittenHtml =
-            rewriteMobiImageSrcs(
-                html = html,
-                imagePathByRecordIndex = imageExtraction.imagePathByRecordIndex,
-                firstImageIndex = header.firstImageIndex,
-            )
-        val chapters = splitHtmlIntoChapters(rewrittenHtml, header.title)
+        val resolvedFirstImageIndex = imageExtraction.resolvedFirstImageIndex ?: header.firstImageIndex
+        val recindexBase = imageExtraction.recindexBase ?: resolvedFirstImageIndex
+        val chapters = splitHtmlIntoChapters(html, header.title)
+        val chaptersWithImages =
+            chapters.map { chapter ->
+                val rewritten =
+                    rewriteMobiImageSrcs(
+                        html = chapter.htmlContent,
+                        imagePathByRecordIndex = imageExtraction.imagePathByRecordIndex,
+                        recindexBase = recindexBase,
+                    )
+                val imagePaths = extractImagePathsFromHtml(rewritten)
+                if (rewritten == chapter.htmlContent && imagePaths == chapter.imagePaths) {
+                    chapter
+                } else {
+                    chapter.copy(htmlContent = rewritten, imagePaths = imagePaths)
+                }
+            }
 
         val finalChapters =
-            chapters.ifEmpty {
+            if (chaptersWithImages.isNotEmpty()) {
+                chaptersWithImages
+            } else {
+                val rewrittenHtml =
+                    rewriteMobiImageSrcs(
+                        html = html,
+                        imagePathByRecordIndex = imageExtraction.imagePathByRecordIndex,
+                        recindexBase = recindexBase,
+                    )
                 val plain = extractPlainText(rewrittenHtml)
                 listOf(
                     Chapter(
@@ -225,74 +283,324 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         val coverRecordIndex: Int?,
     )
 
-    private data class ImageExtractionResult(
-        val imagePathByRecordIndex: Map<Int, String>,
-        val coverImage: ByteArray?,
+    private data class MobiHeaders(
+        val primary: MobiHeader,
+        val kf8: MobiHeader?,
     )
 
-    private fun parseMobiHeader(
+    private class ImageExtractionResult(
+        val imagePathByRecordIndex: Map<Int, String>,
+        val coverImage: ByteArray?,
+        val resolvedFirstImageIndex: Int?,
+        val recindexBase: Int?,
+    )
+
+    private fun parseMobiHeaders(
         record0: ByteArray,
         fallbackTitle: String,
         fileName: String,
+    ): MobiHeaders {
+        val primary =
+            parseMobiHeaderAtOffset(
+                record0 = record0,
+                fallbackTitle = fallbackTitle,
+                fileName = fileName,
+                headerOffset = MOBI_HEADER_OFFSET,
+            ) ?: buildFallbackHeader(fallbackTitle, fileName)
+        val kf8 = parseSecondaryMobiHeader(record0, fallbackTitle, fileName)
+        return MobiHeaders(primary, kf8)
+    }
+
+    private fun parseSecondaryMobiHeader(
+        record0: ByteArray,
+        fallbackTitle: String,
+        fileName: String,
+    ): MobiHeader? {
+        var offset = indexOfMobiHeader(record0, MOBI_HEADER_OFFSET + 4)
+        var candidate: MobiHeader? = null
+        while (offset >= 0) {
+            val parsed =
+                parseMobiHeaderAtOffset(
+                    record0 = record0,
+                    fallbackTitle = fallbackTitle,
+                    fileName = fileName,
+                    headerOffset = offset,
+                )
+            if (parsed != null) {
+                candidate = parsed
+            }
+            offset = indexOfMobiHeader(record0, offset + 4)
+        }
+        return candidate
+    }
+
+    private fun findKf8CoverRecordIndex(
+        data: ByteArray,
+        recordOffsets: List<Int>,
+        textRecordCount: Int,
+        charset: Charset,
+    ): Int? {
+        val opf = findOpfPackageXml(data, recordOffsets, charset) ?: return null
+        val coverHref = parseCoverHrefFromOpf(opf) ?: return null
+        val resourceNames = findResourceNameList(data, recordOffsets) ?: return null
+        val startIndex =
+            findFirstImageRecordIndex(data, recordOffsets)
+                ?: (1 + textRecordCount).takeIf { it in recordOffsets.indices }
+                ?: return null
+        val target = normalizeResourceName(coverHref)
+        val targetBase = target.substringAfterLast('/', target)
+        val resourceIndex =
+            resourceNames.indexOfFirst { name ->
+                val normalized = normalizeResourceName(name)
+                normalized == target || normalized.substringAfterLast('/', normalized) == targetBase
+            }
+        if (resourceIndex < 0) return null
+        val recordIndex = startIndex + resourceIndex
+        return recordIndex.takeIf { it in recordOffsets.indices }
+    }
+
+    private fun findOpfPackageXml(
+        data: ByteArray,
+        recordOffsets: List<Int>,
+        charset: Charset,
+    ): String? {
+        val startTag = "<package"
+        val endTag = "</package>"
+        for (index in recordOffsets.indices) {
+            val start = recordOffsets[index]
+            val end =
+                if (index + 1 < recordOffsets.size) {
+                    recordOffsets[index + 1]
+                } else {
+                    data.size
+                }
+            if (start < 0 || end > data.size || end <= start) continue
+            val bytes = data.copyOfRange(start, end)
+            if (detectImageType(bytes) != null) continue
+            val text = runCatching { String(bytes, charset) }.getOrDefault(String(bytes))
+            val lower = text.lowercase()
+            val startIndex = lower.indexOf(startTag)
+            if (startIndex < 0) continue
+            val endIndex = lower.indexOf(endTag, startIndex)
+            if (endIndex < 0) continue
+            val endPos = endIndex + endTag.length
+            return text.substring(startIndex, endPos)
+        }
+        return null
+    }
+
+    private fun parseCoverHrefFromOpf(opf: String): String? {
+        val metaCoverRegex =
+            Regex(
+                """<meta[^>]+name\s*=\s*['"]cover['"][^>]+content\s*=\s*['"]([^'"]+)['"][^>]*>""",
+                RegexOption.IGNORE_CASE,
+            )
+        val coverId = metaCoverRegex.find(opf)?.groupValues?.getOrNull(1)
+        val itemRegex = Regex("<item\\b[^>]*>", RegexOption.IGNORE_CASE)
+        var fallback: String? = null
+        for (match in itemRegex.findAll(opf)) {
+            val tag = match.value
+            val id = extractAttribute(tag, "id")
+            val href = extractAttribute(tag, "href")
+            val props = extractAttribute(tag, "properties").orEmpty()
+            if (coverId != null && id == coverId && !href.isNullOrBlank()) {
+                return href
+            }
+            if (props.contains("cover-image", ignoreCase = true) && !href.isNullOrBlank()) {
+                return href
+            }
+            if (fallback == null &&
+                !href.isNullOrBlank() &&
+                (id?.contains("cover", ignoreCase = true) == true ||
+                    href.contains("cover", ignoreCase = true))
+            ) {
+                fallback = href
+            }
+        }
+        if (fallback != null) return fallback
+        val referenceRegex = Regex("<reference\\b[^>]*>", RegexOption.IGNORE_CASE)
+        for (match in referenceRegex.findAll(opf)) {
+            val tag = match.value
+            val type = extractAttribute(tag, "type")
+            val href = extractAttribute(tag, "href")
+            if (type?.equals("cover", ignoreCase = true) == true && !href.isNullOrBlank()) {
+                return href
+            }
+        }
+        return null
+    }
+
+    private fun findResourceNameList(
+        data: ByteArray,
+        recordOffsets: List<Int>,
+    ): List<String>? {
+        var best: List<String>? = null
+        for (index in recordOffsets.indices) {
+            val start = recordOffsets[index]
+            val end =
+                if (index + 1 < recordOffsets.size) {
+                    recordOffsets[index + 1]
+                } else {
+                    data.size
+                }
+            if (start < 0 || end > data.size || end <= start) continue
+            val bytes = data.copyOfRange(start, end)
+            if (detectImageType(bytes) != null) continue
+            val names = extractResourceNamesFromRecord(bytes)
+            if (names.size >= 3 && (best == null || names.size > best!!.size)) {
+                best = names
+            }
+        }
+        return best
+    }
+
+    private fun extractResourceNamesFromRecord(bytes: ByteArray): List<String> {
+        val names = ArrayList<String>()
+        val current = StringBuilder()
+        fun flush() {
+            if (current.isEmpty()) return
+            val value = current.toString()
+            if (looksLikeResourceName(value)) {
+                names.add(value)
+            }
+            current.setLength(0)
+        }
+        bytes.forEach { b ->
+            val ch = b.toInt() and 0xFF
+            if (ch in 32..126) {
+                current.append(ch.toChar())
+            } else {
+                flush()
+            }
+        }
+        flush()
+        return names
+    }
+
+    private fun looksLikeResourceName(value: String): Boolean {
+        if (!value.contains('.')) return false
+        if (value.length > 180) return false
+        val lower = value.lowercase()
+        val ext = lower.substringAfterLast('.', "")
+        return ext in setOf(
+            "jpg",
+            "jpeg",
+            "png",
+            "gif",
+            "svg",
+            "webp",
+            "bmp",
+            "css",
+            "html",
+            "xhtml",
+            "opf",
+            "ncx",
+            "otf",
+            "ttf",
+            "woff",
+            "woff2",
+        )
+    }
+
+    private fun normalizeResourceName(value: String): String {
+        var cleaned = value.trim()
+        cleaned = cleaned.substringBefore('#')
+        cleaned = cleaned.substringBefore('?')
+        cleaned = cleaned.replace('\\', '/')
+        while (cleaned.startsWith("./")) {
+            cleaned = cleaned.removePrefix("./")
+        }
+        return runCatching { URLDecoder.decode(cleaned, "UTF-8") }
+            .getOrDefault(cleaned)
+            .lowercase()
+    }
+
+    private fun buildFallbackHeader(
+        fallbackTitle: String,
+        fileName: String,
     ): MobiHeader {
+        val title =
+            if (fallbackTitle.isNotBlank()) {
+                fallbackTitle
+            } else {
+                fileName.substringBeforeLast('.', "Unknown Book")
+            }
+        return MobiHeader(
+            title = title,
+            authors = emptyList(),
+            textCharset = Charsets.UTF_8,
+            firstImageIndex = -1,
+            coverRecordIndex = null,
+        )
+    }
+
+    private fun parseMobiHeaderAtOffset(
+        record0: ByteArray,
+        fallbackTitle: String,
+        fileName: String,
+        headerOffset: Int,
+    ): MobiHeader? {
+        if (headerOffset < 0 || headerOffset + 4 > record0.size) return null
+        val mobiCheck = String(record0.copyOfRange(headerOffset, headerOffset + 4))
+        if (mobiCheck != "MOBI") return null
+
         var title = fallbackTitle
         var authors = emptyList<String>()
         var textCharset = Charsets.UTF_8
         var firstImageIndex = -1
         var coverRecordIndex: Int? = null
 
-        if (record0.size > MOBI_HEADER_OFFSET + 4) {
-            val mobiCheck =
-                String(record0.copyOfRange(MOBI_HEADER_OFFSET, MOBI_HEADER_OFFSET + 4))
-            if (mobiCheck == "MOBI") {
-                val headerLength = readInt(record0, MOBI_HEADER_OFFSET + 4)
-                val textEncoding = readInt(record0, MOBI_HEADER_OFFSET + 12)
-                textCharset = resolveCharset(textEncoding)
+        val headerLength = readInt(record0, headerOffset + 4)
+        if (headerLength <= 0 || headerOffset + headerLength > record0.size) return null
+        val textEncoding = readInt(record0, headerOffset + 12)
+        textCharset = resolveCharset(textEncoding)
 
-                val fullNameOffset = readInt(record0, MOBI_HEADER_OFFSET + 28)
-                val fullNameLength = readInt(record0, MOBI_HEADER_OFFSET + 32)
-                if (fullNameOffset > 0 &&
-                    fullNameLength > 0 &&
-                    fullNameOffset + fullNameLength <= record0.size
-                ) {
-                    title =
-                        runCatching {
-                            String(
-                                record0,
-                                fullNameOffset,
-                                fullNameLength,
-                                textCharset,
-                            ).trim('\u0000')
-                        }.getOrDefault(title)
-                }
+        val fullNameOffset = readInt(record0, headerOffset + 28)
+        val fullNameLength = readInt(record0, headerOffset + 32)
+        if (fullNameOffset > 0 &&
+            fullNameLength > 0 &&
+            fullNameOffset + fullNameLength <= record0.size
+        ) {
+            title =
+                runCatching {
+                    String(
+                        record0,
+                        fullNameOffset,
+                        fullNameLength,
+                        textCharset,
+                    ).trim('\u0000')
+                }.getOrDefault(title)
+        }
 
-                if (headerLength >= FIRST_IMAGE_INDEX_OFFSET + 4) {
-                    firstImageIndex = readInt(record0, MOBI_HEADER_OFFSET + FIRST_IMAGE_INDEX_OFFSET)
-                }
+        if (headerLength >= FIRST_IMAGE_INDEX_OFFSET + 4) {
+            firstImageIndex = readInt(record0, headerOffset + FIRST_IMAGE_INDEX_OFFSET)
+        }
 
-                val exthFlags =
-                    if (headerLength >= EXTH_FLAGS_OFFSET + 4) {
-                        readInt(record0, MOBI_HEADER_OFFSET + EXTH_FLAGS_OFFSET)
-                    } else {
-                        0
-                    }
-                val exthStart = MOBI_HEADER_OFFSET + headerLength
-                if ((exthFlags and EXTH_PRESENT_FLAG) != 0 &&
-                    exthStart + 12 <= record0.size
-                ) {
-                    val exth =
-                        parseExthHeader(
-                            record0 = record0,
-                            start = exthStart,
-                            charset = textCharset,
-                        )
-                    if (exth.title != null) {
-                        title = exth.title
-                    }
-                    authors = exth.authors
-                    coverRecordIndex = exth.coverRecordIndex
-                }
+        val exthFlags =
+            if (headerLength >= EXTH_FLAGS_OFFSET + 4) {
+                readInt(record0, headerOffset + EXTH_FLAGS_OFFSET)
+            } else {
+                0
             }
+        val exthStart = headerOffset + headerLength
+        val hasExthFlag = (exthFlags and EXTH_PRESENT_FLAG) != 0
+        val hasExthMagic =
+            exthStart + 4 <= record0.size &&
+                String(record0.copyOfRange(exthStart, exthStart + 4)) == "EXTH"
+        if ((hasExthFlag || hasExthMagic) && exthStart + 12 <= record0.size) {
+            val exth =
+                parseExthHeader(
+                    record0 = record0,
+                    start = exthStart,
+                    charset = textCharset,
+                )
+            if (exth.title != null) {
+                title = exth.title
+            }
+            if (exth.authors.isNotEmpty()) {
+                authors = exth.authors
+            }
+            coverRecordIndex = exth.coverRecordIndex
         }
 
         if (title.isBlank()) {
@@ -383,6 +691,40 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             (data[offset + 3].toInt() and 0xFF)
     }
 
+    private fun indexOfMobiHeader(
+        data: ByteArray,
+        startIndex: Int,
+    ): Int {
+        if (startIndex < 0 || startIndex >= data.size - 4) return -1
+        val limit = data.size - 4
+        var index = startIndex
+        while (index <= limit) {
+            if (data[index] == 'M'.code.toByte() &&
+                data[index + 1] == 'O'.code.toByte() &&
+                data[index + 2] == 'B'.code.toByte() &&
+                data[index + 3] == 'I'.code.toByte()
+            ) {
+                return index
+            }
+            index += 1
+        }
+        return -1
+    }
+
+    private fun readLittleEndianShort(data: ByteArray, offset: Int): Int {
+        if (offset + 2 > data.size || offset < 0) return 0
+        return (data[offset].toInt() and 0xFF) or
+            ((data[offset + 1].toInt() and 0xFF) shl 8)
+    }
+
+    private fun readLittleEndianInt(data: ByteArray, offset: Int): Int {
+        if (offset + 4 > data.size || offset < 0) return 0
+        return (data[offset].toInt() and 0xFF) or
+            ((data[offset + 1].toInt() and 0xFF) shl 8) or
+            ((data[offset + 2].toInt() and 0xFF) shl 16) or
+            ((data[offset + 3].toInt() and 0xFF) shl 24)
+    }
+
     private fun cleanMobiHtml(html: String): String =
         html.replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"), "")
 
@@ -390,7 +732,10 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         text.contains("<p", ignoreCase = true) ||
             text.contains("<div", ignoreCase = true) ||
             text.contains("<html", ignoreCase = true) ||
-            text.contains("<body", ignoreCase = true)
+            text.contains("<body", ignoreCase = true) ||
+            text.contains("<a", ignoreCase = true) ||
+            text.contains("<h", ignoreCase = true) ||
+            text.contains("<br", ignoreCase = true)
 
     private fun wrapPlainTextAsHtml(text: String): String {
         if (text.isBlank()) return ""
@@ -445,31 +790,123 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         recordOffsets: List<Int>,
         firstImageIndex: Int,
         coverRecordIndex: Int?,
+        textRecordCount: Int,
+        coverRecindexCandidates: Set<Int>,
+        referencedImageIndices: Set<Int>,
     ): ImageExtractionResult {
         val imagePathByRecordIndex = mutableMapOf<Int, String>()
-        var coverImage: ByteArray? = null
+        var firstImage: ByteArray? = null
+        var bestOverall: ByteArray? = null
+        var bestOverallScore = 0L
+        var bestPortrait: ByteArray? = null
+        var bestPortraitScore = 0L
 
         val imageDir = File(context.filesDir, "kairo_mobi_assets/${bookId.value}/images")
         val canWriteImages = runCatching { imageDir.mkdirs() || imageDir.exists() }.getOrDefault(false)
 
         val textRecords = recordOffsets.size
-        val fallbackImageStart =
-            (firstImageIndex.takeIf { it > 0 } ?: -1).takeIf { it < textRecords }
-                ?: -1
-        val startIndex = if (fallbackImageStart >= 0) fallbackImageStart else -1
-        if (startIndex < 0) {
-            return ImageExtractionResult(imagePathByRecordIndex, coverImage)
+        var resolvedStartIndex =
+            when {
+                firstImageIndex > 0 && firstImageIndex < textRecords -> firstImageIndex
+                textRecordCount > 0 -> {
+                    val candidate = 1 + textRecordCount
+                    candidate.takeIf { it in 0 until textRecords } ?: -1
+                }
+                else -> -1
+            }
+        if (resolvedStartIndex >= 0 &&
+            !isImageRecord(data, recordOffsets, resolvedStartIndex)
+        ) {
+            resolvedStartIndex = -1
         }
+        if (resolvedStartIndex < 0) {
+            resolvedStartIndex = findFirstImageRecordIndex(data, recordOffsets) ?: -1
+        }
+        val hasValidStartIndex = resolvedStartIndex >= 0
+        val startIndex = if (hasValidStartIndex) resolvedStartIndex else 0
+
+        val filterImages = false
+        val recindexBase =
+            if (hasValidStartIndex && startIndex > 0 && !isImageRecord(data, recordOffsets, startIndex - 1)) {
+                startIndex - 1
+            } else if (hasValidStartIndex) {
+                startIndex
+            } else {
+                -1
+            }
+        val hasValidRecindexBase = recindexBase >= 0
+
+        val explicitCoverIndices =
+            buildExplicitCoverIndices(
+                coverRecordIndex = coverRecordIndex,
+                recindexBase = recindexBase,
+                firstImageIndex = firstImageIndex,
+                recordCount = recordOffsets.size,
+                hasValidRecindexBase = hasValidRecindexBase,
+            )
+        val htmlCoverCandidateIndices =
+            buildHtmlCoverCandidateIndices(
+                coverRecindexCandidates = coverRecindexCandidates,
+                recindexBase = recindexBase,
+                recordCount = recordOffsets.size,
+                hasValidRecindexBase = hasValidRecindexBase,
+            )
+        val htmlCoverPreferredIndex =
+            resolveHtmlCoverPreferredIndex(
+                data = data,
+                recordOffsets = recordOffsets,
+                coverRecindexCandidates = coverRecindexCandidates,
+                recindexBase = recindexBase,
+                hasValidRecindexBase = hasValidRecindexBase,
+            )
+        val coverCandidateIndices =
+            buildCoverCandidateIndices(
+                coverRecindexCandidates = coverRecindexCandidates,
+                startIndex = startIndex,
+                recindexBase = recindexBase,
+                firstImageIndex = firstImageIndex,
+                coverRecordIndex = coverRecordIndex,
+                recordCount = recordOffsets.size,
+                hasValidStartIndex = hasValidStartIndex,
+            ).toMutableSet().also { it.addAll(explicitCoverIndices) }
+        val neededIndices =
+            if (filterImages) {
+                buildNeededImageIndices(
+                    referencedImageIndices = referencedImageIndices,
+                    coverCandidateIndices = coverCandidateIndices,
+                    startIndex = startIndex,
+                    hasValidStartIndex = hasValidStartIndex,
+                )
+            } else {
+                emptySet()
+            }
+        val loopStart = if (filterImages) neededIndices.minOrNull() ?: startIndex else startIndex
+        val loopEnd =
+            if (filterImages) neededIndices.maxOrNull() ?: recordOffsets.lastIndex else recordOffsets.lastIndex
 
         var totalImageBytes = 0L
+        var htmlCoverPreferred: ByteArray? = null
+        var htmlCoverCandidate: ByteArray? = null
+        var htmlCoverCandidateScore = 0L
+        var colorCoverCandidate: ByteArray? = null
+        var colorCoverScore = 0f
+        var coverCandidate: ByteArray? = null
+        var coverCandidateScore = 0L
+        var coverPortraitCandidate: ByteArray? = null
+        var coverPortraitScore = 0L
+        var explicitCoverImage: ByteArray? = null
 
-        for (index in startIndex until recordOffsets.size) {
+        for (index in loopStart..loopEnd) {
+            if (filterImages && index !in neededIndices) continue
             val start = recordOffsets[index]
             val end = if (index + 1 < recordOffsets.size) recordOffsets[index + 1] else data.size
-            if (start >= end || start < 0 || end > data.size) continue
+            if (end !in 0..data.size || start !in 0 until end) continue
 
             val raw = data.copyOfRange(start, end)
             val imageType = detectImageType(raw) ?: continue
+            val dimensions = readImageDimensions(imageType, raw)
+            val score = dimensions?.area ?: raw.size.toLong()
+            val isPortrait = dimensions?.isPortrait == true
             val maxSize =
                 if (coverRecordIndex != null &&
                     (index == coverRecordIndex || index == startIndex + coverRecordIndex)
@@ -482,12 +919,44 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
 
             totalImageBytes += raw.size
             if (totalImageBytes > MAX_TOTAL_IMAGE_SIZE) break
+            if (firstImage == null) {
+                firstImage = raw
+            }
 
-            if (coverImage == null &&
-                coverRecordIndex != null &&
-                (index == coverRecordIndex || index == startIndex + coverRecordIndex)
-            ) {
-                coverImage = raw
+            if (dimensions != null && isPortrait && dimensions.area >= MIN_COLOR_COVER_AREA) {
+                val colorScore = estimateColorScore(raw, dimensions)
+                if (colorScore != null && colorScore > colorCoverScore) {
+                    colorCoverScore = colorScore
+                    colorCoverCandidate = raw
+                }
+            }
+            if (htmlCoverPreferred == null && index == htmlCoverPreferredIndex) {
+                htmlCoverPreferred = raw
+            }
+            if (index in htmlCoverCandidateIndices && score > htmlCoverCandidateScore) {
+                htmlCoverCandidateScore = score
+                htmlCoverCandidate = raw
+            }
+            if (explicitCoverImage == null && index in explicitCoverIndices) {
+                explicitCoverImage = raw
+            }
+            if (index in coverCandidateIndices) {
+                if (score > coverCandidateScore) {
+                    coverCandidateScore = score
+                    coverCandidate = raw
+                }
+                if (isPortrait && score > coverPortraitScore) {
+                    coverPortraitScore = score
+                    coverPortraitCandidate = raw
+                }
+            }
+            if (score > bestOverallScore) {
+                bestOverallScore = score
+                bestOverall = raw
+            }
+            if (isPortrait && score > bestPortraitScore) {
+                bestPortraitScore = score
+                bestPortrait = raw
             }
 
             if (canWriteImages) {
@@ -505,20 +974,27 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             }
         }
 
-        if (coverImage == null) {
-            coverImage = imagePathByRecordIndex.keys.firstOrNull()?.let { index ->
-                val start = recordOffsets.getOrNull(index) ?: return@let null
-                val end =
-                    if (index + 1 < recordOffsets.size) recordOffsets[index + 1] else data.size
-                if (start < 0 || end > data.size || start >= end) return@let null
-                data.copyOfRange(start, end)
+        val coverImage =
+            if (colorCoverCandidate != null && colorCoverScore >= MIN_COLOR_SCORE) {
+                colorCoverCandidate
+            } else {
+                explicitCoverImage ?: htmlCoverPreferred ?: htmlCoverCandidate ?: coverPortraitCandidate
+                    ?: coverCandidate ?: firstImage ?: bestPortrait ?: bestOverall
             }
-        }
 
-        return ImageExtractionResult(imagePathByRecordIndex, coverImage)
+        return ImageExtractionResult(
+            imagePathByRecordIndex = imagePathByRecordIndex,
+            coverImage = coverImage,
+            resolvedFirstImageIndex = resolvedStartIndex.takeIf { it >= 0 },
+            recindexBase = recindexBase.takeIf { it >= 0 },
+        )
     }
 
     private data class ImageType(val extension: String)
+    private data class ImageDimensions(val width: Int, val height: Int) {
+        val area: Long = width.toLong() * height.toLong()
+        val isPortrait: Boolean = height >= width
+    }
 
     private fun detectImageType(bytes: ByteArray): ImageType? {
         if (bytes.size < 12) return null
@@ -537,43 +1013,228 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         }
     }
 
+    private fun readImageDimensions(type: ImageType, bytes: ByteArray): ImageDimensions? =
+        when (type.extension) {
+            "jpg" -> readJpegDimensions(bytes)
+            "png" -> readPngDimensions(bytes)
+            "gif" -> readGifDimensions(bytes)
+            "bmp" -> readBmpDimensions(bytes)
+            else -> null
+        }
+
+    private fun readPngDimensions(bytes: ByteArray): ImageDimensions? {
+        if (bytes.size < 24) return null
+        val width = readInt(bytes, 16)
+        val height = readInt(bytes, 20)
+        return if (width > 0 && height > 0) ImageDimensions(width, height) else null
+    }
+
+    private fun readGifDimensions(bytes: ByteArray): ImageDimensions? {
+        if (bytes.size < 10) return null
+        val width = readLittleEndianShort(bytes, 6)
+        val height = readLittleEndianShort(bytes, 8)
+        return if (width > 0 && height > 0) ImageDimensions(width, height) else null
+    }
+
+    private fun readBmpDimensions(bytes: ByteArray): ImageDimensions? {
+        if (bytes.size < 26) return null
+        val width = readLittleEndianInt(bytes, 18)
+        val height = readLittleEndianInt(bytes, 22)
+        val absHeight = if (height < 0) -height else height
+        return if (width > 0 && absHeight > 0) ImageDimensions(width, absHeight) else null
+    }
+
+    private fun readJpegDimensions(bytes: ByteArray): ImageDimensions? {
+        if (bytes.size < 4 || bytes[0] != 0xFF.toByte() || bytes[1] != 0xD8.toByte()) return null
+        var index = 2
+        while (index + 1 < bytes.size) {
+            if (bytes[index] != 0xFF.toByte()) {
+                index++
+                continue
+            }
+            while (index < bytes.size && bytes[index] == 0xFF.toByte()) {
+                index++
+            }
+            if (index >= bytes.size) break
+            val marker = bytes[index].toInt() and 0xFF
+            index++
+            if (marker == 0xD8 || marker == 0xD9) continue
+            if (index + 1 >= bytes.size) break
+            val length = ((bytes[index].toInt() and 0xFF) shl 8) or (bytes[index + 1].toInt() and 0xFF)
+            if (length < 2) return null
+            if (marker in listOf(0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF)) {
+                if (index + 7 >= bytes.size) return null
+                val height = ((bytes[index + 3].toInt() and 0xFF) shl 8) or (bytes[index + 4].toInt() and 0xFF)
+                val width = ((bytes[index + 5].toInt() and 0xFF) shl 8) or (bytes[index + 6].toInt() and 0xFF)
+                return if (width > 0 && height > 0) ImageDimensions(width, height) else null
+            }
+            index += length
+        }
+        return null
+    }
+
+    private fun estimateColorScore(
+        bytes: ByteArray,
+        dimensions: ImageDimensions,
+    ): Float? {
+        val sampleMax = 72
+        val sample =
+            if (dimensions.width > sampleMax || dimensions.height > sampleMax) {
+                val sampleSize =
+                    maxOf(
+                        1,
+                        minOf(dimensions.width / sampleMax, dimensions.height / sampleMax),
+                    )
+                sampleSize
+            } else {
+                1
+            }
+        val options =
+            BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
+            }
+        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
+        val width = bitmap.width
+        val height = bitmap.height
+        if (width <= 0 || height <= 0) {
+            bitmap.recycle()
+            return null
+        }
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        bitmap.recycle()
+
+        var totalSat = 0f
+        var count = 0
+        val hsv = FloatArray(3)
+        val step = if (pixels.size > 4096) 2 else 1
+        var i = 0
+        while (i < pixels.size) {
+            Color.colorToHSV(pixels[i], hsv)
+            totalSat += hsv[1]
+            count += 1
+            i += step
+        }
+        return if (count > 0) totalSat / count else null
+    }
+
+    private fun findFirstImageRecordIndex(
+        data: ByteArray,
+        recordOffsets: List<Int>,
+    ): Int? {
+        if (recordOffsets.isEmpty()) return null
+        val lastIndex = recordOffsets.lastIndex
+        for (index in 1..lastIndex) {
+            val start = recordOffsets[index]
+            val end = if (index + 1 <= lastIndex) recordOffsets[index + 1] else data.size
+            if (start < 0 || end > data.size || end <= start) continue
+            if (isImageRecord(data, recordOffsets, index)) return index
+        }
+        return null
+    }
+
+    private fun isImageRecord(
+        data: ByteArray,
+        recordOffsets: List<Int>,
+        index: Int,
+    ): Boolean {
+        if (index !in recordOffsets.indices) return false
+        val start = recordOffsets[index]
+        val end =
+            if (index + 1 < recordOffsets.size) {
+                recordOffsets[index + 1]
+            } else {
+                data.size
+            }
+        if (start < 0 || end > data.size || end <= start) return false
+        val headerEnd = (start + 32).coerceAtMost(end)
+        if (headerEnd - start < 12) return false
+        val head = data.copyOfRange(start, headerEnd)
+        return detectImageType(head) != null
+    }
+
     private fun rewriteMobiImageSrcs(
         html: String,
         imagePathByRecordIndex: Map<Int, String>,
-        firstImageIndex: Int,
+        recindexBase: Int,
     ): String {
         var updated = html
         val recindexRegex =
-            Regex("(<img[^>]+?)\\s+recindex\\s*=\\s*['\\\"](\\d+)['\\\"]([^>]*>)",
-                RegexOption.IGNORE_CASE)
+            Regex(
+                """(<img[^>]+?)\s+recindex\s*=\s*['"](\d+)['"]([^>]*>)""",
+                RegexOption.IGNORE_CASE
+            )
         updated = recindexRegex.replace(updated) { match ->
             val recIndex = match.groupValues[2].toIntOrNull() ?: return@replace match.value
-            val resolved = resolveImagePath(recIndex, imagePathByRecordIndex, firstImageIndex)
+            val resolved = resolveImagePath(recIndex, imagePathByRecordIndex, recindexBase)
                 ?: return@replace match.value
             "${match.groupValues[1]} src=\"$resolved\"${match.groupValues[3]}"
         }
 
         val embedRegex =
-            Regex("(src\\s*=\\s*['\\\"])kindle:embed:(\\d+)(['\\\"])",
-                RegexOption.IGNORE_CASE)
+            Regex(
+                """(src\s*=\s*['"])kindle:embed:(\d+)(['"])""",
+                RegexOption.IGNORE_CASE
+            )
         updated = embedRegex.replace(updated) { match ->
             val embedIndex = match.groupValues[2].toIntOrNull() ?: return@replace match.value
-            val resolved = resolveImagePath(embedIndex, imagePathByRecordIndex, firstImageIndex)
+            val resolved = resolveImagePath(embedIndex, imagePathByRecordIndex, recindexBase)
                 ?: return@replace match.value
             "${match.groupValues[1]}$resolved${match.groupValues[3]}"
+        }
+
+        if (imagePathByRecordIndex.isNotEmpty()) {
+            val orderedPaths = imagePathByRecordIndex.toSortedMap().values.toList()
+            var fallbackIndex = 0
+            val imgRegex = Regex("""<img\b[^>]*>""", RegexOption.IGNORE_CASE)
+            updated = imgRegex.replace(updated) { match ->
+                val tag = match.value
+                if (tag.contains("recindex", ignoreCase = true)) return@replace tag
+                if (tag.contains("kindle:embed", ignoreCase = true)) return@replace tag
+                val src = extractAttribute(tag, "src") ?: return@replace tag
+                if (src.startsWith("data:", ignoreCase = true) ||
+                    src.startsWith("http://", ignoreCase = true) ||
+                    src.startsWith("https://", ignoreCase = true) ||
+                    src.contains("kairo_mobi_assets/", ignoreCase = true)
+                ) {
+                    return@replace tag
+                }
+                val replacement = orderedPaths.getOrNull(fallbackIndex) ?: return@replace tag
+                fallbackIndex += 1
+                replaceSrcInTag(tag, replacement)
+            }
         }
 
         return updated
     }
 
+    private fun replaceSrcInTag(
+        tag: String,
+        src: String,
+    ): String {
+        val srcRegex = Regex("""\bsrc\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)""", RegexOption.IGNORE_CASE)
+        return if (srcRegex.containsMatchIn(tag)) {
+            srcRegex.replace(tag) { "src=\"$src\"" }
+        } else {
+            val (prefix, suffix) =
+                if (tag.endsWith("/>")) {
+                    tag.dropLast(2) to "/>"
+                } else {
+                    tag.dropLast(1) to ">"
+                }
+            "$prefix src=\"$src\"$suffix"
+        }
+    }
+
     private fun resolveImagePath(
         index: Int,
         imagePathByRecordIndex: Map<Int, String>,
-        firstImageIndex: Int,
+        recindexBase: Int,
     ): String? {
         imagePathByRecordIndex[index]?.let { return it }
-        if (firstImageIndex > 0) {
-            imagePathByRecordIndex[firstImageIndex + index]?.let { return it }
+        if (recindexBase >= 0) {
+            imagePathByRecordIndex[recindexBase + index]?.let { return it }
         }
         return null
     }
@@ -582,15 +1243,50 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         html: String,
         fallbackTitle: String,
     ): List<Chapter> {
+        val slices = splitHtmlIntoChapterSlices(html, fallbackTitle)
+        if (slices.isEmpty()) return emptyList()
+
+        val baseChapters = slices.map { it.chapter }
+        val idToBaseIndex = buildAnchorIdIndex(baseChapters)
+        val expansion = splitLargeChapters(baseChapters, fallbackTitle)
+
+        return rewriteMobiAnchorHrefs(
+            chapters = expansion.chapters,
+            idToBaseIndex = idToBaseIndex,
+            baseIndexToExpandedIndex = expansion.baseIndexToExpandedIndex,
+            slices = slices,
+        )
+    }
+
+    private data class MobiChapterSlice(
+        val start: Int,
+        val end: Int,
+        val chapter: Chapter,
+    )
+
+    private class ChapterExpansion(
+        val chapters: List<Chapter>,
+        val baseIndexToExpandedIndex: IntArray,
+    )
+
+    private fun splitHtmlIntoChapterSlices(
+        html: String,
+        fallbackTitle: String,
+    ): List<MobiChapterSlice> {
         val headingRegex =
             Regex("<h[1-3][^>]*>.*?</h[1-3]>", RegexOption.IGNORE_CASE)
         val matches = headingRegex.findAll(html).toList()
 
-        val chapters =
-            if (matches.size < 2) {
-                val plainText = extractPlainText(html)
-                if (plainText.isBlank()) return emptyList()
-                listOf(
+        if (matches.size < 2) {
+            val byFilepos = splitHtmlIntoChapterSlicesByFilepos(html, fallbackTitle)
+            if (byFilepos.isNotEmpty()) return byFilepos
+            val plainText = extractPlainText(html)
+            if (plainText.isBlank()) return emptyList()
+            return listOf(
+                MobiChapterSlice(
+                    start = 0,
+                    end = html.length,
+                    chapter =
                     Chapter(
                         index = 0,
                         title = fallbackTitle,
@@ -598,54 +1294,367 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
                         plainText = plainText,
                         imagePaths = extractImagePathsFromHtml(html),
                     ),
-                )
+                ),
+            )
+        }
+
+        val collected = mutableListOf<MobiChapterSlice>()
+        val indices = matches.map { it.range.first } + html.length
+        indices.zipWithNext().forEachIndexed { index, (start, end) ->
+            val segment = html.substring(start, end).trim()
+            val title =
+                extractPlainText(matches.getOrNull(index)?.value.orEmpty())
+                    .lineSequence()
+                    .firstOrNull()
+                    ?.take(100)
+                    ?.takeIf { it.isNotBlank() }
+                    ?: "Chapter ${index + 1}"
+            val plain = extractPlainText(segment)
+            if (plain.isBlank()) return@forEachIndexed
+            collected.add(
+                MobiChapterSlice(
+                    start = start,
+                    end = end,
+                    chapter =
+                    Chapter(
+                        index = collected.size,
+                        title = title,
+                        htmlContent = segment,
+                        plainText = plain,
+                        imagePaths = extractImagePathsFromHtml(segment),
+                    ),
+                ),
+            )
+        }
+        return collected
+    }
+
+    private data class TocEntry(
+        val filepos: Int,
+        val title: String,
+    )
+
+    private fun splitHtmlIntoChapterSlicesByFilepos(
+        html: String,
+        fallbackTitle: String,
+    ): List<MobiChapterSlice> {
+        if (html.isBlank()) return emptyList()
+        val tocRegion = html.take(MAX_TOC_TEXT_CHARS)
+        val entries = extractTocEntries(tocRegion, html.length)
+        if (entries.size < 2) return emptyList()
+
+        val filteredEntries = mutableListOf<TocEntry>()
+        var lastPos = -1
+        for (entry in entries) {
+            val pos = entry.filepos
+            if (pos <= 0 || pos >= html.length) continue
+            if (pos - lastPos < MIN_FILEPOS_GAP_CHARS) continue
+            filteredEntries.add(entry)
+            lastPos = pos
+            if (filteredEntries.size >= MAX_FILEPOS_CHAPTERS) break
+        }
+        if (filteredEntries.size < 2) return emptyList()
+
+        val adjustedStarts = mutableListOf<Int>()
+        var lastStart = 0
+        filteredEntries.forEach { entry ->
+            val adjusted = adjustChapterStart(html, entry.filepos, entry.title)
+            val start =
+                when {
+                    adjusted > lastStart -> adjusted
+                    entry.filepos > lastStart -> entry.filepos
+                    else -> lastStart
+                }
+            adjustedStarts.add(start)
+            lastStart = start
+        }
+        if (adjustedStarts.size < 2) return emptyList()
+
+        val slices = mutableListOf<MobiChapterSlice>()
+        val tocEnd = adjustedStarts.first()
+        val tocTitle =
+            if (tocRegion.contains("table of contents", true) ||
+                tocRegion.contains("contents", true)
+            ) {
+                "Table of Contents"
             } else {
-                val collected = mutableListOf<Chapter>()
-                val indices = matches.map { it.range.first } + html.length
-                indices.zipWithNext().forEachIndexed { index, (start, end) ->
-                    val segment = html.substring(start, end).trim()
-                    val title =
-                        extractPlainText(matches.getOrNull(index)?.value.orEmpty())
-                            .lineSequence()
-                            .firstOrNull()
-                            ?.take(100)
-                            ?.takeIf { it.isNotBlank() }
-                            ?: "Chapter ${index + 1}"
-                    val plain = extractPlainText(segment)
-                    if (plain.isBlank()) return@forEachIndexed
-                    collected.add(
+                fallbackTitle
+            }
+        if (tocEnd > 0) {
+            val segment = html.substring(0, tocEnd).trim()
+            val plain = extractPlainText(segment)
+            if (plain.isNotBlank()) {
+                slices.add(
+                    MobiChapterSlice(
+                        start = 0,
+                        end = tocEnd,
+                        chapter =
                         Chapter(
-                            index = index,
-                            title = title,
+                            index = slices.size,
+                            title = tocTitle,
                             htmlContent = segment,
                             plainText = plain,
                             imagePaths = extractImagePathsFromHtml(segment),
                         ),
-                    )
-                }
-                collected
+                    ),
+                )
             }
+        }
 
-        return splitLargeChapters(chapters, fallbackTitle)
+        filteredEntries.forEachIndexed { index, entry ->
+            val start = adjustedStarts[index]
+            val end = adjustedStarts.getOrNull(index + 1) ?: html.length
+            if (start >= end || start < 0 || end > html.length) return@forEachIndexed
+            val segment = html.substring(start, end).trim()
+            val plain = extractPlainText(segment)
+            if (plain.isBlank()) return@forEachIndexed
+            slices.add(
+                MobiChapterSlice(
+                    start = start,
+                    end = end,
+                    chapter =
+                    Chapter(
+                        index = slices.size,
+                        title = entry.title,
+                        htmlContent = segment,
+                        plainText = plain,
+                        imagePaths = extractImagePathsFromHtml(segment),
+                    ),
+                ),
+            )
+        }
+
+        return slices
+    }
+
+    private fun adjustChapterStart(
+        html: String,
+        filepos: Int,
+        title: String,
+    ): Int {
+        if (filepos <= 0 || filepos >= html.length) return filepos
+        val windowStart = (filepos - CHAPTER_START_SCAN_BACK).coerceAtLeast(0)
+        val windowEnd = (filepos + CHAPTER_START_SCAN_FORWARD).coerceAtMost(html.length)
+        val window = html.substring(windowStart, windowEnd)
+        val relativePos = filepos - windowStart
+        val normalizedTitle = normalizeTitle(title)
+
+        val normalizedWindow = buildNormalizedWindow(window, windowStart)
+        if (normalizedTitle.isNotEmpty() && normalizedWindow.text.isNotEmpty()) {
+            val fileposNormalizedIndex =
+                findNormalizedIndexForFilepos(normalizedWindow.indexMap, filepos)
+                    ?: normalizedWindow.text.lastIndex
+            val keys = buildTitleKeys(title)
+            val matchIndex = findBestNormalizedMatch(normalizedWindow.text, keys, fileposNormalizedIndex)
+            if (matchIndex != null) {
+                val htmlIndex = normalizedWindow.indexMap[matchIndex]
+                val blockStart = findBlockStartBefore(window, htmlIndex - windowStart)
+                if (blockStart != null) {
+                    return windowStart + blockStart
+                }
+                return htmlIndex
+            }
+        }
+
+        val headingRegex =
+            Regex(
+                """<h[1-6][^>]*>[\s\S]*?</h[1-6]>""",
+                RegexOption.IGNORE_CASE
+            )
+        var titleMatchBefore: Int? = null
+        var titleMatchAfter: Int? = null
+        var lastHeadingBefore: Int? = null
+
+        for (match in headingRegex.findAll(window)) {
+            val headingStart = match.range.first
+            val headingText = extractLinkText(match.value)
+            val headingNormalized = normalizeTitle(headingText)
+            val matchesTitle =
+                normalizedTitle.isNotEmpty() &&
+                    (headingNormalized.contains(normalizedTitle) ||
+                        normalizedTitle.contains(headingNormalized))
+            if (headingStart <= relativePos) {
+                lastHeadingBefore = headingStart
+                if (matchesTitle) titleMatchBefore = headingStart
+            } else if (matchesTitle && titleMatchAfter == null) {
+                titleMatchAfter = headingStart
+            }
+        }
+
+        if (titleMatchBefore != null) {
+            return windowStart + titleMatchBefore
+        }
+        if (titleMatchAfter != null) {
+            return windowStart + titleMatchAfter
+        }
+        if (lastHeadingBefore != null) {
+            return windowStart + lastHeadingBefore
+        }
+
+        if (normalizedTitle.isNotEmpty()) {
+            val titleIndex = window.lowercase().indexOf(title.lowercase())
+            if (titleIndex in 0..relativePos) {
+                return windowStart + titleIndex
+            }
+        }
+
+        val blockRegex =
+            Regex(
+                """</?(p|div|br|h[1-6]|li|tr|blockquote|pre)[^>]*>""",
+                RegexOption.IGNORE_CASE
+            )
+        var lastBlockBefore: Int? = null
+        for (match in blockRegex.findAll(window)) {
+            val start = match.range.first
+            if (start <= relativePos) {
+                lastBlockBefore = start
+            } else {
+                break
+            }
+        }
+        if (lastBlockBefore != null) {
+            return windowStart + lastBlockBefore
+        }
+
+        return filepos
+    }
+
+    private data class NormalizedWindow(
+        val text: String,
+        val indexMap: IntArray,
+    )
+
+    private fun buildNormalizedWindow(
+        window: String,
+        windowStart: Int,
+    ): NormalizedWindow {
+        val textBuilder = StringBuilder(window.length)
+        val indexMap = ArrayList<Int>(window.length / 2)
+        var inTag = false
+        window.forEachIndexed { index, ch ->
+            when {
+                ch == '<' -> inTag = true
+                ch == '>' && inTag -> inTag = false
+                inTag -> Unit
+                ch.isLetterOrDigit() -> {
+                    textBuilder.append(ch.lowercaseChar())
+                    indexMap.add(windowStart + index)
+                }
+            }
+        }
+        return NormalizedWindow(textBuilder.toString(), indexMap.toIntArray())
+    }
+
+    private fun buildTitleKeys(title: String): List<String> {
+        val tokens =
+            title.lowercase()
+                .split(Regex("[^a-z0-9]+"))
+                .filter { it.isNotBlank() }
+        if (tokens.isEmpty()) return emptyList()
+        val keys = LinkedHashSet<String>()
+        keys.add(tokens.joinToString(""))
+        if (tokens.size >= 2) {
+            keys.add(tokens[0] + tokens[1])
+        }
+        if (tokens.size >= 3) {
+            keys.add(tokens[0] + tokens[1] + tokens[2])
+        }
+        return keys.sortedByDescending { it.length }
+    }
+
+    private fun findNormalizedIndexForFilepos(
+        indexMap: IntArray,
+        filepos: Int,
+    ): Int? {
+        for (i in indexMap.indices) {
+            if (indexMap[i] >= filepos) return i
+        }
+        return null
+    }
+
+    private fun findBestNormalizedMatch(
+        normalized: String,
+        keys: List<String>,
+        endIndex: Int,
+    ): Int? {
+        if (keys.isEmpty()) return null
+        val safeEnd = endIndex.coerceIn(0, normalized.lastIndex)
+        var bestIndex: Int? = null
+        for (key in keys) {
+            if (key.isBlank()) continue
+            val index = normalized.lastIndexOf(key, safeEnd)
+            if (index >= 0 && (bestIndex == null || index > bestIndex)) {
+                bestIndex = index
+            }
+        }
+        return bestIndex
+    }
+
+    private fun findBlockStartBefore(
+        window: String,
+        relativePos: Int,
+    ): Int? {
+        val blockRegex =
+            Regex(
+                """</?(p|div|br|h[1-6]|li|tr|blockquote|pre)[^>]*>""",
+                RegexOption.IGNORE_CASE
+            )
+        var lastBlockBefore: Int? = null
+        for (match in blockRegex.findAll(window)) {
+            val start = match.range.first
+            if (start <= relativePos) {
+                lastBlockBefore = start
+            } else {
+                break
+            }
+        }
+        return lastBlockBefore
+    }
+
+    private fun extractTocEntries(
+        html: String,
+        maxLength: Int,
+    ): List<TocEntry> {
+        if (html.isBlank()) return emptyList()
+        val anchorRegex =
+            Regex(
+                """<a\b[^>]*\bfilepos\s*=\s*['"]?(\d+)['"]?[^>]*>([\s\S]*?)</a>""",
+                RegexOption.IGNORE_CASE,
+            )
+        val entries = mutableListOf<TocEntry>()
+        val seen = HashSet<Int>()
+        for (match in anchorRegex.findAll(html)) {
+            val filepos = match.groupValues[1].toIntOrNull() ?: continue
+            if (filepos <= 0 || filepos >= maxLength) continue
+            if (!seen.add(filepos)) continue
+            val text = extractLinkText(match.groupValues[2])
+            if (text.isBlank() || isPageNumberText(text)) continue
+            entries.add(TocEntry(filepos, text))
+            if (entries.size >= MAX_FILEPOS_CHAPTERS * 2) break
+        }
+        return entries.sortedBy { it.filepos }
     }
 
     private fun splitLargeChapters(
         chapters: List<Chapter>,
         fallbackTitle: String,
-    ): List<Chapter> {
-        if (chapters.isEmpty()) return emptyList()
+    ): ChapterExpansion {
+        if (chapters.isEmpty()) return ChapterExpansion(emptyList(), IntArray(0))
         val expanded = mutableListOf<Chapter>()
+        val baseIndexToExpandedIndex = IntArray(chapters.size) { -1 }
 
-        chapters.forEach { chapter ->
-            if (chapter.plainText.length <= MAX_CHAPTER_TEXT_CHARS) {
+        chapters.forEachIndexed { baseIndex, chapter ->
+            baseIndexToExpandedIndex[baseIndex] = expanded.size
+            val isTocLike = isTocHeavyChapter(chapter)
+            if (chapter.plainText.length <= MAX_CHAPTER_TEXT_CHARS || isTocLike) {
                 expanded.add(chapter.copy(index = expanded.size))
-                return@forEach
+                return@forEachIndexed
             }
 
             val parts = splitIntoChapters(chapter.plainText)
             if (parts.size <= 1) {
                 expanded.add(chapter.copy(index = expanded.size))
-                return@forEach
+                return@forEachIndexed
             }
 
             val baseTitle =
@@ -685,13 +1694,395 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             }
         }
 
-        return expanded
+        return ChapterExpansion(expanded, baseIndexToExpandedIndex)
+    }
+
+    private fun buildAnchorIdIndex(chapters: List<Chapter>): Map<String, Int> {
+        val map = mutableMapOf<String, Int>()
+        chapters.forEach { chapter ->
+            extractAnchorIds(chapter.htmlContent).forEach { id ->
+                map.putIfAbsent(id, chapter.index)
+            }
+        }
+        return map
+    }
+
+    private fun extractAnchorIds(html: String): List<String> {
+        if (html.isBlank()) return emptyList()
+        val ids = LinkedHashSet<String>()
+        val attrRegex =
+            Regex(
+                """\b(?:id|name)\s*=\s*['"]([^'"]+)['"]""",
+                RegexOption.IGNORE_CASE
+            )
+        attrRegex.findAll(html).forEach { match ->
+            val value = match.groupValues[1].trim()
+            if (value.isNotEmpty()) {
+                ids.add(value)
+            }
+        }
+        return ids.toList()
+    }
+
+    private fun isTocHeavyChapter(chapter: Chapter): Boolean {
+        if (chapter.htmlContent.isBlank()) return false
+        if (chapter.plainText.length > MAX_TOC_TEXT_CHARS) return false
+        return countAnchorTags(chapter.htmlContent, TOC_ANCHOR_THRESHOLD) >= TOC_ANCHOR_THRESHOLD
+    }
+
+    private fun countAnchorTags(
+        html: String,
+        limit: Int,
+    ): Int {
+        var count = 0
+        var index = 0
+        while (true) {
+            val found = html.indexOf("<a", index, ignoreCase = true)
+            if (found == -1) return count
+            count += 1
+            if (count >= limit) return count
+            index = found + 2
+        }
+    }
+
+    private fun rewriteMobiAnchorHrefs(
+        chapters: List<Chapter>,
+        idToBaseIndex: Map<String, Int>,
+        baseIndexToExpandedIndex: IntArray,
+        slices: List<MobiChapterSlice>,
+    ): List<Chapter> {
+        if (chapters.isEmpty()) return chapters
+        if (idToBaseIndex.isEmpty() && slices.isEmpty()) return chapters
+        val titleIndex = buildTitleIndex(chapters)
+
+        return chapters.map { chapter ->
+            val html = chapter.htmlContent
+            if (!html.contains("<a", ignoreCase = true)) return@map chapter
+            val rewritten =
+                rewriteMobiAnchorTagHrefs(
+                    html = html,
+                    idToBaseIndex = idToBaseIndex,
+                    baseIndexToExpandedIndex = baseIndexToExpandedIndex,
+                    slices = slices,
+                    titleIndex = titleIndex,
+                )
+            chapter.copy(htmlContent = rewritten)
+        }
+    }
+
+    private fun rewriteMobiAnchorTagHrefs(
+        html: String,
+        idToBaseIndex: Map<String, Int>,
+        baseIndexToExpandedIndex: IntArray,
+        slices: List<MobiChapterSlice>,
+        titleIndex: Map<String, Int>,
+    ): String {
+        val rewrittenWithContent =
+            rewriteMobiAnchorsWithContent(
+                html = html,
+                idToBaseIndex = idToBaseIndex,
+                baseIndexToExpandedIndex = baseIndexToExpandedIndex,
+                slices = slices,
+                titleIndex = titleIndex,
+            )
+
+        return rewriteMobiAnchorOpenTags(
+            html = rewrittenWithContent,
+            idToBaseIndex = idToBaseIndex,
+            baseIndexToExpandedIndex = baseIndexToExpandedIndex,
+            slices = slices,
+        )
+    }
+
+    private fun rewriteMobiAnchorsWithContent(
+        html: String,
+        idToBaseIndex: Map<String, Int>,
+        baseIndexToExpandedIndex: IntArray,
+        slices: List<MobiChapterSlice>,
+        titleIndex: Map<String, Int>,
+    ): String {
+        val anchorRegex =
+            Regex("""(<a\b[^>]*>)([\s\S]*?)(</a>)""", RegexOption.IGNORE_CASE)
+        val hrefRegex =
+            Regex(
+                """\bhref\s*=\s*(?:['"][^'"]*['"]|[^\s>]+)""",
+                RegexOption.IGNORE_CASE,
+            )
+
+        val rewritten = anchorRegex.replace(html) { match ->
+            val openTag = match.groupValues[1]
+            val innerHtml = match.groupValues[2]
+            val closeTag = match.groupValues[3]
+            if (openTag.contains("kairo://", ignoreCase = true)) return@replace match.value
+
+            val href = extractAttribute(openTag, "href")
+            val filepos = extractAttribute(openTag, "filepos")
+            val resolvedFromHref =
+                resolveTargetIndexFromHref(
+                    href,
+                    idToBaseIndex,
+                    baseIndexToExpandedIndex,
+                    slices,
+                )
+            val resolvedFromFilepos =
+                if (resolvedFromHref == null) {
+                    resolveTargetIndexFromFilepos(
+                        filepos,
+                        slices,
+                        baseIndexToExpandedIndex
+                    )
+                } else {
+                    null
+                }
+            val resolvedFromTitle =
+                if (resolvedFromHref == null && resolvedFromFilepos == null) {
+                    resolveTargetIndexFromLinkText(
+                        innerHtml,
+                        titleIndex,
+                    )
+                } else {
+                    null
+                }
+            val resolvedIndex =
+                resolvedFromHref ?: resolvedFromFilepos ?: resolvedFromTitle
+                    ?: return@replace match.value
+
+            val newHref = "kairo://chapter/$resolvedIndex"
+            val rewrittenOpenTag =
+                if (href.isNullOrBlank()) {
+                    insertHref(openTag, newHref)
+                } else {
+                    openTag.replace(hrefRegex) { "href=\"$newHref\"" }
+                }
+
+            "$rewrittenOpenTag$innerHtml$closeTag"
+        }
+        return rewritten
+    }
+
+    private fun rewriteMobiAnchorOpenTags(
+        html: String,
+        idToBaseIndex: Map<String, Int>,
+        baseIndexToExpandedIndex: IntArray,
+        slices: List<MobiChapterSlice>,
+    ): String {
+        val anchorRegex = Regex("""<a\b[^>]*>""", RegexOption.IGNORE_CASE)
+        val hrefRegex =
+            Regex(
+                """\bhref\s*=\s*(?:['"][^'"]*['"]|[^\s>]+)""",
+                RegexOption.IGNORE_CASE,
+            )
+
+        val rewritten = anchorRegex.replace(html) { match ->
+            val tag = match.value
+            if (tag.contains("kairo://", ignoreCase = true)) return@replace tag
+
+            val href = extractAttribute(tag, "href")
+            val filepos = extractAttribute(tag, "filepos")
+            val resolvedFromHref =
+                resolveTargetIndexFromHref(
+                    href,
+                    idToBaseIndex,
+                    baseIndexToExpandedIndex,
+                    slices,
+                )
+            val resolvedFromFilepos =
+                if (resolvedFromHref == null) {
+                    resolveTargetIndexFromFilepos(
+                        filepos,
+                        slices,
+                        baseIndexToExpandedIndex
+                    )
+                } else {
+                    null
+                }
+            val resolvedIndex = resolvedFromHref ?: resolvedFromFilepos ?: return@replace tag
+            val newHref = "kairo://chapter/$resolvedIndex"
+            if (href.isNullOrBlank()) {
+                insertHref(tag, newHref)
+            } else {
+                tag.replace(hrefRegex) { "href=\"$newHref\"" }
+            }
+        }
+        return rewritten
+    }
+
+    private fun insertHref(
+        tag: String,
+        href: String,
+    ): String {
+        val (prefix, suffix) =
+            if (tag.endsWith("/>")) {
+                tag.dropLast(2) to "/>"
+            } else {
+                tag.dropLast(1) to ">"
+            }
+        return "$prefix href=\"$href\"$suffix"
+    }
+
+    private fun extractAttribute(
+        tag: String,
+        name: String,
+    ): String? {
+        val regex =
+            Regex(
+                """\b${Regex.escape(name)}\s*=\s*(?:['"]([^'"]+)['"]|([^\s>]+))""",
+                RegexOption.IGNORE_CASE,
+            )
+        val match = regex.find(tag) ?: return null
+        return match.groupValues.getOrNull(1)?.ifBlank { null }
+            ?: match.groupValues.getOrNull(2)?.ifBlank { null }
+    }
+
+    private fun resolveTargetIndexFromHref(
+        href: String?,
+        idToBaseIndex: Map<String, Int>,
+        baseIndexToExpandedIndex: IntArray,
+        slices: List<MobiChapterSlice>,
+    ): Int? {
+        if (href.isNullOrBlank()) return null
+        val trimmed = href.trim()
+        if (trimmed.startsWith("http://", true) ||
+            trimmed.startsWith("https://", true) ||
+            trimmed.startsWith("mailto:", true) ||
+            trimmed.startsWith("data:", true) ||
+            trimmed.startsWith("kairo://", true)
+        ) {
+            return null
+        }
+
+        extractFilePosFromHref(trimmed)?.let { offset ->
+            return resolveTargetIndexFromFilepos(
+                offset.toString(),
+                slices,
+                baseIndexToExpandedIndex,
+            )
+        }
+
+        val fragment =
+            trimmed.substringAfter('#', "").trim()
+        if (fragment.isNotEmpty()) {
+            val decoded = decodeFragment(fragment)
+            val baseIndex = idToBaseIndex[decoded] ?: return null
+            return resolveExpandedIndex(baseIndex, baseIndexToExpandedIndex)
+        }
+
+        return null
+    }
+
+    private fun resolveTargetIndexFromFilepos(
+        filepos: String?,
+        slices: List<MobiChapterSlice>,
+        baseIndexToExpandedIndex: IntArray,
+    ): Int? {
+        if (filepos.isNullOrBlank() || slices.isEmpty()) return null
+        val offset = filepos.toIntOrNull() ?: return null
+        val slice =
+            slices.firstOrNull { offset >= it.start && offset < it.end }
+                ?: return null
+        return resolveExpandedIndex(slice.chapter.index, baseIndexToExpandedIndex)
+    }
+
+    private fun resolveExpandedIndex(
+        baseIndex: Int,
+        baseIndexToExpandedIndex: IntArray,
+    ): Int? {
+        if (baseIndex < 0 || baseIndex >= baseIndexToExpandedIndex.size) return null
+        val mapped = baseIndexToExpandedIndex[baseIndex]
+        return if (mapped >= 0) mapped else null
+    }
+
+    private fun decodeFragment(fragment: String): String {
+        if (!fragment.contains('%')) return fragment
+        return runCatching { URLDecoder.decode(fragment, "UTF-8") }.getOrDefault(fragment)
+    }
+
+    private fun extractFilePosFromHref(href: String): Int? {
+        val patterns =
+            listOf(
+                Regex("filepos[:=](\\d+)", RegexOption.IGNORE_CASE),
+                Regex("kindle:pos:\\S*?off:(\\d+)", RegexOption.IGNORE_CASE),
+                Regex("kindle:pos:off:(\\d+)", RegexOption.IGNORE_CASE),
+                Regex("#filepos(\\d+)", RegexOption.IGNORE_CASE),
+                Regex("#pos(\\d+)", RegexOption.IGNORE_CASE),
+            )
+        for (pattern in patterns) {
+            val match = pattern.find(href) ?: continue
+            val value = match.groupValues.getOrNull(1)?.toIntOrNull()
+            if (value != null) return value
+        }
+        return null
+    }
+
+    private fun resolveTargetIndexFromLinkText(
+        innerHtml: String,
+        titleIndex: Map<String, Int>,
+    ): Int? {
+        if (titleIndex.isEmpty()) return null
+        val linkText = extractLinkText(innerHtml)
+        if (linkText.isBlank()) return null
+        val normalized = normalizeTitle(linkText)
+        if (normalized.isEmpty()) return null
+        titleIndex[normalized]?.let { return it }
+
+        val fallback =
+            titleIndex.entries.firstOrNull { (key, _) ->
+                (key.length >= 4 && normalized.contains(key)) ||
+                    (normalized.length >= 4 && key.contains(normalized))
+            }
+        return fallback?.value
+    }
+
+    private fun buildTitleIndex(chapters: List<Chapter>): Map<String, Int> {
+        val map = mutableMapOf<String, Int>()
+        chapters.forEach { chapter ->
+            val title = chapter.title?.takeIf { it.isNotBlank() } ?: return@forEach
+            val normalized = normalizeTitle(title)
+            if (normalized.isNotEmpty()) {
+                map.putIfAbsent(normalized, chapter.index)
+            }
+        }
+        return map
+    }
+
+    private fun normalizeTitle(text: String): String =
+        text.lowercase()
+            .replace(Regex("[^a-z0-9]+"), "")
+
+    private fun extractLinkText(html: String): String =
+        html
+            .replace(Regex("<[^>]+>"), " ")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&#39;", "'")
+            .replace(Regex("&#(\\d+);")) { m ->
+                m.groupValues[1].toIntOrNull()?.toChar()?.toString().orEmpty()
+            }
+            .replace(Regex("&#x([0-9a-fA-F]+);")) { m ->
+                m.groupValues[1].toIntOrNull(16)?.toChar()?.toString().orEmpty()
+            }
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+    private fun isPageNumberText(text: String): Boolean {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return false
+        if (trimmed.all { it.isDigit() }) return true
+        val romanNumeralPattern = Regex("^[ivxlcdm]+$", RegexOption.IGNORE_CASE)
+        return romanNumeralPattern.matches(trimmed)
     }
 
     private fun extractImagePathsFromHtml(html: String): List<String> {
+        if (!html.contains("<img", ignoreCase = true)) return emptyList()
         val regex =
-            Regex("<img[^>]+?src\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>",
-                RegexOption.IGNORE_CASE)
+            Regex(
+                """<img[^>]+?src\s*=\s*['"]([^'"]+)['"][^>]*>""",
+                RegexOption.IGNORE_CASE
+            )
         val unique = LinkedHashSet<String>(8)
         regex.findAll(html).forEach { match ->
             if (unique.size >= 6) return@forEach
@@ -706,6 +2097,242 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             unique.add(src)
         }
         return unique.toList()
+    }
+
+    private fun buildNeededImageIndices(
+        referencedImageIndices: Set<Int>,
+        coverCandidateIndices: Set<Int>,
+        startIndex: Int,
+        hasValidStartIndex: Boolean,
+    ): Set<Int> {
+        val needed = LinkedHashSet<Int>()
+        needed.addAll(coverCandidateIndices)
+        fun addRecindex(recindex: Int) {
+            needed.add(recindex)
+            if (hasValidStartIndex) {
+                needed.add(startIndex + recindex)
+            }
+        }
+
+        referencedImageIndices.forEach { addRecindex(it) }
+        if (needed.isEmpty() && hasValidStartIndex) {
+            repeat(COVER_FALLBACK_IMAGE_SCAN) { offset ->
+                needed.add(startIndex + offset)
+            }
+        }
+        return needed
+    }
+
+    private fun buildCoverCandidateIndices(
+        coverRecindexCandidates: Set<Int>,
+        startIndex: Int,
+        recindexBase: Int,
+        firstImageIndex: Int,
+        coverRecordIndex: Int?,
+        recordCount: Int,
+        hasValidStartIndex: Boolean,
+    ): Set<Int> {
+        val candidates = LinkedHashSet<Int>()
+        coverRecindexCandidates.forEach { recindex ->
+            candidates.add(recindex)
+            if (recindexBase >= 0) {
+                candidates.add(recindexBase + recindex)
+            }
+        }
+        resolveCoverRecordIndex(coverRecordIndex, firstImageIndex, recordCount)?.let { index ->
+            candidates.add(index)
+        }
+        if (candidates.isEmpty() && startIndex >= 0) {
+            repeat(COVER_FALLBACK_IMAGE_SCAN) { offset ->
+                candidates.add(startIndex + offset)
+            }
+        }
+        return candidates
+    }
+
+    private fun buildHtmlCoverCandidateIndices(
+        coverRecindexCandidates: Set<Int>,
+        recindexBase: Int,
+        recordCount: Int,
+        hasValidRecindexBase: Boolean,
+    ): Set<Int> {
+        if (coverRecindexCandidates.isEmpty()) return emptySet()
+        val indices = LinkedHashSet<Int>()
+        coverRecindexCandidates.forEach { recindex ->
+            if (recindex in 0 until recordCount) {
+                indices.add(recindex)
+            }
+            if (hasValidRecindexBase) {
+                val absolute = recindexBase + recindex
+                if (absolute in 0 until recordCount) {
+                    indices.add(absolute)
+                }
+            }
+        }
+        return indices
+    }
+
+    private fun resolveHtmlCoverPreferredIndex(
+        data: ByteArray,
+        recordOffsets: List<Int>,
+        coverRecindexCandidates: Set<Int>,
+        recindexBase: Int,
+        hasValidRecindexBase: Boolean,
+    ): Int? {
+        if (coverRecindexCandidates.isEmpty()) return null
+        val seen = LinkedHashSet<Int>()
+        for (recindex in coverRecindexCandidates) {
+            if (recindex >= 0) {
+                seen.add(recindex)
+            }
+            if (hasValidRecindexBase) {
+                seen.add(recindexBase + recindex)
+            }
+        }
+        for (candidate in seen) {
+            if (isImageRecord(data, recordOffsets, candidate)) {
+                return candidate
+            }
+        }
+        return null
+    }
+
+    private fun buildExplicitCoverIndices(
+        coverRecordIndex: Int?,
+        recindexBase: Int,
+        firstImageIndex: Int,
+        recordCount: Int,
+        hasValidRecindexBase: Boolean,
+    ): Set<Int> {
+        val indices = LinkedHashSet<Int>()
+        if (coverRecordIndex == null) return indices
+
+        if (coverRecordIndex in 0 until recordCount) {
+            indices.add(coverRecordIndex)
+        }
+        resolveCoverRecordIndex(coverRecordIndex, firstImageIndex, recordCount)?.let { index ->
+            indices.add(index)
+        }
+        if (hasValidRecindexBase) {
+            val relative = recindexBase + coverRecordIndex
+            if (relative in 0 until recordCount) {
+                indices.add(relative)
+            }
+        }
+        return indices
+    }
+
+    private fun resolveCoverRecordIndex(
+        coverRecordIndex: Int?,
+        firstImageIndex: Int,
+        recordCount: Int,
+    ): Int? {
+        if (coverRecordIndex == null) return null
+        val absolute =
+            coverRecordIndex.takeIf { it in 0 until recordCount }
+                ?.takeIf { firstImageIndex <= 0 || it >= firstImageIndex }
+        if (absolute != null) return absolute
+        val relative =
+            if (firstImageIndex > 0) {
+                (firstImageIndex + coverRecordIndex)
+                    .takeIf { it in 0 until recordCount }
+            } else {
+                null
+            }
+        return relative ?: coverRecordIndex.takeIf { it in 0 until recordCount }
+    }
+
+    private fun extractReferencedImageIndices(
+        html: String,
+        extraIndices: Set<Int>,
+    ): Set<Int> {
+        if (html.isBlank()) return extraIndices
+        if (!html.contains("recindex", ignoreCase = true) &&
+            !html.contains("kindle:embed", ignoreCase = true)
+        ) {
+            return extraIndices
+        }
+        val indices = LinkedHashSet<Int>(extraIndices)
+        val recindexRegex =
+            Regex("""recindex\s*=\s*['"]?(\d+)['"]?""", RegexOption.IGNORE_CASE)
+        recindexRegex.findAll(html).forEach { match ->
+            match.groupValues[1].toIntOrNull()?.let { indices.add(it) }
+        }
+        val embedRegex =
+            Regex("""kindle:embed:(\d+)""", RegexOption.IGNORE_CASE)
+        embedRegex.findAll(html).forEach { match ->
+            match.groupValues[1].toIntOrNull()?.let { indices.add(it) }
+        }
+        return indices
+    }
+
+    private fun extractCoverImageRecindices(html: String): Set<Int> {
+        if (html.isBlank()) return emptySet()
+        val limited = html.take(COVER_HTML_SCAN_CHARS)
+        val coverIds = LinkedHashSet<String>()
+        val metaRegex =
+            Regex(
+                """<meta[^>]+name\s*=\s*['"]cover['"][^>]+content\s*=\s*['"]([^'"]+)['"][^>]*>""",
+                RegexOption.IGNORE_CASE,
+            )
+        metaRegex.findAll(limited).forEach { match ->
+            val id = match.groupValues[1].trim()
+            if (id.isNotEmpty()) coverIds.add(id)
+        }
+
+        val imgRegex = Regex("""<img\b[^>]*>""", RegexOption.IGNORE_CASE)
+        val candidates = LinkedHashSet<Int>()
+        var firstRecindex: Int? = null
+        for (match in imgRegex.findAll(limited)) {
+            val tag = match.value
+            val recindex = extractRecindexFromImgTag(tag)
+            if (recindex != null && firstRecindex == null) {
+                firstRecindex = recindex
+            }
+            if (recindex == null) continue
+            val id = extractAttribute(tag, "id") ?: extractAttribute(tag, "name")
+            val alt = extractAttribute(tag, "alt").orEmpty()
+            val title = extractAttribute(tag, "title").orEmpty()
+            val classAttr = extractAttribute(tag, "class").orEmpty()
+            val looksCover =
+                (id != null && coverIds.contains(id)) ||
+                    id?.contains("cover", ignoreCase = true) == true ||
+                    alt.contains("cover", ignoreCase = true) ||
+                    title.contains("cover", ignoreCase = true) ||
+                    classAttr.contains("cover", ignoreCase = true)
+            if (looksCover) {
+                candidates.add(recindex)
+                if (candidates.size >= COVER_FALLBACK_IMAGE_SCAN) break
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            val firstImg = imgRegex.find(limited)?.value
+            if (firstImg != null) {
+                val recindex = extractRecindexFromImgTag(firstImg)
+                if (recindex != null) {
+                    candidates.add(recindex)
+                } else {
+                    val src = extractAttribute(firstImg, "src")
+                    if (!src.isNullOrBlank() &&
+                        !src.startsWith("data:", ignoreCase = true) &&
+                        !src.startsWith("http://", ignoreCase = true) &&
+                        !src.startsWith("https://", ignoreCase = true)
+                    ) {
+                        candidates.add(0)
+                    }
+                }
+            }
+            firstRecindex?.let { candidates.add(it) }
+        }
+        return candidates
+    }
+
+    private fun extractRecindexFromImgTag(tag: String): Int? {
+        extractAttribute(tag, "recindex")?.toIntOrNull()?.let { return it }
+        val src = extractAttribute(tag, "src") ?: return null
+        val match = Regex("kindle:embed:(\\d+)", RegexOption.IGNORE_CASE).find(src)
+        return match?.groupValues?.getOrNull(1)?.toIntOrNull()
     }
 
     private fun extractPlainText(html: String): String =
@@ -739,15 +2366,38 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             .replace(Regex("\\n\\s*\\n+"), "\n\n")
             .trim()
 
+    private fun decodeHtmlEntities(text: String): String =
+        text
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&#39;", "'")
+            .replace("&nbsp;", " ")
+            .replace(Regex("&#(\\d+);")) { match ->
+                match.groupValues[1]
+                    .toIntOrNull()
+                    ?.toChar()
+                    ?.toString()
+                    .orEmpty()
+            }.replace(Regex("&#x([0-9a-fA-F]+);")) { match ->
+                match.groupValues[1]
+                    .toIntOrNull(16)
+                    ?.toChar()
+                    ?.toString()
+                    .orEmpty()
+            }
+
     private fun normalizePageBreakElements(html: String): String {
         val pageBreakToken = "\n\n\u000C\n\n"
         var text = html
 
         val pageBreakTag =
-            Regex("<\\s*mbp:pagebreak\\s*/?>", RegexOption.IGNORE_CASE)
+            Regex("""<\s*mbp:pagebreak\s*/?>""", RegexOption.IGNORE_CASE)
         val classPageBreak =
             Regex(
-                "<[^>]+\\bclass\\s*=\\s*['\\\"][^'\\\"]*(?:pagebreak|page-break)[^'\\\"]*['\\\"][^>]*>",
+                """<[^>]+\bclass\s*=\s*['"][^'"]*(?:pagebreak|page-break)[^'"]*['"][^>]*>""",
                 RegexOption.IGNORE_CASE,
             )
         text = text.replace(pageBreakTag, pageBreakToken)
@@ -913,10 +2563,10 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             if (builder.length >= MAX_FALLBACK_TEXT_CHARS) break
             val value = byte.toInt() and 0xFF
             val ch =
-                when {
-                    value == 0x09 || value == 0x0A || value == 0x0D -> ' '
-                    value in 0x20..0x7E -> value.toChar()
-                    value in 0xA0..0xFF -> value.toChar()
+                when (value) {
+                    0x09, 0x0A, 0x0D -> ' '
+                    in 0x20..0x7E -> value.toChar()
+                    in 0xA0..0xFF -> value.toChar()
                     else -> null
                 }
             if (ch == null) {
