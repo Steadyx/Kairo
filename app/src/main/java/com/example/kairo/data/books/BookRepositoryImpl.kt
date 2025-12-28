@@ -140,13 +140,16 @@ class BookRepositoryImpl(
     private fun optimizeCoverForDb(coverImage: ByteArray?): ByteArray? {
         if (coverImage == null || coverImage.isEmpty()) return coverImage
 
+        val safeFallback =
+            coverImage.takeIf { it.size <= MAX_COVER_DB_BYTES }
+
         return runCatching {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size, bounds)
 
             val width = bounds.outWidth
             val height = bounds.outHeight
-            if (width <= 0 || height <= 0) return@runCatching null
+            if (width <= 0 || height <= 0) return@runCatching safeFallback
 
             // CursorWindow on many devices is ~2MB; keep cover comfortably under that, and also
             // cap pixel dimensions so first-time decode/render is fast.
@@ -164,7 +167,7 @@ class BookRepositoryImpl(
                 }
             val bitmap =
                 BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size, decode)
-                    ?: return@runCatching null
+                    ?: return@runCatching safeFallback
 
             try {
                 val out = ByteArrayOutputStream()
@@ -180,7 +183,7 @@ class BookRepositoryImpl(
             } finally {
                 bitmap.recycle()
             }
-        }.getOrNull() ?: null
+        }.getOrNull() ?: safeFallback
     }
 
     private fun calculateInSampleSize(
