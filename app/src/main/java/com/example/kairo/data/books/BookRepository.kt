@@ -22,5 +22,7 @@ interface BookRepository {
         wordCount: Int,
     )
 
+    suspend fun getBookLanguageTag(bookId: BookId): String?
+
     fun observeBooks(): Flow<List<Book>>
 }

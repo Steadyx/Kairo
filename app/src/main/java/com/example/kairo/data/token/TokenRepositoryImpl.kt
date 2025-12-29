@@ -5,7 +5,7 @@ import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.countWords
-import com.example.kairo.core.tokenization.Tokenizer
+import com.example.kairo.core.tokenization.TokenizerRegistry
 import com.example.kairo.data.books.BookRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +31,7 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
                 size > MAX_CACHED_CHAPTERS
         }
     private val mutex = Mutex()
+    private val languageTagCache = mutableMapOf<String, String?>()
     private val tokenizationDispatcher = dispatcherProvider.default.limitedParallelism(1)
     private val prefetchScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
 
@@ -39,10 +40,11 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
         chapterIndex: Int,
         chapter: Chapter?,
     ): List<Token> {
-        val key = "${bookId.value}-$chapterIndex"
+        val languageTag = resolveLanguageTag(bookId)
+        val key = buildCacheKey(bookId, chapterIndex, languageTag)
         val cached = mutex.withLock { cache[key] }
         if (cached != null) {
-            prefetchNextChapter(bookId, chapterIndex + 1)
+            prefetchNextChapter(bookId, chapterIndex + 1, languageTag)
             return cached
         }
 
@@ -51,18 +53,22 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
                 ?: withContext(dispatcherProvider.io) {
                     bookRepository.getChapter(bookId, chapterIndex)
                 }
-        val tokens = withContext(tokenizationDispatcher) { Tokenizer().tokenize(resolvedChapter) }
+        val tokens =
+            withContext(tokenizationDispatcher) {
+                TokenizerRegistry.resolve(languageTag).tokenize(resolvedChapter)
+            }
         updateChapterWordCount(bookId, chapterIndex, tokens)
         mutex.withLock { cache[key] = tokens }
-        prefetchNextChapter(bookId, chapterIndex + 1)
+        prefetchNextChapter(bookId, chapterIndex + 1, languageTag)
         return tokens
     }
 
     private fun prefetchNextChapter(
         bookId: BookId,
         nextIndex: Int,
+        languageTag: String?,
     ) {
-        val key = "${bookId.value}-$nextIndex"
+        val key = buildCacheKey(bookId, nextIndex, languageTag)
         prefetchScope.launch {
             val cached = mutex.withLock { cache.containsKey(key) }
             if (cached) return@launch
@@ -73,7 +79,10 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
                         bookRepository.getChapter(bookId, nextIndex)
                     }
                 }.getOrNull() ?: return@launch
-            val tokens = withContext(tokenizationDispatcher) { Tokenizer().tokenize(chapter) }
+            val tokens =
+                withContext(tokenizationDispatcher) {
+                    TokenizerRegistry.resolve(languageTag).tokenize(chapter)
+                }
             updateChapterWordCount(bookId, nextIndex, tokens)
             mutex.withLock { cache[key] = tokens }
         }
@@ -95,8 +104,33 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
         prefetchScope.launch {
             mutex.withLock {
                 cache.clear()
+                languageTagCache.clear()
             }
         }
+    }
+
+    private suspend fun resolveLanguageTag(bookId: BookId): String? {
+        val cached =
+            mutex.withLock {
+                if (languageTagCache.containsKey(bookId.value)) {
+                    Pair(true, languageTagCache[bookId.value])
+                } else {
+                    Pair(false, null)
+                }
+            }
+        if (cached.first) return cached.second
+        val resolved = bookRepository.getBookLanguageTag(bookId)
+        mutex.withLock { languageTagCache[bookId.value] = resolved }
+        return resolved
+    }
+
+    private fun buildCacheKey(
+        bookId: BookId,
+        chapterIndex: Int,
+        languageTag: String?,
+    ): String {
+        val tag = languageTag ?: "default"
+        return "${bookId.value}-$chapterIndex-$tag"
     }
 
     companion object {

@@ -27,6 +27,7 @@ object SampleBooks {
             id = BookId("sample-journey"),
             title = "The RSVP Journey",
             authors = listOf("Kairo Team"),
+            languageTag = "en",
             coverImage = null,
             chapters =
             listOf(

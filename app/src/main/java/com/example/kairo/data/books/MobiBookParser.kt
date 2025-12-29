@@ -60,11 +60,17 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         private const val COVER_HTML_SCAN_CHARS = 120_000
         private const val MIN_COLOR_COVER_AREA = 120_000
         private const val MIN_COLOR_SCORE = 0.08f
+        private const val MAX_NOISE_TITLE_LENGTH = 32
 
         private const val MOBI_HEADER_OFFSET = 16
         private const val EXTH_PRESENT_FLAG = 0x40
         private const val EXTH_FLAGS_OFFSET = 0x80
         private const val FIRST_IMAGE_INDEX_OFFSET = 0x6C
+
+        private val FILE_LABEL_WITH_NUMBER_REGEX =
+            Regex("(?i)^(part|chapter|section|book)(0*)(\\d{1,6})$")
+        private val GENERIC_FILE_LABEL_REGEX =
+            Regex("(?i)^[a-z]{2,}\\d{3,}$")
     }
 
     override suspend fun parse(
@@ -270,6 +276,7 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             id = bookId,
             title = header.title,
             authors = header.authors,
+            languageTag = null,
             coverImage = imageExtraction.coverImage,
             chapters = finalChapters,
         )
@@ -1280,7 +1287,8 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         if (matches.size < 2) {
             val byFilepos = splitHtmlIntoChapterSlicesByFilepos(html, fallbackTitle)
             if (byFilepos.isNotEmpty()) return byFilepos
-            val plainText = extractPlainText(html)
+            val cleanedHtml = stripNoiseTitleBlocks(html)
+            val plainText = extractPlainText(cleanedHtml)
             if (plainText.isBlank()) return emptyList()
             return listOf(
                 MobiChapterSlice(
@@ -1289,10 +1297,10 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                     chapter =
                     Chapter(
                         index = 0,
-                        title = fallbackTitle,
-                        htmlContent = html,
+                        title = sanitizeChapterTitle(fallbackTitle),
+                        htmlContent = cleanedHtml,
                         plainText = plainText,
-                        imagePaths = extractImagePathsFromHtml(html),
+                        imagePaths = extractImagePathsFromHtml(cleanedHtml),
                     ),
                 ),
             )
@@ -1302,14 +1310,15 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         val indices = matches.map { it.range.first } + html.length
         indices.zipWithNext().forEachIndexed { index, (start, end) ->
             val segment = html.substring(start, end).trim()
-            val title =
+            val cleanedSegment = stripNoiseTitleBlocks(segment)
+            val rawTitle =
                 extractPlainText(matches.getOrNull(index)?.value.orEmpty())
                     .lineSequence()
                     .firstOrNull()
                     ?.take(100)
                     ?.takeIf { it.isNotBlank() }
-                    ?: "Chapter ${index + 1}"
-            val plain = extractPlainText(segment)
+            val title = sanitizeChapterTitle(rawTitle)
+            val plain = extractPlainText(cleanedSegment)
             if (plain.isBlank()) return@forEachIndexed
             collected.add(
                 MobiChapterSlice(
@@ -1319,9 +1328,9 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                     Chapter(
                         index = collected.size,
                         title = title,
-                        htmlContent = segment,
+                        htmlContent = cleanedSegment,
                         plainText = plain,
-                        imagePaths = extractImagePathsFromHtml(segment),
+                        imagePaths = extractImagePathsFromHtml(cleanedSegment),
                     ),
                 ),
             )
@@ -1380,9 +1389,11 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             } else {
                 fallbackTitle
             }
+        val sanitizedTocTitle = sanitizeChapterTitle(tocTitle)
         if (tocEnd > 0) {
             val segment = html.substring(0, tocEnd).trim()
-            val plain = extractPlainText(segment)
+            val cleanedSegment = stripNoiseTitleBlocks(segment)
+            val plain = extractPlainText(cleanedSegment)
             if (plain.isNotBlank()) {
                 slices.add(
                     MobiChapterSlice(
@@ -1391,10 +1402,10 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                         chapter =
                         Chapter(
                             index = slices.size,
-                            title = tocTitle,
-                            htmlContent = segment,
+                            title = sanitizedTocTitle,
+                            htmlContent = cleanedSegment,
                             plainText = plain,
-                            imagePaths = extractImagePathsFromHtml(segment),
+                            imagePaths = extractImagePathsFromHtml(cleanedSegment),
                         ),
                     ),
                 )
@@ -1406,8 +1417,10 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             val end = adjustedStarts.getOrNull(index + 1) ?: html.length
             if (start >= end || start < 0 || end > html.length) return@forEachIndexed
             val segment = html.substring(start, end).trim()
-            val plain = extractPlainText(segment)
+            val cleanedSegment = stripNoiseTitleBlocks(segment)
+            val plain = extractPlainText(cleanedSegment)
             if (plain.isBlank()) return@forEachIndexed
+            val sanitizedTitle = sanitizeChapterTitle(entry.title)
             slices.add(
                 MobiChapterSlice(
                     start = start,
@@ -1415,10 +1428,10 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                     chapter =
                     Chapter(
                         index = slices.size,
-                        title = entry.title,
-                        htmlContent = segment,
+                        title = sanitizedTitle,
+                        htmlContent = cleanedSegment,
                         plainText = plain,
-                        imagePaths = extractImagePathsFromHtml(segment),
+                        imagePaths = extractImagePathsFromHtml(cleanedSegment),
                     ),
                 ),
             )
@@ -2366,6 +2379,50 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             .replace(Regex("\\n\\s*\\n+"), "\n\n")
             .trim()
 
+    private fun sanitizeChapterTitle(title: String?): String? {
+        val trimmed = title?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        return if (isLikelyFileLabel(trimmed)) null else trimmed
+    }
+
+    private fun stripNoiseTitleBlocks(html: String): String {
+        if (html.isBlank()) return html
+        val blockRegex =
+            Regex(
+                "(?is)<(h[1-6]|p|div)[^>]*>([\\s\\S]*?)</\\1>"
+            )
+        return blockRegex.replace(html) { match ->
+            val inner = match.groupValues[2]
+            val text =
+                inner.replace(Regex("<[^>]+>"), " ")
+                    .replace("&nbsp;", " ")
+                    .trim()
+            if (text.length <= MAX_NOISE_TITLE_LENGTH && isLikelyFileLabel(text)) {
+                ""
+            } else {
+                match.value
+            }
+        }
+    }
+
+    private fun isLikelyFileLabel(text: String): Boolean {
+        val normalized = normalizeNoiseLabel(text)
+        if (normalized.isBlank()) return false
+        val compact = normalized.replace(Regex("[\\s_-]+"), "")
+        val numberedMatch = FILE_LABEL_WITH_NUMBER_REGEX.matchEntire(compact)
+        if (numberedMatch != null) {
+            val zeros = numberedMatch.groupValues[2]
+            val digits = numberedMatch.groupValues[3]
+            if (zeros.isNotEmpty() || digits.length >= 3) return true
+        }
+        return GENERIC_FILE_LABEL_REGEX.matches(compact)
+    }
+
+    private fun normalizeNoiseLabel(text: String): String {
+        val trimmed = text.trim().lowercase()
+        if (trimmed.isBlank()) return ""
+        return trimmed.substringBeforeLast('.', trimmed)
+    }
+
     private fun decodeHtmlEntities(text: String): String =
         text
             .replace("&amp;", "&")
@@ -2549,6 +2606,7 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             id = bookId,
             title = fileName.substringBeforeLast('.', "MOBI Import"),
             authors = emptyList(),
+            languageTag = null,
             coverImage = null,
             chapters = chapters,
         )

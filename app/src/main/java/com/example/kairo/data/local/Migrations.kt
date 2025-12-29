@@ -68,3 +68,10 @@ val MIGRATION_5_6 =
             )
         }
     }
+
+val MIGRATION_6_7 =
+    object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE books ADD COLUMN languageTag TEXT")
+        }
+    }

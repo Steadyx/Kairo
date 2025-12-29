@@ -30,16 +30,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.core.text.TextUtilsCompat
+import androidx.core.view.ViewCompat
+import com.example.kairo.core.language.BookLanguageResolver
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.core.model.nearestWordIndex
+import java.util.Locale
 
 /**
  * Main reader screen - can be called directly with ViewModel state.
@@ -92,6 +99,22 @@ fun ReaderScreen(
             coverImage = coverImage,
             chapterData = uiState.chapterData,
         )
+    val contentLayoutDirection =
+        remember(book) {
+            val languageTag = BookLanguageResolver.resolve(book)
+            val locale = languageTag?.let { Locale.forLanguageTag(it) }
+            val layoutDirection =
+                if (locale == null) {
+                    ViewCompat.LAYOUT_DIRECTION_LTR
+                } else {
+                    TextUtilsCompat.getLayoutDirectionFromLocale(locale)
+                }
+            if (layoutDirection == ViewCompat.LAYOUT_DIRECTION_RTL) {
+                LayoutDirection.Rtl
+            } else {
+                LayoutDirection.Ltr
+            }
+        }
     val onSafeFocusChange =
         remember(renderState.tokens, onFocusChange) {
             { index: Int ->
@@ -175,15 +198,15 @@ fun ReaderScreen(
                 ),
         ) {
             // Header with book info and navigation
-            ReaderHeader(
-                book = book,
-                chapterIndex = chapterIndex,
-                chapterTitle = chapter?.title,
-                coverImage = coverImage,
-                canGoPrev = navigationState.canGoPrevPage,
-                canGoNext = navigationState.canGoNextPage,
-                onPrev = navigationState.onPrevPage,
-                onNext = navigationState.onNextPage,
+    ReaderHeader(
+        book = book,
+        chapterIndex = chapterIndex,
+        chapterTitle = sanitizeChapterTitleForDisplay(chapter?.title),
+        coverImage = coverImage,
+        canGoPrev = navigationState.canGoPrevPage,
+        canGoNext = navigationState.canGoNextPage,
+        onPrev = navigationState.onPrevPage,
+        onNext = navigationState.onNextPage,
                 onShowMenu = { showReaderMenu = !showReaderMenu },
             )
 
@@ -199,34 +222,36 @@ fun ReaderScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            ReaderContent(
-                modifier = Modifier.weight(1f),
-                book = book,
-                chapterIndex = chapterIndex,
-                coverImage = coverImage,
-                isLoading = uiState.isLoading,
-                isCoverChapter = renderState.isCoverChapter,
-                isPagedChapter = renderState.isPagedChapter,
-                resolvedPageIndex = renderState.resolvedPageIndex,
-                fullScreenTitlePageImagePath = renderState.fullScreenTitlePageImagePath,
-                headerCarouselImages = renderState.headerCarouselImages,
-                showHeaderCarousel = renderState.showHeaderCarousel,
-                displayBlocks = renderState.displayBlocks,
-                listState = listStateHolder.listState,
-                listStateKey = renderState.listStateKey,
-                invertedScroll = invertedScroll,
-                bottomInset = bottomInset,
-                focusIndex = focusIndex,
-                fontSizeSp = fontSizeSp,
-                textBrightness = textBrightness,
-                onSafeFocusChange = onSafeFocusChange,
-                onStartRsvpForToken = onStartRsvpForToken,
-                onPrevPage = navigationState.onPrevPage,
-                onNextPage = navigationState.onNextPage,
-                onOpenFullScreenImage = { fullScreenImagePath = it },
-                invertedScrollCommands = listStateHolder.invertedScrollCommands,
-                onChapterSelected = { index -> onChapterChange(index, 0) },
-            )
+            CompositionLocalProvider(LocalLayoutDirection provides contentLayoutDirection) {
+                ReaderContent(
+                    modifier = Modifier.weight(1f),
+                    book = book,
+                    chapterIndex = chapterIndex,
+                    coverImage = coverImage,
+                    isLoading = uiState.isLoading,
+                    isCoverChapter = renderState.isCoverChapter,
+                    isPagedChapter = renderState.isPagedChapter,
+                    resolvedPageIndex = renderState.resolvedPageIndex,
+                    fullScreenTitlePageImagePath = renderState.fullScreenTitlePageImagePath,
+                    headerCarouselImages = renderState.headerCarouselImages,
+                    showHeaderCarousel = renderState.showHeaderCarousel,
+                    displayBlocks = renderState.displayBlocks,
+                    listState = listStateHolder.listState,
+                    listStateKey = renderState.listStateKey,
+                    invertedScroll = invertedScroll,
+                    bottomInset = bottomInset,
+                    focusIndex = focusIndex,
+                    fontSizeSp = fontSizeSp,
+                    textBrightness = textBrightness,
+                    onSafeFocusChange = onSafeFocusChange,
+                    onStartRsvpForToken = onStartRsvpForToken,
+                    onPrevPage = navigationState.onPrevPage,
+                    onNextPage = navigationState.onNextPage,
+                    onOpenFullScreenImage = { fullScreenImagePath = it },
+                    invertedScrollCommands = listStateHolder.invertedScrollCommands,
+                    onChapterSelected = { index -> onChapterChange(index, 0) },
+                )
+            }
         }
 
         if (showChapterList.value) {
