@@ -78,7 +78,14 @@ fun calculateOrpIndexAdvanced(word: String): Int {
 }
 
 fun isSentenceEndingPunctuation(char: Char): Boolean =
-    char == '.' || char == '!' || char == '?' || char == '\u2026' // Include ellipsis …
+    char == '.' ||
+        char == '!' ||
+        char == '?' ||
+        char == '\u2026' || // Include ellipsis …
+        char == '。' ||
+        char == '！' ||
+        char == '？' ||
+        char == '｡'
 
 fun isMidSentencePunctuation(char: Char): Boolean =
     char == ',' ||
@@ -86,6 +93,13 @@ fun isMidSentencePunctuation(char: Char): Boolean =
         char == ':' ||
         char == '\u2014' ||
         char == '\u2013' ||
+        char == '、' ||
+        char == '，' ||
+        char == '：' ||
+        char == '；' ||
+        char == '·' ||
+        char == '・' ||
+        char == '‧' ||
         // Em-dash — and en-dash –
         char == ')' ||
         char == ']' ||
