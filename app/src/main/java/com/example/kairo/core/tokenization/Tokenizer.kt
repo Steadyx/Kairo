@@ -268,7 +268,7 @@ class Tokenizer {
         if (trimmed.isEmpty()) return false
         if (trimmed.all { it.isDigit() }) return true
         val romanNumeralPattern = Regex("^[ivxlcdm]+$", RegexOption.IGNORE_CASE)
-        return romanNumeralPattern.matches(trimmed)
+        return romanNumeralPattern.matches(trimmed) && trimmed.length > 1
     }
 
     private fun tokenizeParagraph(paragraph: String): List<Token> {
@@ -405,6 +405,15 @@ class Tokenizer {
 
     private fun normalizeEpubSymbols(input: String): String {
         var text = input
+
+        // Remove discretionary joiners that can hide text or block wrapping.
+        text = text.replace("\u00AD", "") // Soft hyphen
+        text = text.replace("\u2060", "") // Word joiner
+        text = text.replace("\uFEFF", "") // Zero-width no-break space / BOM
+
+        // Normalize hyphen variants to ASCII hyphen so tokenization stays stable.
+        text = text.replace('\u2010', '-')
+        text = text.replace('\u2011', '-')
 
         // Normalize non-breaking/odd spaces to regular spaces for consistent regex handling.
         text = text.replace(Regex("[\\u00A0\\u2007\\u202F\\u2009\\u200A\\u200B]"), " ")
