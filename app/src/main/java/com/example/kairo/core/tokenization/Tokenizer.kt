@@ -23,7 +23,9 @@ class Tokenizer {
             } else {
                 chapter.plainText
             }
-        val normalized = normalizeWhitespace(cleanedText)
+        val normalized =
+            normalizeWhitespace(cleanedText.replace(FORM_FEED, FORM_FEED_MARKER))
+                .replace(FORM_FEED_MARKER, FORM_FEED)
         if (normalized.isEmpty()) return emptyList()
 
         val cleaned = normalizeEpubSymbols(normalized)
@@ -445,17 +447,21 @@ class Tokenizer {
 
         // Make form-feed page breaks visible to the paragraph splitter.
         // Many ebook conversions use \u000C for page/scene breaks.
-        text = text.replace("\u000C", "\n\n\u000C\n\n")
+        text = text.replace(FORM_FEED, "\n\n$FORM_FEED_MARKER\n\n")
         return text
     }
 
     private fun isPageBreakParagraph(paragraph: String): Boolean {
+        val isFormFeedMarker = paragraph == FORM_FEED_MARKER
+        val isFormFeed = paragraph == FORM_FEED
+        if (isFormFeedMarker || isFormFeed) return true
         if (paragraph.isBlank()) return false
-        val isFormFeed = paragraph == "\u000C"
-        return isFormFeed || PAGE_BREAK_REGEX.matches(paragraph)
+        return PAGE_BREAK_REGEX.matches(paragraph)
     }
 
     companion object {
+        private const val FORM_FEED = "\u000C"
+        private const val FORM_FEED_MARKER = "KAIRO_PAGE_BREAK"
         private const val MAX_LINKS_PER_CHAPTER = 1000
         private const val MAX_LINK_TEXT_HTML_CHARS = 1200
 

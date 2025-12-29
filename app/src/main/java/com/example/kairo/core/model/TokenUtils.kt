@@ -85,7 +85,10 @@ fun isSentenceEndingPunctuation(char: Char): Boolean =
         char == '。' ||
         char == '！' ||
         char == '？' ||
-        char == '｡'
+        char == '｡' ||
+        char == '؟' ||
+        char == '۔' ||
+        char == '׃'
 
 fun isMidSentencePunctuation(char: Char): Boolean =
     char == ',' ||
@@ -100,6 +103,11 @@ fun isMidSentencePunctuation(char: Char): Boolean =
         char == '·' ||
         char == '・' ||
         char == '‧' ||
+        char == '،' ||
+        char == '؛' ||
+        char == '־' ||
+        char == '״' ||
+        char == '׳' ||
         // Em-dash — and en-dash –
         char == ')' ||
         char == ']' ||

@@ -34,4 +34,20 @@ class RsvpConfigResolverTest {
         assertEquals(65L, resolved.minWordMs)
         assertEquals(140L, resolved.longWordMinMs)
     }
+
+    @Test
+    fun appliesRtlAdjustments() {
+        val base =
+            RsvpConfig(
+                tempoMsPerWord = 100L,
+                minWordMs = 40L,
+                longWordMinMs = 100L,
+            )
+
+        val resolved = RsvpConfigResolver.resolve(base, "ar")
+
+        assertEquals(120L, resolved.tempoMsPerWord)
+        assertEquals(55L, resolved.minWordMs)
+        assertEquals(130L, resolved.longWordMinMs)
+    }
 }

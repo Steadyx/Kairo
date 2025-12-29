@@ -1022,9 +1022,14 @@ private fun KairoNavHost(
                             }
                         },
                         onTempoChange = { tempoMsPerWord ->
+                            val baseTempoMs =
+                                RsvpConfigResolver.toBaseTempoMs(
+                                    tempoMsPerWord,
+                                    languageTagState.value,
+                                )
                             coroutineScope.launch {
                                 container.preferencesRepository.updateRsvpConfig {
-                                    it.copy(tempoMsPerWord = tempoMsPerWord)
+                                    it.copy(tempoMsPerWord = baseTempoMs)
                                 }
                             }
                         },
@@ -1067,10 +1072,16 @@ private fun KairoNavHost(
                             }
                         },
                         onSaveCustomProfile = { name, config ->
+                            val baseTempoMs =
+                                RsvpConfigResolver.toBaseTempoMs(
+                                    config.tempoMsPerWord,
+                                    languageTagState.value,
+                                )
+                            val baseConfig = config.copy(tempoMsPerWord = baseTempoMs)
                             coroutineScope.launch {
                                 container.preferencesRepository.saveRsvpCustomProfile(
                                     name,
-                                    config
+                                    baseConfig
                                 )
                             }
                         },
@@ -1082,8 +1093,14 @@ private fun KairoNavHost(
                             }
                         },
                         onRsvpConfigChange = { updated ->
+                            val baseTempoMs =
+                                RsvpConfigResolver.toBaseTempoMs(
+                                    updated.tempoMsPerWord,
+                                    languageTagState.value,
+                                )
+                            val baseConfig = updated.copy(tempoMsPerWord = baseTempoMs)
                             coroutineScope.launch {
-                                container.preferencesRepository.updateRsvpConfig { updated }
+                                container.preferencesRepository.updateRsvpConfig { baseConfig }
                             }
                         },
                     ),

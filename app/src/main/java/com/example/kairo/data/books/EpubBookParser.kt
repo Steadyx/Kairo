@@ -59,6 +59,12 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         // Guardrails for link extraction to avoid expensive scans on huge TOCs.
         private const val MAX_LINKS_PER_CHAPTER = 1000
         private const val MAX_LINK_TEXT_HTML_CHARS = 1200
+
+        private const val MAX_NOISE_TITLE_LENGTH = 32
+        private val FILE_LABEL_WITH_NUMBER_REGEX =
+            Regex("(?i)^(part|chapter|section|book)(0*)(\\d{1,6})$")
+        private val GENERIC_FILE_LABEL_REGEX =
+            Regex("(?i)^[a-z]{2,}\\d{3,}$")
     }
 
     override suspend fun parse(
@@ -241,8 +247,10 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
                         baseDir = chapterDir,
                         imageRelativePathByEpubPathLower = imageRelativePathByEpubPathLower,
                     )
-                    val plainText = extractPlainText(resolvedHtml)
-                    val title = extractChapterTitle(originalHtml) ?: spineItem.idref
+                    val cleanedHtml = stripNoiseTitleBlocks(resolvedHtml)
+                    val plainText = extractPlainText(cleanedHtml)
+                    val rawTitle = extractChapterTitle(originalHtml)
+                    val title = sanitizeChapterTitle(rawTitle ?: spineItem.idref)
 
                     // Skip empty chapters
                     if (plainText.isBlank()) return@mapIndexedNotNull null
@@ -253,7 +261,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
                         chapter = Chapter(
                             index = index,
                             title = title,
-                            htmlContent = resolvedHtml,
+                            htmlContent = cleanedHtml,
                             plainText = plainText,
                             imagePaths = imagePaths,
                         ),
@@ -805,6 +813,50 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
         }
 
         return null
+    }
+
+    private fun sanitizeChapterTitle(title: String?): String? {
+        val trimmed = title?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        return if (isLikelyFileLabel(trimmed)) null else trimmed
+    }
+
+    private fun stripNoiseTitleBlocks(html: String): String {
+        if (html.isBlank()) return html
+        val blockRegex =
+            Regex(
+                "(?is)<(h[1-6]|p|div)[^>]*>([\\s\\S]*?)</\\1>"
+            )
+        return blockRegex.replace(html) { match ->
+            val inner = match.groupValues[2]
+            val text =
+                inner.replace(Regex("<[^>]+>"), " ")
+                    .replace("&nbsp;", " ")
+                    .trim()
+            if (text.length <= MAX_NOISE_TITLE_LENGTH && isLikelyFileLabel(text)) {
+                ""
+            } else {
+                match.value
+            }
+        }
+    }
+
+    private fun isLikelyFileLabel(text: String): Boolean {
+        val normalized = normalizeNoiseLabel(text)
+        if (normalized.isBlank()) return false
+        val compact = normalized.replace(Regex("[\\s_-]+"), "")
+        val numberedMatch = FILE_LABEL_WITH_NUMBER_REGEX.matchEntire(compact)
+        if (numberedMatch != null) {
+            val zeros = numberedMatch.groupValues[2]
+            val digits = numberedMatch.groupValues[3]
+            if (zeros.isNotEmpty() || digits.length >= 3) return true
+        }
+        return GENERIC_FILE_LABEL_REGEX.matches(compact)
+    }
+
+    private fun normalizeNoiseLabel(text: String): String {
+        val trimmed = text.trim().lowercase()
+        if (trimmed.isBlank()) return ""
+        return trimmed.substringBeforeLast('.', trimmed)
     }
 
     /**

@@ -75,9 +75,19 @@ class ComprehensionRsvpEngine : RsvpEngine {
             }
         }
         cursor = cursor.coerceIn(0, expanded.lastIndex)
-
-        while (cursor < expanded.size && expanded[cursor].token.type != TokenType.WORD) cursor++
-        if (cursor >= expanded.size) return emptyList()
+        val firstWordCursor = findFirstWordCursor(expanded, cursor)
+        if (firstWordCursor >= expanded.size) return emptyList()
+        cursor = firstWordCursor
+        while (cursor > 0) {
+            val prevToken = expanded[cursor - 1]
+            if (prevToken.originalIndex < startIndex) break
+            val ch = prevToken.token.text.firstOrNull() ?: break
+            val isLeadingOpening =
+                prevToken.token.type == TokenType.PUNCTUATION &&
+                    (ch == '"' || ch in OPENING_PUNCTUATION)
+            if (!isLeadingOpening) break
+            cursor--
+        }
 
         val frames = mutableListOf<RsvpFrame>()
 
@@ -208,7 +218,14 @@ class ComprehensionRsvpEngine : RsvpEngine {
         // Allow opening punctuation right before the first word to be part of the unit.
         while (cursor < expandedTokens.size) {
             val token = expandedTokens[cursor].token
-            if (token.type == TokenType.PUNCTUATION && isOpeningPunctuation(token, state)) {
+            val nextToken = expandedTokens.getOrNull(cursor + 1)?.token
+            val isLeadingQuote =
+                token.type == TokenType.PUNCTUATION &&
+                    token.text.firstOrNull()?.let { isQuoteChar(it) } == true &&
+                    nextToken?.type == TokenType.WORD
+            if (token.type == TokenType.PUNCTUATION &&
+                (isOpeningPunctuation(token, state) || isLeadingQuote)
+            ) {
                 unitTokens += token
                 state.consume(token)
                 cursor++
@@ -266,8 +283,14 @@ class ComprehensionRsvpEngine : RsvpEngine {
             val token = expandedTokens[cursor].token
             if (token.type == TokenType.PUNCTUATION) {
                 val isOpening = isOpeningPunctuation(token, state)
-                if (hitHardBoundary && isOpening) break
-                if (!isOpening) {
+                val prevPunct =
+                    unitTokens.lastOrNull { it.type == TokenType.PUNCTUATION }?.text?.firstOrNull()
+                val prevWasSentenceEnd =
+                    prevPunct != null && (prevPunct == '.' || isSentenceEndingPunctuation(prevPunct))
+                val treatAsClosingQuote =
+                    token.text.firstOrNull()?.let { isQuoteChar(it) } == true && prevWasSentenceEnd
+                if (hitHardBoundary && isOpening && !treatAsClosingQuote) break
+                if (!isOpening || treatAsClosingQuote) {
                     val prevWord = unitTokens.lastOrNull { it.type == TokenType.WORD }
                     unitTokens += token
                     state.consume(token)
@@ -315,8 +338,21 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val pageBreaks = frameTokens.count { it.type == TokenType.PAGE_BREAK }
         val firstWordIndex = frameTokens.indexOfFirst { it.type == TokenType.WORD }
         val speedStrength = speedStrength(msPerWord)
+        val boundaryForBoost =
+            if (boundaryBefore == BoundaryBefore.NONE &&
+                prevToken?.type == TokenType.PUNCTUATION &&
+                isHardBoundaryPunctuation(
+                    prevToken,
+                    prevWord = prevWord,
+                    nextToken = nextToken,
+                )
+            ) {
+                BoundaryBefore.SENTENCE
+            } else {
+                boundaryBefore
+            }
         val startBoost =
-            startBoostMultiplier(msPerWord = msPerWord, boundaryBefore = boundaryBefore)
+            startBoostMultiplier(msPerWord = msPerWord, boundaryBefore = boundaryForBoost)
         val clauseConfigStrength = (
             (config.clausePauseFactor - 1.0) /
                 (DEFAULT_CLAUSE_PAUSE_FACTOR - 1.0)
@@ -430,6 +466,13 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
 
         duration *= multiWordPenalty(words.size)
+
+        if (words.isNotEmpty() &&
+            boundaryForBoost == BoundaryBefore.SENTENCE &&
+            config.sentenceEndPauseMs <= 0L
+        ) {
+            duration += SENTENCE_START_HOLD_MS * speedStrength
+        }
 
         // Apply flow and rhythm smoothing to word duration BEFORE adding punctuation pauses.
         // This ensures punctuation pauses are not reduced by the smoothing algorithms.
@@ -596,16 +639,20 @@ class ComprehensionRsvpEngine : RsvpEngine {
     ): Double {
         val ch = token.text.firstOrNull() ?: return 0.0
         val prevText = prevWord?.text.orEmpty()
+        val prevIsNumeric = prevWord?.text?.all { it.isDigit() } == true
+
+        if (ch == '.' && isDecimalPoint(prevText, nextToken)) {
+            return 0.0
+        }
 
         var base =
             when {
-                ch == '.' -> {
-                    when {
-                        isDecimalPoint(prevText, nextToken) -> 0.0
-                        isAbbreviationDot(prevText, nextToken) -> config.commaPauseMs * 0.35
-                        else -> config.sentenceEndPauseMs.toDouble()
+                ch == '.' ->
+                    if (isAbbreviationDot(prevText, nextToken)) {
+                        config.commaPauseMs * 0.35
+                    } else {
+                        config.sentenceEndPauseMs.toDouble()
                     }
-                }
                 isSentenceEndingPunctuation(ch) -> config.sentenceEndPauseMs.toDouble()
                 ch == ',' -> if (isThousandSeparator(
                         prevText,
@@ -648,6 +695,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
         if (ch == '.' &&
             isLikelySentenceContinuation(nextToken) &&
+            !prevIsNumeric &&
             !isDecimalPoint(prevText, nextToken) &&
             !isAbbreviationDot(prevText, nextToken)
         ) {
@@ -958,6 +1006,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
     private fun isOpeningPunctuationChar(ch: Char): Boolean = ch == '"' || ch in OPENING_PUNCTUATION
 
     private fun isQuoteOrBracket(ch: Char): Boolean = ch in QUOTE_OR_BRACKET_PUNCTUATION
+
+    private fun isQuoteChar(ch: Char): Boolean =
+        ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019'
 
     private fun isHardBoundaryPunctuation(
         token: Token,
@@ -1365,7 +1416,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
         nextToken: Token?,
     ): Boolean {
         if (!prevText.any { it.isDigit() }) return false
-        return nextToken?.type == TokenType.WORD && nextToken.text.any { it.isDigit() }
+        val nextText = nextToken?.text ?: return false
+        return nextText.any { it.isDigit() }
     }
 
     private fun isThousandSeparator(
@@ -1403,6 +1455,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         }
 
         val prevLetters = rawPrev.filter { it.isLetter() }
+        if (prevLetters.isEmpty()) return false
         if (prevLetters.length == 1) {
             return nextStartsLower || (nextStartsUpper && !isSentenceStarter) || nextIsInitial
         }
@@ -1447,6 +1500,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private const val EASY_PAIR_THRESHOLD = 0.72
         private const val TRANSITION_HOLD_BASE_MS = 6.0
         private const val TRANSITION_HOLD_EXTRA_MS = 10.0
+        private const val SENTENCE_START_HOLD_MS = 6.0
         private const val DIALOGUE_ENTRY_BOOST = 0.06
         private const val NUMBER_EMPHASIS_BOOST = 0.12
         private const val PROPER_NOUN_BOOST = 0.08

@@ -48,5 +48,5 @@ Goal: add automatic language-aware tokenization + pacing while keeping English b
 ## Incremental Rollout
 - [x] Phase 1: language detection + registry wiring, no new tokenizers (still English).
 - [x] Phase 2: CJK tokenizer + pacing overrides.
-- [ ] Phase 3: RTL tokenizer + pacing overrides.
+- [x] Phase 3: RTL tokenizer + pacing overrides.
 - [ ] Phase 4: per-language fine-tuning based on feedback.

@@ -5,6 +5,7 @@ import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.tokenization.cjk.CjkSegmenterConfig
 import com.example.kairo.core.tokenization.cjk.CjkTokenizer
+import com.example.kairo.core.tokenization.rtl.RtlTokenizer
 
 interface ChapterTokenizer {
     fun tokenize(chapter: Chapter): List<Token>
@@ -37,6 +38,7 @@ object TokenizerRegistry {
                 treatHangulAsWord = true,
             ),
         )
+    private val rtlTokenizer = RtlTokenizer()
 
     fun resolve(languageTag: String?): ChapterTokenizer {
         val normalized = LanguageTagNormalizer.normalize(languageTag)?.lowercase()
@@ -45,6 +47,8 @@ object TokenizerRegistry {
             normalized.startsWith("ja") -> jaTokenizer
             normalized.startsWith("zh") -> zhTokenizer
             normalized.startsWith("ko") -> koTokenizer
+            normalized.startsWith("ar") -> rtlTokenizer
+            normalized.startsWith("he") -> rtlTokenizer
             else -> defaultTokenizer
         }
     }

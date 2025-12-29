@@ -136,9 +136,10 @@ internal fun ChapterListSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
+                        val displayTitle = sanitizeChapterTitleForDisplay(chapter.title)
                         Text(
                             text =
-                            chapter.title
+                            displayTitle
                                 ?: stringResource(
                                     R.string.reader_chapter_title,
                                     index + 1,
