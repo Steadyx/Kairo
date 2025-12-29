@@ -672,7 +672,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
 
         // Check for Roman numerals (i, ii, iii, iv, v, vi, vii, viii, ix, x, etc.)
         val romanNumeralPattern = Regex("^[ivxlcdm]+$", RegexOption.IGNORE_CASE)
-        if (romanNumeralPattern.matches(trimmed)) return true
+        if (romanNumeralPattern.matches(trimmed) && trimmed.length > 1) return true
 
         return false
     }
@@ -755,27 +755,27 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
             .trim()
 
     private fun normalizePageBreakElements(html: String): String {
-        val pageBreakToken = "\n\n\u000C\n\n"
         var text = html
+        val pageBreakToken = " "
 
         val epubPageBreak =
             Regex(
-                "<[^>]+\\b(epub:type|role)\\s*=\\s*['\\\"](?:pagebreak|doc-pagebreak)['\\\"][^>]*>[\\s\\S]*?</[^>]+>",
+                "<([a-zA-Z0-9]+)\\b[^>]*\\b(epub:type|role)\\s*=\\s*['\\\"](?:pagebreak|doc-pagebreak)['\\\"][^>]*>[\\s\\S]*?</\\1>",
                 RegexOption.IGNORE_CASE,
             )
         val epubPageBreakSelfClosing =
             Regex(
-                "<[^>]+\\b(epub:type|role)\\s*=\\s*['\\\"](?:pagebreak|doc-pagebreak)['\\\"][^>]*/?>",
+                "<[^>]+\\b(epub:type|role)\\s*=\\s*['\\\"](?:pagebreak|doc-pagebreak)['\\\"][^>]*/>",
                 RegexOption.IGNORE_CASE,
             )
         val classPageBreak =
             Regex(
-                "<[^>]+\\bclass\\s*=\\s*['\\\"][^'\\\"]*(?:pagebreak|page-break)[^'\\\"]*['\\\"][^>]*>[\\s\\S]*?</[^>]+>",
+                "<([a-zA-Z0-9]+)\\b[^>]*\\bclass\\s*=\\s*['\\\"][^'\\\"]*(?:pagebreak|page-break)[^'\\\"]*['\\\"][^>]*>[\\s\\S]*?</\\1>",
                 RegexOption.IGNORE_CASE,
             )
         val classPageBreakSelfClosing =
             Regex(
-                "<[^>]+\\bclass\\s*=\\s*['\\\"][^'\\\"]*(?:pagebreak|page-break)[^'\\\"]*['\\\"][^>]*>",
+                "<[^>]+\\bclass\\s*=\\s*['\\\"][^'\\\"]*(?:pagebreak|page-break)[^'\\\"]*['\\\"][^>]*/>",
                 RegexOption.IGNORE_CASE,
             )
 

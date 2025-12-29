@@ -9,11 +9,11 @@ import org.junit.Test
 class TokenizerTest {
     private val tokenizer = Tokenizer()
 
-    private fun chapter(text: String) =
+    private fun chapter(text: String, htmlContent: String = "") =
         Chapter(
             index = 0,
             title = null,
-            htmlContent = "",
+            htmlContent = htmlContent,
             plainText = text,
         )
 
@@ -73,5 +73,38 @@ class TokenizerTest {
         val tokens = tokenizer.tokenize(chapter("Hello--world"))
         val emDashCount = tokens.count { it.type == TokenType.PUNCTUATION && it.text == "\u2014" }
         assertEquals(1, emDashCount)
+    }
+
+    @Test
+    fun keepsStandaloneSingleLetterIWhenStrippingPageNumbers() {
+        val tokens =
+            tokenizer.tokenize(
+                chapter(
+                    text = "Indiana and\nI\nwalked home.",
+                    htmlContent = "<a href=\"kairo://chapter/1\">toc</a>",
+                ),
+            )
+        val words = tokens.filter { it.type == TokenType.WORD }.map { it.text }
+
+        assertTrue(words.contains("I"))
+        assertEquals(listOf("Indiana", "and", "I", "walked", "home"), words)
+    }
+
+    @Test
+    fun removesSoftHyphensAndWordJoiners() {
+        val tokens = tokenizer.tokenize(chapter("sport\u00ADing\u2060 is fun\uFEFF."))
+        val words = tokens.filter { it.type == TokenType.WORD }.map { it.text }
+
+        assertTrue(words.contains("sporting"))
+        assertTrue(words.contains("is"))
+        assertTrue(words.contains("fun"))
+    }
+
+    @Test
+    fun normalizesNonBreakingHyphenToAsciiHyphen() {
+        val tokens = tokenizer.tokenize(chapter("military\u2011grade response"))
+        val words = tokens.filter { it.type == TokenType.WORD }.map { it.text }
+
+        assertTrue(words.contains("military-grade"))
     }
 }

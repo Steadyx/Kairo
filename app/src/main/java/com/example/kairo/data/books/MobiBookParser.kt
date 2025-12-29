@@ -2086,7 +2086,7 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         if (trimmed.isEmpty()) return false
         if (trimmed.all { it.isDigit() }) return true
         val romanNumeralPattern = Regex("^[ivxlcdm]+$", RegexOption.IGNORE_CASE)
-        return romanNumeralPattern.matches(trimmed)
+        return romanNumeralPattern.matches(trimmed) && trimmed.length > 1
     }
 
     private fun extractImagePathsFromHtml(html: String): List<String> {
@@ -2447,8 +2447,8 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             }
 
     private fun normalizePageBreakElements(html: String): String {
-        val pageBreakToken = "\n\n\u000C\n\n"
         var text = html
+        val pageBreakToken = " "
 
         val pageBreakTag =
             Regex("""<\s*mbp:pagebreak\s*/?>""", RegexOption.IGNORE_CASE)
