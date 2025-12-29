@@ -1,13 +1,10 @@
 package com.example.kairo.data.books
 
-import com.example.kairo.core.dispatchers.DispatcherProvider
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MobiBookParserTest {
-    private val parser = MobiBookParser(TestDispatcherProvider)
+    private val parser = MobiBookParser(TestDispatchers)
 
     @Test
     fun extractPlainTextKeepsInlineMbpPageBreakContent() {
@@ -46,20 +43,4 @@ class MobiBookParserTest {
         assertTrue(text.contains("Next para."))
         assertTrue(text.contains("friends.\n\nNext"))
     }
-}
-
-private object TestDispatcherProvider : DispatcherProvider {
-    override val default: CoroutineDispatcher = Dispatchers.Unconfined
-    override val io: CoroutineDispatcher = Dispatchers.Unconfined
-}
-
-@Suppress("UNCHECKED_CAST")
-private fun <T> Any.callPrivate(name: String, vararg args: Any): T {
-    val method =
-        javaClass.getDeclaredMethod(
-            name,
-            *args.map { it.javaClass }.toTypedArray(),
-        )
-    method.isAccessible = true
-    return method.invoke(this, *args) as T
 }
