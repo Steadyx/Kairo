@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,9 +40,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -85,6 +88,7 @@ fun LibraryScreen(
             uri?.let { onImportFile(it) }
         }
     var selectedTab by rememberSaveable(initialTab) { mutableIntStateOf(initialTab.ordinal) }
+    var pendingDeleteBook by remember { mutableStateOf<Book?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -163,7 +167,7 @@ fun LibraryScreen(
                             book = book,
                             progress = bookProgress[book.id.value],
                             onOpen = onOpen,
-                            onDelete = onDelete,
+                            onRequestDelete = { pendingDeleteBook = it },
                         )
                     }
                 }
@@ -218,6 +222,33 @@ fun LibraryScreen(
         }
         ImportProgressOverlay(state = importState)
     }
+
+    pendingDeleteBook?.let { book ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteBook = null },
+            title = { Text(stringResource(R.string.library_delete_title)) },
+            text = {
+                Text(
+                    stringResource(R.string.library_delete_message, book.title),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete(book)
+                        pendingDeleteBook = null
+                    },
+                ) { Text(stringResource(R.string.action_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteBook = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
 }
 
 enum class LibraryTab { Library, Bookmarks }
@@ -227,7 +258,7 @@ private fun LibraryCard(
     book: Book,
     progress: LibraryBookProgress?,
     onOpen: (Book) -> Unit,
-    onDelete: (Book) -> Unit,
+    onRequestDelete: (Book) -> Unit,
 ) {
     val context = LocalContext.current
     val authorSeparator = stringResource(R.string.list_separator)
@@ -315,7 +346,7 @@ private fun LibraryCard(
             }
 
             // Delete button
-            IconButton(onClick = { onDelete(book) }) {
+            IconButton(onClick = { onRequestDelete(book) }) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = stringResource(R.string.content_desc_delete_book),

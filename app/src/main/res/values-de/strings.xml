@@ -53,6 +53,8 @@
     <string name="library_time_left">~%1$s übrig</string>
     <string name="library_percent_complete">%1$d %% abgeschlossen</string>
     <string name="library_bookmark_progress">Kapitel %1$d / %2$d • %3$d %%</string>
+    <string name="library_delete_title">Buch löschen?</string>
+    <string name="library_delete_message">"%1$s" aus deiner Bibliothek entfernen? Dies kann nicht rückgängig gemacht werden.</string>
 
     <string name="reader_settings_title">Leseeinstellungen</string>
     <string name="reader_settings_subtitle">Schriftgröße, Thema, Scrollen</string>

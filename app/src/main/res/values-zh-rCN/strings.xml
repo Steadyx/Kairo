@@ -53,6 +53,8 @@
     <string name="library_time_left">剩余 ~%1$s</string>
     <string name="library_percent_complete">已完成 %1$d％</string>
     <string name="library_bookmark_progress">第 %1$d 章 / %2$d • %3$d％</string>
+    <string name="library_delete_title">删除书籍？</string>
+    <string name="library_delete_message">从你的书库中删除“%1$s”？无法撤销。</string>
 
     <string name="reader_settings_title">阅读器设置</string>
     <string name="reader_settings_subtitle">字号、主题、滚动</string>
