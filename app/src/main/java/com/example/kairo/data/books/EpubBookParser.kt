@@ -339,8 +339,14 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
     private fun parseContainerXml(xml: String): String {
         val fallback = "OEBPS/content.opf"
         return runCatching {
-            val factory = DocumentBuilderFactory.newInstance()
-            factory.isNamespaceAware = true
+            val factory = DocumentBuilderFactory.newInstance().apply {
+                isNamespaceAware = true
+                // XXE prevention - disable external entity processing
+                setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+                setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+                setFeature("http://xml.org/sax/features/external-general-entities", false)
+                setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            }
             val builder = factory.newDocumentBuilder()
             val doc = builder.parse(InputSource(StringReader(xml)))
 
@@ -381,8 +387,14 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
     private fun parseOpfFile(xml: String): OpfData {
         val fallback = OpfData(null, emptyList(), null, null, emptyMap(), emptyList())
         return runCatching {
-            val factory = DocumentBuilderFactory.newInstance()
-            factory.isNamespaceAware = true
+            val factory = DocumentBuilderFactory.newInstance().apply {
+                isNamespaceAware = true
+                // XXE prevention - disable external entity processing
+                setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+                setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+                setFeature("http://xml.org/sax/features/external-general-entities", false)
+                setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            }
             val builder = factory.newDocumentBuilder()
             val doc = builder.parse(InputSource(StringReader(xml)))
 
@@ -481,27 +493,65 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
 
     /**
      * Resolves a relative path against a base directory.
+     * Prevents path traversal attacks by ensuring the result stays within the EPUB structure.
      */
     private fun resolvePath(
         baseDir: String,
         relativePath: String,
     ): String {
-        if (relativePath.startsWith("/")) return relativePath.substring(1)
-        if (baseDir.isEmpty()) return relativePath
+        // Reject absolute paths and protocol-based paths outright
+        if (relativePath.startsWith("/") ||
+            relativePath.contains("://") ||
+            relativePath.startsWith("\\")
+        ) {
+            return ""
+        }
+
+        val pathToResolve = relativePath.removePrefix("./")
+        if (baseDir.isEmpty()) {
+            // Validate there's no path traversal escaping root
+            return validateNoEscape(pathToResolve)
+        }
 
         // Handle ../ in paths
-        val baseParts = baseDir.split("/").toMutableList()
-        val relParts = relativePath.split("/")
+        val baseParts = baseDir.split("/").filter { it.isNotEmpty() }.toMutableList()
+        val relParts = pathToResolve.split("/")
 
         for (part in relParts) {
             when (part) {
-                ".." -> if (baseParts.isNotEmpty()) baseParts.removeAt(baseParts.lastIndex)
-                "." -> { /* ignore */ }
+                ".." -> {
+                    if (baseParts.isNotEmpty()) {
+                        baseParts.removeAt(baseParts.lastIndex)
+                    } else {
+                        // Attempting to escape root - reject
+                        return ""
+                    }
+                }
+                ".", "" -> { /* ignore */ }
                 else -> baseParts.add(part)
             }
         }
 
         return baseParts.joinToString("/")
+    }
+
+    /**
+     * Validates that a path doesn't escape the root directory.
+     */
+    private fun validateNoEscape(path: String): String {
+        val parts = path.split("/")
+        var depth = 0
+        for (part in parts) {
+            when (part) {
+                ".." -> {
+                    depth--
+                    if (depth < 0) return "" // Would escape root
+                }
+                ".", "" -> { /* ignore */ }
+                else -> depth++
+            }
+        }
+        return path.split("/").filter { it != "." && it.isNotEmpty() }.joinToString("/")
     }
 
     private fun extractImageSrcs(html: String): List<String> {
