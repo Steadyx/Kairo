@@ -24,6 +24,7 @@ internal fun exitAndSavePosition(context: RsvpUiContext) {
     val frames = context.frameState.frames
     val book = context.state.book
 
+    runtime.isExiting = true
     runtime.isPlaying = false
     runtime.completed = true
 

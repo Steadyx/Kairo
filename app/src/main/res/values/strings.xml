@@ -107,7 +107,7 @@
     <string name="rsvp_preparing">Preparing RSVP...</string>
     <string name="rsvp_empty_state">No content to display.\nTap to go back.</string>
     <string name="rsvp_quick_settings_title">Quick Settings</string>
-    <string name="rsvp_quick_settings_hints">Swipe up/down to adjust speed\nUse sliders to preview changes\nLong press to exit</string>
+    <string name="rsvp_quick_settings_hints">Swipe left/right to scrub position\nSwipe up/down to adjust speed\nUse sliders to preview changes\nLong press to exit</string>
     <string name="rsvp_frame_progress">%1$d / %2$d</string>
     <string name="rsvp_tap_to_resume">Tap anywhere to resume</string>
     <string name="rsvp_positioning_mode_title">Positioning mode</string>

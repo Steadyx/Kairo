@@ -11,17 +11,27 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import com.example.kairo.core.model.RsvpFontFamily
 import com.example.kairo.core.model.RsvpFontWeight
 import com.example.kairo.core.model.TokenType
+import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.ui.theme.InterFontFamily
 import com.example.kairo.ui.theme.RobotoFontFamily
 import kotlin.math.roundToLong
@@ -50,6 +60,7 @@ internal fun RsvpPlaybackSurface(context: RsvpUiContext) {
         contentAlignment = Alignment.Center,
     ) {
         RsvpFocusWord(context, currentFrame, typography, colors)
+        RsvpParagraphPreview(context, typography, colors)
         RsvpPositionGuide(context)
         RsvpProgressBar(context)
         RsvpTopBar(context)
@@ -145,6 +156,146 @@ private fun RsvpFocusWord(
                     profile.config.maxWordsPerUnit > ORP_LOCK_PIVOT_WORDS,
             ),
         )
+    }
+}
+
+@Composable
+private fun RsvpParagraphPreview(
+    context: RsvpUiContext,
+    typography: OrpTypography,
+    colors: OrpColors,
+) {
+    val runtime = context.runtime
+    val tokens = context.state.book.tokens
+    if (tokens.isEmpty()) return
+
+    val currentIndex =
+        resolveCurrentTokenIndex(
+            context.frameState.frames,
+            runtime.frameIndex,
+            context.state.book.startIndex,
+        )
+    val highlightIndex =
+        remember(tokens, currentIndex) {
+            tokens.nearestWordIndex(currentIndex)
+        }
+    val paragraph =
+        remember(tokens, highlightIndex) {
+            resolveRsvpParagraph(tokens, highlightIndex)
+        } ?: return
+    val highlightTextColor = MaterialTheme.colorScheme.primary
+    val highlightStyle =
+        remember(colors, highlightTextColor) {
+            SpanStyle(
+                color = highlightTextColor,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    val annotatedText =
+        remember(paragraph, highlightIndex, highlightStyle) {
+            buildRsvpParagraphAnnotatedText(paragraph, highlightIndex, highlightStyle)
+        }
+    val fontSizeSp =
+        (typography.fontSizeSp * PARAGRAPH_FONT_SCALE)
+            .coerceIn(MIN_PARAGRAPH_FONT_SIZE_SP, MAX_PARAGRAPH_FONT_SIZE_SP)
+    val lineHeightSp = fontSizeSp * PARAGRAPH_LINE_HEIGHT_MULTIPLIER
+    val lineCount =
+        with(LocalDensity.current) {
+            val lineHeightPx = lineHeightSp.sp.toPx().coerceAtLeast(1f)
+            val previewHeightPx = PARAGRAPH_PREVIEW_HEIGHT.toPx().coerceAtLeast(lineHeightPx)
+            (previewHeightPx / lineHeightPx).toInt().coerceAtLeast(1)
+        }
+    val textStyle =
+        MaterialTheme.typography.bodyMedium.copy(
+            fontSize = fontSizeSp.sp,
+            fontFamily = typography.fontFamily,
+            fontWeight = FontWeight.Normal,
+            color = colors.textColor.copy(alpha = PARAGRAPH_TEXT_ALPHA),
+            lineHeight = lineHeightSp.sp,
+        )
+    val offsetY =
+        with(LocalDensity.current) {
+            (typography.fontSizeSp * PARAGRAPH_OFFSET_MULTIPLIER).sp.toDp()
+        }
+    val visible = runtime.isScrubbing || (!runtime.isPlaying && !runtime.isExiting)
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        val backgroundColor = MaterialTheme.colorScheme.background
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment =
+            BiasAlignment(
+                horizontalBias = CENTER_BIAS,
+                verticalBias =
+                runtime.currentVerticalBias.coerceIn(
+                    VERTICAL_BIAS_MIN,
+                    VERTICAL_BIAS_MAX,
+                ),
+            ),
+        ) {
+            Box(
+                modifier =
+                Modifier
+                    .offset(y = offsetY)
+                    .fillMaxWidth()
+                    .widthIn(max = PARAGRAPH_PREVIEW_MAX_WIDTH)
+                    .padding(horizontal = PARAGRAPH_PREVIEW_HORIZONTAL_PADDING)
+                    .height(PARAGRAPH_PREVIEW_HEIGHT)
+                    .clipToBounds(),
+            ) {
+                Text(
+                    text = annotatedText,
+                    style = textStyle,
+                    overflow = TextOverflow.Clip,
+                    maxLines = lineCount,
+                    minLines = lineCount,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(
+                    modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(PARAGRAPH_FADE_HEIGHT)
+                        .align(Alignment.TopCenter)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colorStops =
+                                arrayOf(
+                                    0f to backgroundColor,
+                                    0.22f to backgroundColor.copy(alpha = PARAGRAPH_FADE_STRONG_ALPHA),
+                                    0.5f to backgroundColor.copy(alpha = PARAGRAPH_FADE_MID_ALPHA),
+                                    0.78f to backgroundColor.copy(alpha = PARAGRAPH_FADE_SOFT_ALPHA),
+                                    1f to backgroundColor.copy(alpha = 0f),
+                                ),
+                            ),
+                        ),
+                )
+                Box(
+                    modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(PARAGRAPH_FADE_HEIGHT)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colorStops =
+                                arrayOf(
+                                    0f to backgroundColor.copy(alpha = 0f),
+                                    0.22f to backgroundColor.copy(alpha = PARAGRAPH_FADE_SOFT_ALPHA),
+                                    0.5f to backgroundColor.copy(alpha = PARAGRAPH_FADE_MID_ALPHA),
+                                    0.78f to backgroundColor.copy(alpha = PARAGRAPH_FADE_STRONG_ALPHA),
+                                    1f to backgroundColor,
+                                ),
+                            ),
+                        ),
+                )
+            }
+        }
     }
 }
 
