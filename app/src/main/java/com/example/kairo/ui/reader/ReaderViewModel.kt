@@ -727,7 +727,10 @@ private fun extractHtmlBlockMarkers(
 
     val blockSeparated =
         cleaned.replace(
-            Regex("</?(p|div|br|h[1-6]|li|tr)[^>]*>", RegexOption.IGNORE_CASE),
+            Regex(
+                "</?(p|div|br|h[1-6]|li|tr|blockquote|pre|ul|ol|table|thead|tbody|tfoot|td|th|section|article|figure|figcaption|hr)[^>]*>",
+                RegexOption.IGNORE_CASE,
+            ),
             "\n\n",
         )
     val rawBlocks =
@@ -743,11 +746,23 @@ private fun extractHtmlBlockMarkers(
             "<img[^>]+?src\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>",
             RegexOption.IGNORE_CASE,
         )
+    val svgRegex =
+        Regex(
+            "<image\\b[^>]*?\\b(?:xlink:href|href)\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>",
+            RegexOption.IGNORE_CASE,
+        )
 
     rawBlocks.forEach { block ->
         val imageMarkers = mutableListOf<HtmlBlockMarker.Image>()
+        val imageMatches = mutableListOf<Pair<Int, String>>()
         imgRegex.findAll(block).forEach { match ->
-            val resolved = resolveInlineImagePath(match.groupValues[1], imagePaths, fallbackIndex)
+            imageMatches.add(match.range.first to match.groupValues[1])
+        }
+        svgRegex.findAll(block).forEach { match ->
+            imageMatches.add(match.range.first to match.groupValues[1])
+        }
+        imageMatches.sortedBy { it.first }.forEach { (_, src) ->
+            val resolved = resolveInlineImagePath(src, imagePaths, fallbackIndex)
             if (resolved != null) {
                 imageMarkers += HtmlBlockMarker.Image(resolved.first)
                 fallbackIndex = resolved.second
