@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import com.example.kairo.core.model.nearestWordIndex
+import kotlin.math.abs
 
 @OptIn(ExperimentalFoundationApi::class)
 internal fun Modifier.rsvpGestureModifier(
@@ -18,7 +19,7 @@ internal fun Modifier.rsvpGestureModifier(
     return this
         .pointerInput(context.state.profile.config.tempoMsPerWord, runtime.isPositioningMode) {
             detectDragGestures(
-                onDragStart = { handleDragStart(runtime) },
+                onDragStart = { handleDragStart(context) },
                 onDragEnd = { handleDragEnd(context) },
                 onDrag = { change, dragAmount ->
                     handleDrag(context, dragAmount)
@@ -96,11 +97,17 @@ internal fun handleTap(context: RsvpUiContext) {
     }
 }
 
-private fun handleDragStart(runtime: RsvpRuntimeState) {
+private fun handleDragStart(context: RsvpUiContext) {
+    val runtime = context.runtime
     runtime.dragAccumulator = ZERO_FLOAT
+    runtime.dragAccumulatorX = ZERO_FLOAT
+    runtime.dragAxis = RsvpDragAxis.NONE
     runtime.dragStartTempoMsPerWord = runtime.currentTempoMsPerWord
+    runtime.dragStartFrameIndex = runtime.frameIndex
     runtime.dragStartBias = runtime.currentVerticalBias
     runtime.dragStartHorizontalBias = runtime.currentHorizontalBias
+    runtime.wasPlayingBeforeScrub = runtime.isPlaying
+    runtime.isScrubbing = false
 }
 
 private fun handleDrag(
@@ -121,19 +128,31 @@ private fun handleDrag(
                 HORIZONTAL_BIAS_MAX,
             )
         runtime.isAdjustingPosition = true
-    } else {
-        runtime.dragAccumulator += dragAmount.y
-        val tempoDeltaMs =
-            (runtime.dragAccumulator / TEMPO_SWIPE_THRESHOLD_PX).toInt() * TEMPO_STEP_MS
-        if (tempoDeltaMs != 0L) {
-            val newTempo =
-                (runtime.dragStartTempoMsPerWord + tempoDeltaMs)
-                    .coerceIn(context.timing.minTempoMs, context.timing.maxTempoMs)
-            if (newTempo != runtime.currentTempoMsPerWord) {
-                runtime.currentTempoMsPerWord = newTempo
-                runtime.showTempoIndicator = true
-            }
+        return
+    }
+
+    runtime.dragAccumulator += dragAmount.y
+    runtime.dragAccumulatorX += dragAmount.x
+
+    if (runtime.dragAxis == RsvpDragAxis.NONE) {
+        val absX = abs(runtime.dragAccumulatorX)
+        val absY = abs(runtime.dragAccumulator)
+        if (absX < DRAG_AXIS_LOCK_THRESHOLD_PX && absY < DRAG_AXIS_LOCK_THRESHOLD_PX) {
+            return
         }
+        runtime.dragAxis =
+            if (absX > absY) {
+                startScrubbing(context)
+                RsvpDragAxis.HORIZONTAL
+            } else {
+                RsvpDragAxis.VERTICAL
+            }
+    }
+
+    when (runtime.dragAxis) {
+        RsvpDragAxis.HORIZONTAL -> handleSweep(context)
+        RsvpDragAxis.VERTICAL -> handleTempoDrag(context)
+        RsvpDragAxis.NONE -> Unit
     }
 }
 
@@ -146,9 +165,83 @@ private fun handleDragEnd(context: RsvpUiContext) {
         if (runtime.currentHorizontalBias != runtime.dragStartHorizontalBias) {
             context.callbacks.theme.onHorizontalBiasChange(runtime.currentHorizontalBias)
         }
-    } else if (runtime.currentTempoMsPerWord != runtime.dragStartTempoMsPerWord) {
-        context.callbacks.playback.onTempoChange(runtime.currentTempoMsPerWord)
-        runtime.showTempoIndicator = false
+        runtime.dragAxis = RsvpDragAxis.NONE
+        runtime.dragAccumulator = ZERO_FLOAT
+        runtime.dragAccumulatorX = ZERO_FLOAT
+        return
     }
+
+    when (runtime.dragAxis) {
+        RsvpDragAxis.HORIZONTAL -> finishScrubbing(context)
+        RsvpDragAxis.VERTICAL -> {
+            if (runtime.currentTempoMsPerWord != runtime.dragStartTempoMsPerWord) {
+                context.callbacks.playback.onTempoChange(runtime.currentTempoMsPerWord)
+                runtime.showTempoIndicator = false
+            }
+        }
+        RsvpDragAxis.NONE -> Unit
+    }
+
+    runtime.dragAxis = RsvpDragAxis.NONE
     runtime.dragAccumulator = ZERO_FLOAT
+    runtime.dragAccumulatorX = ZERO_FLOAT
+}
+
+private fun handleTempoDrag(context: RsvpUiContext) {
+    val runtime = context.runtime
+    val tempoDeltaMs =
+        (runtime.dragAccumulator / TEMPO_SWIPE_THRESHOLD_PX).toInt() * TEMPO_STEP_MS
+    if (tempoDeltaMs == 0L) return
+
+    val newTempo =
+        (runtime.dragStartTempoMsPerWord + tempoDeltaMs)
+            .coerceIn(context.timing.minTempoMs, context.timing.maxTempoMs)
+    if (newTempo != runtime.currentTempoMsPerWord) {
+        runtime.currentTempoMsPerWord = newTempo
+        runtime.showTempoIndicator = true
+    }
+}
+
+private fun startScrubbing(context: RsvpUiContext) {
+    val runtime = context.runtime
+    runtime.wasPlayingBeforeScrub = runtime.isPlaying
+    runtime.isPlaying = false
+    runtime.isScrubbing = true
+    runtime.completed = false
+    runtime.dragStartFrameIndex = runtime.frameIndex
+}
+
+private fun finishScrubbing(context: RsvpUiContext) {
+    val runtime = context.runtime
+    if (!runtime.isScrubbing) return
+
+    val frames = context.frameState.frames
+    val book = context.state.book
+    val currentIndex = resolveCurrentTokenIndex(frames, runtime.frameIndex, book.startIndex)
+    val safeIndex =
+        if (book.tokens.isNotEmpty()) {
+            book.tokens.nearestWordIndex(currentIndex)
+        } else {
+            currentIndex
+        }
+
+    context.callbacks.playback.onPositionChanged(safeIndex)
+    runtime.isScrubbing = false
+    if (runtime.wasPlayingBeforeScrub && !runtime.completed) {
+        runtime.isPlaying = true
+    }
+}
+
+private fun handleSweep(context: RsvpUiContext) {
+    val runtime = context.runtime
+    val frames = context.frameState.frames
+    if (frames.isEmpty()) return
+
+    val step =
+        (runtime.dragAccumulatorX / SWEEP_SWIPE_THRESHOLD_PX).toInt() * SWEEP_FRAME_STEP
+    val targetIndex = (runtime.dragStartFrameIndex + step).coerceIn(0, frames.lastIndex)
+    if (targetIndex != runtime.frameIndex) {
+        runtime.frameIndex = targetIndex
+        runtime.completed = false
+    }
 }

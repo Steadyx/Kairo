@@ -20,12 +20,17 @@ internal data class RsvpUiContext(
     val timing: RsvpTimingInfo,
 )
 
+internal enum class RsvpDragAxis { NONE, HORIZONTAL, VERTICAL }
+
 internal class RsvpRuntimeState {
     var currentTempoMsPerWord by mutableLongStateOf(0L)
     var showTempoIndicator by mutableStateOf(false)
     var showFontSizeIndicator by mutableStateOf(false)
     var dragAccumulator by mutableFloatStateOf(ZERO_FLOAT)
+    var dragAccumulatorX by mutableFloatStateOf(ZERO_FLOAT)
     var dragStartTempoMsPerWord by mutableLongStateOf(0L)
+    var dragStartFrameIndex by mutableIntStateOf(0)
+    var dragAxis by mutableStateOf(RsvpDragAxis.NONE)
     var currentVerticalBias by mutableFloatStateOf(ZERO_FLOAT)
     var currentHorizontalBias by mutableFloatStateOf(ZERO_FLOAT)
     var currentFontSizeSp by mutableFloatStateOf(ZERO_FLOAT)
@@ -35,6 +40,8 @@ internal class RsvpRuntimeState {
     var frameIndex by mutableIntStateOf(0)
     var currentTokenIndex by mutableIntStateOf(0)
     var isPlaying by mutableStateOf(true)
+    var isScrubbing by mutableStateOf(false)
+    var isExiting by mutableStateOf(false)
     var completed by mutableStateOf(false)
     var showControls by mutableStateOf(false)
     var showQuickSettings by mutableStateOf(false)
@@ -43,5 +50,6 @@ internal class RsvpRuntimeState {
     var dragStartBias by mutableFloatStateOf(ZERO_FLOAT)
     var dragStartHorizontalBias by mutableFloatStateOf(ZERO_FLOAT)
     var wasPlayingBeforePositioning by mutableStateOf(true)
+    var wasPlayingBeforeScrub by mutableStateOf(true)
     var lastPositionSaveMs by mutableLongStateOf(0L)
 }

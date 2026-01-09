@@ -107,7 +107,7 @@
     <string name="rsvp_preparing">Preparando leitura rápida...</string>
     <string name="rsvp_empty_state">Sem conteúdo para exibir.\nToque para voltar.</string>
     <string name="rsvp_quick_settings_title">Configurações rápidas</string>
-    <string name="rsvp_quick_settings_hints">Deslize para cima/baixo para ajustar a velocidade\nUse os controles deslizantes para pré-visualizar mudanças\nPressione e segure para sair</string>
+    <string name="rsvp_quick_settings_hints">Deslize para a esquerda/direita para navegar\nDeslize para cima/baixo para ajustar a velocidade\nUse os controles deslizantes para pré-visualizar mudanças\nPressione e segure para sair</string>
     <string name="rsvp_frame_progress">%1$d / %2$d</string>
     <string name="rsvp_tap_to_resume">Toque em qualquer lugar para retomar</string>
     <string name="rsvp_positioning_mode_title">Modo de posicionamento</string>

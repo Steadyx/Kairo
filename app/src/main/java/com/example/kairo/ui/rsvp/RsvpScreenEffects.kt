@@ -80,6 +80,11 @@ internal fun RsvpSessionResetEffect(context: RsvpUiContext, sessionKey: String) 
         runtime.dragStartHorizontalBias = layoutBias.horizontalBias
         runtime.isPositioningMode = false
         runtime.isAdjustingPosition = false
+        runtime.isScrubbing = false
+        runtime.isExiting = false
+        runtime.dragAxis = RsvpDragAxis.NONE
+        runtime.dragAccumulator = ZERO_FLOAT
+        runtime.dragAccumulatorX = ZERO_FLOAT
         runtime.showQuickSettings = false
         runtime.showControls = false
     }
