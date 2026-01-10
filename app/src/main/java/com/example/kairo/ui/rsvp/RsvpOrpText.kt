@@ -77,7 +77,7 @@ private fun buildOrpTextContent(tokens: List<Token>): OrpTextContent {
         fullText = fullText,
         firstWordStart = state.firstWordStart,
         firstWordEndExclusive = state.firstWordEndExclusive,
-        pivotPosition = resolvePivotPosition(state),
+        pivotPosition = resolvePivotPosition(state, fullText, wordCount),
         wordCount = wordCount,
         highlightStart = state.highlightStart,
         highlightEndExclusive = state.highlightEndExclusive,
@@ -118,28 +118,52 @@ private fun appendPunctuation(
     builder: StringBuilder,
 ) {
     val ch = token.text.singleOrNull()
-    val isOpening = isOpeningPunctuation(ch, state.needsSpace)
+    // For straight quotes, use position context: if no word before, it's opening
+    val isOpening = isOpeningPunctuation(ch, hasWordBefore = state.firstWordStart >= 0)
+
+    // Opening punctuation gets a space before if needed, no space after
+    // Closing punctuation attaches directly to previous content
     if (isOpening && state.needsSpace) builder.append(' ')
     builder.append(token.text)
+    // After opening punctuation, no space needed before next word
+    // After closing punctuation, space needed before next word
     state.needsSpace = !isOpening
 }
 
 private fun isOpeningPunctuation(
     ch: Char?,
-    needsSpace: Boolean,
+    hasWordBefore: Boolean,
 ): Boolean =
     when (ch) {
         null -> false
-        '"' -> !needsSpace
+        // Curly opening quotes are always opening
         in ORP_OPENING_PUNCTUATION -> true
+        // Straight quotes: opening if no word before them in this frame
+        '"' -> !hasWordBefore
         else -> false
     }
 
-private fun resolvePivotPosition(state: OrpTextBuildState): Int {
+private fun resolvePivotPosition(
+    state: OrpTextBuildState,
+    fullText: String,
+    wordCount: Int,
+): Int {
     val wordStart = state.firstWordStart
     val wordEndExclusive = state.firstWordEndExclusive
     if (wordStart < 0 || wordEndExclusive <= wordStart) return DEFAULT_PIVOT_INDEX
 
+    // For multi-word phrases, center the pivot on the entire text content
+    // This keeps the ORP line stable instead of shifting left for 2-word phrases
+    if (wordCount > 1 && fullText.isNotEmpty()) {
+        // Find the visual center of the entire text (excluding leading/trailing punctuation)
+        val textStart = fullText.indexOfFirst { it.isLetterOrDigit() }.coerceAtLeast(0)
+        val textEnd = fullText.indexOfLast { it.isLetterOrDigit() }.coerceAtLeast(textStart)
+        val textLength = (textEnd - textStart + 1).coerceAtLeast(1)
+        val centerOffset = ((textLength - 1) / BIAS_SCALE_FACTOR).roundToInt()
+        return (textStart + centerOffset).coerceIn(0, fullText.lastIndex)
+    }
+
+    // For single words, use the traditional first-word-based pivot
     val wordEnd = (wordEndExclusive - 1).coerceAtLeast(wordStart)
     val wordLength = (wordEndExclusive - wordStart).coerceAtLeast(1)
     val centerOffset = ((wordLength - 1) / BIAS_SCALE_FACTOR).roundToInt()

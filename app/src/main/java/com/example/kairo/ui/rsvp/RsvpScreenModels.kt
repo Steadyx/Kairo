@@ -21,7 +21,11 @@ data class RsvpBookContext(val bookId: BookId, val chapterIndex: Int, val tokens
 
 data class RsvpProfileContext(val config: RsvpConfig, val selectedProfileId: String, val customProfiles: List<RsvpCustomProfile>,)
 
-data class RsvpUiPreferences(val extremeSpeedUnlocked: Boolean, val readerTheme: ReaderTheme, val focusModeEnabled: Boolean,)
+data class RsvpUiPreferences(
+    val extremeSpeedUnlocked: Boolean,
+    val readerTheme: ReaderTheme,
+    val focusModeEnabled: Boolean,
+)
 
 data class RsvpTextStyle(
     val fontSizeSp: Float = DEFAULT_FONT_SIZE_SP,

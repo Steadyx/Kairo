@@ -247,15 +247,31 @@ fun RsvpProfile.defaultConfig(): RsvpConfig =
         RsvpProfile.SPRINT ->
             RsvpConfig().copy(
                 tempoMsPerWord = 85L,
-                minWordMs = 40L,
-                longWordMinMs = 105L,
-                commaPauseMs = 70L,
-                sentenceEndPauseMs = 150L,
-                paragraphPauseMs = 190L,
-                pauseScaleExponent = 0.5,
-                smoothingAlpha = 0.45,
-                maxSpeedupFactor = 1.35,
-                maxSlowdownFactor = 1.35,
+                minWordMs = 42L,
+                longWordMinMs = 110L,
+                // Higher syllable extra for complex words at high speed
+                syllableExtraMs = 18L,
+                // More rarity compensation at high speed
+                rarityExtraMaxMs = 75L,
+                // Enable phrase chunking for coherent reading at high WPM
+                enablePhraseChunking = true,
+                maxWordsPerUnit = 2,
+                maxCharsPerUnit = 12,
+                // Punctuation needs stronger presence at high speed
+                commaPauseMs = 75L,
+                sentenceEndPauseMs = 160L,
+                paragraphPauseMs = 200L,
+                // More aggressive pause scaling but with higher floor
+                pauseScaleExponent = 0.55,
+                minPauseScale = 0.65,
+                // Smoother rhythm at high speed - lower alpha = more smoothing
+                smoothingAlpha = 0.30,
+                maxSpeedupFactor = 1.20,
+                maxSlowdownFactor = 1.25,
+                // Adaptive timing for comprehension
+                useAdaptiveTiming = true,
+                adaptiveDifficultyMaxHoldMs = 60L,
+                complexWordHoldMs = 40L,
             )
         RsvpProfile.STUDY ->
             RsvpConfig().copy(

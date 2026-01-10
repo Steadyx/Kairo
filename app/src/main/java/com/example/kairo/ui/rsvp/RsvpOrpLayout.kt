@@ -511,20 +511,27 @@ private fun layoutLockedPivot(
     val textLeft = measured.getBoundingBox(DEFAULT_PIVOT_INDEX).left
     val textRight = measured.getBoundingBox(lastIndex).right
     val textCenter = (textLeft + textRight) / BIAS_SCALE_FACTOR
-    val chunkingShiftPx = pivotCenter - textCenter
-    val minPivotXRaw = bounds.safeLeftPx + pivotCenter
-    val maxPivotXRaw = bounds.maxTranslationX + pivotCenter
-    val minPivotX = minOf(minPivotXRaw, maxPivotXRaw)
-    val maxPivotX = maxOf(minPivotXRaw, maxPivotXRaw)
-    val guidePivotX =
-        (bounds.desiredPivotX + chunkingShiftPx)
-            .safeCoerceIn(minPivotX, maxPivotX)
-    val translationX = guidePivotX - pivotCenter
-    val alignment = alignPivotToPixel(pivotCenter, translationX)
+
+    // For locked pivot mode (multi-word phrases), position based on text center
+    // to keep the guide line stable regardless of phrase length
+    val minTranslationX = minOf(bounds.safeLeftPx, bounds.maxTranslationX)
+    val maxTranslationX = maxOf(bounds.safeLeftPx, bounds.maxTranslationX)
+
+    // Position text so its center aligns with the desired pivot position
+    val translationX =
+        (bounds.desiredPivotX - textCenter)
+            .safeCoerceIn(minTranslationX, maxTranslationX)
+
+    val alignment = alignPivotToPixel(textCenter, translationX)
+
+    // Use the desired pivot position for guide bias to keep it stable
+    // This prevents the guide from shifting when phrase content changes
+    val stableGuideBias = guideBias(bounds.maxWidthPx, bounds.desiredPivotX)
+
     return OrpLayoutResult(
         pivotIndex = pivotIndex,
         translationX = alignment.translationX,
-        guideBias = guideBias(bounds.maxWidthPx, alignment.pivotX),
+        guideBias = stableGuideBias,
     )
 }
 

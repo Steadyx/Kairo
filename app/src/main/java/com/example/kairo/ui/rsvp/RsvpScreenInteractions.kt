@@ -55,6 +55,9 @@ internal fun finishPositioning(
     runtime.isAdjustingPosition = false
     context.callbacks.theme.onVerticalBiasChange(runtime.currentVerticalBias)
     if (resumeIfWasPlaying && runtime.wasPlayingBeforePositioning && !runtime.completed) {
+        runtime.rampStartFrameIndex = runtime.frameIndex
+        runtime.scheduledFrameIndex = -1
+        runtime.nextFrameAtMs = 0L
         runtime.isPlaying = true
     }
 }
@@ -90,10 +93,16 @@ internal fun handleTap(context: RsvpUiContext) {
     } else if (runtime.showQuickSettings) {
         runtime.showQuickSettings = false
     } else if (!runtime.completed) {
-        runtime.isPlaying = !runtime.isPlaying
+        val willPlay = !runtime.isPlaying
+        runtime.isPlaying = willPlay
+        if (willPlay) {
+            runtime.rampStartFrameIndex = runtime.frameIndex
+            runtime.scheduledFrameIndex = -1
+            runtime.nextFrameAtMs = 0L
+        }
         runtime.showTempoIndicator = false
         runtime.showFontSizeIndicator = false
-        runtime.showControls = !runtime.isPlaying
+        runtime.showControls = !willPlay
     }
 }
 
@@ -228,6 +237,9 @@ private fun finishScrubbing(context: RsvpUiContext) {
     context.callbacks.playback.onPositionChanged(safeIndex)
     runtime.isScrubbing = false
     if (runtime.wasPlayingBeforeScrub && !runtime.completed) {
+        runtime.rampStartFrameIndex = runtime.frameIndex
+        runtime.scheduledFrameIndex = -1
+        runtime.nextFrameAtMs = 0L
         runtime.isPlaying = true
     }
 }
