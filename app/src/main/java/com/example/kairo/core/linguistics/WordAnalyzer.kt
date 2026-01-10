@@ -449,6 +449,77 @@ object ClauseDetector {
             "so",
         )
 
+    // Words that typically end phrases (natural pause points)
+    private val phraseEnders =
+        setOf(
+            "now",
+            "then",
+            "here",
+            "there",
+            "today",
+            "tonight",
+            "tomorrow",
+            "yesterday",
+            "again",
+            "still",
+            "already",
+            "finally",
+            "suddenly",
+            "slowly",
+            "quickly",
+            "away",
+            "back",
+            "down",
+            "up",
+            "out",
+            "off",
+            "together",
+            "alone",
+            "indeed",
+            "perhaps",
+            "maybe",
+            "certainly",
+            "probably",
+            "definitely",
+            "always",
+            "never",
+            "sometimes",
+            "often",
+            "usually",
+            "rarely",
+        )
+
+    // Words that lead into dependent phrases (reader should anticipate)
+    private val phraseLeaders =
+        setOf(
+            "every",
+            "each",
+            "any",
+            "some",
+            "no",
+            "all",
+            "both",
+            "such",
+            "what",
+            "whatever",
+            "whichever",
+            "another",
+            "other",
+            "many",
+            "few",
+            "several",
+            "most",
+            "more",
+            "less",
+            "much",
+            "little",
+            "enough",
+            "only",
+            "even",
+            "just",
+            "also",
+        )
+
     /**
      * Detects if a word is a clause boundary marker.
      */
@@ -459,6 +530,16 @@ object ClauseDetector {
      */
     fun isCoordinatingConjunction(word: String): Boolean =
         word.lowercase() in coordinatingConjunctions
+
+    /**
+     * Detects if a word typically ends a phrase (natural pause point).
+     */
+    fun isPhraseEnder(word: String): Boolean = word.lowercase() in phraseEnders
+
+    /**
+     * Detects if a word leads into a dependent phrase.
+     */
+    fun isPhraseLeader(word: String): Boolean = word.lowercase() in phraseLeaders
 
     /**
      * Calculates pause factor based on grammatical structure.
@@ -480,9 +561,17 @@ object ClauseDetector {
                 nextLower != null &&
                 nextLower in setOf("i", "he", "she", "they", "we", "it", "the", "a", "an")
 
+        // Phrase enders get a micro-pause for comprehension
+        val pauseForPhraseEnd = lower in phraseEnders && nextLower != null
+
+        // Before clause-starting conjunctions in the next position
+        val pauseBeforeClause = nextLower in clauseStarters
+
         return when {
-            pauseForClauseStarter -> 1.15
-            pauseForConjunction -> 1.2
+            pauseForClauseStarter -> 1.18
+            pauseForConjunction -> 1.22
+            pauseBeforeClause -> 1.12
+            pauseForPhraseEnd -> 1.08
             else -> 1.0
         }
     }
@@ -497,6 +586,67 @@ object ClauseDetector {
             text.contains('—') ||
             text.contains("--") ||
             text.contains('–')
+
+    /**
+     * Returns a coherence score for how strongly two words belong together.
+     * Higher score = should be read as a unit or with minimal pause between.
+     * Score from 0.0 (no special relationship) to 1.0 (tight phrase).
+     */
+    fun getCoherenceScore(
+        word: String,
+        nextWord: String?,
+    ): Double {
+        if (nextWord == null) return 0.0
+        val lower = word.lowercase()
+        val nextLower = nextWord.lowercase()
+
+        // Articles leading into nouns/adjectives
+        if (lower in setOf("a", "an", "the")) return 0.9
+
+        // Possessives
+        if (lower in setOf("my", "your", "his", "her", "its", "our", "their")) return 0.85
+
+        // Phrase leaders
+        if (lower in phraseLeaders) return 0.75
+
+        // Prepositions leading into their objects
+        if (lower in setOf(
+                "of",
+                "to",
+                "in",
+                "on",
+                "at",
+                "by",
+                "for",
+                "with",
+                "from",
+                "into",
+                "onto",
+                "upon",
+                "about",
+                "through",
+                "between",
+                "among",
+                "against",
+                "toward",
+                "towards",
+            )
+        ) {
+            return 0.7
+        }
+
+        // Adverbs modifying what follows
+        if (lower in setOf("very", "quite", "rather", "too", "so", "really", "almost", "nearly")) {
+            return 0.8
+        }
+
+        // Modal verbs
+        if (lower in setOf("will", "would", "can", "could", "should", "must", "may", "might")) {
+            return 0.65
+        }
+
+        return 0.0
+    }
 }
 
 /**

@@ -216,7 +216,7 @@ class Tokenizer {
 
     private fun tokenizeInlineText(text: String): List<String> {
         if (text.isBlank()) return emptyList()
-        val matcher = TOKEN_REGEX.toPattern().matcher(text)
+        val matcher = TOKEN_REGEX.toPattern().matcher(normalizeEllipses(text))
         val parts = mutableListOf<String>()
         while (matcher.find()) {
             val part = matcher.group()
@@ -273,7 +273,7 @@ class Tokenizer {
 
     private fun tokenizeParagraph(paragraph: String): List<Token> {
         val tokens = mutableListOf<Token>()
-        val matcher = TOKEN_REGEX.toPattern().matcher(paragraph)
+        val matcher = TOKEN_REGEX.toPattern().matcher(normalizeEllipses(paragraph))
 
         while (matcher.find()) {
             val part = matcher.group()
@@ -327,6 +327,9 @@ class Tokenizer {
         }
         return tokens
     }
+
+    private fun normalizeEllipses(text: String): String =
+        text.replace(ELLIPSIS_REGEX, ELLIPSIS_CHAR.toString())
 
     private fun shouldStripPageNumbers(html: String): Boolean =
         html.contains("kairo://chapter/", ignoreCase = true)
@@ -529,6 +532,9 @@ class Tokenizer {
             Regex(
                 """^\s*(?:(?:\*\s*){3,}|(?:-\s*){3,}|(?:_\s*){3,}|(?:~\s*){3,}|(?:\u2014\s*){2,}|(?:\u2013\s*){2,}|(?:\u2022\s*){3,}|(?:\u00B7\s*){3,})\s*$""",
             )
+
+        private val ELLIPSIS_REGEX = Regex("\\.{3,}")
+        private const val ELLIPSIS_CHAR = '\u2026'
 
         // Regex to match:
         // 1. Words with contractions: "don't", "he'd", "it's" - apostrophes (straight or curly) embedded in words

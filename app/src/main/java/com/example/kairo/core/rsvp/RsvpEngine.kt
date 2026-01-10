@@ -116,17 +116,19 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
                 val msPerWord = config.tempoMsPerWord.toDouble()
                 val pauseScale = pauseScale(msPerWord, config)
+                val paragraphFloor = config.paragraphPauseMs.toDouble() * config.minPauseScale
+                val pageFloor = pageBreakBasePauseMs(config) * config.minPauseScale
                 val extraPause =
                     (cursorToken.pauseAfterMs.coerceAtLeast(0L).toDouble()) * pauseScale
                 val durationMs =
                     when (cursorToken.type) {
                         TokenType.PAGE_BREAK -> max(
                             pageBreakBasePauseMs(config) * pauseScale,
-                            MIN_PAGE_BREAK_MS
+                            pageFloor
                         ).toLong()
                         TokenType.PARAGRAPH_BREAK -> max(
                             config.paragraphPauseMs.toDouble() * pauseScale,
-                            MIN_PARAGRAPH_BREAK_MS
+                            paragraphFloor
                         ).toLong()
                         else -> 0L
                     }.let { base ->
@@ -282,13 +284,25 @@ class ComprehensionRsvpEngine : RsvpEngine {
         while (cursor < expandedTokens.size) {
             val token = expandedTokens[cursor].token
             if (token.type == TokenType.PUNCTUATION) {
+                val ch = token.text.firstOrNull()
+                val nextToken = expandedTokens.getOrNull(cursor + 1)?.token
+                val isQuote = ch != null && isQuoteChar(ch)
+
+                // Key fix: If a quote is followed by a word, it's an opening quote
+                // and should go with the next word, not the current unit.
+                // Example: said "I -> "said" and "\"I" should be separate frames
+                val quoteFollowedByWord = isQuote && nextToken?.type == TokenType.WORD
+                if (quoteFollowedByWord) {
+                    break
+                }
+
                 val isOpening = isOpeningPunctuation(token, state)
                 val prevPunct =
                     unitTokens.lastOrNull { it.type == TokenType.PUNCTUATION }?.text?.firstOrNull()
                 val prevWasSentenceEnd =
                     prevPunct != null && (prevPunct == '.' || isSentenceEndingPunctuation(prevPunct))
-                val treatAsClosingQuote =
-                    token.text.firstOrNull()?.let { isQuoteChar(it) } == true && prevWasSentenceEnd
+                val treatAsClosingQuote = isQuote && prevWasSentenceEnd
+
                 if (hitHardBoundary && isOpening && !treatAsClosingQuote) break
                 if (!isOpening || treatAsClosingQuote) {
                     val prevWord = unitTokens.lastOrNull { it.type == TokenType.WORD }
@@ -296,9 +310,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     state.consume(token)
                     cursor++
 
-                    val nextToken = expandedTokens.getOrNull(cursor)?.token
+                    val nextTokenAfter = expandedTokens.getOrNull(cursor)?.token
                     if (!hitHardBoundary &&
-                        isHardBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextToken)
+                        isHardBoundaryPunctuation(token, prevWord = prevWord, nextToken = nextTokenAfter)
                     ) {
                         hitHardBoundary = true
                     }
@@ -332,6 +346,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         boundaryBefore: BoundaryBefore,
     ): Long {
         val msPerWord = config.tempoMsPerWord.toDouble()
+        val pauseScale = pauseScale(msPerWord, config)
 
         val words = frameTokens.filter { it.type == TokenType.WORD }
         val paragraphBreaks = frameTokens.count { it.type == TokenType.PARAGRAPH_BREAK }
@@ -369,17 +384,27 @@ class ComprehensionRsvpEngine : RsvpEngine {
         var duration = 0.0
         var parentheticalDepth = contextBefore.parentheticalDepth
         var inDialogue = contextBefore.inDialogue
+        var enteredDialogue = false
+        var exitedDialogue = false
 
         frameTokens.forEachIndexed { index, token ->
             when (token.type) {
                 TokenType.PUNCTUATION -> {
                     val ch = token.text.firstOrNull()
+                    val wasInDialogue = inDialogue
                     when (ch) {
                         '(', '[', '{' -> parentheticalDepth++
                         ')', ']', '}' -> parentheticalDepth = max(0, parentheticalDepth - 1)
                         '"', '\u201C', '\u201D', '\u2018', '\u2019' -> Unit
                     }
                     inDialogue = token.isDialogue
+                    if (config.useDialogueDetection && ch != null && isQuoteChar(ch)) {
+                        if (!wasInDialogue && inDialogue) {
+                            enteredDialogue = true
+                        } else if (wasInDialogue && !inDialogue) {
+                            exitedDialogue = true
+                        }
+                    }
                 }
                 TokenType.WORD -> {
                     val dialogueMultiplier = if (config.useDialogueDetection &&
@@ -447,7 +472,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                             speakerTagMultiplier
                     duration += max(wordMs, wordFloorMs(token, config).toDouble())
                     if (token.pauseAfterMs > 0L) {
-                        duration += token.pauseAfterMs * pauseScale(msPerWord, config)
+                        duration += token.pauseAfterMs * pauseScale
                     }
                 }
                 else -> Unit
@@ -467,13 +492,6 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
         duration *= multiWordPenalty(words.size)
 
-        if (words.isNotEmpty() &&
-            boundaryForBoost == BoundaryBefore.SENTENCE &&
-            config.sentenceEndPauseMs <= 0L
-        ) {
-            duration += SENTENCE_START_HOLD_MS * speedStrength
-        }
-
         // Apply flow and rhythm smoothing to word duration BEFORE adding punctuation pauses.
         // This ensures punctuation pauses are not reduced by the smoothing algorithms.
         val hardBoundary = isHardBoundary(frameTokens, nextToken)
@@ -490,7 +508,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
         // Now add punctuation pauses on top of the smoothed word duration.
         // These pauses are intentionally NOT smoothed so they remain prominent.
         var totalDuration = smoothedWordDuration
-        val pauseScale = pauseScale(msPerWord, config)
+        if (words.isNotEmpty() && boundaryForBoost == BoundaryBefore.SENTENCE) {
+            totalDuration += config.sentenceEndPauseMs * pauseScale * SENTENCE_START_HOLD_FRACTION
+        }
         frameTokens.forEachIndexed { index, token ->
             if (token.type != TokenType.PUNCTUATION) return@forEachIndexed
 
@@ -530,8 +550,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
             totalDuration += config.paragraphPauseMs * pauseScale * paragraphBreaks
         }
         if (pageBreaks > 0) {
-            val scaled = pageBreakBasePauseMs(config) * pauseScale
-            totalDuration += max(scaled, MIN_PAGE_BREAK_MS) * pageBreaks
+            val base = pageBreakBasePauseMs(config)
+            val floor = base * config.minPauseScale
+            val scaled = base * pauseScale
+            totalDuration += max(scaled, floor) * pageBreaks
         }
         if (paragraphBreaks == 0 && pageBreaks == 0) {
             totalDuration +=
@@ -544,6 +566,18 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     nextWord = nextWord,
                     clauseConfigStrength = clauseConfigStrength,
                 )
+            if (!hardBoundary &&
+                config.useClausePausing &&
+                nextWord?.isClauseBoundary == true
+            ) {
+                totalDuration +=
+                    config.commaPauseMs * pauseScale * CLAUSE_LEAD_HOLD_FRACTION * clauseConfigStrength
+            }
+        }
+        if (config.useDialogueDetection && (enteredDialogue || exitedDialogue)) {
+            val quoteHold = config.quotePauseMs * pauseScale * QUOTE_TRANSITION_HOLD_FRACTION
+            if (enteredDialogue) totalDuration += quoteHold
+            if (exitedDialogue) totalDuration += quoteHold
         }
 
         return totalDuration
@@ -575,6 +609,21 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val lastWord = words.lastOrNull()
         if (!hardBoundary && config.useClausePausing && lastWord?.isClauseBoundary == true) {
             hold += CLAUSE_BOUNDARY_HOLD_MS * speedStrength * clauseConfigStrength
+        }
+
+        // Add hold for phrase enders to give reader time to process the phrase
+        if (lastWord != null && ClauseDetector.isPhraseEnder(lastWord.text)) {
+            hold += PHRASE_BREAK_HOLD_MS * speedStrength * 0.6
+        }
+
+        // Reduce hold if next word has high coherence with current (they belong together)
+        val coherence = ClauseDetector.getCoherenceScore(
+            lastWord?.text.orEmpty(),
+            nextWord.text,
+        )
+        if (coherence >= 0.5) {
+            // Words belong together, reduce the hold to keep them mentally grouped
+            hold *= (1.0 - coherence * 0.4)
         }
 
         return hold.coerceAtMost(ADAPTIVE_HOLD_MAX_MS * speedStrength)
@@ -653,6 +702,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     } else {
                         config.sentenceEndPauseMs.toDouble()
                     }
+                ch == '\u2026' -> config.commaPauseMs * 1.15
                 isSentenceEndingPunctuation(ch) -> config.sentenceEndPauseMs.toDouble()
                 ch == ',' -> if (isThousandSeparator(
                         prevText,
@@ -680,16 +730,26 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     ) {
                         0.0
                     } else {
-                        125.0
+                        config.sentenceEndPauseMs * config.minPauseScale
                     }
                 }
-                isSentenceEndingPunctuation(ch) -> 125.0
-                ch == ',' -> if (isThousandSeparator(prevText, nextToken)) 0.0 else 70.0
-                ch == ';' -> 95.0
-                ch == ':' -> 85.0
-                ch == '\u2014' || ch == '\u2013' || ch == '-' -> 90.0
-                ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' -> 45.0
-                ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019' -> 35.0
+                ch == '\u2026' -> (config.commaPauseMs * 1.15) * config.minPauseScale
+                isSentenceEndingPunctuation(ch) -> config.sentenceEndPauseMs * config.minPauseScale
+                ch == ',' ->
+                    if (isThousandSeparator(prevText, nextToken)) {
+                        0.0
+                    } else {
+                        config.commaPauseMs * config.minPauseScale
+                    }
+                ch == ';' -> config.semicolonPauseMs * config.minPauseScale
+                ch == ':' -> config.colonPauseMs * config.minPauseScale
+                ch == '\u2014' || ch == '\u2013' || ch == '-' ->
+                    config.dashPauseMs * config.minPauseScale
+                ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' ->
+                    config.parenthesesPauseMs * config.minPauseScale
+                ch == '"' || ch == '\u201C' || ch == '\u201D' || ch == '\u2018' || ch == '\u2019' ->
+                    config.quotePauseMs * config.minPauseScale
+                isMidSentencePunctuation(ch) -> (config.commaPauseMs * 0.85) * config.minPauseScale
                 else -> 0.0
             }
 
@@ -700,7 +760,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
             !isAbbreviationDot(prevText, nextToken)
         ) {
             base = min(base, config.commaPauseMs * 0.8)
-            floor = min(floor, 80.0)
+            floor = min(floor, (config.commaPauseMs * 0.8) * config.minPauseScale)
         }
 
         val speedStrength = speedStrength(msPerWord)
@@ -820,10 +880,94 @@ class ComprehensionRsvpEngine : RsvpEngine {
         if (firstWord == null || nextWord == null) return 0.0
         if (frameTokens.count { it.type == TokenType.WORD } != 1) return 0.0
         if (frameTokens.any { it.type == TokenType.PUNCTUATION }) return 0.0
-        if (!shouldPreferHold(firstWord, nextWord)) return 0.0
 
-        val hold = TRANSITION_HOLD_BASE_MS + (TRANSITION_HOLD_EXTRA_MS * speedStrength)
-        return hold.coerceAtLeast(0.0)
+        val firstLower = firstWord.text.lowercase()
+        val nextLower = nextWord.text.lowercase()
+
+        // Check for tight pair patterns that should stay together mentally
+        if (shouldPreferHold(firstWord, nextWord)) {
+            val hold = TRANSITION_HOLD_BASE_MS + (TRANSITION_HOLD_EXTRA_MS * speedStrength)
+            return hold.coerceAtLeast(0.0)
+        }
+
+        // Add coherence hold when current word "leads into" next word
+        // This helps readers anticipate and process the next word
+        if (isCoherencePair(firstLower, nextLower)) {
+            return COHERENCE_HOLD_MS * speedStrength
+        }
+
+        // Add a small hold before phrase breaks for natural reading rhythm
+        if (isPhraseBreakBefore(firstLower, nextLower, nextWord)) {
+            return PHRASE_BREAK_HOLD_MS * speedStrength
+        }
+
+        return 0.0
+    }
+
+    private fun isCoherencePair(
+        currentLower: String,
+        nextLower: String,
+    ): Boolean {
+        // Article followed by adjective or noun - reader anticipates the noun
+        if (currentLower in setOf("a", "an", "the") && nextLower.length > 2) {
+            return true
+        }
+        // Possessive followed by noun
+        if (currentLower in setOf("my", "your", "his", "her", "its", "our", "their") &&
+            nextLower.length > 2
+        ) {
+            return true
+        }
+        // Adverb modifiers that lead into verbs/adjectives
+        if (currentLower in setOf("very", "quite", "rather", "too", "so", "really", "just") &&
+            nextLower.length > 2
+        ) {
+            return true
+        }
+        // Modal verbs leading into main verb
+        if (currentLower in setOf("will", "would", "can", "could", "should", "must", "may", "might") &&
+            nextLower !in setOf("be", "have", "not", "the", "a", "an")
+        ) {
+            return true
+        }
+        return false
+    }
+
+    private fun isPhraseBreakBefore(
+        currentLower: String,
+        nextLower: String,
+        nextWord: Token,
+    ): Boolean {
+        // Before clause starters, add a micro-pause for comprehension
+        if (nextLower in setOf(
+                "which",
+                "who",
+                "whom",
+                "whose",
+                "that",
+                "where",
+                "when",
+                "because",
+                "although",
+                "though",
+                "unless",
+                "until",
+                "while",
+                "after",
+                "before",
+                "if",
+            )
+        ) {
+            return true
+        }
+        // Before coordinating conjunctions in longer sentences
+        if (nextLower in setOf("and", "but", "or", "yet", "so") &&
+            currentLower.length > 3 &&
+            !nextWord.isClauseBoundary
+        ) {
+            return true
+        }
+        return false
     }
 
     private fun frameDifficulty(words: List<Token>): Double {
@@ -848,7 +992,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val easyPair =
             wordEase(prev) >= EASY_PAIR_THRESHOLD && wordEase(next) >= EASY_PAIR_THRESHOLD
 
-        return easyPair && (isHinted || gluePair)
+        // Check coherence score for high-coherence pairs
+        val coherence = ClauseDetector.getCoherenceScore(prevLower, nextLower)
+        val highCoherence = coherence >= 0.65 && prev.text.length <= 5 && next.text.length <= 6
+
+        return (easyPair && (isHinted || gluePair)) || highCoherence
     }
 
     private fun isClauseLeadPunctuation(
@@ -898,8 +1046,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
     private fun multiWordPenalty(wordCount: Int): Double =
         when (wordCount) {
             0, 1 -> 1.0
-            2 -> 1.12
-            else -> 1.2
+            2 -> 1.06  // Reduced from 1.12 for smoother rhythm
+            else -> 1.12
         }
 
     private fun isPhraseChunkCandidate(
@@ -912,9 +1060,21 @@ class ComprehensionRsvpEngine : RsvpEngine {
         if (prev.isClauseBoundary || next.isClauseBoundary) return false
         if (ClauseDetector.isCoordinatingConjunction(prevLower)) return false
 
+        // Use coherence scoring to determine if words should be chunked together
+        val coherenceScore = ClauseDetector.getCoherenceScore(prevLower, nextLower)
+        if (coherenceScore >= 0.7) {
+            // High coherence pairs should always be chunked if short enough
+            val bothShort = prev.text.length <= 5 && next.text.length <= 8
+            if (bothShort) return true
+        }
+
         val glue = prevLower in GLUE_WORDS || nextLower in GLUE_WORDS
         val bothShort = prev.text.length <= 4 && next.text.length <= 7
         val bothCommon = prev.frequencyScore >= 0.7 && next.frequencyScore >= 0.7
+
+        // Also consider tight pair hints
+        val pairKey = "$prevLower $nextLower"
+        if (pairKey in TIGHT_PAIR_HINTS && bothShort) return true
 
         return (glue && bothShort) || (bothShort && bothCommon)
     }
@@ -1021,6 +1181,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
             ch == '.' -> {
                 !isDecimalPoint(prevText, nextToken) && !isAbbreviationDot(prevText, nextToken)
             }
+            ch == '\u2026' -> false
             isSentenceEndingPunctuation(ch) -> true
             ch == ';' -> true
             else -> false
@@ -1189,6 +1350,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
         frames: MutableList<RsvpFrame>,
         config: RsvpConfig,
     ) {
+        // Early exit if blink mode is disabled - no processing needed
+        if (config.blinkMode == BlinkMode.OFF) return
         if (frames.size < 2) return
 
         val strength = speedStrength(config.tempoMsPerWord.toDouble())
@@ -1398,6 +1561,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
             val prev = ema ?: difficulty
             val delta = difficulty - prev
+
+            // Gentle flow adjustment - reduce variation for smoother cadence
             val multiplier =
                 (1.0 + (delta * strength * speedStrength))
                     .coerceIn(1.0 - maxSlowdown, 1.0 + maxBoost)
@@ -1485,8 +1650,6 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
     private companion object {
         private const val MIN_FRAME_MS = 40L
-        private const val MIN_PARAGRAPH_BREAK_MS = 140.0
-        private const val MIN_PAGE_BREAK_MS = 240.0
         private const val BASE_MS_PER_WORD_AT_300 = 200.0
         private const val DEFAULT_CLAUSE_PAUSE_FACTOR = 1.25
         private const val MIN_BLINK_MS = 16L
@@ -1498,10 +1661,14 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private const val CLAUSE_BOUNDARY_HOLD_MS = 55.0
         private const val ADAPTIVE_HOLD_MAX_MS = 160.0
         private const val EASY_PAIR_THRESHOLD = 0.72
-        private const val TRANSITION_HOLD_BASE_MS = 6.0
-        private const val TRANSITION_HOLD_EXTRA_MS = 10.0
-        private const val SENTENCE_START_HOLD_MS = 6.0
-        private const val DIALOGUE_ENTRY_BOOST = 0.06
+        private const val TRANSITION_HOLD_BASE_MS = 4.0
+        private const val TRANSITION_HOLD_EXTRA_MS = 6.0
+        private const val COHERENCE_HOLD_MS = 5.0
+        private const val PHRASE_BREAK_HOLD_MS = 8.0
+        private const val SENTENCE_START_HOLD_FRACTION = 0.24
+        private const val CLAUSE_LEAD_HOLD_FRACTION = 0.28
+        private const val QUOTE_TRANSITION_HOLD_FRACTION = 0.55
+        private const val DIALOGUE_ENTRY_BOOST = 0.08
         private const val NUMBER_EMPHASIS_BOOST = 0.12
         private const val PROPER_NOUN_BOOST = 0.08
         private const val ACRONYM_EMPHASIS_BOOST = 0.10
@@ -1509,10 +1676,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private const val CLAUSE_LEAD_BOOST_MS = 20.0
         private const val SENTENCE_END_BREAK_BOOST_MS = 40.0
         private const val EMBEDDED_QUOTE_FACTOR = 0.45
-        private const val FLOW_EMA_ALPHA = 0.22
-        private const val FLOW_MAX_BOOST = 0.08
-        private const val FLOW_MAX_SLOWDOWN = 0.10
-        private const val FLOW_STRENGTH = 0.16
+        private const val FLOW_EMA_ALPHA = 0.25
+        private const val FLOW_MAX_BOOST = 0.04
+        private const val FLOW_MAX_SLOWDOWN = 0.05
+        private const val FLOW_STRENGTH = 0.12
 
         private val OPENING_PUNCTUATION = setOf('(', '[', '{', '\u201C', '\u2018')
 
@@ -1622,9 +1789,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
         private val GLUE_WORDS =
             setOf(
+                // Articles
                 "a",
                 "an",
                 "the",
+                // Prepositions
                 "of",
                 "to",
                 "in",
@@ -1634,6 +1803,19 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 "for",
                 "with",
                 "from",
+                "into",
+                "onto",
+                "upon",
+                "about",
+                "over",
+                "under",
+                "through",
+                "between",
+                "among",
+                "against",
+                "toward",
+                "towards",
+                // Conjunctions
                 "and",
                 "or",
                 "but",
@@ -1644,11 +1826,13 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 "if",
                 "than",
                 "then",
+                // Relative pronouns
                 "that",
                 "which",
                 "who",
                 "whom",
                 "whose",
+                // Auxiliary verbs
                 "is",
                 "are",
                 "was",
@@ -1656,37 +1840,245 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 "be",
                 "been",
                 "being",
+                "has",
+                "have",
+                "had",
+                "do",
+                "does",
+                "did",
+                "will",
+                "would",
+                "can",
+                "could",
+                "shall",
+                "should",
+                "may",
+                "might",
+                "must",
+                // Common pronouns
+                "i",
+                "me",
+                "my",
+                "we",
+                "us",
+                "our",
+                "you",
+                "your",
+                "he",
+                "him",
+                "his",
+                "she",
+                "her",
+                "it",
+                "its",
+                "they",
+                "them",
+                "their",
+                // Negation
                 "not",
                 "no",
+                // Common short words that flow naturally
+                "all",
+                "any",
+                "some",
+                "each",
+                "every",
+                "both",
+                "few",
+                "more",
+                "most",
+                "other",
+                "such",
+                "own",
+                "same",
+                "just",
+                "only",
+                "very",
+                "too",
+                "also",
+                "still",
+                "even",
+                "now",
+                "here",
+                "there",
+                "when",
+                "where",
+                "how",
+                "why",
+                "what",
+                "this",
+                "these",
+                "those",
             )
 
         private val TIGHT_PAIR_HINTS =
             setOf(
+                // Article + preposition patterns
                 "to the",
                 "in the",
                 "of the",
                 "on the",
                 "at the",
                 "for the",
+                "with the",
+                "from the",
+                "by the",
+                "into the",
+                "through the",
+                "over the",
+                "under the",
+                "about the",
                 "to a",
                 "in a",
                 "of a",
                 "on a",
                 "at a",
                 "for a",
+                "with a",
+                "from a",
+                "by a",
+                "into a",
+                "to an",
+                "in an",
+                "of an",
+                "on an",
+                // Possessive patterns
                 "to my",
                 "in my",
                 "of my",
                 "on my",
                 "at my",
+                "for my",
+                "with my",
                 "to his",
+                "in his",
+                "of his",
+                "on his",
+                "at his",
+                "for his",
+                "with his",
                 "to her",
+                "in her",
+                "of her",
+                "on her",
+                "at her",
+                "for her",
+                "with her",
                 "to their",
-                "as a",
-                "as the",
-                "as if",
+                "in their",
+                "of their",
+                "on their",
+                "at their",
+                "for their",
+                "with their",
+                "to our",
+                "in our",
+                "of our",
+                "on our",
+                "to your",
+                "in your",
+                "of your",
+                // Comparative/conjunction patterns
                 "as a",
                 "as an",
+                "as the",
+                "as if",
+                "so that",
+                "such a",
+                "such an",
+                "but the",
+                "and the",
+                "or the",
+                "and a",
+                "or a",
+                // Common verb patterns
+                "is the",
+                "is a",
+                "is an",
+                "was the",
+                "was a",
+                "was an",
+                "are the",
+                "were the",
+                "has the",
+                "has a",
+                "had the",
+                "had a",
+                "have the",
+                "have a",
+                "will be",
+                "would be",
+                "can be",
+                "could be",
+                "should be",
+                "must be",
+                "may be",
+                "might be",
+                // Common idiom starters
+                "it was",
+                "it is",
+                "there is",
+                "there was",
+                "there are",
+                "there were",
+                "this is",
+                "that is",
+                "what is",
+                "who is",
+                "i am",
+                "i was",
+                "i have",
+                "i had",
+                "i would",
+                "i could",
+                "he was",
+                "he had",
+                "he is",
+                "she was",
+                "she had",
+                "she is",
+                "they are",
+                "they were",
+                "they have",
+                "they had",
+                "we are",
+                "we were",
+                "we have",
+                "we had",
+                "you are",
+                "you were",
+                "you have",
+                // Time expressions
+                "at last",
+                "at once",
+                "at first",
+                "of course",
+                "in fact",
+                "for now",
+                "by now",
+                "so far",
+                "as yet",
+                "no more",
+                "no less",
+                "not yet",
+                // Common two-word phrases
+                "all the",
+                "all of",
+                "one of",
+                "some of",
+                "most of",
+                "each of",
+                "many of",
+                "much of",
+                "none of",
+                "part of",
+                "out of",
+                "up to",
+                "due to",
+                "next to",
+                "close to",
+                "back to",
+                "down to",
             )
     }
 }
