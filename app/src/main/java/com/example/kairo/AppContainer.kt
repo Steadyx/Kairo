@@ -69,6 +69,7 @@ class AppContainer(context: Context, val dispatcherProvider: DispatcherProvider,
             database.readingPositionDao(),
             database.bookmarkDao(),
             context.applicationContext,
+            dispatcherProvider,
         )
     val rsvpEngine: RsvpEngine = ComprehensionRsvpEngine()
     val rsvpFrameRepository: RsvpFrameRepository =

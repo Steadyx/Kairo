@@ -2,6 +2,7 @@ package com.example.kairo.data.library
 
 import android.content.Context
 import android.net.Uri
+import com.example.kairo.core.dispatchers.DispatcherProvider
 import com.example.kairo.core.model.Book
 import com.example.kairo.data.books.BookRepository
 import com.example.kairo.data.local.BookDao
@@ -9,6 +10,7 @@ import com.example.kairo.data.local.BookmarkDao
 import com.example.kairo.data.local.ReadingPositionDao
 import java.io.File
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 
 class LibraryRepositoryImpl(
     private val bookRepository: BookRepository,
@@ -16,6 +18,7 @@ class LibraryRepositoryImpl(
     private val positionDao: ReadingPositionDao,
     private val bookmarkDao: BookmarkDao,
     private val appContext: Context,
+    private val dispatcherProvider: DispatcherProvider,
 ) : LibraryRepository {
     override fun observeLibrary(): Flow<List<Book>> = bookRepository.observeBooks()
 
@@ -25,11 +28,13 @@ class LibraryRepositoryImpl(
     }
 
     override suspend fun delete(bookId: String) {
-        bookDao.deleteChaptersForBook(bookId)
-        bookDao.deleteBook(bookId)
-        positionDao.deleteForBook(bookId)
-        bookmarkDao.deleteForBook(bookId)
-        deleteBookAssets(bookId)
+        withContext(dispatcherProvider.io) {
+            bookDao.deleteChaptersForBook(bookId)
+            bookDao.deleteBook(bookId)
+            positionDao.deleteForBook(bookId)
+            bookmarkDao.deleteForBook(bookId)
+            deleteBookAssets(bookId)
+        }
     }
 
     private fun deleteBookAssets(bookId: String) {

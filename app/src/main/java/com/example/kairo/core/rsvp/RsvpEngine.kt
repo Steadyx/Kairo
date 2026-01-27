@@ -65,15 +65,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 }
             }
 
-        var cursor = expanded.indexOfFirst { it.originalIndex >= startIndex }.let {
-            if (it ==
-                -1
-            ) {
-                0
-            } else {
-                it
-            }
-        }
+        val startCursor = expanded.indexOfFirst { it.originalIndex >= startIndex }
+        val fallbackCursor =
+            expanded.indexOfLast { it.originalIndex <= startIndex }
+                .coerceAtLeast(0)
+        var cursor = if (startCursor == -1) fallbackCursor else startCursor
         cursor = cursor.coerceIn(0, expanded.lastIndex)
         val firstWordCursor = findFirstWordCursor(expanded, cursor)
         if (firstWordCursor >= expanded.size) return emptyList()

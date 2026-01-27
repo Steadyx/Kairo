@@ -10,6 +10,7 @@ import android.content.Context
 import android.net.Uri
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.provider.OpenableColumns
 import com.example.kairo.core.dispatchers.DispatcherProvider
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
@@ -82,11 +83,8 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             val bookId = BookId(UUID.randomUUID().toString())
 
             // Check file size before reading
-            val fileSize =
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    input.available().toLong()
-                } ?: 0L
-            require(fileSize <= MAX_FILE_SIZE) {
+            val fileSize = resolveFileSize(context, uri)
+            require(fileSize < 0 || !isFileTooLarge(fileSize)) {
                 "MOBI file too large (max ${MAX_FILE_SIZE / 1024 / 1024}MB)"
             }
 
@@ -106,6 +104,34 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
 
     override fun supports(extension: String): Boolean =
         extension == "mobi" || extension == "prc" || extension == "azw"
+
+    private fun resolveFileSize(
+        context: Context,
+        uri: Uri,
+    ): Long {
+        runCatching {
+            context.contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.SIZE),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+                if (cursor.moveToFirst() && index >= 0) {
+                    return cursor.getLong(index)
+                }
+            }
+        }
+        runCatching {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+                return descriptor.statSize
+            }
+        }
+        return -1L
+    }
+
+    private fun isFileTooLarge(fileSize: Long): Boolean = fileSize > MAX_FILE_SIZE
 
     /**
      * Attempts to parse the MOBI file structure.

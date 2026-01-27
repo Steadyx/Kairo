@@ -11,6 +11,7 @@
 
 package com.example.kairo.ui.reader
 
+import android.view.View
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -41,7 +42,6 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.text.TextUtilsCompat
-import androidx.core.view.ViewCompat
 import com.example.kairo.core.language.BookLanguageResolver
 import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.ReaderTheme
@@ -105,11 +105,11 @@ fun ReaderScreen(
             val locale = languageTag?.let { Locale.forLanguageTag(it) }
             val layoutDirection =
                 if (locale == null) {
-                    ViewCompat.LAYOUT_DIRECTION_LTR
+                    View.LAYOUT_DIRECTION_LTR
                 } else {
                     TextUtilsCompat.getLayoutDirectionFromLocale(locale)
                 }
-            if (layoutDirection == ViewCompat.LAYOUT_DIRECTION_RTL) {
+            if (layoutDirection == View.LAYOUT_DIRECTION_RTL) {
                 LayoutDirection.Rtl
             } else {
                 LayoutDirection.Ltr
@@ -128,6 +128,7 @@ fun ReaderScreen(
         rememberReaderListState(
             listStateKey = renderState.listStateKey,
             focusListIndex = renderState.focusListIndex,
+            listItemCount = renderState.listItemCount,
             displayBlocks = renderState.displayBlocks,
             invertedScroll = invertedScroll,
         )

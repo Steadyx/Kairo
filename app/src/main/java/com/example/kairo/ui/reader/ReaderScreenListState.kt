@@ -21,13 +21,19 @@ internal data class ReaderListState(
 internal fun rememberReaderListState(
     listStateKey: String,
     focusListIndex: Int,
+    listItemCount: Int,
     displayBlocks: List<ReaderBlock>,
     invertedScroll: Boolean,
 ): ReaderListState {
+    val safeIndex =
+        focusListIndex.coerceIn(
+            0,
+            (listItemCount - 1).coerceAtLeast(0),
+        )
     val listState =
         key(listStateKey) {
             rememberLazyListState(
-                initialFirstVisibleItemIndex = focusListIndex,
+                initialFirstVisibleItemIndex = safeIndex,
             )
         }
 
@@ -66,9 +72,9 @@ internal fun rememberReaderListState(
         }
     }
 
-    LaunchedEffect(focusListIndex, listStateKey) {
-        if (displayBlocks.isNotEmpty() && listState.firstVisibleItemIndex != focusListIndex) {
-            listState.scrollToItem(focusListIndex)
+    LaunchedEffect(safeIndex, listStateKey, listItemCount) {
+        if (listItemCount > 0 && listState.firstVisibleItemIndex != safeIndex) {
+            listState.scrollToItem(safeIndex)
         }
     }
 

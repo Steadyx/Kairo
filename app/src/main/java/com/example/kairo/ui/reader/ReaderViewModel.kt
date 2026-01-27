@@ -13,6 +13,7 @@ import com.example.kairo.core.model.countWords
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.data.books.BookRepository
 import com.example.kairo.data.token.TokenRepository
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,12 +56,14 @@ class ReaderViewModel(
             ): Boolean =
                 size > MAX_CACHED_CHAPTERS
         }
+    private val chapterCacheLock = Any()
     private val tokenizationDispatcher = dispatcherProvider.default.limitedParallelism(1)
 
-    private var currentBook: Book? = null
+    // Thread-safe book reference for cross-coroutine access
+    private val currentBook = AtomicReference<Book?>(null)
 
-    // Pending focus index to apply after chapter loads
-    private var pendingFocusIndex: Int? = null
+    // Pending focus index to apply after chapter loads (thread-safe for cross-coroutine access)
+    private val pendingFocusIndex = AtomicReference<Int?>(null)
 
     /**
      * Load a book and optionally jump to a specific chapter and focus position.
@@ -70,9 +73,9 @@ class ReaderViewModel(
         initialChapterIndex: Int = 0,
         initialFocusIndex: Int = 0,
     ) {
-        currentBook = book
-        chapterCache.clear() // Clear cache when loading new book
-        pendingFocusIndex = if (initialFocusIndex > 0) initialFocusIndex else null
+        currentBook.set(book)
+        synchronized(chapterCacheLock) { chapterCache.clear() } // Clear cache when loading new book
+        pendingFocusIndex.set(if (initialFocusIndex > 0) initialFocusIndex else null)
         _uiState.update { it.copy(bookWordCounts = emptyList(), bookTotalWords = 0) }
         loadBookWordCounts(book)
         loadChapter(initialChapterIndex)
@@ -120,7 +123,7 @@ class ReaderViewModel(
                     }
                 }.getOrNull() ?: emptyList()
 
-            if (currentBook?.id != bookId) return@launch
+            if (currentBook.get()?.id != bookId) return@launch
             val total = counts.sum()
             _uiState.update { it.copy(bookWordCounts = counts, bookTotalWords = total) }
         }
@@ -134,22 +137,21 @@ class ReaderViewModel(
         chapterIndex: Int,
         initialFocusIndex: Int? = null,
     ) {
-        val book = currentBook ?: return
+        val book = currentBook.get() ?: return
 
         if (chapterIndex !in book.chapters.indices) return
 
         if (initialFocusIndex != null) {
-            pendingFocusIndex = initialFocusIndex
+            pendingFocusIndex.set(initialFocusIndex)
         }
 
         // Check cache first - instant load if available
-        val cached = chapterCache[chapterIndex]
+        val cached = synchronized(chapterCacheLock) { chapterCache[chapterIndex] }
         if (cached != null) {
             // Use pending focus if set, otherwise use first word
             val focusIdx =
-                pendingFocusIndex?.let { cached.tokens.nearestWordIndex(it) }
+                pendingFocusIndex.getAndSet(null)?.let { cached.tokens.nearestWordIndex(it) }
                     ?: cached.firstWordIndex.coerceAtLeast(0)
-            pendingFocusIndex = null
 
             _uiState.update {
                 it.copy(
@@ -196,17 +198,19 @@ class ReaderViewModel(
                     }
 
                 // Cache the result
-                result?.let { chapterCache[chapterIndex] = it }
+                result?.let {
+                    synchronized(chapterCacheLock) { chapterCache[chapterIndex] = it }
+                }
 
                 // Use pending focus if set, otherwise use first word
                 val focusIdx =
                     if (result != null) {
-                        pendingFocusIndex?.let { result.tokens.nearestWordIndex(it) }
+                        pendingFocusIndex.getAndSet(null)?.let { result.tokens.nearestWordIndex(it) }
                             ?: result.firstWordIndex.coerceAtLeast(0)
                     } else {
+                        pendingFocusIndex.set(null)
                         0
                     }
-                pendingFocusIndex = null
 
                 _uiState.update {
                     it.copy(
@@ -267,12 +271,14 @@ class ReaderViewModel(
      * Preload adjacent chapters in background so chapter switching feels instant.
      */
     private fun preloadAdjacentChapters(currentIndex: Int) {
-        val book = currentBook ?: return
+        val book = currentBook.get() ?: return
 
         viewModelScope.launch(tokenizationDispatcher) {
             listOf(currentIndex + 1)
                 .filter { it in book.chapters.indices }
-                .filter { it !in chapterCache }
+                .filter { index ->
+                    synchronized(chapterCacheLock) { !chapterCache.containsKey(index) }
+                }
                 .forEach { index ->
                     val chapter =
                         runCatching {
@@ -285,7 +291,9 @@ class ReaderViewModel(
                         tokenRepository.getTokens(book.id, index, chapter)
                     }.getOrNull()
                     if (tokens != null) {
-                        processChapter(chapter, tokens)?.let { data -> chapterCache[index] = data }
+                        processChapter(chapter, tokens)?.let { data ->
+                            synchronized(chapterCacheLock) { chapterCache[index] = data }
+                        }
                     }
                 }
         }
@@ -298,14 +306,14 @@ class ReaderViewModel(
     fun applyFocusIndex(index: Int) {
         val uiState = _uiState.value
         if (uiState.isLoading || uiState.chapterData == null) {
-            pendingFocusIndex = index
+            pendingFocusIndex.set(index)
         }
         _uiState.update { it.copy(focusIndex = index) }
     }
 
     @Suppress("unused")
     fun nextChapter() {
-        val book = currentBook ?: return
+        val book = currentBook.get() ?: return
         val nextIndex = (_uiState.value.chapterIndex + 1).coerceAtMost(book.chapters.lastIndex)
         if (nextIndex != _uiState.value.chapterIndex) {
             loadChapter(nextIndex)
@@ -325,7 +333,7 @@ class ReaderViewModel(
      */
     override fun onCleared() {
         super.onCleared()
-        chapterCache.clear()
+        synchronized(chapterCacheLock) { chapterCache.clear() }
     }
 
     companion object {
