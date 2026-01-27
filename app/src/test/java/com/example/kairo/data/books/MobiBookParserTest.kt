@@ -43,4 +43,13 @@ class MobiBookParserTest {
         assertTrue(text.contains("Next para."))
         assertTrue(text.contains("friends.\n\nNext"))
     }
+
+    @Test
+    fun isFileTooLargeDetectsOversizedInputs() {
+        val tooLarge: Boolean = parser.callPrivate("isFileTooLarge", Long.MAX_VALUE)
+        val smallEnough: Boolean = parser.callPrivate("isFileTooLarge", 0L)
+
+        assertTrue(tooLarge)
+        assertTrue(!smallEnough)
+    }
 }

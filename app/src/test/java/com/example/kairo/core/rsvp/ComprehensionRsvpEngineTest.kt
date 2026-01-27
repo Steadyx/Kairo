@@ -3,6 +3,7 @@ package com.example.kairo.core.rsvp
 import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -272,5 +273,26 @@ class ComprehensionRsvpEngineTest {
             )
 
         assertTrue(adaptive[0].durationMs > baseline[0].durationMs)
+    }
+
+    @Test
+    fun startIndexBeyondLastTokenStartsAtLastToken() {
+        val config =
+            RsvpConfig(
+                startDelayMs = 0L,
+                endDelayMs = 0L,
+                rampUpFrames = 0,
+                rampDownFrames = 0,
+            )
+        val tokens =
+            listOf(
+                Token(text = "first", type = TokenType.WORD, frequencyScore = 1.0),
+                Token(text = "last", type = TokenType.WORD, frequencyScore = 1.0),
+            )
+
+        val frames = engine.generateFrames(tokens = tokens, startIndex = 999, config = config)
+
+        assertTrue(frames.isNotEmpty())
+        assertEquals(1, frames.first().originalTokenIndex)
     }
 }

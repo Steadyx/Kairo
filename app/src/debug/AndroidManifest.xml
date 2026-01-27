@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.kairo">
+    <application>
+        <activity
+            android:name="com.example.kairo.TestActivity"
+            android:exported="false" />
+    </application>
+</manifest>

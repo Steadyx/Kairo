@@ -24,6 +24,7 @@ internal data class ReaderRenderState(
     val focusBlockIndex: Int,
     val showHeaderCarousel: Boolean,
     val listHeaderCount: Int,
+    val listItemCount: Int,
     val focusListIndex: Int,
     val listStateKey: String,
 )
@@ -183,6 +184,10 @@ internal fun rememberReaderRenderState(
                     (if (showHeaderCarousel) 1 else 0)
             }
         }
+    val listItemCount =
+        remember(listHeaderCount, displayBlocks) {
+            listHeaderCount + displayBlocks.size
+        }
     val focusListIndex = remember(focusBlockIndex, listHeaderCount) {
         focusBlockIndex + listHeaderCount
     }
@@ -215,6 +220,7 @@ internal fun rememberReaderRenderState(
         focusBlockIndex = focusBlockIndex,
         showHeaderCarousel = showHeaderCarousel,
         listHeaderCount = listHeaderCount,
+        listItemCount = listItemCount,
         focusListIndex = focusListIndex,
         listStateKey = listStateKey,
     )
