@@ -41,209 +41,123 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private val legacyBaseWpmKey = intPreferencesKey("base_wpm")
+private const val MIN_TEXT_BRIGHTNESS = 0.55f
+private const val MAX_TEXT_BRIGHTNESS = 1.0f
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
+
+private fun <T> Preferences.readOrDefault(key: Preferences.Key<T>, fallback: T): T =
+    this[key] ?: fallback
 
 class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepository {
     private val keys = PrefKeys
 
     override val preferences: Flow<UserPreferences> =
         context.dataStore.data
-            .onEach { prefs ->
-                if (prefs.contains(legacyBaseWpmKey)) {
-                    context.dataStore.edit { mutable ->
-                        if (!mutable.contains(keys.tempoMsPerWord)) {
-                            val legacyWpm = mutable[legacyBaseWpmKey]
-                            val tempoMs =
-                                when {
-                                    legacyWpm == null -> RsvpConfig().tempoMsPerWord
-                                    legacyWpm <= 0 -> RsvpConfig().tempoMsPerWord
-                                    else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(
-                                        10L
-                                    )
-                                }
-                            mutable[keys.tempoMsPerWord] = tempoMs
-                        }
-                        mutable.remove(legacyBaseWpmKey)
-                    }
-                }
-            }.map { prefs ->
-                val defaults = UserPreferences()
-                val customProfiles = parseCustomProfiles(prefs[keys.customRsvpProfilesJson])
-                val selectedProfileId = migrateAndReadSelectedProfileId(prefs, customProfiles)
-                val derivedTempoMs =
-                    (
-                        prefs[keys.tempoMsPerWord] ?: run {
-                            val legacyWpm = prefs[legacyBaseWpmKey]
-                            when {
-                                legacyWpm == null -> RsvpConfig().tempoMsPerWord
-                                legacyWpm <= 0 -> RsvpConfig().tempoMsPerWord
-                                else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(
-                                    10L
-                                )
-                            }
-                        }
-                        ).coerceAtLeast(10L)
-                val derivedBaseWpm = (60_000.0 / derivedTempoMs.toDouble()).toInt().coerceAtLeast(1)
+            .onEach { prefs -> migrateLegacyBaseWpmIfNeeded(prefs) }
+            .map { prefs -> buildUserPreferences(prefs) }
 
-                val storedBlinkMode = parseBlinkMode(prefs[keys.blinkMode])
-                val blinkMode =
-                    storedBlinkMode
-                        ?: if (prefs[keys.blinkEnabled] ==
-                            true
-                        ) {
-                            BlinkMode.SUBTLE
-                        } else {
-                            RsvpConfig().blinkMode
-                        }
-
-                UserPreferences(
-                    rsvpConfig =
-                    RsvpConfig(
-                        tempoMsPerWord = derivedTempoMs,
-                        baseWpm = derivedBaseWpm,
-                        minWordMs = prefs[keys.minWordMs] ?: RsvpConfig().minWordMs,
-                        longWordMinMs = prefs[keys.longWordMinMs] ?: RsvpConfig().longWordMinMs,
-                        longWordChars = prefs[keys.longWordChars] ?: RsvpConfig().longWordChars,
-                        syllableExtraMs =
-                        prefs[keys.syllableExtraMs] ?: RsvpConfig().syllableExtraMs,
-                        rarityExtraMaxMs =
-                        prefs[keys.rarityExtraMaxMs]
-                            ?: RsvpConfig().rarityExtraMaxMs,
-                        complexityStrength =
-                        prefs[keys.complexityStrength]
-                            ?: RsvpConfig().complexityStrength,
-                        lengthStrength =
-                        prefs[keys.lengthStrength] ?: RsvpConfig().lengthStrength,
-                        lengthExponent =
-                        prefs[keys.lengthExponent] ?: RsvpConfig().lengthExponent,
-                        enablePhraseChunking =
-                        prefs[keys.enablePhraseChunking]
-                            ?: RsvpConfig().enablePhraseChunking,
-                        maxWordsPerUnit =
-                        prefs[keys.maxWordsPerUnit] ?: RsvpConfig().maxWordsPerUnit,
-                        maxCharsPerUnit =
-                        prefs[keys.maxCharsPerUnit] ?: RsvpConfig().maxCharsPerUnit,
-                        subwordChunkPauseMs =
-                        prefs[keys.subwordChunkPauseMs]
-                            ?: RsvpConfig().subwordChunkPauseMs,
-                        commaPauseMs = prefs[keys.commaPauseMs] ?: RsvpConfig().commaPauseMs,
-                        semicolonPauseMs =
-                        prefs[keys.semicolonPauseMs]
-                            ?: RsvpConfig().semicolonPauseMs,
-                        colonPauseMs = prefs[keys.colonPauseMs] ?: RsvpConfig().colonPauseMs,
-                        dashPauseMs = prefs[keys.dashPauseMs] ?: RsvpConfig().dashPauseMs,
-                        parenthesesPauseMs =
-                        prefs[keys.parenthesesPauseMs]
-                            ?: RsvpConfig().parenthesesPauseMs,
-                        quotePauseMs = prefs[keys.quotePauseMs] ?: RsvpConfig().quotePauseMs,
-                        sentenceEndPauseMs =
-                        prefs[keys.sentenceEndPauseMs]
-                            ?: RsvpConfig().sentenceEndPauseMs,
-                        paragraphPauseMs =
-                        prefs[keys.paragraphPauseMs]
-                            ?: RsvpConfig().paragraphPauseMs,
-                        pauseScaleExponent =
-                        prefs[keys.pauseScaleExponent]
-                            ?: RsvpConfig().pauseScaleExponent,
-                        minPauseScale = prefs[keys.minPauseScale] ?: RsvpConfig().minPauseScale,
-                        parentheticalMultiplier =
-                        prefs[keys.parentheticalMultiplier]
-                            ?: RsvpConfig().parentheticalMultiplier,
-                        dialogueMultiplier =
-                        prefs[keys.dialogueMultiplier]
-                            ?: RsvpConfig().dialogueMultiplier,
-                        smoothingAlpha =
-                        prefs[keys.smoothingAlpha] ?: RsvpConfig().smoothingAlpha,
-                        maxSpeedupFactor =
-                        prefs[keys.maxSpeedupFactor]
-                            ?: RsvpConfig().maxSpeedupFactor,
-                        maxSlowdownFactor =
-                        prefs[keys.maxSlowdownFactor]
-                            ?: RsvpConfig().maxSlowdownFactor,
-                        orpEnabled = prefs[keys.orpEnabled] ?: RsvpConfig().orpEnabled,
-                        startDelayMs = prefs[keys.startDelayMs] ?: RsvpConfig().startDelayMs,
-                        endDelayMs = prefs[keys.endDelayMs] ?: RsvpConfig().endDelayMs,
-                        rampUpFrames = prefs[keys.rampUpFrames] ?: RsvpConfig().rampUpFrames,
-                        rampDownFrames =
-                        prefs[keys.rampDownFrames] ?: RsvpConfig().rampDownFrames,
-                        useAdaptiveTiming =
-                        prefs[keys.useAdaptiveTiming] ?: RsvpConfig().useAdaptiveTiming,
-                        adaptiveDifficultyMaxHoldMs =
-                        prefs[keys.adaptiveDifficultyMaxHoldMs]
-                            ?: RsvpConfig().adaptiveDifficultyMaxHoldMs,
-                        complexWordHoldMs =
-                        prefs[keys.complexWordHoldMs]
-                            ?: RsvpConfig().complexWordHoldMs,
-                        complexWordThreshold =
-                        prefs[keys.complexWordThreshold]
-                            ?: RsvpConfig().complexWordThreshold,
-                        // Legacy persisted fields
-                        wordsPerFrame = prefs[keys.wordsPerFrame] ?: RsvpConfig().wordsPerFrame,
-                        maxChunkLength =
-                        prefs[keys.maxChunkLength] ?: RsvpConfig().maxChunkLength,
-                        punctuationPauseFactor =
-                        prefs[keys.punctuationPause]
-                            ?: RsvpConfig().punctuationPauseFactor,
-                        longWordMultiplier =
-                        prefs[keys.longWordMultiplier]
-                            ?: RsvpConfig().longWordMultiplier,
-                        useClausePausing =
-                        prefs[keys.useClausePausing]
-                            ?: RsvpConfig().useClausePausing,
-                        clausePauseFactor =
-                        (
-                            prefs[keys.clausePauseFactor]?.takeIf { it.isFinite() }
-                                ?: RsvpConfig().clausePauseFactor
-                            ).coerceIn(1.0, 1.6),
-                        blinkMode = blinkMode,
-                    ),
-                    rsvpSelectedProfileId = selectedProfileId,
-                    rsvpCustomProfiles = customProfiles,
-                    readerFontSizeSp = prefs[keys.readerFontSize] ?: defaults.readerFontSizeSp,
-                    readerTheme =
-                    prefs[keys.readerTheme]?.let { value ->
-                        runCatching { ReaderTheme.valueOf(value) }.getOrNull()
-                    } ?: defaults.readerTheme,
-                    readerTextBrightness =
-                    (
-                        prefs[keys.readerTextBrightness]
-                            ?: defaults.readerTextBrightness
-                        ).coerceIn(0.55f, 1.0f),
-                    invertedScroll = prefs[keys.invertedScroll] ?: defaults.invertedScroll,
-                    rsvpFontSizeSp = prefs[keys.rsvpFontSize] ?: defaults.rsvpFontSizeSp,
-                    rsvpTextBrightness =
-                    (
-                        prefs[keys.rsvpTextBrightness]
-                            ?: defaults.rsvpTextBrightness
-                        ).coerceIn(0.55f, 1.0f),
-                    rsvpFontWeight =
-                    prefs[keys.rsvpFontWeight]?.let { value ->
-                        runCatching { RsvpFontWeight.valueOf(value) }.getOrNull()
-                    } ?: defaults.rsvpFontWeight,
-                    rsvpFontFamily =
-                    prefs[keys.rsvpFontFamily]?.let { value ->
-                        runCatching { RsvpFontFamily.valueOf(value) }.getOrNull()
-                    } ?: defaults.rsvpFontFamily,
-                    rsvpVerticalBias = prefs[keys.rsvpVerticalBias] ?: defaults.rsvpVerticalBias,
-                    rsvpHorizontalBias =
-                    prefs[keys.rsvpHorizontalBias] ?: defaults.rsvpHorizontalBias,
-                    unlockExtremeSpeed = prefs[keys.unlockExtremeSpeed] ?: (derivedTempoMs < 30L),
-                    focusModeEnabled = prefs[keys.focusModeEnabled] ?: defaults.focusModeEnabled,
-                    focusHideStatusBar =
-                    prefs[keys.focusHideStatusBar] ?: defaults.focusHideStatusBar,
-                    focusPauseNotifications =
-                    prefs[keys.focusPauseNotifications]
-                        ?: defaults.focusPauseNotifications,
-                    focusApplyInReader =
-                    prefs[keys.focusApplyInReader] ?: defaults.focusApplyInReader,
-                    focusApplyInRsvp = prefs[keys.focusApplyInRsvp] ?: defaults.focusApplyInRsvp,
-                )
+    private suspend fun migrateLegacyBaseWpmIfNeeded(prefs: Preferences) {
+        if (!prefs.contains(legacyBaseWpmKey)) return
+        context.dataStore.edit { mutable ->
+            if (!mutable.contains(keys.tempoMsPerWord)) {
+                val tempoMs =
+                    legacyWpmToTempoMs(
+                        legacyWpm = mutable[legacyBaseWpmKey],
+                        defaultTempoMs = RsvpConfig().tempoMsPerWord,
+                    )
+                mutable[keys.tempoMsPerWord] = tempoMs
             }
+            mutable.remove(legacyBaseWpmKey)
+        }
+    }
+
+    private fun buildUserPreferences(prefs: Preferences): UserPreferences {
+        val defaults = UserPreferences()
+        val customProfiles = parseCustomProfiles(prefs[keys.customRsvpProfilesJson])
+        val selectedProfileId = migrateAndReadSelectedProfileId(prefs, customProfiles)
+        val rsvpConfig = readRsvpConfig(prefs)
+
+        return defaults
+            .withRsvpState(rsvpConfig, selectedProfileId, customProfiles)
+            .withReaderSettings(prefs, defaults)
+            .withRsvpDisplaySettings(prefs, defaults, rsvpConfig)
+            .withFocusSettings(prefs, defaults)
+    }
+
+    private fun UserPreferences.withRsvpState(
+        config: RsvpConfig,
+        selectedProfileId: String,
+        customProfiles: List<RsvpCustomProfile>,
+    ): UserPreferences =
+        copy(
+            rsvpConfig = config,
+            rsvpSelectedProfileId = selectedProfileId,
+            rsvpCustomProfiles = customProfiles,
+        )
+
+    private fun UserPreferences.withReaderSettings(
+        prefs: Preferences,
+        defaults: UserPreferences,
+    ): UserPreferences {
+        val readerTheme = parseReaderTheme(prefs[keys.readerTheme], defaults.readerTheme)
+        val readerTextBrightness =
+            coerceTextBrightness(prefs[keys.readerTextBrightness], defaults.readerTextBrightness)
+        return copy(
+            readerFontSizeSp = prefs.readOrDefault(keys.readerFontSize, defaults.readerFontSizeSp),
+            readerTheme = readerTheme,
+            readerTextBrightness = readerTextBrightness,
+            invertedScroll = prefs.readOrDefault(keys.invertedScroll, defaults.invertedScroll),
+        )
+    }
+
+    private fun UserPreferences.withRsvpDisplaySettings(
+        prefs: Preferences,
+        defaults: UserPreferences,
+        rsvpConfig: RsvpConfig,
+    ): UserPreferences {
+        val rsvpTextBrightness =
+            coerceTextBrightness(prefs[keys.rsvpTextBrightness], defaults.rsvpTextBrightness)
+        val rsvpFontWeight =
+            parseRsvpFontWeight(prefs[keys.rsvpFontWeight], defaults.rsvpFontWeight)
+        val rsvpFontFamily =
+            parseRsvpFontFamily(prefs[keys.rsvpFontFamily], defaults.rsvpFontFamily)
+        val unlockExtremeSpeed =
+            prefs[keys.unlockExtremeSpeed] ?: (rsvpConfig.tempoMsPerWord < 30L)
+        return copy(
+            rsvpFontSizeSp = prefs.readOrDefault(keys.rsvpFontSize, defaults.rsvpFontSizeSp),
+            rsvpTextBrightness = rsvpTextBrightness,
+            rsvpFontWeight = rsvpFontWeight,
+            rsvpFontFamily = rsvpFontFamily,
+            rsvpVerticalBias = prefs.readOrDefault(keys.rsvpVerticalBias, defaults.rsvpVerticalBias),
+            rsvpHorizontalBias =
+                prefs.readOrDefault(keys.rsvpHorizontalBias, defaults.rsvpHorizontalBias),
+            unlockExtremeSpeed = unlockExtremeSpeed,
+        )
+    }
+
+    private fun UserPreferences.withFocusSettings(
+        prefs: Preferences,
+        defaults: UserPreferences,
+    ): UserPreferences =
+        copy(
+            focusModeEnabled = prefs.readOrDefault(keys.focusModeEnabled, defaults.focusModeEnabled),
+            focusHideStatusBar =
+                prefs.readOrDefault(keys.focusHideStatusBar, defaults.focusHideStatusBar),
+            focusPauseNotifications =
+                prefs.readOrDefault(
+                    keys.focusPauseNotifications,
+                    defaults.focusPauseNotifications,
+                ),
+            focusApplyInReader =
+                prefs.readOrDefault(keys.focusApplyInReader, defaults.focusApplyInReader),
+            focusApplyInRsvp =
+                prefs.readOrDefault(keys.focusApplyInRsvp, defaults.focusApplyInRsvp),
+        )
 
     override suspend fun updateRsvpConfig(updater: (RsvpConfig) -> RsvpConfig) {
         context.dataStore.edit { prefs ->
-            val updated = updater(readConfig(prefs))
+            val updated = updater(readRsvpConfig(prefs))
             prefs[keys.rsvpProfile] = RsvpProfileIds.CUSTOM_UNSAVED
             writeRsvpConfig(prefs, updated)
         }
@@ -328,7 +242,10 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
 
     override suspend fun updateReaderTextBrightness(brightness: Float) {
         context.dataStore.edit { prefs ->
-            prefs[keys.readerTextBrightness] = brightness.coerceIn(0.55f, 1.0f)
+            prefs[keys.readerTextBrightness] = brightness.coerceIn(
+                MIN_TEXT_BRIGHTNESS,
+                MAX_TEXT_BRIGHTNESS,
+            )
         }
     }
 
@@ -346,7 +263,10 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
 
     override suspend fun updateRsvpTextBrightness(brightness: Float) {
         context.dataStore.edit { prefs ->
-            prefs[keys.rsvpTextBrightness] = brightness.coerceIn(0.55f, 1.0f)
+            prefs[keys.rsvpTextBrightness] = brightness.coerceIn(
+                MIN_TEXT_BRIGHTNESS,
+                MAX_TEXT_BRIGHTNESS,
+            )
         }
     }
 
@@ -393,6 +313,33 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
     override suspend fun reset() {
         context.dataStore.edit { it.clear() }
     }
+
+    private fun legacyWpmToTempoMs(legacyWpm: Int?, defaultTempoMs: Long): Long =
+        when {
+            legacyWpm == null -> defaultTempoMs
+            legacyWpm <= 0 -> defaultTempoMs
+            else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(10L)
+        }
+
+    private fun normalizeClausePauseFactor(value: Double?, fallback: Double): Double {
+        val normalized = value?.takeIf { it.isFinite() } ?: fallback
+        return normalized.coerceIn(1.0, 1.6)
+    }
+
+    private fun normalizeClausePauseFactor(value: Double, fallback: Double): Double =
+        normalizeClausePauseFactor(value.takeIf { it.isFinite() }, fallback)
+
+    private fun coerceTextBrightness(value: Float?, fallback: Float): Float =
+        (value ?: fallback).coerceIn(MIN_TEXT_BRIGHTNESS, MAX_TEXT_BRIGHTNESS)
+
+    private fun parseReaderTheme(value: String?, fallback: ReaderTheme): ReaderTheme =
+        value?.let { runCatching { ReaderTheme.valueOf(it) }.getOrNull() } ?: fallback
+
+    private fun parseRsvpFontWeight(value: String?, fallback: RsvpFontWeight): RsvpFontWeight =
+        value?.let { runCatching { RsvpFontWeight.valueOf(it) }.getOrNull() } ?: fallback
+
+    private fun parseRsvpFontFamily(value: String?, fallback: RsvpFontFamily): RsvpFontFamily =
+        value?.let { runCatching { RsvpFontFamily.valueOf(it) }.getOrNull() } ?: fallback
 
     private fun normalizeProfileId(raw: String): String {
         val trimmed = raw.trim()
@@ -483,149 +430,331 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         return json.toString()
     }
 
-    private fun encodeRsvpConfig(config: RsvpConfig): JSONObject {
-        val o = JSONObject()
-        o.put("tempoMsPerWord", config.tempoMsPerWord)
-        o.put("minWordMs", config.minWordMs)
-        o.put("longWordMinMs", config.longWordMinMs)
-        o.put("longWordChars", config.longWordChars)
-        o.put("syllableExtraMs", config.syllableExtraMs)
-        o.put("rarityExtraMaxMs", config.rarityExtraMaxMs)
-        o.put("complexityStrength", config.complexityStrength)
-        o.put("lengthStrength", config.lengthStrength)
-        o.put("lengthExponent", config.lengthExponent)
-        o.put("enablePhraseChunking", config.enablePhraseChunking)
-        o.put("maxWordsPerUnit", config.maxWordsPerUnit)
-        o.put("maxCharsPerUnit", config.maxCharsPerUnit)
-        o.put("subwordChunkPauseMs", config.subwordChunkPauseMs)
-        o.put("commaPauseMs", config.commaPauseMs)
-        o.put("semicolonPauseMs", config.semicolonPauseMs)
-        o.put("colonPauseMs", config.colonPauseMs)
-        o.put("dashPauseMs", config.dashPauseMs)
-        o.put("parenthesesPauseMs", config.parenthesesPauseMs)
-        o.put("quotePauseMs", config.quotePauseMs)
-        o.put("sentenceEndPauseMs", config.sentenceEndPauseMs)
-        o.put("paragraphPauseMs", config.paragraphPauseMs)
-        o.put("pauseScaleExponent", config.pauseScaleExponent)
-        o.put("minPauseScale", config.minPauseScale)
-        o.put("parentheticalMultiplier", config.parentheticalMultiplier)
-        o.put("dialogueMultiplier", config.dialogueMultiplier)
-        o.put("smoothingAlpha", config.smoothingAlpha)
-        o.put("maxSpeedupFactor", config.maxSpeedupFactor)
-        o.put("maxSlowdownFactor", config.maxSlowdownFactor)
-        o.put("orpEnabled", config.orpEnabled)
-        o.put("startDelayMs", config.startDelayMs)
-        o.put("endDelayMs", config.endDelayMs)
-        o.put("rampUpFrames", config.rampUpFrames)
-        o.put("rampDownFrames", config.rampDownFrames)
-        o.put("useAdaptiveTiming", config.useAdaptiveTiming)
-        o.put("adaptiveDifficultyMaxHoldMs", config.adaptiveDifficultyMaxHoldMs)
-        o.put("complexWordHoldMs", config.complexWordHoldMs)
-        o.put("complexWordThreshold", config.complexWordThreshold)
-        o.put("wordsPerFrame", config.wordsPerFrame)
-        o.put("maxChunkLength", config.maxChunkLength)
-        o.put("punctuationPauseFactor", config.punctuationPauseFactor)
-        o.put("longWordMultiplier", config.longWordMultiplier)
-        o.put("useClausePausing", config.useClausePausing)
-        o.put("clausePauseFactor", config.clausePauseFactor)
-        o.put("blinkMode", config.blinkMode.name)
-        o.put("blinkEnabled", config.blinkMode != BlinkMode.OFF)
-        return o
+    private fun encodeRsvpConfig(config: RsvpConfig): JSONObject =
+        JSONObject().apply {
+            putTiming(config)
+            putWordFloors(config)
+            putDifficulty(config)
+            putLengthCurve(config)
+            putChunking(config)
+            putPunctuationPauses(config)
+            putPauseScaling(config)
+            putContextMultipliers(config)
+            putRhythm(config)
+            putOrpAndDelays(config)
+            putRamping(config)
+            putAdaptiveTiming(config)
+            putLegacyFields(config)
+            putBlink(config)
+        }
+
+    private fun JSONObject.putTiming(config: RsvpConfig) {
+        put("tempoMsPerWord", config.tempoMsPerWord)
+    }
+
+    private fun JSONObject.putWordFloors(config: RsvpConfig) {
+        put("minWordMs", config.minWordMs)
+        put("longWordMinMs", config.longWordMinMs)
+        put("longWordChars", config.longWordChars)
+    }
+
+    private fun JSONObject.putDifficulty(config: RsvpConfig) {
+        put("syllableExtraMs", config.syllableExtraMs)
+        put("rarityExtraMaxMs", config.rarityExtraMaxMs)
+        put("complexityStrength", config.complexityStrength)
+    }
+
+    private fun JSONObject.putLengthCurve(config: RsvpConfig) {
+        put("lengthStrength", config.lengthStrength)
+        put("lengthExponent", config.lengthExponent)
+    }
+
+    private fun JSONObject.putChunking(config: RsvpConfig) {
+        put("enablePhraseChunking", config.enablePhraseChunking)
+        put("maxWordsPerUnit", config.maxWordsPerUnit)
+        put("maxCharsPerUnit", config.maxCharsPerUnit)
+        put("subwordChunkPauseMs", config.subwordChunkPauseMs)
+    }
+
+    private fun JSONObject.putPunctuationPauses(config: RsvpConfig) {
+        put("commaPauseMs", config.commaPauseMs)
+        put("semicolonPauseMs", config.semicolonPauseMs)
+        put("colonPauseMs", config.colonPauseMs)
+        put("dashPauseMs", config.dashPauseMs)
+        put("parenthesesPauseMs", config.parenthesesPauseMs)
+        put("quotePauseMs", config.quotePauseMs)
+        put("sentenceEndPauseMs", config.sentenceEndPauseMs)
+        put("paragraphPauseMs", config.paragraphPauseMs)
+    }
+
+    private fun JSONObject.putPauseScaling(config: RsvpConfig) {
+        put("pauseScaleExponent", config.pauseScaleExponent)
+        put("minPauseScale", config.minPauseScale)
+    }
+
+    private fun JSONObject.putContextMultipliers(config: RsvpConfig) {
+        put("parentheticalMultiplier", config.parentheticalMultiplier)
+        put("dialogueMultiplier", config.dialogueMultiplier)
+    }
+
+    private fun JSONObject.putRhythm(config: RsvpConfig) {
+        put("smoothingAlpha", config.smoothingAlpha)
+        put("maxSpeedupFactor", config.maxSpeedupFactor)
+        put("maxSlowdownFactor", config.maxSlowdownFactor)
+    }
+
+    private fun JSONObject.putOrpAndDelays(config: RsvpConfig) {
+        put("orpEnabled", config.orpEnabled)
+        put("startDelayMs", config.startDelayMs)
+        put("endDelayMs", config.endDelayMs)
+    }
+
+    private fun JSONObject.putRamping(config: RsvpConfig) {
+        put("rampUpFrames", config.rampUpFrames)
+        put("rampDownFrames", config.rampDownFrames)
+    }
+
+    private fun JSONObject.putAdaptiveTiming(config: RsvpConfig) {
+        put("useAdaptiveTiming", config.useAdaptiveTiming)
+        put("adaptiveDifficultyMaxHoldMs", config.adaptiveDifficultyMaxHoldMs)
+        put("complexWordHoldMs", config.complexWordHoldMs)
+        put("complexWordThreshold", config.complexWordThreshold)
+    }
+
+    private fun JSONObject.putLegacyFields(config: RsvpConfig) {
+        put("wordsPerFrame", config.wordsPerFrame)
+        put("maxChunkLength", config.maxChunkLength)
+        put("punctuationPauseFactor", config.punctuationPauseFactor)
+        put("longWordMultiplier", config.longWordMultiplier)
+        put("useClausePausing", config.useClausePausing)
+        put("clausePauseFactor", config.clausePauseFactor)
+    }
+
+    private fun JSONObject.putBlink(config: RsvpConfig) {
+        put("blinkMode", config.blinkMode.name)
+        put("blinkEnabled", config.blinkMode != BlinkMode.OFF)
     }
 
     private fun decodeRsvpConfig(obj: JSONObject): RsvpConfig {
-        val d = RsvpConfig()
-        val clausePauseFactor =
-            obj
-                .optDouble("clausePauseFactor", d.clausePauseFactor)
-                .takeIf { it.isFinite() }
-                ?.coerceIn(1.0, 1.6)
-                ?: d.clausePauseFactor
+        val defaults = RsvpConfig()
         val blinkModeRaw = obj.optString("blinkMode", "")
         val blinkMode =
             parseBlinkMode(blinkModeRaw.takeIf { it.isNotBlank() })
-                ?: if (obj.optBoolean("blinkEnabled", false)) BlinkMode.SUBTLE else d.blinkMode
-        return RsvpConfig(
-            tempoMsPerWord = obj.optLong("tempoMsPerWord", d.tempoMsPerWord),
-            minWordMs = obj.optLong("minWordMs", d.minWordMs),
-            longWordMinMs = obj.optLong("longWordMinMs", d.longWordMinMs),
-            longWordChars = obj.optInt("longWordChars", d.longWordChars),
-            syllableExtraMs = obj.optLong("syllableExtraMs", d.syllableExtraMs),
-            rarityExtraMaxMs = obj.optLong("rarityExtraMaxMs", d.rarityExtraMaxMs),
-            complexityStrength = obj.optDouble("complexityStrength", d.complexityStrength),
-            lengthStrength = obj.optDouble("lengthStrength", d.lengthStrength),
-            lengthExponent = obj.optDouble("lengthExponent", d.lengthExponent),
-            enablePhraseChunking = obj.optBoolean("enablePhraseChunking", d.enablePhraseChunking),
-            maxWordsPerUnit = obj.optInt("maxWordsPerUnit", d.maxWordsPerUnit),
-            maxCharsPerUnit = obj.optInt("maxCharsPerUnit", d.maxCharsPerUnit),
-            subwordChunkPauseMs = obj.optLong("subwordChunkPauseMs", d.subwordChunkPauseMs),
-            commaPauseMs = obj.optLong("commaPauseMs", d.commaPauseMs),
-            semicolonPauseMs = obj.optLong("semicolonPauseMs", d.semicolonPauseMs),
-            colonPauseMs = obj.optLong("colonPauseMs", d.colonPauseMs),
-            dashPauseMs = obj.optLong("dashPauseMs", d.dashPauseMs),
-            parenthesesPauseMs = obj.optLong("parenthesesPauseMs", d.parenthesesPauseMs),
-            quotePauseMs = obj.optLong("quotePauseMs", d.quotePauseMs),
-            sentenceEndPauseMs = obj.optLong("sentenceEndPauseMs", d.sentenceEndPauseMs),
-            paragraphPauseMs = obj.optLong("paragraphPauseMs", d.paragraphPauseMs),
-            pauseScaleExponent = obj.optDouble("pauseScaleExponent", d.pauseScaleExponent),
-            minPauseScale = obj.optDouble("minPauseScale", d.minPauseScale),
-            parentheticalMultiplier =
-            obj.optDouble(
-                "parentheticalMultiplier",
-                d.parentheticalMultiplier,
-            ),
-            dialogueMultiplier = obj.optDouble("dialogueMultiplier", d.dialogueMultiplier),
-            smoothingAlpha = obj.optDouble("smoothingAlpha", d.smoothingAlpha),
-            maxSpeedupFactor = obj.optDouble("maxSpeedupFactor", d.maxSpeedupFactor),
-            maxSlowdownFactor = obj.optDouble("maxSlowdownFactor", d.maxSlowdownFactor),
-            orpEnabled = obj.optBoolean("orpEnabled", d.orpEnabled),
-            startDelayMs = obj.optLong("startDelayMs", d.startDelayMs),
-            endDelayMs = obj.optLong("endDelayMs", d.endDelayMs),
-            rampUpFrames = obj.optInt("rampUpFrames", d.rampUpFrames),
-            rampDownFrames = obj.optInt("rampDownFrames", d.rampDownFrames),
-            wordsPerFrame = obj.optInt("wordsPerFrame", d.wordsPerFrame),
-            maxChunkLength = obj.optInt("maxChunkLength", d.maxChunkLength),
-            punctuationPauseFactor =
-            obj.optDouble(
-                "punctuationPauseFactor",
-                d.punctuationPauseFactor,
-            ),
-            longWordMultiplier = obj.optDouble("longWordMultiplier", d.longWordMultiplier),
-            baseWpm = d.baseWpm,
-            useAdaptiveTiming = obj.optBoolean("useAdaptiveTiming", d.useAdaptiveTiming),
-            adaptiveDifficultyMaxHoldMs =
-            obj.optLong(
-                "adaptiveDifficultyMaxHoldMs",
-                d.adaptiveDifficultyMaxHoldMs,
-            ),
-            complexWordHoldMs = obj.optLong("complexWordHoldMs", d.complexWordHoldMs),
-            useClausePausing = obj.optBoolean("useClausePausing", d.useClausePausing),
-            useDialogueDetection = d.useDialogueDetection,
-            complexWordThreshold =
-            obj.optDouble("complexWordThreshold", d.complexWordThreshold),
-            clausePauseFactor = clausePauseFactor,
-            blinkMode = blinkMode,
-        )
+                ?: if (obj.optBoolean("blinkEnabled", false)) BlinkMode.SUBTLE else defaults.blinkMode
+        return defaults
+            .withTempoFromJson(obj, defaults)
+            .withWordFloorsFromJson(obj, defaults)
+            .withDifficultyFromJson(obj, defaults)
+            .withLengthCurveFromJson(obj, defaults)
+            .withChunkingFromJson(obj, defaults)
+            .withPunctuationPausesFromJson(obj, defaults)
+            .withPauseScalingFromJson(obj, defaults)
+            .withContextMultipliersFromJson(obj, defaults)
+            .withRhythmFromJson(obj, defaults)
+            .withOrpAndDelaysFromJson(obj, defaults)
+            .withRampingFromJson(obj, defaults)
+            .withAdaptiveTimingFromJson(obj, defaults)
+            .withLegacyFieldsFromJson(obj, defaults)
+            .withBlinkMode(blinkMode)
     }
+
+    private fun RsvpConfig.withTempoFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(tempoMsPerWord = obj.optLong("tempoMsPerWord", defaults.tempoMsPerWord))
+
+    private fun RsvpConfig.withWordFloorsFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            minWordMs = obj.optLong("minWordMs", defaults.minWordMs),
+            longWordMinMs = obj.optLong("longWordMinMs", defaults.longWordMinMs),
+            longWordChars = obj.optInt("longWordChars", defaults.longWordChars),
+        )
+
+    private fun RsvpConfig.withDifficultyFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            syllableExtraMs = obj.optLong("syllableExtraMs", defaults.syllableExtraMs),
+            rarityExtraMaxMs = obj.optLong("rarityExtraMaxMs", defaults.rarityExtraMaxMs),
+            complexityStrength = obj.optDouble("complexityStrength", defaults.complexityStrength),
+        )
+
+    private fun RsvpConfig.withLengthCurveFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            lengthStrength = obj.optDouble("lengthStrength", defaults.lengthStrength),
+            lengthExponent = obj.optDouble("lengthExponent", defaults.lengthExponent),
+        )
+
+    private fun RsvpConfig.withChunkingFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            enablePhraseChunking =
+                obj.optBoolean("enablePhraseChunking", defaults.enablePhraseChunking),
+            maxWordsPerUnit = obj.optInt("maxWordsPerUnit", defaults.maxWordsPerUnit),
+            maxCharsPerUnit = obj.optInt("maxCharsPerUnit", defaults.maxCharsPerUnit),
+            subwordChunkPauseMs = obj.optLong("subwordChunkPauseMs", defaults.subwordChunkPauseMs),
+        )
+
+    private fun RsvpConfig.withPunctuationPausesFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            commaPauseMs = obj.optLong("commaPauseMs", defaults.commaPauseMs),
+            semicolonPauseMs = obj.optLong("semicolonPauseMs", defaults.semicolonPauseMs),
+            colonPauseMs = obj.optLong("colonPauseMs", defaults.colonPauseMs),
+            dashPauseMs = obj.optLong("dashPauseMs", defaults.dashPauseMs),
+            parenthesesPauseMs =
+                obj.optLong("parenthesesPauseMs", defaults.parenthesesPauseMs),
+            quotePauseMs = obj.optLong("quotePauseMs", defaults.quotePauseMs),
+            sentenceEndPauseMs =
+                obj.optLong("sentenceEndPauseMs", defaults.sentenceEndPauseMs),
+            paragraphPauseMs = obj.optLong("paragraphPauseMs", defaults.paragraphPauseMs),
+        )
+
+    private fun RsvpConfig.withPauseScalingFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            pauseScaleExponent = obj.optDouble("pauseScaleExponent", defaults.pauseScaleExponent),
+            minPauseScale = obj.optDouble("minPauseScale", defaults.minPauseScale),
+        )
+
+    private fun RsvpConfig.withContextMultipliersFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            parentheticalMultiplier =
+                obj.optDouble("parentheticalMultiplier", defaults.parentheticalMultiplier),
+            dialogueMultiplier = obj.optDouble("dialogueMultiplier", defaults.dialogueMultiplier),
+        )
+
+    private fun RsvpConfig.withRhythmFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            smoothingAlpha = obj.optDouble("smoothingAlpha", defaults.smoothingAlpha),
+            maxSpeedupFactor = obj.optDouble("maxSpeedupFactor", defaults.maxSpeedupFactor),
+            maxSlowdownFactor = obj.optDouble("maxSlowdownFactor", defaults.maxSlowdownFactor),
+        )
+
+    private fun RsvpConfig.withOrpAndDelaysFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            orpEnabled = obj.optBoolean("orpEnabled", defaults.orpEnabled),
+            startDelayMs = obj.optLong("startDelayMs", defaults.startDelayMs),
+            endDelayMs = obj.optLong("endDelayMs", defaults.endDelayMs),
+        )
+
+    private fun RsvpConfig.withRampingFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            rampUpFrames = obj.optInt("rampUpFrames", defaults.rampUpFrames),
+            rampDownFrames = obj.optInt("rampDownFrames", defaults.rampDownFrames),
+        )
+
+    private fun RsvpConfig.withAdaptiveTimingFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            useAdaptiveTiming = obj.optBoolean("useAdaptiveTiming", defaults.useAdaptiveTiming),
+            adaptiveDifficultyMaxHoldMs =
+                obj.optLong(
+                    "adaptiveDifficultyMaxHoldMs",
+                    defaults.adaptiveDifficultyMaxHoldMs,
+                ),
+            complexWordHoldMs = obj.optLong("complexWordHoldMs", defaults.complexWordHoldMs),
+            complexWordThreshold =
+                obj.optDouble("complexWordThreshold", defaults.complexWordThreshold),
+        )
+
+    private fun RsvpConfig.withLegacyFieldsFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            wordsPerFrame = obj.optInt("wordsPerFrame", defaults.wordsPerFrame),
+            maxChunkLength = obj.optInt("maxChunkLength", defaults.maxChunkLength),
+            punctuationPauseFactor =
+                obj.optDouble("punctuationPauseFactor", defaults.punctuationPauseFactor),
+            longWordMultiplier = obj.optDouble("longWordMultiplier", defaults.longWordMultiplier),
+            useClausePausing = obj.optBoolean("useClausePausing", defaults.useClausePausing),
+            clausePauseFactor =
+                normalizeClausePauseFactor(
+                    obj.optDouble("clausePauseFactor", defaults.clausePauseFactor),
+                    defaults.clausePauseFactor,
+                ),
+        )
 
     private fun writeRsvpConfig(
         prefs: MutablePreferences,
         config: RsvpConfig,
     ) {
+        val defaults = RsvpConfig()
+        writeTiming(prefs, config)
+        writeWordFloors(prefs, config)
+        writeDifficulty(prefs, config)
+        writeLengthCurve(prefs, config)
+        writeChunking(prefs, config)
+        writePunctuationPauses(prefs, config)
+        writePauseScaling(prefs, config)
+        writeContextMultipliers(prefs, config)
+        writeRhythm(prefs, config)
+        writeOrpAndDelays(prefs, config)
+        writeRamping(prefs, config)
+        writeAdaptiveTiming(prefs, config)
+        writeLegacyFields(prefs, config, defaults)
+        writeBlink(prefs, config)
+    }
+
+    private fun writeTiming(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.tempoMsPerWord] = config.tempoMsPerWord.coerceAtLeast(10L)
         prefs.remove(legacyBaseWpmKey)
+    }
+
+    private fun writeWordFloors(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.minWordMs] = config.minWordMs
         prefs[keys.longWordMinMs] = config.longWordMinMs
         prefs[keys.longWordChars] = config.longWordChars
+    }
+
+    private fun writeDifficulty(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.syllableExtraMs] = config.syllableExtraMs
         prefs[keys.rarityExtraMaxMs] = config.rarityExtraMaxMs
         prefs[keys.complexityStrength] = config.complexityStrength
+    }
+
+    private fun writeLengthCurve(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.lengthStrength] = config.lengthStrength
         prefs[keys.lengthExponent] = config.lengthExponent
+    }
+
+    private fun writeChunking(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.enablePhraseChunking] = config.enablePhraseChunking
         prefs[keys.maxWordsPerUnit] = config.maxWordsPerUnit
         prefs[keys.maxCharsPerUnit] = config.maxCharsPerUnit
         prefs[keys.subwordChunkPauseMs] = config.subwordChunkPauseMs
+    }
+
+    private fun writePunctuationPauses(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.commaPauseMs] = config.commaPauseMs
         prefs[keys.semicolonPauseMs] = config.semicolonPauseMs
         prefs[keys.colonPauseMs] = config.colonPauseMs
@@ -634,127 +763,269 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         prefs[keys.quotePauseMs] = config.quotePauseMs
         prefs[keys.sentenceEndPauseMs] = config.sentenceEndPauseMs
         prefs[keys.paragraphPauseMs] = config.paragraphPauseMs
+    }
+
+    private fun writePauseScaling(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.pauseScaleExponent] = config.pauseScaleExponent
         prefs[keys.minPauseScale] = config.minPauseScale
+    }
+
+    private fun writeContextMultipliers(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.parentheticalMultiplier] = config.parentheticalMultiplier
         prefs[keys.dialogueMultiplier] = config.dialogueMultiplier
+    }
+
+    private fun writeRhythm(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.smoothingAlpha] = config.smoothingAlpha
         prefs[keys.maxSpeedupFactor] = config.maxSpeedupFactor
         prefs[keys.maxSlowdownFactor] = config.maxSlowdownFactor
+    }
+
+    private fun writeOrpAndDelays(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.orpEnabled] = config.orpEnabled
         prefs[keys.startDelayMs] = config.startDelayMs
         prefs[keys.endDelayMs] = config.endDelayMs
+    }
+
+    private fun writeRamping(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.rampUpFrames] = config.rampUpFrames
         prefs[keys.rampDownFrames] = config.rampDownFrames
+    }
+
+    private fun writeAdaptiveTiming(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.useAdaptiveTiming] = config.useAdaptiveTiming
         prefs[keys.adaptiveDifficultyMaxHoldMs] = config.adaptiveDifficultyMaxHoldMs
         prefs[keys.complexWordHoldMs] = config.complexWordHoldMs
         prefs[keys.complexWordThreshold] = config.complexWordThreshold
-        // Legacy persisted fields
+    }
+
+    private fun writeLegacyFields(
+        prefs: MutablePreferences,
+        config: RsvpConfig,
+        defaults: RsvpConfig,
+    ) {
         prefs[keys.wordsPerFrame] = config.wordsPerFrame
         prefs[keys.maxChunkLength] = config.maxChunkLength
         prefs[keys.punctuationPause] = config.punctuationPauseFactor
         prefs[keys.longWordMultiplier] = config.longWordMultiplier
         prefs[keys.useClausePausing] = config.useClausePausing
-        prefs[keys.clausePauseFactor] = config.clausePauseFactor
-            .takeIf { it.isFinite() }
-            ?.coerceIn(1.0, 1.6)
-            ?: RsvpConfig().clausePauseFactor
+        prefs[keys.clausePauseFactor] =
+            normalizeClausePauseFactor(config.clausePauseFactor, defaults.clausePauseFactor)
+    }
+
+    private fun writeBlink(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.blinkMode] = config.blinkMode.name
         prefs[keys.blinkEnabled] = config.blinkMode != BlinkMode.OFF
     }
 
-    private fun readConfig(prefs: Preferences): RsvpConfig {
+    private data class TimingInfo(
+        val tempoMsPerWord: Long,
+        val baseWpm: Int,
+    )
+
+    private fun readTimingInfo(prefs: Preferences, defaults: RsvpConfig): TimingInfo {
         val tempoMsPerWord =
             (
-                prefs[keys.tempoMsPerWord] ?: run {
-                    val legacyWpm = prefs[legacyBaseWpmKey]
-                    when {
-                        legacyWpm == null -> RsvpConfig().tempoMsPerWord
-                        legacyWpm <= 0 -> RsvpConfig().tempoMsPerWord
-                        else -> (60_000.0 / legacyWpm.toDouble()).toLong().coerceAtLeast(10L)
-                    }
-                }
+                prefs[keys.tempoMsPerWord]
+                    ?: legacyWpmToTempoMs(
+                        legacyWpm = prefs[legacyBaseWpmKey],
+                        defaultTempoMs = defaults.tempoMsPerWord,
+                    )
                 ).coerceAtLeast(10L)
-        val derivedBaseWpm = (60_000.0 / tempoMsPerWord.toDouble()).toInt().coerceAtLeast(1)
-
-        val storedBlinkMode = parseBlinkMode(prefs[keys.blinkMode])
-        val blinkMode =
-            storedBlinkMode
-                ?: if (prefs[keys.blinkEnabled] ==
-                    true
-                ) {
-                    BlinkMode.SUBTLE
-                } else {
-                    RsvpConfig().blinkMode
-                }
-
-        return RsvpConfig(
-            tempoMsPerWord = tempoMsPerWord,
-            baseWpm = derivedBaseWpm,
-            minWordMs = prefs[keys.minWordMs] ?: RsvpConfig().minWordMs,
-            longWordMinMs = prefs[keys.longWordMinMs] ?: RsvpConfig().longWordMinMs,
-            longWordChars = prefs[keys.longWordChars] ?: RsvpConfig().longWordChars,
-            syllableExtraMs = prefs[keys.syllableExtraMs] ?: RsvpConfig().syllableExtraMs,
-            rarityExtraMaxMs = prefs[keys.rarityExtraMaxMs] ?: RsvpConfig().rarityExtraMaxMs,
-            complexityStrength = prefs[keys.complexityStrength] ?: RsvpConfig().complexityStrength,
-            lengthStrength = prefs[keys.lengthStrength] ?: RsvpConfig().lengthStrength,
-            lengthExponent = prefs[keys.lengthExponent] ?: RsvpConfig().lengthExponent,
-            enablePhraseChunking =
-            prefs[keys.enablePhraseChunking]
-                ?: RsvpConfig().enablePhraseChunking,
-            maxWordsPerUnit = prefs[keys.maxWordsPerUnit] ?: RsvpConfig().maxWordsPerUnit,
-            maxCharsPerUnit = prefs[keys.maxCharsPerUnit] ?: RsvpConfig().maxCharsPerUnit,
-            subwordChunkPauseMs =
-            prefs[keys.subwordChunkPauseMs]
-                ?: RsvpConfig().subwordChunkPauseMs,
-            commaPauseMs = prefs[keys.commaPauseMs] ?: RsvpConfig().commaPauseMs,
-            semicolonPauseMs = prefs[keys.semicolonPauseMs] ?: RsvpConfig().semicolonPauseMs,
-            colonPauseMs = prefs[keys.colonPauseMs] ?: RsvpConfig().colonPauseMs,
-            dashPauseMs = prefs[keys.dashPauseMs] ?: RsvpConfig().dashPauseMs,
-            parenthesesPauseMs = prefs[keys.parenthesesPauseMs] ?: RsvpConfig().parenthesesPauseMs,
-            quotePauseMs = prefs[keys.quotePauseMs] ?: RsvpConfig().quotePauseMs,
-            sentenceEndPauseMs = prefs[keys.sentenceEndPauseMs] ?: RsvpConfig().sentenceEndPauseMs,
-            paragraphPauseMs = prefs[keys.paragraphPauseMs] ?: RsvpConfig().paragraphPauseMs,
-            pauseScaleExponent = prefs[keys.pauseScaleExponent] ?: RsvpConfig().pauseScaleExponent,
-            minPauseScale = prefs[keys.minPauseScale] ?: RsvpConfig().minPauseScale,
-            parentheticalMultiplier =
-            prefs[keys.parentheticalMultiplier]
-                ?: RsvpConfig().parentheticalMultiplier,
-            dialogueMultiplier = prefs[keys.dialogueMultiplier] ?: RsvpConfig().dialogueMultiplier,
-            smoothingAlpha = prefs[keys.smoothingAlpha] ?: RsvpConfig().smoothingAlpha,
-            maxSpeedupFactor = prefs[keys.maxSpeedupFactor] ?: RsvpConfig().maxSpeedupFactor,
-            maxSlowdownFactor = prefs[keys.maxSlowdownFactor] ?: RsvpConfig().maxSlowdownFactor,
-            rampUpFrames = prefs[keys.rampUpFrames] ?: RsvpConfig().rampUpFrames,
-            rampDownFrames = prefs[keys.rampDownFrames] ?: RsvpConfig().rampDownFrames,
-            useAdaptiveTiming = prefs[keys.useAdaptiveTiming] ?: RsvpConfig().useAdaptiveTiming,
-            adaptiveDifficultyMaxHoldMs =
-            prefs[keys.adaptiveDifficultyMaxHoldMs]
-                ?: RsvpConfig().adaptiveDifficultyMaxHoldMs,
-            complexWordHoldMs =
-            prefs[keys.complexWordHoldMs]
-                ?: RsvpConfig().complexWordHoldMs,
-            wordsPerFrame = prefs[keys.wordsPerFrame] ?: RsvpConfig().wordsPerFrame,
-            maxChunkLength = prefs[keys.maxChunkLength] ?: RsvpConfig().maxChunkLength,
-            punctuationPauseFactor =
-            prefs[keys.punctuationPause]
-                ?: RsvpConfig().punctuationPauseFactor,
-            longWordMultiplier = prefs[keys.longWordMultiplier] ?: RsvpConfig().longWordMultiplier,
-            useClausePausing = prefs[keys.useClausePausing] ?: RsvpConfig().useClausePausing,
-            complexWordThreshold =
-            prefs[keys.complexWordThreshold]
-                ?: RsvpConfig().complexWordThreshold,
-            clausePauseFactor =
-            (
-                prefs[keys.clausePauseFactor]?.takeIf { it.isFinite() }
-                    ?: RsvpConfig().clausePauseFactor
-                ).coerceIn(1.0, 1.6),
-            blinkMode = blinkMode,
-            orpEnabled = prefs[keys.orpEnabled] ?: RsvpConfig().orpEnabled,
-            startDelayMs = prefs[keys.startDelayMs] ?: RsvpConfig().startDelayMs,
-            endDelayMs = prefs[keys.endDelayMs] ?: RsvpConfig().endDelayMs,
-        )
+        val baseWpm = (60_000.0 / tempoMsPerWord.toDouble()).toInt().coerceAtLeast(1)
+        return TimingInfo(tempoMsPerWord = tempoMsPerWord, baseWpm = baseWpm)
     }
+
+    private fun readBlinkMode(prefs: Preferences, defaults: RsvpConfig): BlinkMode {
+        val storedBlinkMode = parseBlinkMode(prefs[keys.blinkMode])
+        return storedBlinkMode
+            ?: if (prefs[keys.blinkEnabled] == true) {
+                BlinkMode.SUBTLE
+            } else {
+                defaults.blinkMode
+            }
+    }
+
+    private fun readRsvpConfig(prefs: Preferences): RsvpConfig {
+        val defaults = RsvpConfig()
+        val timingInfo = readTimingInfo(prefs, defaults)
+        val blinkMode = readBlinkMode(prefs, defaults)
+
+        return defaults
+            .withTiming(timingInfo)
+            .withWordFloors(prefs, defaults)
+            .withDifficulty(prefs, defaults)
+            .withLengthCurve(prefs, defaults)
+            .withChunking(prefs, defaults)
+            .withPunctuationPauses(prefs, defaults)
+            .withPauseScaling(prefs, defaults)
+            .withContextMultipliers(prefs, defaults)
+            .withRhythm(prefs, defaults)
+            .withRamping(prefs, defaults)
+            .withAdaptiveTiming(prefs, defaults)
+            .withLegacyFields(prefs, defaults)
+            .withOrpAndDelays(prefs, defaults)
+            .withBlinkMode(blinkMode)
+    }
+
+    private fun RsvpConfig.withTiming(timingInfo: TimingInfo): RsvpConfig =
+        copy(
+            tempoMsPerWord = timingInfo.tempoMsPerWord,
+            baseWpm = timingInfo.baseWpm,
+        )
+
+    private fun RsvpConfig.withWordFloors(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            minWordMs = prefs.readOrDefault(keys.minWordMs, defaults.minWordMs),
+            longWordMinMs = prefs.readOrDefault(keys.longWordMinMs, defaults.longWordMinMs),
+            longWordChars = prefs.readOrDefault(keys.longWordChars, defaults.longWordChars),
+        )
+
+    private fun RsvpConfig.withDifficulty(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            syllableExtraMs = prefs.readOrDefault(keys.syllableExtraMs, defaults.syllableExtraMs),
+            rarityExtraMaxMs =
+                prefs.readOrDefault(keys.rarityExtraMaxMs, defaults.rarityExtraMaxMs),
+            complexityStrength =
+                prefs.readOrDefault(keys.complexityStrength, defaults.complexityStrength),
+        )
+
+    private fun RsvpConfig.withLengthCurve(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            lengthStrength = prefs.readOrDefault(keys.lengthStrength, defaults.lengthStrength),
+            lengthExponent = prefs.readOrDefault(keys.lengthExponent, defaults.lengthExponent),
+        )
+
+    private fun RsvpConfig.withChunking(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            enablePhraseChunking =
+                prefs.readOrDefault(keys.enablePhraseChunking, defaults.enablePhraseChunking),
+            maxWordsPerUnit = prefs.readOrDefault(keys.maxWordsPerUnit, defaults.maxWordsPerUnit),
+            maxCharsPerUnit = prefs.readOrDefault(keys.maxCharsPerUnit, defaults.maxCharsPerUnit),
+            subwordChunkPauseMs =
+                prefs.readOrDefault(keys.subwordChunkPauseMs, defaults.subwordChunkPauseMs),
+        )
+
+    private fun RsvpConfig.withPunctuationPauses(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            commaPauseMs = prefs.readOrDefault(keys.commaPauseMs, defaults.commaPauseMs),
+            semicolonPauseMs =
+                prefs.readOrDefault(keys.semicolonPauseMs, defaults.semicolonPauseMs),
+            colonPauseMs = prefs.readOrDefault(keys.colonPauseMs, defaults.colonPauseMs),
+            dashPauseMs = prefs.readOrDefault(keys.dashPauseMs, defaults.dashPauseMs),
+            parenthesesPauseMs =
+                prefs.readOrDefault(keys.parenthesesPauseMs, defaults.parenthesesPauseMs),
+            quotePauseMs = prefs.readOrDefault(keys.quotePauseMs, defaults.quotePauseMs),
+            sentenceEndPauseMs =
+                prefs.readOrDefault(keys.sentenceEndPauseMs, defaults.sentenceEndPauseMs),
+            paragraphPauseMs =
+                prefs.readOrDefault(keys.paragraphPauseMs, defaults.paragraphPauseMs),
+        )
+
+    private fun RsvpConfig.withPauseScaling(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            pauseScaleExponent =
+                prefs.readOrDefault(keys.pauseScaleExponent, defaults.pauseScaleExponent),
+            minPauseScale = prefs.readOrDefault(keys.minPauseScale, defaults.minPauseScale),
+        )
+
+    private fun RsvpConfig.withContextMultipliers(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            parentheticalMultiplier =
+                prefs.readOrDefault(keys.parentheticalMultiplier, defaults.parentheticalMultiplier),
+            dialogueMultiplier =
+                prefs.readOrDefault(keys.dialogueMultiplier, defaults.dialogueMultiplier),
+        )
+
+    private fun RsvpConfig.withRhythm(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            smoothingAlpha = prefs.readOrDefault(keys.smoothingAlpha, defaults.smoothingAlpha),
+            maxSpeedupFactor =
+                prefs.readOrDefault(keys.maxSpeedupFactor, defaults.maxSpeedupFactor),
+            maxSlowdownFactor =
+                prefs.readOrDefault(keys.maxSlowdownFactor, defaults.maxSlowdownFactor),
+        )
+
+    private fun RsvpConfig.withRamping(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            rampUpFrames = prefs.readOrDefault(keys.rampUpFrames, defaults.rampUpFrames),
+            rampDownFrames = prefs.readOrDefault(keys.rampDownFrames, defaults.rampDownFrames),
+        )
+
+    private fun RsvpConfig.withAdaptiveTiming(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            useAdaptiveTiming =
+                prefs.readOrDefault(keys.useAdaptiveTiming, defaults.useAdaptiveTiming),
+            adaptiveDifficultyMaxHoldMs =
+                prefs.readOrDefault(
+                    keys.adaptiveDifficultyMaxHoldMs,
+                    defaults.adaptiveDifficultyMaxHoldMs,
+                ),
+            complexWordHoldMs =
+                prefs.readOrDefault(keys.complexWordHoldMs, defaults.complexWordHoldMs),
+            complexWordThreshold =
+                prefs.readOrDefault(keys.complexWordThreshold, defaults.complexWordThreshold),
+        )
+
+    private fun RsvpConfig.withLegacyFields(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            wordsPerFrame = prefs.readOrDefault(keys.wordsPerFrame, defaults.wordsPerFrame),
+            maxChunkLength = prefs.readOrDefault(keys.maxChunkLength, defaults.maxChunkLength),
+            punctuationPauseFactor =
+                prefs.readOrDefault(keys.punctuationPause, defaults.punctuationPauseFactor),
+            longWordMultiplier =
+                prefs.readOrDefault(keys.longWordMultiplier, defaults.longWordMultiplier),
+            useClausePausing =
+                prefs.readOrDefault(keys.useClausePausing, defaults.useClausePausing),
+            clausePauseFactor =
+                normalizeClausePauseFactor(prefs[keys.clausePauseFactor], defaults.clausePauseFactor),
+        )
+
+    private fun RsvpConfig.withOrpAndDelays(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            orpEnabled = prefs.readOrDefault(keys.orpEnabled, defaults.orpEnabled),
+            startDelayMs = prefs.readOrDefault(keys.startDelayMs, defaults.startDelayMs),
+            endDelayMs = prefs.readOrDefault(keys.endDelayMs, defaults.endDelayMs),
+        )
+
+    private fun RsvpConfig.withBlinkMode(blinkMode: BlinkMode): RsvpConfig =
+        copy(blinkMode = blinkMode)
 
     private fun parseBlinkMode(value: String?): BlinkMode? = value?.let {
         runCatching { BlinkMode.valueOf(it) }.getOrNull()
