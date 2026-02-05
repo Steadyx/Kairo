@@ -82,6 +82,7 @@
     <string name="reader_eta_chapter">章节 ~%1$s</string>
     <string name="reader_eta_book">全书 ~%1$s</string>
     <string name="reader_eta_prefix">预计：%1$s</string>
+    <string name="reader_rsvp_dock_progress">速读 %1$d%%</string>
     <string name="reader_empty_chapter">本章无内容</string>
     <string name="reader_image_not_found">未找到图片</string>
 

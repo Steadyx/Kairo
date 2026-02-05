@@ -57,6 +57,7 @@ internal fun ReaderContent(
     listStateKey: String,
     invertedScroll: Boolean,
     bottomInset: Dp,
+    overlayBottomPadding: Dp,
     focusIndex: Int,
     fontSizeSp: Float,
     textBrightness: Float,
@@ -174,14 +175,15 @@ internal fun ReaderContent(
             .then(gestureModifier),
     ) {
         val viewportHeight = LocalConfiguration.current.screenHeightDp.dp
+        val paragraphSpacing = (fontSizeSp * 0.45f).dp.coerceIn(10.dp, 14.dp)
 
         // LAZY block-based rendering (text + images)
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             userScrollEnabled = !invertedScroll,
-            verticalArrangement = Arrangement.spacedBy(18.dp), // Paragraph spacing
-            contentPadding = PaddingValues(bottom = bottomInset + 96.dp),
+            verticalArrangement = Arrangement.spacedBy(paragraphSpacing),
+            contentPadding = PaddingValues(bottom = bottomInset + overlayBottomPadding),
         ) {
             if (isCoverChapter && (!isPagedChapter || resolvedPageIndex <= 0)) {
                 item(key = "book_cover_full_${book.id.value}") {

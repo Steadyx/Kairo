@@ -82,6 +82,7 @@
     <string name="reader_eta_chapter">章 ~%1$s</string>
     <string name="reader_eta_book">本 ~%1$s</string>
     <string name="reader_eta_prefix">予想: %1$s</string>
+    <string name="reader_rsvp_dock_progress">速読 %1$d%%</string>
     <string name="reader_empty_chapter">この章には内容がありません</string>
     <string name="reader_image_not_found">画像が見つかりません</string>
 

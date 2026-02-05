@@ -11,6 +11,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.example.kairo.data.rsvp.RsvpFrameRepository
 import com.example.kairo.data.rsvp.RsvpFrameSet
 import kotlinx.coroutines.CancellationException
@@ -22,6 +24,7 @@ fun RsvpScreen(
     callbacks: RsvpScreenCallbacks,
     dependencies: RsvpScreenDependencies,
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
     val minTempoMsPerWord =
         if (state.uiPrefs.extremeSpeedUnlocked) {
             EXTREME_MIN_TEMPO_MS_PER_WORD
@@ -61,6 +64,15 @@ fun RsvpScreen(
             runtime = runtime,
             frameState = frameState,
             timing = timing,
+            haptics =
+            RsvpHapticCallbacks(
+                onFrameStep = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                },
+                onTempoStep = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                },
+            ),
         )
 
     RsvpBackHandler(context)

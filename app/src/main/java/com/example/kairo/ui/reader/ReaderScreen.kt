@@ -32,12 +32,15 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,10 @@ import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.ReaderTheme
 import com.example.kairo.core.model.nearestWordIndex
 import java.util.Locale
+
+private val READER_MIN_BOTTOM_CONTENT_PADDING = 24.dp
+private val READER_RSVP_LAUNCHER_CLEARANCE = 88.dp
+private const val READER_CHROME_COLLAPSE_SCROLL_PX = 56
 
 /**
  * Main reader screen - can be called directly with ViewModel state.
@@ -86,6 +93,7 @@ fun ReaderScreen(
     onFocusChange: (Int) -> Unit,
     onStartRsvp: (Int) -> Unit,
     onChapterChange: (Int, Int?) -> Unit,
+    onViewportMetricsChanged: (fontSizeSp: Float, viewportHeightDp: Int) -> Unit,
 ) {
     val chapterIndex = uiState.chapterIndex
     val focusIndex = uiState.focusIndex
@@ -132,6 +140,16 @@ fun ReaderScreen(
             displayBlocks = renderState.displayBlocks,
             invertedScroll = invertedScroll,
         )
+    val chromeCollapsed by remember(listStateHolder.listState) {
+        derivedStateOf {
+            val state = listStateHolder.listState
+            state.firstVisibleItemIndex > 0 || state.firstVisibleItemScrollOffset > READER_CHROME_COLLAPSE_SCROLL_PX
+        }
+    }
+    val viewportHeightDp = LocalConfiguration.current.screenHeightDp
+    LaunchedEffect(fontSizeSp, viewportHeightDp) {
+        onViewportMetricsChanged(fontSizeSp, viewportHeightDp)
+    }
 
     // Chapter list bottom sheet state
     val showChapterList = remember { mutableStateOf(false) }
@@ -175,6 +193,13 @@ fun ReaderScreen(
         WindowInsetsSides.Bottom
     ).asPaddingValues()
     val bottomInset = bottomInsetPadding.calculateBottomPadding()
+    val showRsvpLauncher = isRsvpEnabled && !showReaderMenu && !showChapterList.value
+    val overlayBottomPadding =
+        if (showRsvpLauncher) {
+            READER_RSVP_LAUNCHER_CLEARANCE
+        } else {
+            READER_MIN_BOTTOM_CONTENT_PADDING
+        }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -198,30 +223,28 @@ fun ReaderScreen(
                     top = if (focusModeEnabled) 8.dp else 16.dp
                 ),
         ) {
-            // Header with book info and navigation
-    ReaderHeader(
-        book = book,
-        chapterIndex = chapterIndex,
-        chapterTitle = sanitizeChapterTitleForDisplay(chapter?.title),
-        coverImage = coverImage,
-        canGoPrev = navigationState.canGoPrevPage,
-        canGoNext = navigationState.canGoNextPage,
-        onPrev = navigationState.onPrevPage,
-        onNext = navigationState.onNextPage,
+            ReaderHeader(
+                book = book,
+                chapterIndex = chapterIndex,
+                chapterTitle = sanitizeChapterTitleForDisplay(chapter?.title),
+                coverImage = coverImage,
+                canGoPrev = navigationState.canGoPrevPage,
+                canGoNext = navigationState.canGoNextPage,
+                onPrev = navigationState.onPrevPage,
+                onNext = navigationState.onNextPage,
                 onShowMenu = { showReaderMenu = !showReaderMenu },
+                compactMode = chromeCollapsed,
             )
 
-            if (progressState.hasProgressMeta) {
+            AnimatedVisibility(visible = !chromeCollapsed && progressState.hasProgressMeta) {
                 ReaderProgressMeta(
                     pageLabel = progressState.pageLabel,
                     progressPercent =
-                    if (renderState.totalChapterWords > 0) progressState.progressPercent else null,
+                        if (renderState.totalChapterWords > 0) progressState.progressPercent else null,
                     etaLabel = progressState.etaLabel,
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-            } else {
-                Spacer(modifier = Modifier.height(12.dp))
             }
+            Spacer(modifier = Modifier.height(if (chromeCollapsed) 8.dp else 12.dp))
 
             CompositionLocalProvider(LocalLayoutDirection provides contentLayoutDirection) {
                 ReaderContent(
@@ -241,6 +264,7 @@ fun ReaderScreen(
                     listStateKey = renderState.listStateKey,
                     invertedScroll = invertedScroll,
                     bottomInset = bottomInset,
+                    overlayBottomPadding = overlayBottomPadding,
                     focusIndex = focusIndex,
                     fontSizeSp = fontSizeSp,
                     textBrightness = textBrightness,
@@ -303,7 +327,7 @@ fun ReaderScreen(
         }
 
         AnimatedVisibility(
-            visible = isRsvpEnabled && !showReaderMenu && !showChapterList.value,
+            visible = showRsvpLauncher,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier =

@@ -14,6 +14,7 @@ import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.data.books.BookRepository
 import com.example.kairo.data.token.TokenRepository
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,12 +25,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val HEX_RADIX = 16
-private const val PAGE_MIN_WORD_FRACTION = 0.75f
+private const val PAGE_MIN_WORD_FRACTION = 0.82f
 private const val PAGE_MAX_WORD_FRACTION = 1.25f
-private const val PAGE_TARGET_FRACTION = 0.9f
+private const val PAGE_TARGET_FRACTION = 0.94f
 private const val PAGE_EXTRA_WORD_FRACTION = 0.2f
 private const val PAGE_EXTRA_WORDS_MIN = 10
 private const val PAGE_EXTRA_WORDS_MAX = 60
+private const val PAGE_TRAILING_PAGE_MIN_FRACTION = 0.5f
+private const val PAGE_TRAILING_PAGE_MERGED_MAX_FRACTION = 1.6f
+private const val DEFAULT_WORDS_PER_PAGE = 300
+private const val PAGINATION_VIEWPORT_BASE_DP = 760f
+private const val PAGINATION_FONT_BASE_SP = 18f
+private const val PAGINATION_WORDS_MIN = 170
+private const val PAGINATION_WORDS_MAX = 460
+private const val PAGINATION_WORDS_MIN_DELTA = 14
 
 /**
  * ViewModel for the Reader screen.
@@ -64,6 +73,7 @@ class ReaderViewModel(
 
     // Pending focus index to apply after chapter loads (thread-safe for cross-coroutine access)
     private val pendingFocusIndex = AtomicReference<Int?>(null)
+    private val wordsPerPageTarget = AtomicReference(DEFAULT_WORDS_PER_PAGE)
 
     /**
      * Load a book and optionally jump to a specific chapter and focus position.
@@ -244,7 +254,7 @@ class ReaderViewModel(
             if (tokens.isEmpty() && chapter.imagePaths.isEmpty()) return@withContext null
 
             val wordCountByToken = buildWordCountByToken(tokens)
-            val pages = buildChapterPages(tokens, DEFAULT_WORDS_PER_PAGE)
+            val pages = buildChapterPages(tokens, wordsPerPageTarget.get())
             val totalWords = wordCountByToken.lastOrNull() ?: 0
 
             val blocks =
@@ -311,6 +321,27 @@ class ReaderViewModel(
         _uiState.update { it.copy(focusIndex = index) }
     }
 
+    fun updatePaginationMetrics(
+        fontSizeSp: Float,
+        viewportHeightDp: Int,
+    ) {
+        val resolvedWordsPerPage = estimateWordsPerPage(fontSizeSp, viewportHeightDp)
+        val previousWordsPerPage = wordsPerPageTarget.get()
+        if (abs(resolvedWordsPerPage - previousWordsPerPage) < PAGINATION_WORDS_MIN_DELTA) return
+        wordsPerPageTarget.set(resolvedWordsPerPage)
+
+        synchronized(chapterCacheLock) {
+            chapterCache.entries.forEach { entry ->
+                entry.setValue(rePageChapterData(entry.value, resolvedWordsPerPage))
+            }
+        }
+
+        _uiState.update { state ->
+            val chapterData = state.chapterData ?: return@update state
+            state.copy(chapterData = rePageChapterData(chapterData, resolvedWordsPerPage))
+        }
+    }
+
     @Suppress("unused")
     fun nextChapter() {
         val book = currentBook.get() ?: return
@@ -340,8 +371,6 @@ class ReaderViewModel(
         private const val CHAPTER_CACHE_INITIAL_CAPACITY = 5
         private const val CHAPTER_CACHE_LOAD_FACTOR = 0.75f
         private const val MAX_CACHED_CHAPTERS = 5
-        // Approximate page size for progress + time estimates (not layout-bound).
-        private const val DEFAULT_WORDS_PER_PAGE = 250
 
         fun factory(
             bookRepository: BookRepository,
@@ -567,7 +596,7 @@ private fun buildChapterPages(
         cursor = endTokenIndex + 1
     }
 
-    return pages
+    return mergeTrailingSparsePage(tokens, pages, wordsPerPage)
 }
 
 private fun nextWordTokenIndex(
@@ -620,6 +649,58 @@ private fun isOpeningBracket(token: Token): Boolean =
 private fun isClosingBracket(token: Token): Boolean =
     token.type == TokenType.PUNCTUATION && token.text in CLOSING_BRACKETS
 
+private fun mergeTrailingSparsePage(
+    tokens: List<Token>,
+    pages: List<ChapterPage>,
+    wordsPerPage: Int,
+): List<ChapterPage> {
+    if (pages.size < 2) return pages
+    val lastPage = pages.last()
+    val sparseThreshold =
+        (wordsPerPage * PAGE_TRAILING_PAGE_MIN_FRACTION)
+            .roundToInt()
+            .coerceAtLeast(1)
+    if (lastPage.wordCount >= sparseThreshold) return pages
+
+    val previousIndex = pages.lastIndex - 1
+    val previousPage = pages[previousIndex]
+    if (hasHardPageBreakBetween(tokens, previousPage.endTokenIndex, lastPage.startTokenIndex)) {
+        return pages
+    }
+
+    val mergedMaxWords =
+        (wordsPerPage * PAGE_TRAILING_PAGE_MERGED_MAX_FRACTION)
+            .roundToInt()
+            .coerceAtLeast(wordsPerPage)
+    val mergedWordCount = previousPage.wordCount + lastPage.wordCount
+    if (mergedWordCount > mergedMaxWords) return pages
+
+    val mergedPages = pages.toMutableList()
+    mergedPages[previousIndex] =
+        previousPage.copy(
+            endTokenIndex = lastPage.endTokenIndex,
+            wordCount = mergedWordCount,
+        )
+    mergedPages.removeLast()
+    return mergedPages.mapIndexed { index, page ->
+        if (page.index == index) page else page.copy(index = index)
+    }
+}
+
+private fun hasHardPageBreakBetween(
+    tokens: List<Token>,
+    previousEndTokenIndex: Int,
+    nextStartTokenIndex: Int,
+): Boolean {
+    val from = (previousEndTokenIndex + 1).coerceAtLeast(0)
+    val until = nextStartTokenIndex.coerceAtMost(tokens.size)
+    if (from >= until) return false
+    for (i in from until until) {
+        if (tokens[i].type == TokenType.PAGE_BREAK) return true
+    }
+    return false
+}
+
 private data class ForwardBoundary(
     val endWordIndex: Int,
     val wordCount: Int,
@@ -671,6 +752,24 @@ private fun findForwardBoundary(
 
     return null
 }
+
+private fun estimateWordsPerPage(
+    fontSizeSp: Float,
+    viewportHeightDp: Int,
+): Int {
+    val safeFontSp = fontSizeSp.coerceIn(12f, 36f)
+    val safeViewportDp = viewportHeightDp.coerceAtLeast(480)
+    val viewportFactor = safeViewportDp / PAGINATION_VIEWPORT_BASE_DP
+    val fontFactor = PAGINATION_FONT_BASE_SP / safeFontSp
+    return (DEFAULT_WORDS_PER_PAGE * viewportFactor * fontFactor)
+        .roundToInt()
+        .coerceIn(PAGINATION_WORDS_MIN, PAGINATION_WORDS_MAX)
+}
+
+private fun rePageChapterData(
+    chapterData: ChapterData,
+    wordsPerPage: Int,
+): ChapterData = chapterData.copy(pages = buildChapterPages(chapterData.tokens, wordsPerPage))
 
 private sealed interface HtmlBlockMarker {
     data object Paragraph : HtmlBlockMarker

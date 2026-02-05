@@ -591,6 +591,9 @@ private fun KairoNavHost(
                 onChapterChange = { newIndex, focusIndex ->
                     readerViewModel.loadChapter(newIndex, focusIndex)
                 },
+                onViewportMetricsChanged = { resolvedFontSizeSp, viewportHeightDp ->
+                    readerViewModel.updatePaginationMetrics(resolvedFontSizeSp, viewportHeightDp)
+                },
             )
         }
 
@@ -868,6 +871,9 @@ private fun KairoNavHost(
                 },
                 onChapterChange = { newIndex, focusIndex ->
                     readerViewModel.loadChapter(newIndex, focusIndex)
+                },
+                onViewportMetricsChanged = { resolvedFontSizeSp, viewportHeightDp ->
+                    readerViewModel.updatePaginationMetrics(resolvedFontSizeSp, viewportHeightDp)
                 },
             )
         }

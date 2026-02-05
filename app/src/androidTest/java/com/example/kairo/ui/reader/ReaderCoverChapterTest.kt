@@ -65,6 +65,7 @@ class ReaderCoverChapterTest {
                     onFocusChange = {},
                     onStartRsvp = {},
                     onChapterChange = { _, _ -> },
+                    onViewportMetricsChanged = { _, _ -> },
                 )
             }
         }

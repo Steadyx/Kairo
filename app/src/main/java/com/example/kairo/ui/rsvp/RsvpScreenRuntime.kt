@@ -12,12 +12,18 @@ internal data class RsvpFrameLoadState(val frames: List<RsvpFrame>, val baseTemp
 
 internal data class RsvpTimingInfo(val minTempoMs: Long, val maxTempoMs: Long, val tempoScale: Double,)
 
+internal data class RsvpHapticCallbacks(
+    val onFrameStep: () -> Unit = {},
+    val onTempoStep: () -> Unit = {},
+)
+
 internal data class RsvpUiContext(
     val state: RsvpScreenState,
     val callbacks: RsvpScreenCallbacks,
     val runtime: RsvpRuntimeState,
     val frameState: RsvpFrameLoadState,
     val timing: RsvpTimingInfo,
+    val haptics: RsvpHapticCallbacks = RsvpHapticCallbacks(),
 )
 
 internal enum class RsvpDragAxis { NONE, HORIZONTAL, VERTICAL }

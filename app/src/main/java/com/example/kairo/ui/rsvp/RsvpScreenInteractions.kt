@@ -208,6 +208,7 @@ private fun handleTempoDrag(context: RsvpUiContext) {
     if (newTempo != runtime.currentTempoMsPerWord) {
         runtime.currentTempoMsPerWord = newTempo
         runtime.showTempoIndicator = true
+        context.haptics.onTempoStep()
     }
 }
 
@@ -249,11 +250,15 @@ private fun handleSweep(context: RsvpUiContext) {
     val frames = context.frameState.frames
     if (frames.isEmpty()) return
 
-    val step =
-        (runtime.dragAccumulatorX / SWEEP_SWIPE_THRESHOLD_PX).toInt() * SWEEP_FRAME_STEP
-    val targetIndex = (runtime.dragStartFrameIndex + step).coerceIn(0, frames.lastIndex)
+    val step = (runtime.dragAccumulatorX / SWEEP_SWIPE_THRESHOLD_PX).toInt()
+    if (step == 0) return
+
+    val frameDelta = step * SWEEP_FRAME_STEP
+    val targetIndex = (runtime.frameIndex + frameDelta).coerceIn(0, frames.lastIndex)
     if (targetIndex != runtime.frameIndex) {
         runtime.frameIndex = targetIndex
         runtime.completed = false
+        context.haptics.onFrameStep()
     }
+    runtime.dragAccumulatorX -= step * SWEEP_SWIPE_THRESHOLD_PX
 }

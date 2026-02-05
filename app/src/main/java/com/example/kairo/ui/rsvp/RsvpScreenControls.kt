@@ -86,6 +86,7 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
         IconButton(onClick = {
             runtime.frameIndex = (runtime.frameIndex - 1).coerceAtLeast(0)
             runtime.completed = false
+            context.haptics.onFrameStep()
         }) {
             Icon(
                 Icons.Default.SkipPrevious,
@@ -99,6 +100,7 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
             onClick = {
                 runtime.isPlaying = !runtime.isPlaying
                 if (runtime.isPlaying) runtime.showControls = false
+                context.haptics.onFrameStep()
             },
             modifier =
             Modifier
@@ -120,7 +122,10 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
             )
         }
 
-        IconButton(onClick = { advanceFrame(context) }) {
+        IconButton(onClick = {
+            advanceFrame(context)
+            context.haptics.onFrameStep()
+        }) {
             Icon(
                 Icons.Default.SkipNext,
                 contentDescription = stringResource(R.string.content_desc_next),

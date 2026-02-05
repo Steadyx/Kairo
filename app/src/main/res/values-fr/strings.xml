@@ -82,6 +82,7 @@
     <string name="reader_eta_chapter">chapitre ~%1$s</string>
     <string name="reader_eta_book">livre ~%1$s</string>
     <string name="reader_eta_prefix">Temps estimé : %1$s</string>
+    <string name="reader_rsvp_dock_progress">Lecture rapide %1$d%%</string>
     <string name="reader_empty_chapter">Aucun contenu dans ce chapitre</string>
     <string name="reader_image_not_found">Image introuvable</string>
 
