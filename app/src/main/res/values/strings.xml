@@ -82,6 +82,7 @@
     <string name="reader_eta_chapter">chapter ~%1$s</string>
     <string name="reader_eta_book">book ~%1$s</string>
     <string name="reader_eta_prefix">ETA: %1$s</string>
+    <string name="reader_rsvp_dock_progress">Speed read %1$d%%</string>
     <string name="reader_empty_chapter">No content in this chapter</string>
     <string name="reader_image_not_found">Image not found</string>
 

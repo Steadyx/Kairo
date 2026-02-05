@@ -2,9 +2,8 @@
 
 package com.example.kairo.ui.rsvp
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -94,9 +93,9 @@ internal fun OrpAlignedTextLayout(
             animateFloatAsState(
                 targetValue = layoutResult.translationX,
                 animationSpec =
-                tween(
-                    durationMillis = ORP_TRANSLATION_ANIMATION_MS,
-                    easing = FastOutSlowInEasing,
+                spring(
+                    dampingRatio = 1f,
+                    stiffness = 1800f,
                 ),
                 label = "orpTranslationX",
             )
@@ -591,7 +590,7 @@ private fun layoutFlexiblePivot(
         lerpFloat(
             start = centeredTranslationX,
             end = pivotAlignedTranslationX,
-            fraction = ORP_FLEX_PIVOT_ALIGNMENT_FACTOR,
+            fraction = ONE_FLOAT,
         )
     val alignment = alignPivotToPixel(pivotCenter, stabilizedTranslationX)
     return OrpLayoutResult(

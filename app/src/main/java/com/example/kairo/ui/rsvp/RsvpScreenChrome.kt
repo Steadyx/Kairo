@@ -31,13 +31,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import com.example.kairo.R
+import kotlin.math.roundToInt
 
 @Composable
 internal fun BoxScope.RsvpProgressBar(context: RsvpUiContext) {
     val runtime = context.runtime
     val frames = context.frameState.frames
     val progress = (runtime.frameIndex + 1).toFloat() / frames.size.toFloat()
+    val progressAlpha = if (runtime.isPlaying) 0.52f else 0.78f
 
     LinearProgressIndicator(
         progress = { progress },
@@ -47,7 +50,7 @@ internal fun BoxScope.RsvpProgressBar(context: RsvpUiContext) {
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
             .height(PROGRESS_HEIGHT),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = PROGRESS_PRIMARY_ALPHA),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = progressAlpha),
         trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = PROGRESS_TRACK_ALPHA),
     )
 }
@@ -55,6 +58,7 @@ internal fun BoxScope.RsvpProgressBar(context: RsvpUiContext) {
 @Composable
 internal fun BoxScope.RsvpTopBar(context: RsvpUiContext) {
     val runtime = context.runtime
+    val showSettings = runtime.isPositioningMode || !runtime.isPlaying
 
     Row(
         modifier =
@@ -64,20 +68,22 @@ internal fun BoxScope.RsvpTopBar(context: RsvpUiContext) {
             .padding(TOP_BAR_PADDING),
         horizontalArrangement = Arrangement.spacedBy(TOP_BAR_SPACING),
     ) {
-        IconButton(onClick = {
-            if (runtime.isPositioningMode) {
-                finishPositioning(context, resumeIfWasPlaying = true)
-            } else {
-                runtime.showQuickSettings = !runtime.showQuickSettings
-                if (runtime.showQuickSettings) runtime.showControls = false
+        if (showSettings) {
+            IconButton(onClick = {
+                if (runtime.isPositioningMode) {
+                    finishPositioning(context, resumeIfWasPlaying = true)
+                } else {
+                    runtime.showQuickSettings = !runtime.showQuickSettings
+                    if (runtime.showQuickSettings) runtime.showControls = false
+                }
+            }) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = stringResource(R.string.content_desc_settings),
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = TOP_BAR_ICON_ALPHA),
+                    modifier = Modifier.size(TOP_BAR_ICON_SIZE),
+                )
             }
-        }) {
-            Icon(
-                Icons.Default.Settings,
-                contentDescription = stringResource(R.string.content_desc_settings),
-                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = TOP_BAR_ICON_ALPHA),
-                modifier = Modifier.size(TOP_BAR_ICON_SIZE),
-            )
         }
         IconButton(onClick = { exitAndSavePosition(context) }) {
             Icon(
@@ -193,6 +199,44 @@ internal fun BoxScope.RsvpPositioningIndicator(context: RsvpUiContext) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+internal fun BoxScope.RsvpScrubTargetIndicator(context: RsvpUiContext) {
+    val runtime = context.runtime
+    val frames = context.frameState.frames
+    val frameCount = frames.size.coerceAtLeast(1)
+    val progressPercent =
+        (((runtime.frameIndex + 1).toFloat() / frameCount.toFloat()) * 100f)
+            .roundToInt()
+            .coerceIn(0, 100)
+
+    AnimatedVisibility(
+        visible = runtime.isScrubbing,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = Modifier.align(Alignment.TopCenter),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .statusBarsPadding()
+                    .padding(top = 52.dp)
+                    .background(
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = INDICATOR_BACKGROUND_ALPHA),
+                        RoundedCornerShape(INDICATOR_CORNER_RADIUS),
+                    ).padding(
+                        horizontal = INDICATOR_PADDING_HORIZONTAL,
+                        vertical = INDICATOR_PADDING_VERTICAL,
+                    ),
+        ) {
+            Text(
+                text = "${runtime.frameIndex + 1}/$frameCount • $progressPercent%",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
         }
     }

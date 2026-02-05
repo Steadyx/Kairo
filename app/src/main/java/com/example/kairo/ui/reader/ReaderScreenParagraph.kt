@@ -38,23 +38,23 @@ internal fun ParagraphText(
         TextStyle(
             fontFamily = MerriweatherFontFamily,
             fontSize = fontSizeSp.sp,
-            lineHeight = (fontSizeSp * 1.6f).sp,
+            lineHeight = (fontSizeSp * 1.5f).sp,
             color = MaterialTheme.colorScheme.onBackground.copy(
                 alpha = textBrightness.coerceIn(0.55f, 1.0f)
             ),
         )
     val paragraphIndent =
         remember(fontSizeSp) {
-            ParagraphStyle(textIndent = TextIndent(firstLine = (fontSizeSp * 0.7f).sp))
+            ParagraphStyle(textIndent = TextIndent(firstLine = (fontSizeSp * 0.55f).sp))
         }
     val primary = MaterialTheme.colorScheme.primary
     val tertiary = MaterialTheme.colorScheme.tertiary
     val focusStyle =
         remember(primary) {
             SpanStyle(
-                fontWeight = FontWeight.SemiBold,
-                color = primary,
-                textDecoration = TextDecoration.Underline,
+                fontWeight = FontWeight.Bold,
+                color = primary.copy(alpha = 0.95f),
+                background = primary.copy(alpha = 0.16f),
             )
         }
     val linkStyle =

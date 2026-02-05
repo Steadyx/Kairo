@@ -44,6 +44,7 @@ internal fun ReaderHeader(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onShowMenu: () -> Unit,
+    compactMode: Boolean,
 ) {
     val context = LocalContext.current
     Row(
@@ -55,7 +56,7 @@ internal fun ReaderHeader(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (coverImage != null && coverImage.isNotEmpty()) {
+            if (!compactMode && coverImage != null && coverImage.isNotEmpty()) {
                 AsyncImage(
                     model =
                     remember(coverImage, book.id.value) {
@@ -77,9 +78,15 @@ internal fun ReaderHeader(
             }
 
             Column {
+                val titleStyle =
+                    if (compactMode) {
+                        MaterialTheme.typography.titleSmall
+                    } else {
+                        MaterialTheme.typography.titleMedium
+                    }
                 Text(
                     text = book.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = titleStyle,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -96,16 +103,18 @@ internal fun ReaderHeader(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text =
-                    stringResource(
-                        R.string.reader_chapter_of_total,
-                        chapterIndex + 1,
-                        book.chapters.size,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
+                if (!compactMode) {
+                    Text(
+                        text =
+                        stringResource(
+                            R.string.reader_chapter_of_total,
+                            chapterIndex + 1,
+                            book.chapters.size,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
