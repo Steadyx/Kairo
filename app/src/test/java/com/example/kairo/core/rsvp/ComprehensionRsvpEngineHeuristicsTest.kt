@@ -231,6 +231,75 @@ class ComprehensionRsvpEngineHeuristicsTest {
     }
 
     @Test
+    fun phraseChunkingRespectsMaxWordsPerUnitOne() {
+        val config =
+            stableConfig.copy(
+                enablePhraseChunking = true,
+                maxWordsPerUnit = 1,
+                maxCharsPerUnit = 24,
+            )
+        val tokens = listOf(w("in"), w("the"), w("house"))
+
+        val frames = engine.generateFrames(tokens, 0, config)
+
+        val firstWords = frames.first().tokens.filter { it.type == TokenType.WORD }.map { it.text }
+        assertEquals(listOf("in", "the"), firstWords)
+    }
+
+    @Test
+    fun phraseChunkingCanBuildThreeWordUnitsWithinBudget() {
+        val config =
+            stableConfig.copy(
+                enablePhraseChunking = true,
+                maxWordsPerUnit = 3,
+                maxCharsPerUnit = 24,
+            )
+        val tokens = listOf(w("in"), w("the"), w("house"), w("today"))
+
+        val frames = engine.generateFrames(tokens, 0, config)
+        val firstWords = frames.first().tokens.filter { it.type == TokenType.WORD }.map { it.text }
+
+        assertEquals(listOf("in", "the", "house"), firstWords)
+    }
+
+    @Test
+    fun chunkCharBudgetCountsWordCharsNotLeadingPunctuation() {
+        val config =
+            stableConfig.copy(
+                enablePhraseChunking = true,
+                maxWordsPerUnit = 2,
+                maxCharsPerUnit = 5,
+            )
+        val tokens = listOf(p("("), w("in"), w("the"), p(")"), w("house"))
+
+        val frames = engine.generateFrames(tokens, 0, config)
+        val firstWords = frames.first().tokens.filter { it.type == TokenType.WORD }.map { it.text }
+
+        assertEquals(listOf("in", "the"), firstWords)
+    }
+
+    @Test
+    fun blinkSeparationDoesNotSplitMultiWordChunkFrames() {
+        val config =
+            stableConfig.copy(
+                tempoMsPerWord = 80L,
+                blinkMode = BlinkMode.SUBTLE,
+                enablePhraseChunking = true,
+                maxWordsPerUnit = 2,
+                maxCharsPerUnit = 16,
+                sentenceEndPauseMs = 0L,
+                useClausePausing = false,
+            )
+        val tokens = listOf(w("calm"), w("water"), w("wild"), w("winds"))
+
+        val frames = engine.generateFrames(tokens, 0, config)
+
+        assertEquals(2, frames.size)
+        assertTrue(frames.all { frame -> frame.tokens.any { it.type == TokenType.WORD } })
+        assertTrue(frames.all { frame -> frame.tokens.count { it.type == TokenType.WORD } == 2 })
+    }
+
+    @Test
     fun signedNumericTokensAreNotSplit() {
         val tokens = listOf(w("-35c"))
         val frames = engine.generateFrames(tokens, 0, stableConfig)

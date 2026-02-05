@@ -59,7 +59,9 @@ internal fun buildOrpAnnotatedText(
         }
     }
 
-private fun buildOrpTextContent(tokens: List<Token>): OrpTextContent {
+internal fun buildOrpTextContent(
+    tokens: List<Token>,
+): OrpTextContent {
     val state = OrpTextBuildState()
     val wordCount = tokens.count { it.type == TokenType.WORD }
     val fullText =
@@ -73,11 +75,17 @@ private fun buildOrpTextContent(tokens: List<Token>): OrpTextContent {
             }
         }
 
+    val pivotPosition =
+        resolvePivotPosition(
+            state = state,
+            fullText = fullText,
+            wordCount = wordCount,
+        )
     return OrpTextContent(
         fullText = fullText,
         firstWordStart = state.firstWordStart,
         firstWordEndExclusive = state.firstWordEndExclusive,
-        pivotPosition = resolvePivotPosition(state, fullText, wordCount),
+        pivotPosition = pivotPosition,
         wordCount = wordCount,
         highlightStart = state.highlightStart,
         highlightEndExclusive = state.highlightEndExclusive,
@@ -92,9 +100,10 @@ private fun appendWord(
     if (state.needsSpace) builder.append(' ')
     val start = builder.length
     builder.append(token.text)
+    val endExclusive = builder.length
     if (state.firstWordStart == INVALID_INDEX) {
         state.firstWordStart = start
-        state.firstWordEndExclusive = builder.length
+        state.firstWordEndExclusive = endExclusive
         val highlightStart = token.highlightStart
         val highlightEndExclusive = token.highlightEndExclusive
         if (highlightStart != null &&
@@ -118,8 +127,8 @@ private fun appendPunctuation(
     builder: StringBuilder,
 ) {
     val ch = token.text.singleOrNull()
-    // For straight quotes, use position context: if no word before, it's opening
-    val isOpening = isOpeningPunctuation(ch, hasWordBefore = state.firstWordStart >= 0)
+    // For straight quotes, derive opening/closing from the immediately preceding rendered char.
+    val isOpening = isOpeningPunctuation(ch, builder)
 
     // Opening punctuation gets a space before if needed, no space after
     // Closing punctuation attaches directly to previous content
@@ -132,16 +141,30 @@ private fun appendPunctuation(
 
 private fun isOpeningPunctuation(
     ch: Char?,
-    hasWordBefore: Boolean,
+    builder: StringBuilder,
 ): Boolean =
     when (ch) {
         null -> false
         // Curly opening quotes are always opening
         in ORP_OPENING_PUNCTUATION -> true
-        // Straight quotes: opening if no word before them in this frame
-        '"' -> !hasWordBefore
+        // Straight quotes: opening unless they follow a word or strong closer.
+        '"' ->
+            builder.lastNonWhitespaceChar()?.let { previous ->
+                !previous.isLetterOrDigit() && previous !in STRAIGHT_QUOTE_CLOSING_PRECEDERS
+            } ?: true
         else -> false
     }
+
+private fun StringBuilder.lastNonWhitespaceChar(): Char? {
+    for (index in length - 1 downTo 0) {
+        val ch = this[index]
+        if (!ch.isWhitespace()) return ch
+    }
+    return null
+}
+
+private val STRAIGHT_QUOTE_CLOSING_PRECEDERS =
+    setOf('.', '!', '?', ')', ']', '}', '\u201D', '\u2019', '"')
 
 private fun resolvePivotPosition(
     state: OrpTextBuildState,
@@ -152,15 +175,23 @@ private fun resolvePivotPosition(
     val wordEndExclusive = state.firstWordEndExclusive
     if (wordStart < 0 || wordEndExclusive <= wordStart) return DEFAULT_PIVOT_INDEX
 
-    // For multi-word phrases, center the pivot on the entire text content
-    // This keeps the ORP line stable instead of shifting left for 2-word phrases
+    // For multi-word phrases, always place the pivot at the true center
+    // of the text so it stays aligned with the centered layout and static guide.
     if (wordCount > 1 && fullText.isNotEmpty()) {
-        // Find the visual center of the entire text (excluding leading/trailing punctuation)
-        val textStart = fullText.indexOfFirst { it.isLetterOrDigit() }.coerceAtLeast(0)
-        val textEnd = fullText.indexOfLast { it.isLetterOrDigit() }.coerceAtLeast(textStart)
-        val textLength = (textEnd - textStart + 1).coerceAtLeast(1)
-        val centerOffset = ((textLength - 1) / BIAS_SCALE_FACTOR).roundToInt()
-        return (textStart + centerOffset).coerceIn(0, fullText.lastIndex)
+        val textStart = fullText.indexOfFirst { it.isLetterOrDigit() }
+        val textEnd = fullText.indexOfLast { it.isLetterOrDigit() }
+        if (textStart >= 0 && textEnd >= textStart) {
+            val centerOffset = ((textEnd - textStart) / BIAS_SCALE_FACTOR).toInt()
+            val centerIndex = (textStart + centerOffset).coerceIn(textStart, textEnd)
+            return nearestWordCharacterIndex(
+                text = fullText,
+                targetIndex = centerIndex,
+                rangeStart = textStart,
+                rangeEnd = textEnd,
+            )
+        }
+        val fallbackOffset = ((fullText.length - 1) / BIAS_SCALE_FACTOR).toInt()
+        return fallbackOffset.coerceIn(0, fullText.lastIndex)
     }
 
     // For single words, use the traditional first-word-based pivot
@@ -168,4 +199,27 @@ private fun resolvePivotPosition(
     val wordLength = (wordEndExclusive - wordStart).coerceAtLeast(1)
     val centerOffset = ((wordLength - 1) / BIAS_SCALE_FACTOR).roundToInt()
     return (wordStart + centerOffset).coerceIn(wordStart, wordEnd)
+}
+
+private fun nearestWordCharacterIndex(
+    text: String,
+    targetIndex: Int,
+    rangeStart: Int,
+    rangeEnd: Int,
+): Int {
+    if (text.isEmpty()) return DEFAULT_PIVOT_INDEX
+    val safeStart = rangeStart.coerceIn(0, text.lastIndex)
+    val safeEnd = rangeEnd.coerceIn(safeStart, text.lastIndex)
+    val safeTarget = targetIndex.coerceIn(safeStart, safeEnd)
+    if (text[safeTarget].isLetterOrDigit()) return safeTarget
+
+    val maxOffset = safeEnd - safeStart
+    for (offset in 1..maxOffset) {
+        val left = safeTarget - offset
+        if (left >= safeStart && text[left].isLetterOrDigit()) return left
+
+        val right = safeTarget + offset
+        if (right <= safeEnd && text[right].isLetterOrDigit()) return right
+    }
+    return safeTarget
 }

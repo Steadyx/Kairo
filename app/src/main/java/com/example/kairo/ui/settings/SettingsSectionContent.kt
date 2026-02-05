@@ -941,7 +941,17 @@ fun RsvpSettingsContent(
                     subtitle = stringResource(R.string.rsvp_phrase_chunking_subtitle),
                     checked = config.enablePhraseChunking,
                     onCheckedChange = { enabled ->
-                        updateConfig { it.copy(enablePhraseChunking = enabled) }
+                        updateConfig {
+                            it.copy(
+                                enablePhraseChunking = enabled,
+                                maxWordsPerUnit =
+                                if (enabled) {
+                                    it.maxWordsPerUnit.coerceAtLeast(2)
+                                } else {
+                                    it.maxWordsPerUnit
+                                },
+                            )
+                        }
                     },
                 )
             }
