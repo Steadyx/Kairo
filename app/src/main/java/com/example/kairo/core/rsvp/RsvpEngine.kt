@@ -359,6 +359,12 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val pageBreaks = frameTokens.count { it.type == TokenType.PAGE_BREAK }
         val firstWordIndex = frameTokens.indexOfFirst { it.type == TokenType.WORD }
         val speedStrength = speedStrength(msPerWord)
+        val prosodyStrength =
+            if (config.useProsodyPacing) {
+                config.prosodyStrength.coerceIn(0.0, 1.6)
+            } else {
+                0.0
+            }
         val boundaryForBoost =
             if (boundaryBefore == BoundaryBefore.NONE &&
                 prevToken?.type == TokenType.PUNCTUATION &&
@@ -430,6 +436,12 @@ class ComprehensionRsvpEngine : RsvpEngine {
                             .firstOrNull { it.type == TokenType.WORD }
                             ?.text
                             ?: nextWord?.text
+                    val prevWordText =
+                        frameTokens
+                            .subList(0, index)
+                            .lastOrNull { it.type == TokenType.WORD }
+                            ?.text
+                            ?: prevWord?.text
 
                     val clauseMultiplier =
                         if (!config.useClausePausing) {
@@ -455,6 +467,16 @@ class ComprehensionRsvpEngine : RsvpEngine {
                             boundaryBefore = boundaryBefore,
                             speedStrength = speedStrength,
                         )
+                    val prosodyMultiplier =
+                        prosodyMultiplier(
+                            token = token,
+                            prevWordText = prevWordText,
+                            nextWordText = nextWordText,
+                            isFirstWord = index == firstWordIndex,
+                            boundaryBefore = boundaryBefore,
+                            speedStrength = speedStrength,
+                            prosodyStrength = prosodyStrength,
+                        )
 
                     val dialogueEntryMultiplier =
                         if (config.useDialogueDetection &&
@@ -474,6 +496,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                             clauseMultiplier *
                             terminalMultiplier *
                             emphasisMultiplier *
+                            prosodyMultiplier *
                             dialogueEntryMultiplier *
                             speakerTagMultiplier
                     duration += max(wordMs, wordFloorMs(token, config).toDouble())
@@ -491,6 +514,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 firstWord = words.firstOrNull(),
                 nextWord = nextWord,
                 speedStrength = speedStrength,
+                prosodyStrength = prosodyStrength,
             )
         if (transitionHold > 0.0) {
             duration += transitionHold
@@ -515,7 +539,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
         // These pauses are intentionally NOT smoothed so they remain prominent.
         var totalDuration = smoothedWordDuration
         if (words.isNotEmpty() && boundaryForBoost == BoundaryBefore.SENTENCE) {
-            totalDuration += config.sentenceEndPauseMs * pauseScale * SENTENCE_START_HOLD_FRACTION
+            totalDuration +=
+                max(config.sentenceEndPauseMs, config.periodPauseMs) *
+                    pauseScale *
+                    SENTENCE_START_HOLD_FRACTION
         }
         frameTokens.forEachIndexed { index, token ->
             if (token.type != TokenType.PUNCTUATION) return@forEachIndexed
@@ -706,7 +733,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     if (isAbbreviationDot(prevText, nextToken)) {
                         config.commaPauseMs * 0.35
                     } else {
-                        config.sentenceEndPauseMs.toDouble()
+                        config.periodPauseMs.toDouble()
                     }
                 ch == '\u2026' -> config.commaPauseMs * 1.15
                 isSentenceEndingPunctuation(ch) -> config.sentenceEndPauseMs.toDouble()
@@ -736,7 +763,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     ) {
                         0.0
                     } else {
-                        config.sentenceEndPauseMs * config.minPauseScale
+                        config.periodPauseMs * config.minPauseScale
                     }
                 }
                 ch == '\u2026' -> (config.commaPauseMs * 1.15) * config.minPauseScale
@@ -832,6 +859,91 @@ class ComprehensionRsvpEngine : RsvpEngine {
         return multiplier.coerceIn(1.0, MAX_EMPHASIS_MULTIPLIER)
     }
 
+    private fun prosodyMultiplier(
+        token: Token,
+        prevWordText: String?,
+        nextWordText: String?,
+        isFirstWord: Boolean,
+        boundaryBefore: BoundaryBefore,
+        speedStrength: Double,
+        prosodyStrength: Double,
+    ): Double {
+        if (prosodyStrength <= 0.0) return 1.0
+        if (token.isSubwordChunk) return 1.0
+
+        val wordLower = normalizeWord(token.text)
+        if (wordLower.isEmpty()) return 1.0
+
+        val prevLower = prevWordText?.let(::normalizeWord)?.takeIf { it.isNotEmpty() }
+        val nextLower = nextWordText?.let(::normalizeWord)?.takeIf { it.isNotEmpty() }
+
+        val isFunction = isFunctionWord(wordLower)
+        val isAnchor = isSemanticAnchor(wordLower)
+        val effectiveStrength = speedStrength * prosodyStrength
+        var multiplier = 1.0
+
+        val canGlide =
+            isFunction &&
+                !isAnchor &&
+                !isFirstWord &&
+                boundaryBefore == BoundaryBefore.NONE &&
+                prevLower != null &&
+                nextLower != null
+        if (canGlide) {
+            val coherence = ClauseDetector.getCoherenceScore(wordLower, nextLower)
+            val glideStrength =
+                if (coherence >= FUNCTION_BRIDGE_COHERENCE_THRESHOLD ||
+                    isFunctionBridgePair(wordLower, nextLower)
+                ) {
+                    FUNCTION_WORD_GLIDE_STRONG
+                } else {
+                    FUNCTION_WORD_GLIDE_LIGHT
+                }
+            multiplier -= glideStrength * effectiveStrength
+        }
+
+        if (isAnchor) {
+            multiplier += SEMANTIC_ANCHOR_BOOST * effectiveStrength
+        }
+
+        val surroundedByFunctionWords =
+            !isFunction &&
+                (
+                    (prevLower != null && isFunctionWord(prevLower)) ||
+                        (nextLower != null && isFunctionWord(nextLower))
+                    )
+        if (surroundedByFunctionWords) {
+            multiplier += CONTENT_WORD_STRESS_BOOST * effectiveStrength
+        }
+
+        // Keep sentence starts crisp; don't compress them when they start with function words.
+        if (isFirstWord && boundaryBefore != BoundaryBefore.NONE && isFunction) {
+            multiplier = max(multiplier, 1.0)
+        }
+
+        return multiplier.coerceIn(MIN_PROSODY_MULTIPLIER, MAX_PROSODY_MULTIPLIER)
+    }
+
+    private fun isFunctionBridgePair(
+        currentLower: String,
+        nextLower: String,
+    ): Boolean {
+        if (!isFunctionWord(currentLower)) return false
+        if (isFunctionWord(nextLower)) return false
+        if (isSemanticAnchor(currentLower)) return false
+
+        val coherence = ClauseDetector.getCoherenceScore(currentLower, nextLower)
+        return coherence >= FUNCTION_BRIDGE_COHERENCE_THRESHOLD ||
+            currentLower in FUNCTION_BRIDGE_WORDS
+    }
+
+    private fun isSemanticAnchor(wordLower: String): Boolean = wordLower in SEMANTIC_ANCHOR_WORDS
+
+    private fun isFunctionWord(wordLower: String): Boolean = wordLower in FUNCTION_WORDS
+
+    private fun normalizeWord(text: String): String =
+        text.lowercase().trim('"', '\'', '\u2018', '\u2019')
+
     private fun speakerTagMultiplier(
         wordsInFrame: List<Token>,
         prevWord: Token?,
@@ -882,6 +994,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         firstWord: Token?,
         nextWord: Token?,
         speedStrength: Double,
+        prosodyStrength: Double,
     ): Double {
         if (firstWord == null || nextWord == null) return 0.0
         if (frameTokens.count { it.type == TokenType.WORD } != 1) return 0.0
@@ -889,6 +1002,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
         val firstLower = firstWord.text.lowercase()
         val nextLower = nextWord.text.lowercase()
+
+        // Function words should glide into content words with minimal visual gap.
+        if (prosodyStrength > 0.0 && isFunctionBridgePair(firstLower, nextLower)) {
+            return FUNCTION_BRIDGE_HOLD_MS * speedStrength * prosodyStrength
+        }
 
         // Check for tight pair patterns that should stay together mentally
         if (shouldPreferHold(firstWord, nextWord)) {
@@ -1238,7 +1356,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
     }
 
     private fun pageBreakBasePauseMs(config: RsvpConfig): Double =
-        max(config.paragraphPauseMs.toDouble() * 1.75, config.sentenceEndPauseMs.toDouble() * 1.4)
+        max(
+            config.paragraphPauseMs.toDouble() * 1.75,
+            max(config.sentenceEndPauseMs.toDouble(), config.periodPauseMs.toDouble()) * 1.4,
+        )
 
     private fun startBoostMultiplier(
         msPerWord: Double,
@@ -1679,6 +1800,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private const val TRANSITION_HOLD_EXTRA_MS = 6.0
         private const val COHERENCE_HOLD_MS = 5.0
         private const val PHRASE_BREAK_HOLD_MS = 8.0
+        private const val FUNCTION_BRIDGE_HOLD_MS = 2.0
         private const val SENTENCE_START_HOLD_FRACTION = 0.24
         private const val CLAUSE_LEAD_HOLD_FRACTION = 0.28
         private const val QUOTE_TRANSITION_HOLD_FRACTION = 0.55
@@ -1687,6 +1809,13 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private const val PROPER_NOUN_BOOST = 0.08
         private const val ACRONYM_EMPHASIS_BOOST = 0.10
         private const val MAX_EMPHASIS_MULTIPLIER = 1.25
+        private const val FUNCTION_WORD_GLIDE_STRONG = 0.09
+        private const val FUNCTION_WORD_GLIDE_LIGHT = 0.05
+        private const val CONTENT_WORD_STRESS_BOOST = 0.05
+        private const val SEMANTIC_ANCHOR_BOOST = 0.10
+        private const val FUNCTION_BRIDGE_COHERENCE_THRESHOLD = 0.65
+        private const val MIN_PROSODY_MULTIPLIER = 0.88
+        private const val MAX_PROSODY_MULTIPLIER = 1.18
         private const val CLAUSE_LEAD_BOOST_MS = 20.0
         private const val SENTENCE_END_BREAK_BOOST_MS = 40.0
         private const val EMBEDDED_QUOTE_FACTOR = 0.45
@@ -1923,6 +2052,133 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 "this",
                 "these",
                 "those",
+            )
+
+        private val FUNCTION_WORDS =
+            setOf(
+                "a",
+                "an",
+                "the",
+                "of",
+                "to",
+                "in",
+                "on",
+                "at",
+                "by",
+                "for",
+                "with",
+                "from",
+                "into",
+                "onto",
+                "upon",
+                "about",
+                "over",
+                "under",
+                "through",
+                "between",
+                "among",
+                "against",
+                "toward",
+                "towards",
+                "and",
+                "or",
+                "nor",
+                "yet",
+                "so",
+                "as",
+                "if",
+                "than",
+                "then",
+                "that",
+                "which",
+                "who",
+                "whom",
+                "whose",
+                "is",
+                "are",
+                "was",
+                "were",
+                "be",
+                "been",
+                "being",
+                "has",
+                "have",
+                "had",
+                "do",
+                "does",
+                "did",
+                "will",
+                "would",
+                "can",
+                "could",
+                "shall",
+                "should",
+                "may",
+                "might",
+                "must",
+                "i",
+                "me",
+                "my",
+                "we",
+                "us",
+                "our",
+                "you",
+                "your",
+                "he",
+                "him",
+                "his",
+                "she",
+                "her",
+                "it",
+                "its",
+                "they",
+                "them",
+                "their",
+            )
+
+        private val FUNCTION_BRIDGE_WORDS =
+            setOf(
+                "a",
+                "an",
+                "the",
+                "of",
+                "to",
+                "in",
+                "on",
+                "at",
+                "for",
+                "with",
+                "from",
+                "by",
+                "my",
+                "your",
+                "his",
+                "her",
+                "our",
+                "their",
+            )
+
+        private val SEMANTIC_ANCHOR_WORDS =
+            setOf(
+                "not",
+                "no",
+                "never",
+                "none",
+                "nothing",
+                "nobody",
+                "neither",
+                "nor",
+                "only",
+                "even",
+                "except",
+                "unless",
+                "until",
+                "however",
+                "but",
+                "yet",
+                "despite",
+                "although",
+                "though",
             )
 
         private val TIGHT_PAIR_HINTS =

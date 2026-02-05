@@ -149,8 +149,9 @@
     <string name="rsvp_rarity_boost_title">Rarity boost</string>
     <string name="rsvp_complexity_strength_title">Complexity strength</string>
     <string name="rsvp_punctuation_pauses_title">Punctuation pauses</string>
-    <string name="rsvp_punctuation_pauses_summary">Comma %1$dms | Dash %2$dms | Paragraph %3$dms</string>
+    <string name="rsvp_punctuation_pauses_summary">Comma %1$dms | Period %2$dms | Paragraph %3$dms</string>
     <string name="rsvp_punctuation_comma">Comma</string>
+    <string name="rsvp_punctuation_period">Period</string>
     <string name="rsvp_punctuation_dash">Dash</string>
     <string name="rsvp_punctuation_semicolon">Semicolon</string>
     <string name="rsvp_punctuation_colon">Colon</string>
@@ -181,6 +182,10 @@
     <string name="rsvp_clause_pacing_subtitle">Adds tiny hesitations at clause starts for more natural phrasing.</string>
     <string name="rsvp_clause_strength_title">Clause strength</string>
     <string name="rsvp_clause_strength_subtitle">Extra time at clause starts (only when clause pacing is enabled).</string>
+    <string name="rsvp_prosody_pacing_title">Prosody pacing</string>
+    <string name="rsvp_prosody_pacing_subtitle">Shapes cadence more like inner speech by gliding helper words and stressing key meaning words.</string>
+    <string name="rsvp_prosody_strength_title">Prosody strength</string>
+    <string name="rsvp_prosody_strength_subtitle">Higher = stronger inner-voice shaping.</string>
     <string name="rsvp_phrase_chunking_title">Phrase chunking</string>
     <string name="rsvp_phrase_chunking_subtitle">Shows short 2-word units to reduce flicker.</string>
     <string name="rsvp_display_details_title">Display details</string>
@@ -207,13 +212,19 @@
     <string name="rsvp_profile_delete_title">Delete profile?</string>
     <string name="rsvp_profile_delete_warning">This cannot be undone.</string>
     <string name="rsvp_profile_balanced">Balanced</string>
-    <string name="rsvp_profile_balanced_description">Smooth, readable default</string>
+    <string name="rsvp_profile_balanced_description">Natural all-round cadence with clear punctuation breathing</string>
     <string name="rsvp_profile_chill">Chill</string>
-    <string name="rsvp_profile_chill_description">More breathing room and stronger pauses</string>
+    <string name="rsvp_profile_chill_description">Slow, spacious pacing for relaxed reading</string>
+    <string name="rsvp_profile_narrative">Narrative</string>
+    <string name="rsvp_profile_narrative_description">Inner-voice storytelling with expressive flow</string>
+    <string name="rsvp_profile_focus">Focus</string>
+    <string name="rsvp_profile_focus_description">Sharper, efficient pacing without dropping punctuation cues</string>
+    <string name="rsvp_profile_flow">Flow</string>
+    <string name="rsvp_profile_flow_description">Continuous mid-fast rhythm with smooth transitions</string>
     <string name="rsvp_profile_sprint">Sprint</string>
-    <string name="rsvp_profile_sprint_description">Fast, lighter pauses, higher flow</string>
+    <string name="rsvp_profile_sprint_description">Very fast, but keeps punctuation pauses readable</string>
     <string name="rsvp_profile_study">Study</string>
-    <string name="rsvp_profile_study_description">Deliberate pacing for comprehension</string>
+    <string name="rsvp_profile_study_description">Deliberate comprehension-focused timing for dense text</string>
     <string name="rsvp_estimated_pace">Estimated pace: %1$d WPM</string>
     <string name="rsvp_estimating_pace">Estimating pace...</string>
 

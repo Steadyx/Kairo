@@ -96,6 +96,28 @@ class ComprehensionRsvpEngineHeuristicsTest {
     }
 
     @Test
+    fun periodPauseCanBeTunedSeparatelyFromOtherSentenceEndMarks() {
+        val config =
+            stableConfig.copy(
+                sentenceEndPauseMs = 120L,
+                periodPauseMs = 280L,
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+            )
+
+        val period = engine.generateFrames(listOf(w("Hello"), p(".")), 0, config).first().durationMs
+        val exclamation = engine.generateFrames(listOf(w("Hello"), p("!")), 0, config).first().durationMs
+
+        assertTrue(
+            "Expected period pause to be longer than generic sentence-end punctuation",
+            period > exclamation + 100L,
+        )
+    }
+
+    @Test
     fun openingQuoteDoesNotAddExtraPause() {
         val config =
             stableConfig.copy(
@@ -514,5 +536,144 @@ class ComprehensionRsvpEngineHeuristicsTest {
         assertTrue(withoutDetection.size >= 2 && withDetection.size >= 2)
         assertTrue(withDetection[0].durationMs < withoutDetection[0].durationMs)
         assertTrue(withDetection[1].durationMs < withoutDetection[1].durationMs)
+    }
+
+    @Test
+    fun functionWordBridgeReadsFasterThanStandaloneFunctionWord() {
+        val config =
+            stableConfig.copy(
+                tempoMsPerWord = 70L,
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+                sentenceEndPauseMs = 0L,
+                commaPauseMs = 0L,
+                semicolonPauseMs = 0L,
+                colonPauseMs = 0L,
+                dashPauseMs = 0L,
+                parenthesesPauseMs = 0L,
+                quotePauseMs = 0L,
+                paragraphPauseMs = 0L,
+                useAdaptiveTiming = false,
+                useClausePausing = false,
+                useDialogueDetection = false,
+            )
+
+        val standalone = engine.generateFrames(listOf(w("the")), 0, config).first().durationMs
+        val bridged = engine.generateFrames(listOf(w("the"), w("mountain")), 0, config)
+
+        assertTrue(bridged.isNotEmpty())
+        assertTrue(
+            "Expected function-word bridge to glide faster than standalone",
+            bridged[0].durationMs < standalone,
+        )
+    }
+
+    @Test
+    fun negationWordsGetExtraWeightComparedToNeutralFunctionWords() {
+        val config =
+            stableConfig.copy(
+                tempoMsPerWord = 70L,
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+                sentenceEndPauseMs = 0L,
+                commaPauseMs = 0L,
+                semicolonPauseMs = 0L,
+                colonPauseMs = 0L,
+                dashPauseMs = 0L,
+                parenthesesPauseMs = 0L,
+                quotePauseMs = 0L,
+                paragraphPauseMs = 0L,
+                useAdaptiveTiming = false,
+                useClausePausing = false,
+                useDialogueDetection = false,
+            )
+
+        val neutral = engine.generateFrames(listOf(w("and"), w("ready")), 0, config)
+        val negation = engine.generateFrames(listOf(w("not"), w("ready")), 0, config)
+
+        assertTrue(neutral.isNotEmpty() && negation.isNotEmpty())
+        assertTrue(
+            "Expected negation words to retain more time for comprehension",
+            negation[0].durationMs > neutral[0].durationMs,
+        )
+    }
+
+    @Test
+    fun prosodyToggleOffDisablesFunctionWordGlide() {
+        val config =
+            stableConfig.copy(
+                tempoMsPerWord = 70L,
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+                sentenceEndPauseMs = 0L,
+                commaPauseMs = 0L,
+                semicolonPauseMs = 0L,
+                colonPauseMs = 0L,
+                dashPauseMs = 0L,
+                parenthesesPauseMs = 0L,
+                quotePauseMs = 0L,
+                paragraphPauseMs = 0L,
+                useAdaptiveTiming = false,
+                useClausePausing = false,
+                useDialogueDetection = false,
+            )
+
+        val withProsody = engine.generateFrames(listOf(w("the"), w("mountain")), 0, config)
+        val withoutProsody = engine.generateFrames(
+            listOf(w("the"), w("mountain")),
+            0,
+            config.copy(useProsodyPacing = false),
+        )
+
+        assertTrue(withProsody.isNotEmpty() && withoutProsody.isNotEmpty())
+        assertTrue(withProsody[0].durationMs < withoutProsody[0].durationMs)
+    }
+
+    @Test
+    fun prosodyStrengthControlsHowStronglyGlideApplies() {
+        val config =
+            stableConfig.copy(
+                tempoMsPerWord = 70L,
+                rarityExtraMaxMs = 0L,
+                syllableExtraMs = 0L,
+                complexityStrength = 0.0,
+                lengthStrength = 0.0,
+                lengthExponent = 1.0,
+                sentenceEndPauseMs = 0L,
+                commaPauseMs = 0L,
+                semicolonPauseMs = 0L,
+                colonPauseMs = 0L,
+                dashPauseMs = 0L,
+                parenthesesPauseMs = 0L,
+                quotePauseMs = 0L,
+                paragraphPauseMs = 0L,
+                useAdaptiveTiming = false,
+                useClausePausing = false,
+                useDialogueDetection = false,
+                useProsodyPacing = true,
+            )
+
+        val low = engine.generateFrames(
+            listOf(w("the"), w("mountain")),
+            0,
+            config.copy(prosodyStrength = 0.2),
+        )
+        val high = engine.generateFrames(
+            listOf(w("the"), w("mountain")),
+            0,
+            config.copy(prosodyStrength = 1.6),
+        )
+
+        assertTrue(low.isNotEmpty() && high.isNotEmpty())
+        assertTrue(high[0].durationMs < low[0].durationMs)
     }
 }

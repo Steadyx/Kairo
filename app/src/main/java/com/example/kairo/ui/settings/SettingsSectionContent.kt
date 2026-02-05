@@ -385,6 +385,9 @@ private fun rsvpProfileNameRes(profile: RsvpProfile): Int =
     when (profile) {
         RsvpProfile.BALANCED -> R.string.rsvp_profile_balanced
         RsvpProfile.CHILL -> R.string.rsvp_profile_chill
+        RsvpProfile.NARRATIVE -> R.string.rsvp_profile_narrative
+        RsvpProfile.FOCUS -> R.string.rsvp_profile_focus
+        RsvpProfile.FLOW -> R.string.rsvp_profile_flow
         RsvpProfile.SPRINT -> R.string.rsvp_profile_sprint
         RsvpProfile.STUDY -> R.string.rsvp_profile_study
     }
@@ -393,6 +396,9 @@ private fun rsvpProfileDescriptionRes(profile: RsvpProfile): Int =
     when (profile) {
         RsvpProfile.BALANCED -> R.string.rsvp_profile_balanced_description
         RsvpProfile.CHILL -> R.string.rsvp_profile_chill_description
+        RsvpProfile.NARRATIVE -> R.string.rsvp_profile_narrative_description
+        RsvpProfile.FOCUS -> R.string.rsvp_profile_focus_description
+        RsvpProfile.FLOW -> R.string.rsvp_profile_flow_description
         RsvpProfile.SPRINT -> R.string.rsvp_profile_sprint_description
         RsvpProfile.STUDY -> R.string.rsvp_profile_study_description
     }
@@ -705,7 +711,7 @@ fun RsvpSettingsContent(
                 stringResource(
                     R.string.rsvp_punctuation_pauses_summary,
                     config.commaPauseMs,
-                    config.dashPauseMs,
+                    config.periodPauseMs,
                     config.paragraphPauseMs,
                 ),
             ) {
@@ -717,6 +723,15 @@ fun RsvpSettingsContent(
                         updateConfig { it.copy(commaPauseMs = newValue.toLong().coerceIn(0L, 260L)) }
                     },
                     valueRange = 0f..260f,
+                )
+                DeferredSliderRow(
+                    title = stringResource(R.string.rsvp_punctuation_period),
+                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+                    rawValue = config.periodPauseMs.toFloat(),
+                    onCommit = { newValue ->
+                        updateConfig { it.copy(periodPauseMs = newValue.toLong().coerceIn(0L, 500L)) }
+                    },
+                    valueRange = 0f..500f,
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_dash),
@@ -930,6 +945,30 @@ fun RsvpSettingsContent(
                     },
                     valueRange = 0f..60f,
                 )
+
+                SettingsSwitchRow(
+                    title = stringResource(R.string.rsvp_prosody_pacing_title),
+                    subtitle = stringResource(R.string.rsvp_prosody_pacing_subtitle),
+                    checked = config.useProsodyPacing,
+                    onCheckedChange = { enabled ->
+                        updateConfig { it.copy(useProsodyPacing = enabled) }
+                    },
+                )
+
+                if (config.useProsodyPacing) {
+                    DeferredSliderRow(
+                        title = stringResource(R.string.rsvp_prosody_strength_title),
+                        subtitle = stringResource(R.string.rsvp_prosody_strength_subtitle),
+                        valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                        rawValue = (config.prosodyStrength * 100).toFloat(),
+                        onCommit = { newValue ->
+                            updateConfig {
+                                it.copy(prosodyStrength = (newValue / 100.0).coerceIn(0.0, 1.6))
+                            }
+                        },
+                        valueRange = 0f..160f,
+                    )
+                }
 
                 BlinkModeSelector(
                     selected = config.blinkMode,
