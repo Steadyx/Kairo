@@ -251,25 +251,35 @@ class ComprehensionRsvpEngine : RsvpEngine {
         firstWordOriginalIndex = firstWord.originalIndex
         cursor++
 
-        // Optionally add a second word for phrase chunking (only across "soft" boundaries).
-        if (config.enablePhraseChunking) {
-            val candidateIndex = cursor
-            val candidate = expandedTokens.getOrNull(candidateIndex)
-            if (candidate != null && candidate.token.type == TokenType.WORD) {
-                val combinedChars =
-                    unitTokens.sumOf { it.text.length } + candidate.token.text.length
-                val effectiveMaxWords = max(2, config.maxWordsPerUnit)
-                val withinLimits = effectiveMaxWords >= 2 && combinedChars <= config.maxCharsPerUnit
+        // Optionally add more words for phrase chunking (only across "soft" boundaries).
+        val maxWordsInUnit =
+            if (config.enablePhraseChunking) {
+                config.maxWordsPerUnit.coerceAtLeast(2)
+            } else {
+                config.maxWordsPerUnit.coerceAtLeast(1)
+            }
+        val maxCharsInUnit = config.maxCharsPerUnit.coerceAtLeast(1)
+        if (config.enablePhraseChunking && maxWordsInUnit > 1) {
+            var wordsInUnit = 1
+            var wordCharsInUnit = firstWord.token.text.length
+            while (wordsInUnit < maxWordsInUnit) {
+                val candidate = expandedTokens.getOrNull(cursor) ?: break
+                if (candidate.token.type != TokenType.WORD) break
 
+                val combinedWordChars = wordCharsInUnit + candidate.token.text.length
+                val withinLimits = combinedWordChars <= maxCharsInUnit
+                val prevWord = unitTokens.lastOrNull { it.type == TokenType.WORD } ?: break
                 val canBridge =
                     withinLimits &&
-                        isPhraseChunkCandidate(prev = firstWord.token, next = candidate.token)
+                        isPhraseChunkCandidate(prev = prevWord, next = candidate.token)
 
-                if (canBridge) {
-                    unitTokens += candidate.token
-                    state.consume(candidate.token)
-                    cursor++
-                }
+                if (!canBridge) break
+
+                unitTokens += candidate.token
+                state.consume(candidate.token)
+                cursor++
+                wordsInUnit++
+                wordCharsInUnit = combinedWordChars
             }
         }
 
@@ -1370,8 +1380,16 @@ class ComprehensionRsvpEngine : RsvpEngine {
             val hasWord = frame.tokens.any { it.type == TokenType.WORD }
             val nextTokens = next?.tokens.orEmpty()
             val nextHasWord = nextTokens.any { it.type == TokenType.WORD }
+            val wordCount = frame.tokens.count { it.type == TokenType.WORD }
+            val nextWordCount = nextTokens.count { it.type == TokenType.WORD }
 
             if (hasWord && nextHasWord) {
+                // Keep chunked phrase units visually stable by avoiding injected blink frames
+                // between multi-word frames.
+                if (wordCount != 1 || nextWordCount != 1) {
+                    output += frame
+                    continue
+                }
                 val firstWord = frame.tokens.firstOrNull { it.type == TokenType.WORD }
                 if (firstWord == null) {
                     output += frame

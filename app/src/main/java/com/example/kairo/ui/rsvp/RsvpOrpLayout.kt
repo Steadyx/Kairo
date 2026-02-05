@@ -2,6 +2,9 @@
 
 package com.example.kairo.ui.rsvp
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -87,6 +90,22 @@ internal fun OrpAlignedTextLayout(
                 bounds,
                 pivotRange,
             )
+        val animatedTranslationX =
+            animateFloatAsState(
+                targetValue = layoutResult.translationX,
+                animationSpec =
+                tween(
+                    durationMillis = ORP_TRANSLATION_ANIMATION_MS,
+                    easing = FastOutSlowInEasing,
+                ),
+                label = "orpTranslationX",
+            )
+        val translationX =
+            if (layout.smoothTranslation) {
+                animatedTranslationX.value
+            } else {
+                layoutResult.translationX
+            }
 
         Column(modifier = Modifier.fillMaxWidth()) {
             OrpStaticLine(colors.pivotLineColor)
@@ -96,7 +115,7 @@ internal fun OrpAlignedTextLayout(
                 display.annotatedText,
                 display.textStyle,
                 colors.textColor,
-                layoutResult.translationX,
+                translationX,
             )
             Spacer(modifier = Modifier.height(ORP_TEXT_SPACER))
             OrpPointer(layoutResult.guideBias, colors.pivotLineColor)
@@ -508,30 +527,22 @@ private fun layoutLockedPivot(
     val pivotIndex = pivotRange.safePivotIndex.safeCoerceIn(pivotRange.start, pivotRange.end)
     val lastIndex = fullText.lastIndex.coerceAtLeast(DEFAULT_PIVOT_INDEX)
     val pivotCenter = pivotCenterX(measured, pivotIndex, lastIndex)
-    val textLeft = measured.getBoundingBox(DEFAULT_PIVOT_INDEX).left
-    val textRight = measured.getBoundingBox(lastIndex).right
-    val textCenter = (textLeft + textRight) / BIAS_SCALE_FACTOR
+    val measuredWidthPx = measured.size.width.toFloat()
 
-    // For locked pivot mode (multi-word phrases), position based on text center
-    // to keep the guide line stable regardless of phrase length
+    // Center the text in the available space so chunk words stay static
+    // regardless of which word is the ORP/highlight word.
+    val centeredTranslationX = (bounds.maxWidthPx - measuredWidthPx) / BIAS_SCALE_FACTOR
     val minTranslationX = minOf(bounds.safeLeftPx, bounds.maxTranslationX)
     val maxTranslationX = maxOf(bounds.safeLeftPx, bounds.maxTranslationX)
-
-    // Position text so its center aligns with the desired pivot position
     val translationX =
-        (bounds.desiredPivotX - textCenter)
-            .safeCoerceIn(minTranslationX, maxTranslationX)
+        centeredTranslationX.safeCoerceIn(minTranslationX, maxTranslationX)
 
-    val alignment = alignPivotToPixel(textCenter, translationX)
-
-    // Use the desired pivot position for guide bias to keep it stable
-    // This prevents the guide from shifting when phrase content changes
-    val stableGuideBias = guideBias(bounds.maxWidthPx, bounds.desiredPivotX)
+    val alignment = alignPivotToPixel(pivotCenter, translationX)
 
     return OrpLayoutResult(
         pivotIndex = pivotIndex,
         translationX = alignment.translationX,
-        guideBias = stableGuideBias,
+        guideBias = stableGuideBias(bounds),
     )
 }
 
@@ -554,7 +565,7 @@ private fun layoutWideWord(
     return OrpLayoutResult(
         pivotIndex = pivotIndex,
         translationX = alignment.translationX,
-        guideBias = guideBias(bounds.maxWidthPx, alignment.pivotX),
+        guideBias = stableGuideBias(bounds),
     )
 }
 
@@ -569,14 +580,24 @@ private fun layoutFlexiblePivot(
     val pivotCenter = pivotCenterX(measured, basePivotIndex, lastIndex)
     val minTranslationX = minOf(bounds.safeLeftPx, bounds.maxTranslationX)
     val maxTranslationX = maxOf(bounds.safeLeftPx, bounds.maxTranslationX)
-    val translationX =
+    val pivotAlignedTranslationX =
         (bounds.desiredPivotX - pivotCenter)
             .safeCoerceIn(minTranslationX, maxTranslationX)
-    val alignment = alignPivotToPixel(pivotCenter, translationX)
+    val measuredWidthPx = measured.size.width.toFloat()
+    val centeredTranslationX =
+        ((bounds.maxWidthPx - measuredWidthPx) / BIAS_SCALE_FACTOR)
+            .safeCoerceIn(minTranslationX, maxTranslationX)
+    val stabilizedTranslationX =
+        lerpFloat(
+            start = centeredTranslationX,
+            end = pivotAlignedTranslationX,
+            fraction = ORP_FLEX_PIVOT_ALIGNMENT_FACTOR,
+        )
+    val alignment = alignPivotToPixel(pivotCenter, stabilizedTranslationX)
     return OrpLayoutResult(
         pivotIndex = basePivotIndex,
         translationX = alignment.translationX,
-        guideBias = guideBias(bounds.maxWidthPx, alignment.pivotX),
+        guideBias = stableGuideBias(bounds),
     )
 }
 
@@ -595,6 +616,15 @@ private fun guideBias(
     guidePivotX: Float,
 ): Float = ((guidePivotX / maxWidthPx) * BIAS_SCALE_FACTOR) - ONE_FLOAT
 
+private fun stableGuideBias(bounds: OrpBounds): Float {
+    val guidePivotX =
+        bounds.desiredPivotX
+            .roundToInt()
+            .toFloat()
+            .safeCoerceIn(ZERO_FLOAT, bounds.maxWidthPx)
+    return guideBias(bounds.maxWidthPx, guidePivotX)
+}
+
 private fun alignPivotToPixel(
     pivotCenter: Float,
     translationX: Float,
@@ -603,4 +633,13 @@ private fun alignPivotToPixel(
     val roundedPivotX = actualPivotX.roundToInt().toFloat()
     val adjustedTranslation = translationX + (roundedPivotX - actualPivotX)
     return PivotAlignment(pivotX = roundedPivotX, translationX = adjustedTranslation)
+}
+
+private fun lerpFloat(
+    start: Float,
+    end: Float,
+    fraction: Float,
+): Float {
+    val safeFraction = fraction.safeCoerceIn(ZERO_FLOAT, ONE_FLOAT)
+    return start + ((end - start) * safeFraction)
 }

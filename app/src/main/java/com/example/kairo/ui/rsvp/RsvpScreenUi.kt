@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
@@ -117,7 +119,7 @@ private fun rememberRsvpTextColors(textBrightness: Float): OrpColors {
         pivotColor = MaterialTheme.colorScheme.primary,
         pivotLineColor = MaterialTheme.colorScheme.onBackground.copy(alpha = pivotLineAlpha),
         textColor = MaterialTheme.colorScheme.onBackground.copy(alpha = clampedBrightness),
-        highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
+        highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.62f),
     )
 }
 
@@ -153,7 +155,11 @@ private fun RsvpFocusWord(
                 horizontalBias = runtime.currentHorizontalBias,
                 lockPivot =
                 profile.config.enablePhraseChunking &&
-                    profile.config.maxWordsPerUnit > ORP_LOCK_PIVOT_WORDS,
+                    profile.config.maxWordsPerUnit.coerceAtLeast(2) > ORP_LOCK_PIVOT_WORDS,
+                smoothTranslation =
+                runtime.isScrubbing ||
+                    runtime.isAdjustingPosition ||
+                    !runtime.isPlaying,
             ),
         )
     }
@@ -226,6 +232,8 @@ private fun RsvpParagraphPreview(
         modifier = Modifier.fillMaxSize(),
     ) {
         val backgroundColor = MaterialTheme.colorScheme.background
+        val previewSurfaceColor =
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = PARAGRAPH_PREVIEW_SURFACE_ALPHA)
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment =
@@ -246,6 +254,8 @@ private fun RsvpParagraphPreview(
                     .widthIn(max = PARAGRAPH_PREVIEW_MAX_WIDTH)
                     .padding(horizontal = PARAGRAPH_PREVIEW_HORIZONTAL_PADDING)
                     .height(PARAGRAPH_PREVIEW_HEIGHT)
+                    .clip(RoundedCornerShape(PARAGRAPH_PREVIEW_CORNER_RADIUS))
+                    .background(previewSurfaceColor)
                     .clipToBounds(),
             ) {
                 Text(

@@ -13,7 +13,11 @@ internal data class OrpColors(
     val highlightColor: Color,
 )
 
-internal data class OrpTextLayout(val horizontalBias: Float, val lockPivot: Boolean,)
+internal data class OrpTextLayout(
+    val horizontalBias: Float,
+    val lockPivot: Boolean,
+    val smoothTranslation: Boolean,
+)
 
 internal data class OrpTextContent(
     val fullText: String,
