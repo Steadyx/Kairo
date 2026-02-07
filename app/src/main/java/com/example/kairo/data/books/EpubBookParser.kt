@@ -479,8 +479,6 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
 
     private fun parseOpfFileWithResult(xml: String): OpfParseResult = opfParser.parseWithResult(xml)
 
-    private fun parseOpfFileLenient(xml: String): OpfData = opfParser.parseLenient(xml)
-
     private fun extractImageSrcs(html: String): List<String> {
         val document = parseMarkupDocument(html)
         return EpubMarkupInspector.extractImageSources(document)
@@ -508,7 +506,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             if (splitIndex == Int.MAX_VALUE) {
                 decoded
             } else {
-                decoded.substring(0, splitIndex)
+                decoded.take(splitIndex)
             }
         val suffix =
             if (splitIndex == Int.MAX_VALUE) {
@@ -557,13 +555,12 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
     private fun resolveOpfPath(
         rawPath: String?,
         availableEntriesLower: Set<String>,
-    ): String? = EpubPathResolver.resolveOpfPath(rawPath, availableEntriesLower)
-
-    private fun resolveOpfPath(
-        rawPath: String?,
-        availableEntriesLower: Set<String>,
-        allowFallback: Boolean,
-    ): String? = EpubPathResolver.resolveOpfPath(rawPath, availableEntriesLower, allowFallback)
+    ): String? =
+        if (rawPath == null) {
+            EpubPathResolver.resolveOpfPath(rawPath = null, availableEntriesLower = availableEntriesLower)
+        } else {
+            EpubPathResolver.resolveOpfPath(rawPath, availableEntriesLower, allowFallback = false)
+        }
 
     private fun selectBestOpf(
         containerCandidates: List<String>,
@@ -572,10 +569,11 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
     ): OpfSelection {
         val resolvedCandidates = LinkedHashSet<String>()
         containerCandidates.forEach { candidate ->
-            resolveOpfPath(candidate, zipEntryNamesLower, allowFallback = false)?.let(resolvedCandidates::add)
+            resolveOpfPath(candidate, zipEntryNamesLower)?.let(resolvedCandidates::add)
         }
         if (resolvedCandidates.isEmpty()) {
-            resolveOpfPath(null, zipEntryNamesLower)?.let(resolvedCandidates::add)
+            resolveOpfPath(rawPath = null, availableEntriesLower = zipEntryNamesLower)
+                ?.let(resolvedCandidates::add)
         }
 
         var bestPath: String? = null
@@ -614,10 +612,6 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
 
     private fun isLikelyNavigationHtmlPath(pathLower: String): Boolean {
         return EpubChapterOrdering.isLikelyNavigationHtmlPath(pathLower)
-    }
-
-    private fun normalizeContainerPath(path: String): String {
-        return EpubPathResolver.normalizeContainerPath(path)
     }
 
     private fun buildFallbackChaptersWithResult(
@@ -788,10 +782,6 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                 "navFiltered=${diagnostics.navigationFilteredChapters} " +
                 "navFilterSuppressed=${diagnostics.navigationFilterSuppressed}",
         )
-    }
-
-    private fun isHtmlEntry(pathLower: String): Boolean {
-        return EpubChapterOrdering.isHtmlEntry(pathLower)
     }
 
     private fun isChapterCandidateEntry(pathLower: String): Boolean {
@@ -1085,7 +1075,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         var result = html
         repeat(2) {
             val match = BLOCK_ELEMENT_REGEX.find(result) ?: return@repeat
-            val leading = result.substring(0, match.range.first)
+            val leading = result.take(match.range.first)
             if (leading.any { !it.isWhitespace() }) return@repeat
             val inner = match.groupValues[2]
             val text =
@@ -1130,7 +1120,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         maxSize: Int,
     ): ByteArray? = readEntryWithLimitWithStatus(zip, maxSize).bytes
 
-    private data class LimitedReadResult(
+    private class LimitedReadResult(
         val bytes: ByteArray?,
         val exceededLimit: Boolean,
     )

@@ -2,6 +2,8 @@ package com.example.kairo.ui.rsvp
 
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
+import com.example.kairo.core.model.Chapter
+import com.example.kairo.core.tokenization.Tokenizer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -49,5 +51,21 @@ class RsvpOrpTextTest {
             )
 
         assertEquals("said, \"Hello", content.fullText)
+    }
+
+    @Test
+    fun tokenizerNormalizedOpeningQuoteAfterPeriodKeepsFollowingWordAttached() {
+        val tokens =
+            Tokenizer().tokenize(
+                Chapter(
+                    index = 0,
+                    title = null,
+                    htmlContent = "",
+                    plainText = "guy.\"Hello there\"",
+                ),
+            )
+
+        val content = buildOrpTextContent(tokens)
+        assertEquals("guy. \u201CHello there\u201D", content.fullText)
     }
 }
