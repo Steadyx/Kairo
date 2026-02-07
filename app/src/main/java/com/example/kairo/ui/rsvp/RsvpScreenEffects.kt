@@ -271,6 +271,7 @@ private fun punctuationFloorMs(
 
     val pauseFloorScale = config.minPauseScale.coerceIn(0.0, 1.0)
     val sentenceFloor = (config.sentenceEndPauseMs * pauseFloorScale).roundToLong()
+    val periodFloor = (config.periodPauseMs * pauseFloorScale).roundToLong()
     val commaFloor = (config.commaPauseMs * pauseFloorScale).roundToLong()
     val semicolonFloor = (config.semicolonPauseMs * pauseFloorScale).roundToLong()
     val colonFloor = (config.colonPauseMs * pauseFloorScale).roundToLong()
@@ -284,7 +285,7 @@ private fun punctuationFloorMs(
             if (isDecimalPoint(prevText, nextToken) || isThousandSeparator(prevText, nextToken)) {
                 0L
             } else {
-                sentenceFloor
+                periodFloor
             }
         ch == '\u2026' -> ellipsisFloor
         isSentenceEndingPunctuation(ch) -> sentenceFloor

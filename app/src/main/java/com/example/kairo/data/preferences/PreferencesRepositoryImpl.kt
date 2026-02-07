@@ -329,6 +329,14 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
     private fun normalizeClausePauseFactor(value: Double, fallback: Double): Double =
         normalizeClausePauseFactor(value.takeIf { it.isFinite() }, fallback)
 
+    private fun normalizeProsodyStrength(value: Double?, fallback: Double): Double {
+        val normalized = value?.takeIf { it.isFinite() } ?: fallback
+        return normalized.coerceIn(0.0, 1.6)
+    }
+
+    private fun normalizeProsodyStrength(value: Double, fallback: Double): Double =
+        normalizeProsodyStrength(value.takeIf { it.isFinite() }, fallback)
+
     private fun coerceTextBrightness(value: Float?, fallback: Float): Float =
         (value ?: fallback).coerceIn(MIN_TEXT_BRIGHTNESS, MAX_TEXT_BRIGHTNESS)
 
@@ -345,13 +353,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         val trimmed = raw.trim()
         if (trimmed.isBlank()) return RsvpProfileIds.CUSTOM_UNSAVED
         if (trimmed == "CUSTOM") return RsvpProfileIds.CUSTOM_UNSAVED
-        if (trimmed == "BALANCED" ||
-            trimmed == "CHILL" ||
-            trimmed == "SPRINT" ||
-            trimmed == "STUDY"
-        ) {
-            val parsed =
-                runCatching { RsvpProfile.valueOf(trimmed) }.getOrNull() ?: RsvpProfile.BALANCED
+        runCatching { RsvpProfile.valueOf(trimmed) }.getOrNull()?.let { parsed ->
             return RsvpProfileIds.builtIn(parsed)
         }
         if (trimmed.startsWith("builtin:") ||
@@ -441,6 +443,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
             putPauseScaling(config)
             putContextMultipliers(config)
             putRhythm(config)
+            putProsody(config)
             putOrpAndDelays(config)
             putRamping(config)
             putAdaptiveTiming(config)
@@ -478,6 +481,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
 
     private fun JSONObject.putPunctuationPauses(config: RsvpConfig) {
         put("commaPauseMs", config.commaPauseMs)
+        put("periodPauseMs", config.periodPauseMs)
         put("semicolonPauseMs", config.semicolonPauseMs)
         put("colonPauseMs", config.colonPauseMs)
         put("dashPauseMs", config.dashPauseMs)
@@ -501,6 +505,11 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         put("smoothingAlpha", config.smoothingAlpha)
         put("maxSpeedupFactor", config.maxSpeedupFactor)
         put("maxSlowdownFactor", config.maxSlowdownFactor)
+    }
+
+    private fun JSONObject.putProsody(config: RsvpConfig) {
+        put("useProsodyPacing", config.useProsodyPacing)
+        put("prosodyStrength", config.prosodyStrength)
     }
 
     private fun JSONObject.putOrpAndDelays(config: RsvpConfig) {
@@ -551,6 +560,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
             .withPauseScalingFromJson(obj, defaults)
             .withContextMultipliersFromJson(obj, defaults)
             .withRhythmFromJson(obj, defaults)
+            .withProsodyFromJson(obj, defaults)
             .withOrpAndDelaysFromJson(obj, defaults)
             .withRampingFromJson(obj, defaults)
             .withAdaptiveTimingFromJson(obj, defaults)
@@ -611,6 +621,12 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
     ): RsvpConfig =
         copy(
             commaPauseMs = obj.optLong("commaPauseMs", defaults.commaPauseMs),
+            periodPauseMs =
+                if (obj.has("periodPauseMs")) {
+                    obj.optLong("periodPauseMs", defaults.periodPauseMs)
+                } else {
+                    obj.optLong("sentenceEndPauseMs", defaults.sentenceEndPauseMs)
+                },
             semicolonPauseMs = obj.optLong("semicolonPauseMs", defaults.semicolonPauseMs),
             colonPauseMs = obj.optLong("colonPauseMs", defaults.colonPauseMs),
             dashPauseMs = obj.optLong("dashPauseMs", defaults.dashPauseMs),
@@ -649,6 +665,19 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
             smoothingAlpha = obj.optDouble("smoothingAlpha", defaults.smoothingAlpha),
             maxSpeedupFactor = obj.optDouble("maxSpeedupFactor", defaults.maxSpeedupFactor),
             maxSlowdownFactor = obj.optDouble("maxSlowdownFactor", defaults.maxSlowdownFactor),
+        )
+
+    private fun RsvpConfig.withProsodyFromJson(
+        obj: JSONObject,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            useProsodyPacing = obj.optBoolean("useProsodyPacing", defaults.useProsodyPacing),
+            prosodyStrength =
+                normalizeProsodyStrength(
+                    obj.optDouble("prosodyStrength", defaults.prosodyStrength),
+                    defaults.prosodyStrength,
+                ),
         )
 
     private fun RsvpConfig.withOrpAndDelaysFromJson(
@@ -718,6 +747,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         writePauseScaling(prefs, config)
         writeContextMultipliers(prefs, config)
         writeRhythm(prefs, config)
+        writeProsody(prefs, config, defaults)
         writeOrpAndDelays(prefs, config)
         writeRamping(prefs, config)
         writeAdaptiveTiming(prefs, config)
@@ -756,6 +786,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
 
     private fun writePunctuationPauses(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.commaPauseMs] = config.commaPauseMs
+        prefs[keys.periodPauseMs] = config.periodPauseMs
         prefs[keys.semicolonPauseMs] = config.semicolonPauseMs
         prefs[keys.colonPauseMs] = config.colonPauseMs
         prefs[keys.dashPauseMs] = config.dashPauseMs
@@ -779,6 +810,16 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         prefs[keys.smoothingAlpha] = config.smoothingAlpha
         prefs[keys.maxSpeedupFactor] = config.maxSpeedupFactor
         prefs[keys.maxSlowdownFactor] = config.maxSlowdownFactor
+    }
+
+    private fun writeProsody(
+        prefs: MutablePreferences,
+        config: RsvpConfig,
+        defaults: RsvpConfig,
+    ) {
+        prefs[keys.useProsodyPacing] = config.useProsodyPacing
+        prefs[keys.prosodyStrength] =
+            normalizeProsodyStrength(config.prosodyStrength, defaults.prosodyStrength)
     }
 
     private fun writeOrpAndDelays(prefs: MutablePreferences, config: RsvpConfig) {
@@ -861,6 +902,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
             .withPauseScaling(prefs, defaults)
             .withContextMultipliers(prefs, defaults)
             .withRhythm(prefs, defaults)
+            .withProsody(prefs, defaults)
             .withRamping(prefs, defaults)
             .withAdaptiveTiming(prefs, defaults)
             .withLegacyFields(prefs, defaults)
@@ -924,6 +966,9 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
     ): RsvpConfig =
         copy(
             commaPauseMs = prefs.readOrDefault(keys.commaPauseMs, defaults.commaPauseMs),
+            periodPauseMs =
+                prefs[keys.periodPauseMs]
+                    ?: prefs.readOrDefault(keys.sentenceEndPauseMs, defaults.sentenceEndPauseMs),
             semicolonPauseMs =
                 prefs.readOrDefault(keys.semicolonPauseMs, defaults.semicolonPauseMs),
             colonPauseMs = prefs.readOrDefault(keys.colonPauseMs, defaults.colonPauseMs),
@@ -968,6 +1013,20 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
                 prefs.readOrDefault(keys.maxSpeedupFactor, defaults.maxSpeedupFactor),
             maxSlowdownFactor =
                 prefs.readOrDefault(keys.maxSlowdownFactor, defaults.maxSlowdownFactor),
+        )
+
+    private fun RsvpConfig.withProsody(
+        prefs: Preferences,
+        defaults: RsvpConfig,
+    ): RsvpConfig =
+        copy(
+            useProsodyPacing =
+                prefs.readOrDefault(keys.useProsodyPacing, defaults.useProsodyPacing),
+            prosodyStrength =
+                normalizeProsodyStrength(
+                    prefs[keys.prosodyStrength],
+                    defaults.prosodyStrength,
+                ),
         )
 
     private fun RsvpConfig.withRamping(
@@ -1049,6 +1108,7 @@ private object PrefKeys {
     val maxCharsPerUnit = intPreferencesKey("max_chars_per_unit")
     val subwordChunkPauseMs = longPreferencesKey("subword_chunk_pause_ms")
     val commaPauseMs = longPreferencesKey("comma_pause_ms")
+    val periodPauseMs = longPreferencesKey("period_pause_ms")
     val semicolonPauseMs = longPreferencesKey("semicolon_pause_ms")
     val colonPauseMs = longPreferencesKey("colon_pause_ms")
     val dashPauseMs = longPreferencesKey("dash_pause_ms")
@@ -1067,6 +1127,8 @@ private object PrefKeys {
     val smoothingAlpha = doublePreferencesKey("rhythm_smoothing_alpha")
     val maxSpeedupFactor = doublePreferencesKey("rhythm_max_speedup_factor")
     val maxSlowdownFactor = doublePreferencesKey("rhythm_max_slowdown_factor")
+    val useProsodyPacing = booleanPreferencesKey("use_prosody_pacing")
+    val prosodyStrength = doublePreferencesKey("prosody_strength")
     val orpEnabled = booleanPreferencesKey("orp_enabled")
     val startDelayMs = longPreferencesKey("start_delay_ms")
     val endDelayMs = longPreferencesKey("end_delay_ms")
