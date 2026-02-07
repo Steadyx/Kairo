@@ -112,7 +112,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
 
                 val msPerWord = config.tempoMsPerWord.toDouble()
                 val pauseScale = pauseScale(msPerWord, config)
-                val paragraphFloor = config.paragraphPauseMs.toDouble() * config.minPauseScale
+                val paragraphBase = paragraphBreakBasePauseMs(config)
+                val paragraphFloor = paragraphBase * config.minPauseScale
                 val pageFloor = pageBreakBasePauseMs(config) * config.minPauseScale
                 val extraPause =
                     (cursorToken.pauseAfterMs.coerceAtLeast(0L).toDouble()) * pauseScale
@@ -123,7 +124,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                             pageFloor
                         ).toLong()
                         TokenType.PARAGRAPH_BREAK -> max(
-                            config.paragraphPauseMs.toDouble() * pauseScale,
+                            paragraphBase * pauseScale,
                             paragraphFloor
                         ).toLong()
                         else -> 0L
@@ -293,24 +294,21 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 val ch = token.text.firstOrNull()
                 val nextToken = expandedTokens.getOrNull(cursor + 1)?.token
                 val isQuote = ch != null && isQuoteChar(ch)
+                val isOpening = isOpeningPunctuation(token, state)
+                val isExplicitOpeningQuote = ch == '\u201C' || ch == '\u2018'
 
-                // Key fix: If a quote is followed by a word, it's an opening quote
-                // and should go with the next word, not the current unit.
-                // Example: said "I -> "said" and "\"I" should be separate frames
-                val quoteFollowedByWord = isQuote && nextToken?.type == TokenType.WORD
+                // Opening quotes that precede a word should stay with that word,
+                // even if a sentence-ending punctuation token came right before.
+                val quoteFollowedByWord =
+                    isQuote &&
+                        nextToken?.type == TokenType.WORD &&
+                        (isExplicitOpeningQuote || (ch == '"' && isOpening))
                 if (quoteFollowedByWord) {
                     break
                 }
 
-                val isOpening = isOpeningPunctuation(token, state)
-                val prevPunct =
-                    unitTokens.lastOrNull { it.type == TokenType.PUNCTUATION }?.text?.firstOrNull()
-                val prevWasSentenceEnd =
-                    prevPunct != null && (prevPunct == '.' || isSentenceEndingPunctuation(prevPunct))
-                val treatAsClosingQuote = isQuote && prevWasSentenceEnd
-
-                if (hitHardBoundary && isOpening && !treatAsClosingQuote) break
-                if (!isOpening || treatAsClosingQuote) {
+                if (hitHardBoundary && isOpening) break
+                if (!isOpening) {
                     val prevWord = unitTokens.lastOrNull { it.type == TokenType.WORD }
                     unitTokens += token
                     state.consume(token)
@@ -398,6 +396,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         var inDialogue = contextBefore.inDialogue
         var enteredDialogue = false
         var exitedDialogue = false
+        var sawParentheticalWord = false
 
         frameTokens.forEachIndexed { index, token ->
             when (token.type) {
@@ -429,6 +428,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     val contextWordMultiplier =
                         (if (parentheticalDepth > 0) config.parentheticalMultiplier else 1.0) *
                             dialogueMultiplier
+                    if (parentheticalDepth > 0) {
+                        sawParentheticalWord = true
+                    }
                     val boosted = if (index == firstWordIndex) startBoost else 1.0
                     val nextWordText =
                         frameTokens
@@ -543,6 +545,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 max(config.sentenceEndPauseMs, config.periodPauseMs) *
                     pauseScale *
                     SENTENCE_START_HOLD_FRACTION
+            totalDuration += sentenceStartMicroHoldMs(msPerWord = msPerWord, speedStrength = speedStrength)
         }
         frameTokens.forEachIndexed { index, token ->
             if (token.type != TokenType.PUNCTUATION) return@forEachIndexed
@@ -611,6 +614,14 @@ class ComprehensionRsvpEngine : RsvpEngine {
             val quoteHold = config.quotePauseMs * pauseScale * QUOTE_TRANSITION_HOLD_FRACTION
             if (enteredDialogue) totalDuration += quoteHold
             if (exitedDialogue) totalDuration += quoteHold
+        }
+        if (sawParentheticalWord) {
+            totalDuration =
+                max(
+                    totalDuration,
+                    smoothedWordDuration * config.parentheticalMultiplier.coerceAtLeast(1.0),
+                )
+            totalDuration += parentheticalHoldMs(msPerWord = msPerWord, config = config)
         }
 
         return totalDuration
@@ -1361,6 +1372,26 @@ class ComprehensionRsvpEngine : RsvpEngine {
             max(config.sentenceEndPauseMs.toDouble(), config.periodPauseMs.toDouble()) * 1.4,
         )
 
+    private fun paragraphBreakBasePauseMs(config: RsvpConfig): Double =
+        max(config.paragraphPauseMs.toDouble(), config.sentenceEndPauseMs.toDouble() * 0.7)
+
+    private fun sentenceStartMicroHoldMs(
+        msPerWord: Double,
+        speedStrength: Double,
+    ): Double {
+        if (msPerWord > 110.0) return 0.0
+        return SENTENCE_START_MIN_HOLD_MS * speedStrength
+    }
+
+    private fun parentheticalHoldMs(
+        msPerWord: Double,
+        config: RsvpConfig,
+    ): Double {
+        val multiplierDelta = (config.parentheticalMultiplier - 1.0).coerceAtLeast(0.0)
+        if (multiplierDelta <= 0.0) return 0.0
+        return msPerWord * multiplierDelta * PARENTHETICAL_HOLD_FRACTION
+    }
+
     private fun startBoostMultiplier(
         msPerWord: Double,
         boundaryBefore: BoundaryBefore,
@@ -1802,6 +1833,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private const val PHRASE_BREAK_HOLD_MS = 8.0
         private const val FUNCTION_BRIDGE_HOLD_MS = 2.0
         private const val SENTENCE_START_HOLD_FRACTION = 0.24
+        private const val SENTENCE_START_MIN_HOLD_MS = 6.0
+        private const val PARENTHETICAL_HOLD_FRACTION = 0.50
         private const val CLAUSE_LEAD_HOLD_FRACTION = 0.28
         private const val QUOTE_TRANSITION_HOLD_FRACTION = 0.55
         private const val DIALOGUE_ENTRY_BOOST = 0.08

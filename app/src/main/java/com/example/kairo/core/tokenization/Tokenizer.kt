@@ -285,20 +285,12 @@ class Tokenizer {
                             OPENING_QUOTES.contains(part[0]) ||
                             CLOSING_QUOTES.contains(part[0])
                         ) -> {
-                    // Track dialogue state with quotes
                     val char = part[0]
-                    inDialogue =
-                        when {
-                            // Straight quotes are ambiguous; toggle on each occurrence.
-                            char == '"' -> !inDialogue
-                            OPENING_QUOTES.contains(char) -> true
-                            CLOSING_QUOTES.contains(char) -> false
-                            else -> inDialogue
-                        }
+                    val normalizedPunctuation = normalizePunctuation(char)
 
                     tokens +=
                         Token(
-                            text = part,
+                            text = normalizedPunctuation.toString(),
                             type = TokenType.PUNCTUATION,
                             pauseAfterMs = 0L,
                             isDialogue = inDialogue,
@@ -326,6 +318,22 @@ class Tokenizer {
             }
         }
         return tokens
+    }
+
+    private fun normalizePunctuation(char: Char): Char {
+        if (char == '"') {
+            val normalizedQuote = if (inDialogue) '\u201D' else '\u201C'
+            inDialogue = !inDialogue
+            return normalizedQuote
+        }
+
+        inDialogue =
+            when {
+                OPENING_QUOTES.contains(char) -> true
+                CLOSING_QUOTES.contains(char) -> false
+                else -> inDialogue
+            }
+        return char
     }
 
     private fun normalizeEllipses(text: String): String =
