@@ -896,9 +896,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         val canGlide =
             isFunction &&
                 !isAnchor &&
-                !isFirstWord &&
                 boundaryBefore == BoundaryBefore.NONE &&
-                prevLower != null &&
                 nextLower != null
         if (canGlide) {
             val coherence = ClauseDetector.getCoherenceScore(wordLower, nextLower)
