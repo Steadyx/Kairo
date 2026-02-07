@@ -294,27 +294,21 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 val ch = token.text.firstOrNull()
                 val nextToken = expandedTokens.getOrNull(cursor + 1)?.token
                 val isQuote = ch != null && isQuoteChar(ch)
-                val prevPunct =
-                    unitTokens.lastOrNull { it.type == TokenType.PUNCTUATION }?.text?.firstOrNull()
-                val prevWasSentenceEnd =
-                    prevPunct != null && (prevPunct == '.' || isSentenceEndingPunctuation(prevPunct))
+                val isOpening = isOpeningPunctuation(token, state)
+                val isExplicitOpeningQuote = ch == '\u201C' || ch == '\u2018'
 
-                // Key fix: If a quote is followed by a word, it's an opening quote
-                // and should go with the next word, not the current unit.
-                // Example: said "I -> "said" and "\"I" should be separate frames
+                // Opening quotes that precede a word should stay with that word,
+                // even if a sentence-ending punctuation token came right before.
                 val quoteFollowedByWord =
                     isQuote &&
                         nextToken?.type == TokenType.WORD &&
-                        !prevWasSentenceEnd
+                        (isExplicitOpeningQuote || (ch == '"' && isOpening))
                 if (quoteFollowedByWord) {
                     break
                 }
 
-                val isOpening = isOpeningPunctuation(token, state)
-                val treatAsClosingQuote = isQuote && prevWasSentenceEnd
-
-                if (hitHardBoundary && isOpening && !treatAsClosingQuote) break
-                if (!isOpening || treatAsClosingQuote) {
+                if (hitHardBoundary && isOpening) break
+                if (!isOpening) {
                     val prevWord = unitTokens.lastOrNull { it.type == TokenType.WORD }
                     unitTokens += token
                     state.consume(token)

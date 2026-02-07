@@ -1,5 +1,7 @@
 package com.example.kairo.data.books
 
+import com.example.kairo.data.books.epub.EpubOpfParser
+import com.example.kairo.data.books.epub.EpubPathResolver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -8,6 +10,7 @@ import org.junit.Test
 
 class EpubBookParserTest {
     private val parser = EpubBookParser(TestDispatchers)
+    private val opfParser = EpubOpfParser()
 
     @Test
     fun extractPlainTextKeepsInlinePageBreakContent() {
@@ -85,14 +88,14 @@ class EpubBookParserTest {
 
     @Test
     fun normalizeContainerPathHandlesEncodedAndSlashedPaths() {
-        val resolved: String = parser.callPrivate("normalizeContainerPath", "/OEBPS/content%2Eopf")
+        val resolved = EpubPathResolver.normalizeContainerPath("/OEBPS/content%2Eopf")
 
         assertEquals("OEBPS/content.opf", resolved)
     }
 
     @Test
     fun normalizeContainerPathPreservesPlusCharacters() {
-        val resolved: String = parser.callPrivate("normalizeContainerPath", "/OEBPS/Book+One.opf")
+        val resolved = EpubPathResolver.normalizeContainerPath("/OEBPS/Book+One.opf")
 
         assertEquals("OEBPS/Book+One.opf", resolved)
     }
@@ -230,10 +233,8 @@ class EpubBookParserTest {
             </package>
             """.trimIndent()
 
-        val opfData: Any = parser.callPrivate("parseOpfFileLenient", xml)
-        val manifest =
-            opfData.javaClass.getDeclaredField("manifest").apply { isAccessible = true }
-                .get(opfData) as Map<*, *>
+        val opfData = opfParser.parseLenient(xml)
+        val manifest = opfData.manifest
 
         assertEquals(1, manifest.size)
         assertEquals("chapter1.xhtml", manifest["c1"])
@@ -254,13 +255,9 @@ class EpubBookParserTest {
             </opf:package>
             """.trimIndent()
 
-        val opfData: Any = parser.callPrivate("parseOpfFileLenient", xml)
-        val manifest =
-            opfData.javaClass.getDeclaredField("manifest").apply { isAccessible = true }
-                .get(opfData) as Map<*, *>
-        val spineItems =
-            opfData.javaClass.getDeclaredField("spineItems").apply { isAccessible = true }
-                .get(opfData) as List<*>
+        val opfData = opfParser.parseLenient(xml)
+        val manifest = opfData.manifest
+        val spineItems = opfData.spineItems
 
         assertEquals("chapter1.xhtml", manifest["c1"])
         assertEquals(1, spineItems.size)
@@ -277,10 +274,8 @@ class EpubBookParserTest {
             </root>
             """.trimIndent()
 
-        val opfData: Any = parser.callPrivate("parseOpfFileLenient", xml)
-        val spineItems =
-            opfData.javaClass.getDeclaredField("spineItems").apply { isAccessible = true }
-                .get(opfData) as List<*>
+        val opfData = opfParser.parseLenient(xml)
+        val spineItems = opfData.spineItems
 
         assertTrue(spineItems.isEmpty())
     }

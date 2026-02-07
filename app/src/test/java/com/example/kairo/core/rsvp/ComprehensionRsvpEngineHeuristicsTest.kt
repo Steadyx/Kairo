@@ -362,6 +362,26 @@ class ComprehensionRsvpEngineHeuristicsTest {
     }
 
     @Test
+    fun openingQuoteAfterSentenceEndStartsNextUnit() {
+        val frames =
+            engine.generateFrames(
+                tokens =
+                listOf(
+                    w("word"),
+                    p("."),
+                    p("\u201C"),
+                    w("Get"),
+                ),
+                startIndex = 0,
+                config = stableConfig,
+            )
+
+        assertTrue(frames.size >= 2)
+        assertEquals(listOf("word", "."), frames[0].tokens.map { it.text })
+        assertEquals(listOf("\u201C", "Get"), frames[1].tokens.map { it.text })
+    }
+
+    @Test
     fun sentenceStartGetsABoostAtHighSpeed() {
         val config = stableConfig.copy(tempoMsPerWord = 60L, sentenceEndPauseMs = 0L)
 

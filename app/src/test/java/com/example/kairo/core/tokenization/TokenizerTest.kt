@@ -2,6 +2,7 @@ package com.example.kairo.core.tokenization
 
 import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.TokenType
+import com.example.kairo.core.model.joinTokensForDisplay
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -106,5 +107,20 @@ class TokenizerTest {
         val words = tokens.filter { it.type == TokenType.WORD }.map { it.text }
 
         assertTrue(words.contains("military-grade"))
+    }
+
+    @Test
+    fun normalizesStraightDoubleQuotesToCurlyByDialogueState() {
+        val tokens = tokenizer.tokenize(chapter("guy.\"Hello there\""))
+        val punctuation = tokens.filter { it.type == TokenType.PUNCTUATION }.map { it.text }
+
+        assertEquals(listOf(".", "\u201C", "\u201D"), punctuation)
+    }
+
+    @Test
+    fun openingCurlyQuoteAfterSentencePunctuationKeepsWordAttachmentInReaderDisplay() {
+        val tokens = tokenizer.tokenize(chapter("guy.\"Hello there\""))
+
+        assertEquals("guy. \u201CHello there\u201D", joinTokensForDisplay(tokens))
     }
 }
