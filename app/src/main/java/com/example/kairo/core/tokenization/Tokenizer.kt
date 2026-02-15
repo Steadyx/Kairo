@@ -458,6 +458,8 @@ class Tokenizer {
         text = text.replace(Regex("(\\d)\\s*([℃℉])"), "$1$2")
         // "50 %" -> "50%"
         text = text.replace(Regex("(\\d)\\s*%"), "$1%")
+        // "$ 20" -> "$20" (and same for common currency symbols).
+        text = text.replace(Regex("([$€£¥])\\s+(\\d)"), "$1$2")
 
         return text
     }
@@ -550,6 +552,10 @@ class Tokenizer {
         // 3. Standalone punctuation marks
         private val TOKEN_REGEX =
             Regex(
+                // Currency-prefixed amounts.
+                // Examples: "$20", "€1,000", "£5.99"
+                """[$€£¥]\d+(?:[.,]\d+)*""" +
+                    "|" +
                 // Numeric + unit patterns: temperatures and percentages.
                 // Examples: "20°C", "-35c", "–35c", "‑35c", "20°F", "20℃", "50%"
                 """[-−–—‐‑‒﹣－]?\d+(?:[.,]\d+)?(?:[℃℉]|%|[°º]?[cCfFkK](?![a-zA-Z]))""" +

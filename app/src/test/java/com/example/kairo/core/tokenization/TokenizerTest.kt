@@ -38,6 +38,22 @@ class TokenizerTest {
     }
 
     @Test
+    fun keepsCurrencyAmountsAsSingleWordToken() {
+        val tokens = tokenizer.tokenize(chapter("It costs \$ 20 or €1,000 or £5.99."))
+        val words = tokens.filter { it.type == TokenType.WORD }.map { it.text }
+        val currencyPunctuation =
+            tokens
+                .filter { it.type == TokenType.PUNCTUATION }
+                .map { it.text }
+                .filter { it == "\$" || it == "€" || it == "£" }
+
+        assertTrue(words.contains("\$20"))
+        assertTrue(words.contains("€1,000"))
+        assertTrue(words.contains("£5.99"))
+        assertTrue(currencyPunctuation.isEmpty())
+    }
+
+    @Test
     fun keepsNegativeTemperaturesAsSingleWordToken() {
         val tokens = tokenizer.tokenize(
             chapter("A sentence like this -35c and –35c and ‑35c and -10°C.")
