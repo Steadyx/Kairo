@@ -183,6 +183,18 @@ class ComprehensionRsvpEngineHeuristicsTest {
     }
 
     @Test
+    fun currencySymbolPunctuationStaysWithFollowingNumber() {
+        val tokens = listOf(w("extra"), p("\$"), w("20"))
+
+        val frames = engine.generateFrames(tokens, 0, stableConfig)
+        val resumedAtNumber = engine.generateFrames(tokens, 2, stableConfig)
+
+        assertEquals(listOf("extra"), frames[0].tokens.map { it.text })
+        assertEquals(listOf("\$", "20"), frames[1].tokens.map { it.text })
+        assertEquals(listOf("\$", "20"), resumedAtNumber.first().tokens.map { it.text })
+    }
+
+    @Test
     fun hyphenatedWordsAddMicroPauseBetweenParts() {
         val config =
             stableConfig.copy(

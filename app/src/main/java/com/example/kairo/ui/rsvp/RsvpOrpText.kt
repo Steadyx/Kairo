@@ -66,10 +66,11 @@ internal fun buildOrpTextContent(
     val wordCount = tokens.count { it.type == TokenType.WORD }
     val fullText =
         buildString {
-            tokens.forEach { token ->
+            tokens.forEachIndexed { index, token ->
+                val nextToken = tokens.getOrNull(index + 1)
                 when (token.type) {
                     TokenType.WORD -> appendWord(token, state, this)
-                    TokenType.PUNCTUATION -> appendPunctuation(token, state, this)
+                    TokenType.PUNCTUATION -> appendPunctuation(token, nextToken, state, this)
                     TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> Unit
                 }
             }
@@ -123,12 +124,13 @@ private fun appendWord(
 
 private fun appendPunctuation(
     token: Token,
+    nextToken: Token?,
     state: OrpTextBuildState,
     builder: StringBuilder,
 ) {
     val ch = token.text.singleOrNull()
     // For straight quotes, derive opening/closing from the immediately preceding rendered char.
-    val isOpening = isOpeningPunctuation(ch, builder)
+    val isOpening = isCurrencyPrefixPunctuation(ch, nextToken) || isOpeningPunctuation(ch, builder)
 
     // Opening punctuation gets a space before if needed, no space after
     // Closing punctuation attaches directly to previous content
@@ -137,6 +139,15 @@ private fun appendPunctuation(
     // After opening punctuation, no space needed before next word
     // After closing punctuation, space needed before next word
     state.needsSpace = !isOpening
+}
+
+private fun isCurrencyPrefixPunctuation(
+    ch: Char?,
+    nextToken: Token?,
+): Boolean {
+    if (ch !in ORP_CURRENCY_PREFIX_PUNCTUATION) return false
+    val nextWordText = nextToken?.takeIf { it.type == TokenType.WORD }?.text ?: return false
+    return ORP_CURRENCY_NUMERIC_WORD_REGEX.matches(nextWordText)
 }
 
 private fun isOpeningPunctuation(
@@ -165,6 +176,8 @@ private fun StringBuilder.lastNonWhitespaceChar(): Char? {
 
 private val STRAIGHT_QUOTE_CLOSING_PRECEDERS =
     setOf('.', '!', '?', ')', ']', '}', '\u201D', '\u2019', '"')
+private val ORP_CURRENCY_PREFIX_PUNCTUATION = setOf('$', '€', '£', '¥')
+private val ORP_CURRENCY_NUMERIC_WORD_REGEX = Regex("""\d+(?:[.,]\d+)*""")
 
 private fun resolvePivotPosition(
     state: OrpTextBuildState,

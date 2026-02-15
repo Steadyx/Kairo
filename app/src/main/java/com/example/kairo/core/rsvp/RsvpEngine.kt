@@ -75,12 +75,17 @@ class ComprehensionRsvpEngine : RsvpEngine {
         if (firstWordCursor >= expanded.size) return emptyList()
         cursor = firstWordCursor
         while (cursor > 0) {
-            val prevToken = expanded[cursor - 1]
-            if (prevToken.originalIndex < startIndex) break
-            val ch = prevToken.token.text.firstOrNull() ?: break
+            val prevExpandedToken = expanded[cursor - 1]
+            val prevToken = prevExpandedToken.token
+            val nextToken = expanded.getOrNull(cursor)?.token
+            val isCurrencyPrefix = isCurrencyPrefixPunctuation(prevToken, nextToken)
+            if (prevExpandedToken.originalIndex < startIndex && !isCurrencyPrefix) break
+            val ch = prevToken.text.firstOrNull() ?: break
             val isLeadingOpening =
-                prevToken.token.type == TokenType.PUNCTUATION &&
-                    (ch == '"' || ch in OPENING_PUNCTUATION)
+                prevToken.type == TokenType.PUNCTUATION &&
+                    (ch == '"' ||
+                        ch in OPENING_PUNCTUATION ||
+                        isCurrencyPrefix)
             if (!isLeadingOpening) break
             cursor--
         }
@@ -191,7 +196,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 expanded[cursor].token.type != TokenType.PAGE_BREAK &&
                 !(
                     expanded[cursor].token.type == TokenType.PUNCTUATION &&
-                        isOpeningPunctuation(expanded[cursor].token, state)
+                        isOpeningPunctuation(
+                            token = expanded[cursor].token,
+                            state = state,
+                            nextToken = expanded.getOrNull(cursor + 1)?.token,
+                        )
                     )
             ) {
                 state.consume(expanded[cursor].token)
@@ -223,7 +232,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     token.text.firstOrNull()?.let { isQuoteChar(it) } == true &&
                     nextToken?.type == TokenType.WORD
             if (token.type == TokenType.PUNCTUATION &&
-                (isOpeningPunctuation(token, state) || isLeadingQuote)
+                (isOpeningPunctuation(token, state, nextToken) || isLeadingQuote)
             ) {
                 unitTokens += token
                 state.consume(token)
@@ -294,7 +303,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 val ch = token.text.firstOrNull()
                 val nextToken = expandedTokens.getOrNull(cursor + 1)?.token
                 val isQuote = ch != null && isQuoteChar(ch)
-                val isOpening = isOpeningPunctuation(token, state)
+                val isOpening = isOpeningPunctuation(token, state, nextToken)
                 val isExplicitOpeningQuote = ch == '\u201C' || ch == '\u2018'
 
                 // Opening quotes that precede a word should stay with that word,
@@ -1266,7 +1275,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
     private fun isOpeningPunctuation(
         token: Token,
         state: ContextState,
+        nextToken: Token?,
     ): Boolean {
+        if (isCurrencyPrefixPunctuation(token, nextToken)) return true
         val ch = token.text.firstOrNull() ?: return false
         return when (ch) {
             '"' -> !state.straightQuoteOpen
@@ -1282,7 +1293,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
         nextToken: Token?,
     ): Boolean {
         val ch = token.text.firstOrNull() ?: return true
-        if (index < firstWordIndex && isOpeningPunctuationChar(ch)) return true
+        if (index < firstWordIndex &&
+            (isOpeningPunctuationChar(ch) || isCurrencyPrefixPunctuation(token, nextToken))
+        ) {
+            return true
+        }
 
         val prevIsPunct = prevToken?.type == TokenType.PUNCTUATION
         val nextIsPunct = nextToken?.type == TokenType.PUNCTUATION
@@ -1297,6 +1312,16 @@ class ComprehensionRsvpEngine : RsvpEngine {
     }
 
     private fun isOpeningPunctuationChar(ch: Char): Boolean = ch == '"' || ch in OPENING_PUNCTUATION
+
+    private fun isCurrencyPrefixPunctuation(
+        token: Token,
+        nextToken: Token?,
+    ): Boolean {
+        val ch = token.text.firstOrNull() ?: return false
+        if (ch !in CURRENCY_PREFIX_PUNCTUATION) return false
+        val nextWordText = nextToken?.takeIf { it.type == TokenType.WORD }?.text ?: return false
+        return CURRENCY_NUMERIC_WORD_REGEX.matches(nextWordText)
+    }
 
     private fun isQuoteOrBracket(ch: Char): Boolean = ch in QUOTE_OR_BRACKET_PUNCTUATION
 
@@ -1856,6 +1881,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private const val FLOW_STRENGTH = 0.12
 
         private val OPENING_PUNCTUATION = setOf('(', '[', '{', '\u201C', '\u2018')
+        private val CURRENCY_PREFIX_PUNCTUATION = setOf('$', '€', '£', '¥')
+        private val CURRENCY_NUMERIC_WORD_REGEX = Regex("""\d+(?:[.,]\d+)*""")
 
         private val QUOTE_OR_BRACKET_PUNCTUATION =
             setOf(

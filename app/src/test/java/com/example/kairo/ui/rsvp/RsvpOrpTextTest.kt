@@ -54,6 +54,33 @@ class RsvpOrpTextTest {
     }
 
     @Test
+    fun currencyPrefixPunctuationRendersWithoutSpaceBeforeNumber() {
+        val content =
+            buildOrpTextContent(
+                listOf(
+                    Token(text = "\$", type = TokenType.PUNCTUATION),
+                    Token(text = "20", type = TokenType.WORD),
+                ),
+            )
+
+        assertEquals("\$20", content.fullText)
+    }
+
+    @Test
+    fun currencyPrefixPunctuationDoesNotAttachToPreviousWord() {
+        val content =
+            buildOrpTextContent(
+                listOf(
+                    Token(text = "extra", type = TokenType.WORD),
+                    Token(text = "\$", type = TokenType.PUNCTUATION),
+                    Token(text = "20", type = TokenType.WORD),
+                ),
+            )
+
+        assertEquals("extra \$20", content.fullText)
+    }
+
+    @Test
     fun tokenizerNormalizedOpeningQuoteAfterPeriodKeepsFollowingWordAttached() {
         val tokens =
             Tokenizer().tokenize(
