@@ -61,8 +61,10 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     maxChunkLength = config.maxChunkLength,
                     subwordChunkPauseMs = config.subwordChunkPauseMs,
                 ).map { splitToken ->
-                    ExpandedToken(splitToken, index)
+                    ExpandedToken(splitToken, index, -1)
                 }
+            }.mapIndexed { expandedIndex, expandedToken ->
+                expandedToken.copy(expandedIndex = expandedIndex)
             }
 
         val startCursor = expanded.indexOfFirst { it.originalIndex >= startIndex }
@@ -141,7 +143,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
                     RsvpFrame(
                         tokens = listOf(breakMarkerToken(cursorToken.type)),
                         durationMs = durationMs,
-                        originalTokenIndex = expanded[nextWordCursor].originalIndex,
+                        originalTokenIndex = expanded[cursor].originalIndex,
+                        resumeCursor = expanded[cursor].expandedIndex,
                     )
                 rhythm.reset()
                 flow.reset()
@@ -154,6 +157,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
             if (wordCursor >= expanded.size) break
             val boundaryBefore = boundaryBefore(expanded, wordCursor)
 
+            val frameStartCursor = cursor
             val (frameTokens, frameOriginalIndex, nextCursor) =
                 buildUnit(
                     expandedTokens = expanded,
@@ -187,7 +191,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 RsvpFrame(
                     tokens = frameTokens,
                     durationMs = durationMs,
-                    originalTokenIndex = frameOriginalIndex
+                    originalTokenIndex = frameOriginalIndex,
+                    resumeCursor = expanded[frameStartCursor].expandedIndex,
                 )
 
             while (cursor < expanded.size &&
@@ -264,7 +269,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         // Optionally add more words for phrase chunking (only across "soft" boundaries).
         val maxWordsInUnit =
             if (config.enablePhraseChunking) {
-                config.maxWordsPerUnit.coerceAtLeast(2)
+                config.maxWordsPerUnit.coerceAtLeast(1)
             } else {
                 config.maxWordsPerUnit.coerceAtLeast(1)
             }
@@ -1604,7 +1609,8 @@ class ComprehensionRsvpEngine : RsvpEngine {
                         RsvpFrame(
                             tokens = listOf(blinkToken),
                             durationMs = blinkMs,
-                            originalTokenIndex = frame.originalTokenIndex
+                            originalTokenIndex = frame.originalTokenIndex,
+                            resumeCursor = frame.resumeCursor,
                         )
                     continue
                 }
@@ -1644,7 +1650,11 @@ class ComprehensionRsvpEngine : RsvpEngine {
         return if (hasMidPause) 0.55 else 1.0
     }
 
-    private data class ExpandedToken(val token: Token, val originalIndex: Int,)
+    private data class ExpandedToken(
+        val token: Token,
+        val originalIndex: Int,
+        val expandedIndex: Int,
+    )
 
     private data class UnitBuildResult(val tokens: List<Token>, val originalWordIndex: Int, val nextCursor: Int,)
 

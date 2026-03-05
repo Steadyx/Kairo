@@ -45,6 +45,7 @@ internal class RsvpRuntimeState {
     var currentTextBrightness by mutableFloatStateOf(DEFAULT_TEXT_BRIGHTNESS)
     var frameIndex by mutableIntStateOf(0)
     var currentTokenIndex by mutableIntStateOf(0)
+    var currentResumeCursor by mutableIntStateOf(0)
     var rampStartFrameIndex by mutableIntStateOf(0)
     var scheduledFrameIndex by mutableIntStateOf(-1)
     var nextFrameAtMs by mutableLongStateOf(0L)

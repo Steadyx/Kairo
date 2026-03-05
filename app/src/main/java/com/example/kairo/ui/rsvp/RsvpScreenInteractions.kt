@@ -54,11 +54,9 @@ internal fun finishPositioning(
     runtime.isPositioningMode = false
     runtime.isAdjustingPosition = false
     context.callbacks.theme.onVerticalBiasChange(runtime.currentVerticalBias)
+    context.callbacks.theme.onHorizontalBiasChange(runtime.currentHorizontalBias)
     if (resumeIfWasPlaying && runtime.wasPlayingBeforePositioning && !runtime.completed) {
-        runtime.rampStartFrameIndex = runtime.frameIndex
-        runtime.scheduledFrameIndex = -1
-        runtime.nextFrameAtMs = 0L
-        runtime.isPlaying = true
+        resumePlayback(runtime)
     }
 }
 
@@ -96,9 +94,7 @@ internal fun handleTap(context: RsvpUiContext) {
         val willPlay = !runtime.isPlaying
         runtime.isPlaying = willPlay
         if (willPlay) {
-            runtime.rampStartFrameIndex = runtime.frameIndex
-            runtime.scheduledFrameIndex = -1
-            runtime.nextFrameAtMs = 0L
+            resumePlayback(runtime)
         }
         runtime.showTempoIndicator = false
         runtime.showFontSizeIndicator = false
@@ -225,23 +221,10 @@ private fun finishScrubbing(context: RsvpUiContext) {
     val runtime = context.runtime
     if (!runtime.isScrubbing) return
 
-    val frames = context.frameState.frames
-    val book = context.state.book
-    val currentIndex = resolveCurrentTokenIndex(frames, runtime.frameIndex, book.startIndex)
-    val safeIndex =
-        if (book.tokens.isNotEmpty()) {
-            book.tokens.nearestWordIndex(currentIndex)
-        } else {
-            currentIndex
-        }
-
-    context.callbacks.playback.onPositionChanged(safeIndex)
+    context.callbacks.playback.onPositionChanged(currentResumePoint(context))
     runtime.isScrubbing = false
     if (runtime.wasPlayingBeforeScrub && !runtime.completed) {
-        runtime.rampStartFrameIndex = runtime.frameIndex
-        runtime.scheduledFrameIndex = -1
-        runtime.nextFrameAtMs = 0L
-        runtime.isPlaying = true
+        resumePlayback(runtime)
     }
 }
 
@@ -261,4 +244,11 @@ private fun handleSweep(context: RsvpUiContext) {
         context.haptics.onFrameStep()
     }
     runtime.dragAccumulatorX -= step * SWEEP_SWIPE_THRESHOLD_PX
+}
+
+internal fun resumePlayback(runtime: RsvpRuntimeState) {
+    runtime.rampStartFrameIndex = runtime.frameIndex
+    runtime.scheduledFrameIndex = -1
+    runtime.nextFrameAtMs = 0L
+    runtime.isPlaying = true
 }

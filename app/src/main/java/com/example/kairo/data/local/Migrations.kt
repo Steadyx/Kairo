@@ -75,3 +75,12 @@ val MIGRATION_6_7 =
             db.execSQL("ALTER TABLE books ADD COLUMN languageTag TEXT")
         }
     }
+
+val MIGRATION_7_8 =
+    object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE reading_positions ADD COLUMN rsvpResumeCursor INTEGER NOT NULL DEFAULT -1"
+            )
+        }
+    }

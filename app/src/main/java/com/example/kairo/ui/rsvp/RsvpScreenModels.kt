@@ -17,7 +17,13 @@ data class RsvpScreenState(
     val layoutBias: RsvpLayoutBias,
 )
 
-data class RsvpBookContext(val bookId: BookId, val chapterIndex: Int, val tokens: List<Token>, val startIndex: Int,)
+data class RsvpBookContext(
+    val bookId: BookId,
+    val chapterIndex: Int,
+    val tokens: List<Token>,
+    val startIndex: Int,
+    val startResumeCursor: Int = -1,
+)
 
 data class RsvpProfileContext(val config: RsvpConfig, val selectedProfileId: String, val customProfiles: List<RsvpCustomProfile>,)
 
@@ -46,11 +52,16 @@ data class RsvpScreenCallbacks(
 
 data class RsvpBookmarkCallbacks(val onAddBookmark: (tokenIndex: Int, previewText: String) -> Unit, val onOpenBookmarks: () -> Unit,)
 
+data class RsvpResumePoint(
+    val tokenIndex: Int,
+    val resumeCursor: Int = -1,
+)
+
 data class RsvpPlaybackCallbacks(
-    val onFinished: (Int) -> Unit,
-    val onPositionChanged: (Int) -> Unit,
+    val onFinished: (RsvpResumePoint) -> Unit,
+    val onPositionChanged: (RsvpResumePoint) -> Unit,
     val onTempoChange: (Long) -> Unit,
-    val onExit: (Int) -> Unit,
+    val onExit: (RsvpResumePoint) -> Unit,
 )
 
 data class RsvpPreferenceCallbacks(

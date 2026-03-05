@@ -38,6 +38,7 @@ fun RsvpScreen(
             textStyle = state.textStyle,
             layoutBias = state.layoutBias,
             startIndex = state.book.startIndex,
+            startResumeCursor = state.book.startResumeCursor.takeIf { it >= 0 } ?: state.book.startIndex,
             sessionKey = sessionKey,
         )
     val frameState =
@@ -97,9 +98,11 @@ private fun rememberRsvpRuntimeState(
     textStyle: RsvpTextStyle,
     layoutBias: RsvpLayoutBias,
     startIndex: Int,
+    startResumeCursor: Int,
     sessionKey: String,
 ): RsvpRuntimeState {
     var savedTokenIndex by rememberSaveable(sessionKey) { mutableStateOf(startIndex) }
+    var savedResumeCursor by rememberSaveable(sessionKey) { mutableStateOf(startResumeCursor) }
     var savedIsPlaying by rememberSaveable(sessionKey) { mutableStateOf(true) }
     var savedCompleted by rememberSaveable(sessionKey) { mutableStateOf(false) }
     var savedTempoMsPerWord by rememberSaveable(sessionKey) {
@@ -136,14 +139,18 @@ private fun rememberRsvpRuntimeState(
                 dragStartBias = savedVerticalBias
                 dragStartHorizontalBias = savedHorizontalBias
                 currentTokenIndex = savedTokenIndex.coerceAtLeast(0)
+                currentResumeCursor = savedResumeCursor.coerceAtLeast(0)
                 isPlaying = savedIsPlaying
                 completed = savedCompleted
             }
         }
 
-    LaunchedEffect(state.currentTokenIndex, state.isPlaying, state.completed) {
+    LaunchedEffect(state.currentTokenIndex, state.currentResumeCursor, state.isPlaying, state.completed) {
         if (savedTokenIndex != state.currentTokenIndex) {
             savedTokenIndex = state.currentTokenIndex
+        }
+        if (savedResumeCursor != state.currentResumeCursor) {
+            savedResumeCursor = state.currentResumeCursor
         }
         if (savedIsPlaying != state.isPlaying) {
             savedIsPlaying = state.isPlaying
@@ -217,13 +224,18 @@ private fun rememberFrameLoadState(
     profile: RsvpProfileContext,
     frameRepository: RsvpFrameRepository,
 ): RsvpFrameLoadState {
-    var frameSet by remember { mutableStateOf<RsvpFrameSet?>(null) }
-    var isFramesLoading by remember { mutableStateOf(true) }
-    var loadAttempt by remember(book.bookId, book.chapterIndex, profile.config) {
+    val loadConfigKey = remember(profile.config) { frameLoadConfigKey(profile.config) }
+    var frameSet by remember(book.bookId, book.chapterIndex, loadConfigKey) {
+        mutableStateOf<RsvpFrameSet?>(null)
+    }
+    var isFramesLoading by remember(book.bookId, book.chapterIndex, loadConfigKey) {
+        mutableStateOf(true)
+    }
+    var loadAttempt by remember(book.bookId, book.chapterIndex, loadConfigKey) {
         mutableIntStateOf(0)
     }
 
-    LaunchedEffect(book.bookId, book.chapterIndex, profile.config, loadAttempt) {
+    LaunchedEffect(book.bookId, book.chapterIndex, loadConfigKey, loadAttempt) {
         val hadFrames = frameSet?.frames?.isNotEmpty() == true
         if (!hadFrames) isFramesLoading = true
 
@@ -242,6 +254,7 @@ private fun rememberFrameLoadState(
                 loadAttempt += 1
                 return@LaunchedEffect
             }
+            frameSet = null
             isFramesLoading = false
             return@LaunchedEffect
         }
@@ -277,7 +290,7 @@ private fun shouldShowLoading(frameState: RsvpFrameLoadState): Boolean =
     frameState.isLoading && frameState.frames.isEmpty()
 
 private fun buildSessionKey(book: RsvpBookContext): String =
-    "${book.bookId.value}:${book.chapterIndex}:${book.startIndex}"
+    "${book.bookId.value}:${book.chapterIndex}:${book.startIndex}:${book.startResumeCursor}"
 
 private fun buildPrefsFingerprint(
     profile: RsvpProfileContext,
@@ -293,6 +306,12 @@ private fun buildPrefsFingerprint(
         layoutBias.verticalBias,
         layoutBias.horizontalBias,
     ).joinToString("|")
+
+internal fun frameLoadConfigKey(config: com.example.kairo.core.model.RsvpConfig):
+    com.example.kairo.core.model.RsvpConfig = config.copy(
+        tempoMsPerWord = 0L,
+        baseWpm = 0,
+    )
 
 private const val FRAME_LOAD_RETRY_DELAY_MS = 200L
 private const val MAX_FRAME_LOAD_RETRIES = 3

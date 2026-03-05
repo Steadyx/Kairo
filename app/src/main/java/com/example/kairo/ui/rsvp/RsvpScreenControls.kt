@@ -98,8 +98,12 @@ private fun RsvpPlaybackControlsRow(context: RsvpUiContext) {
 
         IconButton(
             onClick = {
-                runtime.isPlaying = !runtime.isPlaying
-                if (runtime.isPlaying) runtime.showControls = false
+                if (runtime.isPlaying) {
+                    runtime.isPlaying = false
+                } else if (!runtime.completed) {
+                    resumePlayback(runtime)
+                    runtime.showControls = false
+                }
                 context.haptics.onFrameStep()
             },
             modifier =

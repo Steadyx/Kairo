@@ -6,6 +6,7 @@ import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.rsvp.RsvpEngine
 import com.example.kairo.data.token.TokenRepository
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -107,16 +108,11 @@ class RsvpFrameRepositoryImpl(
     }
 
     override fun clearCache() {
-        // Best-effort clear; no need to block callers on a mutex.
-        runCatching {
-            mutex.tryLock().takeIf { it }?.let {
-                try {
-                    cache.clear()
-                    inFlight.values.forEach { deferred -> deferred.cancel() }
-                    inFlight.clear()
-                } finally {
-                    mutex.unlock()
-                }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            mutex.withLock {
+                cache.clear()
+                inFlight.values.forEach { deferred -> deferred.cancel() }
+                inFlight.clear()
             }
         }
     }

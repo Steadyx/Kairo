@@ -28,20 +28,21 @@ internal fun RsvpPositionSaveEffect(context: RsvpUiContext) {
     LaunchedEffect(runtime.frameIndex) {
         if (frames.isEmpty()) return@LaunchedEffect
         val currentIndex = resolveCurrentTokenIndex(frames, runtime.frameIndex, book.startIndex)
+        val currentResumeCursor =
+            resolveCurrentResumeCursor(
+                frames = frames,
+                frameIndex = runtime.frameIndex,
+                fallbackCursor = book.startResumeCursor.takeIf { it >= 0 } ?: book.startIndex,
+            )
         runtime.currentTokenIndex = currentIndex
-        val safeIndex =
-            if (book.tokens.isNotEmpty()) {
-                book.tokens.nearestWordIndex(currentIndex)
-            } else {
-                currentIndex
-            }
+        runtime.currentResumeCursor = currentResumeCursor
         val now = SystemClock.elapsedRealtime()
         val shouldSave =
             now - runtime.lastPositionSaveMs >= POSITION_SAVE_INTERVAL_MS ||
                 runtime.frameIndex == frames.lastIndex
         if (shouldSave) {
             runtime.lastPositionSaveMs = now
-            context.callbacks.playback.onPositionChanged(safeIndex)
+            context.callbacks.playback.onPositionChanged(currentResumePoint(context))
         }
     }
 }
@@ -53,7 +54,7 @@ internal fun RsvpFrameAlignmentEffect(context: RsvpUiContext) {
 
     LaunchedEffect(frames) {
         if (frames.isEmpty()) return@LaunchedEffect
-        runtime.frameIndex = alignFrameIndex(frames, runtime.currentTokenIndex)
+        runtime.frameIndex = alignFrameIndex(frames, runtime.currentTokenIndex, runtime.currentResumeCursor)
     }
 }
 
@@ -72,7 +73,8 @@ internal fun RsvpSessionResetEffect(context: RsvpUiContext, sessionKey: String) 
         if (lastSessionKey == sessionKey) return@LaunchedEffect
         lastSessionKey = sessionKey
         runtime.currentTokenIndex = book.startIndex
-        runtime.frameIndex = alignFrameIndex(frames, book.startIndex)
+        runtime.currentResumeCursor = book.startResumeCursor.takeIf { it >= 0 } ?: book.startIndex
+        runtime.frameIndex = alignFrameIndex(frames, book.startIndex, runtime.currentResumeCursor)
         runtime.rampStartFrameIndex = runtime.frameIndex
         runtime.scheduledFrameIndex = -1
         runtime.nextFrameAtMs = 0L
@@ -115,7 +117,7 @@ internal fun RsvpPlaybackLoopEffect(context: RsvpUiContext) {
             shouldSkipBlinkFrame(frame, tempoScale, config)
         ) {
             if (runtime.frameIndex >= frames.lastIndex) {
-                runtime.completed = true
+                completePlayback(context)
             } else {
                 runtime.frameIndex += 1
             }
@@ -168,15 +170,7 @@ internal fun RsvpPlaybackLoopEffect(context: RsvpUiContext) {
         val delayMs = (targetMs - now).coerceAtLeast(MIN_FRAME_DELAY_MS)
         delay(delayMs)
         if (runtime.frameIndex == frames.lastIndex) {
-            runtime.completed = true
-            val rawNextIndex = frame.originalTokenIndex + 1
-            val safeNextIndex =
-                if (tokens.isNotEmpty()) {
-                    tokens.nearestWordIndex(rawNextIndex)
-                } else {
-                    rawNextIndex
-                }
-            context.callbacks.playback.onFinished(safeNextIndex)
+            completePlayback(context)
         } else {
             runtime.frameIndex += 1
         }
