@@ -194,15 +194,17 @@ fun splitHyphenatedToken(token: Token): List<Token> {
         // Attach hyphen to each part except the last
         val text = if (isLast) part else "$part-"
 
-        Token(
+        token.copy(
             text = text,
-            type = TokenType.WORD,
             orpIndex = calculateOrpIndex(part), // Calculate ORP for the word part (without hyphen)
             syllableCount = WordAnalyzer.countSyllables(part),
             frequencyScore = WordAnalyzer.getFrequencyScore(part),
             complexityMultiplier = WordAnalyzer.getComplexityMultiplier(part),
             isClauseBoundary = if (isLast) token.isClauseBoundary else false,
             isDialogue = token.isDialogue,
+            pauseAfterMs = if (isLast) token.pauseAfterMs else 0L,
+            highlightStart = null,
+            highlightEndExclusive = null,
         )
     }
 }
@@ -239,17 +241,12 @@ private fun splitLongWordToken(
         val isLast = index == ranges.lastIndex
         val extraPause = if (isLast) 0L else subwordChunkPauseMs.coerceAtLeast(0L)
 
-        Token(
+        token.copy(
             text = text,
-            type = TokenType.WORD,
-            orpIndex = token.orpIndex,
-            syllableCount = token.syllableCount,
-            frequencyScore = token.frequencyScore,
-            complexityMultiplier = token.complexityMultiplier,
             // Block phrase chunking across subword splits.
             isClauseBoundary = true,
             isDialogue = token.isDialogue,
-            pauseAfterMs = extraPause,
+            pauseAfterMs = if (isLast) token.pauseAfterMs else extraPause,
             isSubwordChunk = true,
             highlightStart = range.start,
             highlightEndExclusive = range.endExclusive,

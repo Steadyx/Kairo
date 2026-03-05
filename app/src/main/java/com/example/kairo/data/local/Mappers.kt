@@ -66,6 +66,7 @@ fun ReadingPositionEntity.toDomain(): com.example.kairo.core.model.ReadingPositi
         chapterIndex = chapterIndex,
         tokenIndex = tokenIndex,
         wordIndex = wordIndex,
+        rsvpResumeCursor = rsvpResumeCursor,
     )
 
 fun com.example.kairo.core.model.ReadingPosition.toEntity(): ReadingPositionEntity =
@@ -74,6 +75,7 @@ fun com.example.kairo.core.model.ReadingPosition.toEntity(): ReadingPositionEnti
         chapterIndex = chapterIndex,
         tokenIndex = tokenIndex,
         wordIndex = wordIndex,
+        rsvpResumeCursor = rsvpResumeCursor,
     )
 
 fun BookmarkEntity.toDomain(): Bookmark =

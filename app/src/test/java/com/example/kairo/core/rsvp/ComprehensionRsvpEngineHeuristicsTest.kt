@@ -277,7 +277,48 @@ class ComprehensionRsvpEngineHeuristicsTest {
         val frames = engine.generateFrames(tokens, 0, config)
 
         val firstWords = frames.first().tokens.filter { it.type == TokenType.WORD }.map { it.text }
-        assertEquals(listOf("in", "the"), firstWords)
+        assertEquals(listOf("in"), firstWords)
+    }
+
+    @Test
+    fun paragraphBreakFramesKeepOwnOriginalTokenIndex() {
+        val tokens = listOf(
+            w("Hello"),
+            Token(text = "\n\n", type = TokenType.PARAGRAPH_BREAK),
+            w("World"),
+        )
+
+        val frames = engine.generateFrames(tokens, 0, stableConfig)
+        val breakFrame = frames.firstOrNull { frame ->
+            frame.tokens.none { it.type == TokenType.WORD }
+        } ?: error("Expected a paragraph break frame")
+
+        assertEquals(1, breakFrame.originalTokenIndex)
+    }
+
+    @Test
+    fun splitLongWordFramesExposeDistinctResumeCursors() {
+        val frames =
+            engine.generateFrames(
+                tokens =
+                    listOf(
+                        Token(
+                            text = "supercalifragilisticexpialidocious",
+                            type = TokenType.WORD,
+                            syllableCount = 8,
+                            frequencyScore = 0.1,
+                            complexityMultiplier = 1.2,
+                        ),
+                    ),
+                startIndex = 0,
+                config =
+                    stableConfig.copy(
+                        maxChunkLength = 4,
+                        subwordChunkPauseMs = 0L,
+                    ),
+            )
+
+        assertEquals(frames.size, frames.map { it.resumeCursor }.distinct().size)
     }
 
     @Test

@@ -57,6 +57,7 @@ data class ReadingPositionEntity(
     val chapterIndex: Int,
     val tokenIndex: Int,
     val wordIndex: Int = -1,
+    val rsvpResumeCursor: Int = -1,
 )
 
 @Entity(
