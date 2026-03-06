@@ -11,9 +11,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -34,6 +36,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.kairo.core.model.RsvpFontFamily
@@ -42,15 +45,29 @@ import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
 import com.example.kairo.ui.theme.InterFontFamily
 import com.example.kairo.ui.theme.RobotoFontFamily
+import kotlin.math.abs
 import kotlin.math.roundToLong
 
-private enum class PreviewSide { ABOVE, BELOW }
+internal enum class PreviewSide { ABOVE, BELOW }
+
+internal data class ParagraphPreviewPlacement(
+    val side: PreviewSide,
+    val topPx: Float,
+)
+
+private data class PreviewCandidate(
+    val side: PreviewSide,
+    val topPx: Float,
+    val overlapPx: Float,
+    val score: Float,
+)
 
 @Composable
 internal fun RsvpPlaybackSurface(context: RsvpUiContext) {
     val runtime = context.runtime
     val frames = context.frameState.frames
     val currentFrame = frames.getOrNull(runtime.frameIndex)
+    val bottomChromeInset = rememberBottomChromeInset(runtime)
     val typography =
         OrpTypography(
             fontSizeSp = runtime.currentFontSizeSp,
@@ -69,9 +86,9 @@ internal fun RsvpPlaybackSurface(context: RsvpUiContext) {
             .rsvpGestureModifier(context, interactionSource),
         contentAlignment = Alignment.Center,
     ) {
-        RsvpFocusWord(context, currentFrame, typography, colors)
-        RsvpParagraphPreview(context, typography, colors)
-        RsvpPositionGuide(context)
+        RsvpFocusWord(context, currentFrame, typography, colors, bottomChromeInset)
+        RsvpParagraphPreview(context, typography, colors, bottomChromeInset)
+        RsvpPositionGuide(context, bottomChromeInset)
         RsvpProgressBar(context)
         RsvpTopBar(context)
         RsvpTempoIndicator(context, estimatedWpm)
@@ -138,13 +155,17 @@ private fun RsvpFocusWord(
     frame: com.example.kairo.core.model.RsvpFrame?,
     typography: OrpTypography,
     colors: OrpColors,
+    bottomChromeInset: Dp,
 ) {
     val runtime = context.runtime
     val profile = context.state.profile
     if (frame == null) return
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(bottom = bottomChromeInset),
         contentAlignment =
         BiasAlignment(
             horizontalBias = CENTER_BIAS,
@@ -176,6 +197,7 @@ private fun RsvpParagraphPreview(
     context: RsvpUiContext,
     typography: OrpTypography,
     colors: OrpColors,
+    bottomChromeInset: Dp,
 ) {
     val runtime = context.runtime
     val tokens = context.state.book.tokens
@@ -250,7 +272,12 @@ private fun RsvpParagraphPreview(
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = PARAGRAPH_PREVIEW_SURFACE_ALPHA)
         val previewBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         val clampedVerticalBias = runtime.currentVerticalBias.coerceIn(VERTICAL_BIAS_MIN, VERTICAL_BIAS_MAX)
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(bottom = bottomChromeInset),
+        ) {
             val density = LocalDensity.current
             val previewHeightPx = with(density) { PARAGRAPH_PREVIEW_HEIGHT.toPx() }
             val preferredOffsetPx = with(density) { offsetY.toPx() }
@@ -278,48 +305,22 @@ private fun RsvpParagraphPreview(
             val protectedBottom = orpCenterY + orpBandHalfHeightPx + collisionGapPx
             val anchorTop =
                 ((viewportHeightPx - previewHeightPx) * (ONE_FLOAT + clampedVerticalBias) / BIAS_SCALE_FACTOR)
-            val maxTop = (viewportHeightPx - previewHeightPx - edgePaddingPx).coerceAtLeast(edgePaddingPx)
-            val rawBelowTop = anchorTop + preferredOffsetPx
-            val rawAboveTop = anchorTop - preferredOffsetPx
-            val defaultBelowTop = rawBelowTop.coerceIn(edgePaddingPx, maxTop)
-            val defaultAboveTop = rawAboveTop.coerceIn(edgePaddingPx, maxTop)
-            val safeBelowTop = (protectedBottom).coerceIn(edgePaddingPx, maxTop)
-            val safeAboveTop = (protectedTop - previewHeightPx).coerceIn(edgePaddingPx, maxTop)
-            val preferAbove = runtime.isPositioningMode && rawBelowTop > maxTop
-
-            fun overlapsOrp(top: Float): Boolean {
-                val bottom = top + previewHeightPx
-                return bottom > protectedTop && top < protectedBottom
-            }
-
-            fun overlapAmount(top: Float): Float {
-                val bottom = top + previewHeightPx
-                return (minOf(bottom, protectedBottom) - maxOf(top, protectedTop)).coerceAtLeast(0f)
-            }
-
-            val belowCandidate = if (overlapsOrp(defaultBelowTop)) safeBelowTop else defaultBelowTop
-            val aboveCandidate = if (overlapsOrp(defaultAboveTop)) safeAboveTop else defaultAboveTop
-
-            if (!runtime.isPositioningMode) {
-                previewSide = if (preferAbove) PreviewSide.ABOVE else PreviewSide.BELOW
-            } else {
-                val activeTop = if (previewSide == PreviewSide.ABOVE) aboveCandidate else belowCandidate
-                val alternateTop = if (previewSide == PreviewSide.ABOVE) belowCandidate else aboveCandidate
-                val activeOverlap = overlapAmount(activeTop)
-                val alternateOverlap = overlapAmount(alternateTop)
-                val shouldSwitch =
-                    activeOverlap > switchOverlapThresholdPx &&
-                        (activeOverlap - alternateOverlap) > switchHysteresisPx
-                if (shouldSwitch) {
-                    previewSide =
-                        if (previewSide == PreviewSide.ABOVE) {
-                            PreviewSide.BELOW
-                        } else {
-                            PreviewSide.ABOVE
-                        }
-                }
-            }
-            val resolvedTop = if (previewSide == PreviewSide.ABOVE) aboveCandidate else belowCandidate
+            val placement =
+                resolveParagraphPreviewPlacement(
+                    currentSide = previewSide,
+                    isPositioningMode = runtime.isPositioningMode,
+                    anchorTop = anchorTop,
+                    previewHeightPx = previewHeightPx,
+                    preferredOffsetPx = preferredOffsetPx,
+                    edgePaddingPx = edgePaddingPx,
+                    protectedTop = protectedTop,
+                    protectedBottom = protectedBottom,
+                    maxTop = (viewportHeightPx - previewHeightPx - edgePaddingPx).coerceAtLeast(edgePaddingPx),
+                    switchHysteresisPx = switchHysteresisPx,
+                    switchOverlapThresholdPx = switchOverlapThresholdPx,
+                )
+            previewSide = placement.side
+            val resolvedTop = placement.topPx
             val resolvedOffsetY = with(density) { (resolvedTop - anchorTop).toDp() }
 
             Box(
@@ -405,8 +406,105 @@ private fun RsvpParagraphPreview(
     }
 }
 
+internal fun resolveParagraphPreviewPlacement(
+    currentSide: PreviewSide,
+    isPositioningMode: Boolean,
+    anchorTop: Float,
+    previewHeightPx: Float,
+    preferredOffsetPx: Float,
+    edgePaddingPx: Float,
+    protectedTop: Float,
+    protectedBottom: Float,
+    maxTop: Float,
+    switchHysteresisPx: Float,
+    switchOverlapThresholdPx: Float,
+): ParagraphPreviewPlacement {
+    val rawBelowTop = anchorTop + preferredOffsetPx
+    val rawAboveTop = anchorTop - preferredOffsetPx
+    val defaultBelowTop = rawBelowTop.coerceIn(edgePaddingPx, maxTop)
+    val defaultAboveTop = rawAboveTop.coerceIn(edgePaddingPx, maxTop)
+    val safeBelowTop = protectedBottom.coerceIn(edgePaddingPx, maxTop)
+    val safeAboveTop = (protectedTop - previewHeightPx).coerceIn(edgePaddingPx, maxTop)
+
+    fun overlapAmount(top: Float): Float {
+        val bottom = top + previewHeightPx
+        return (minOf(bottom, protectedBottom) - maxOf(top, protectedTop)).coerceAtLeast(0f)
+    }
+
+    fun buildCandidate(
+        side: PreviewSide,
+        rawTop: Float,
+        defaultTop: Float,
+        safeTop: Float,
+    ): PreviewCandidate {
+        val overlapAtDefault = overlapAmount(defaultTop)
+        val top = if (overlapAtDefault > 0f) safeTop else defaultTop
+        val overlap = overlapAmount(top)
+        val score = (overlap * PREVIEW_OVERLAP_SCORE_MULTIPLIER) + abs(top - rawTop)
+        return PreviewCandidate(side = side, topPx = top, overlapPx = overlap, score = score)
+    }
+
+    val belowCandidate =
+        buildCandidate(
+            side = PreviewSide.BELOW,
+            rawTop = rawBelowTop,
+            defaultTop = defaultBelowTop,
+            safeTop = safeBelowTop,
+        )
+    val aboveCandidate =
+        buildCandidate(
+            side = PreviewSide.ABOVE,
+            rawTop = rawAboveTop,
+            defaultTop = defaultAboveTop,
+            safeTop = safeAboveTop,
+        )
+
+    val resolvedSide =
+        if (!isPositioningMode) {
+            when {
+                aboveCandidate.score + switchHysteresisPx < belowCandidate.score -> PreviewSide.ABOVE
+                belowCandidate.score + switchHysteresisPx < aboveCandidate.score -> PreviewSide.BELOW
+                rawBelowTop > maxTop && rawAboveTop >= edgePaddingPx -> PreviewSide.ABOVE
+                rawAboveTop < edgePaddingPx && rawBelowTop <= maxTop -> PreviewSide.BELOW
+                else -> PreviewSide.BELOW
+            }
+        } else {
+            val activeCandidate =
+                if (currentSide == PreviewSide.ABOVE) {
+                    aboveCandidate
+                } else {
+                    belowCandidate
+                }
+            val alternateCandidate =
+                if (currentSide == PreviewSide.ABOVE) {
+                    belowCandidate
+                } else {
+                    aboveCandidate
+                }
+            val shouldSwitch =
+                activeCandidate.overlapPx > switchOverlapThresholdPx &&
+                    (activeCandidate.overlapPx - alternateCandidate.overlapPx) > switchHysteresisPx
+            if (shouldSwitch) {
+                alternateCandidate.side
+            } else {
+                currentSide
+            }
+        }
+
+    val resolvedTop =
+        if (resolvedSide == PreviewSide.ABOVE) {
+            aboveCandidate.topPx
+        } else {
+            belowCandidate.topPx
+        }
+    return ParagraphPreviewPlacement(side = resolvedSide, topPx = resolvedTop)
+}
+
 @Composable
-private fun RsvpPositionGuide(context: RsvpUiContext) {
+private fun RsvpPositionGuide(
+    context: RsvpUiContext,
+    bottomChromeInset: Dp,
+) {
     val runtime = context.runtime
     val visible =
         runtime.showQuickSettings || runtime.isAdjustingPosition || runtime.isPositioningMode
@@ -418,7 +516,10 @@ private fun RsvpPositionGuide(context: RsvpUiContext) {
         modifier = Modifier.fillMaxSize(),
     ) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(bottom = bottomChromeInset),
             contentAlignment =
             BiasAlignment(
                 horizontalBias = CENTER_BIAS,
@@ -442,6 +543,15 @@ private fun RsvpPositionGuide(context: RsvpUiContext) {
     }
 }
 
+@Composable
+private fun rememberBottomChromeInset(runtime: RsvpRuntimeState): Dp {
+    if (!runtime.showControls) return 0.dp
+
+    val density = LocalDensity.current
+    val navigationBarsInset = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
+    return CONTROLS_RESERVED_HEIGHT + navigationBarsInset
+}
+
 private fun resolveFontFamily(fontFamily: RsvpFontFamily): FontFamily =
     when (fontFamily) {
         RsvpFontFamily.INTER -> InterFontFamily
@@ -454,3 +564,5 @@ private fun resolveFontWeight(fontWeight: RsvpFontWeight): FontWeight =
         RsvpFontWeight.NORMAL -> FontWeight.Normal
         RsvpFontWeight.MEDIUM -> FontWeight.Medium
     }
+
+private const val PREVIEW_OVERLAP_SCORE_MULTIPLIER = 10f
