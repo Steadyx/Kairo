@@ -225,10 +225,13 @@ private fun rememberFrameLoadState(
     frameRepository: RsvpFrameRepository,
 ): RsvpFrameLoadState {
     val loadConfigKey = remember(profile.config) { frameLoadConfigKey(profile.config) }
-    var frameSet by remember(book.bookId, book.chapterIndex, loadConfigKey) {
+    var frameSet by remember(book.bookId, book.chapterIndex) {
         mutableStateOf<RsvpFrameSet?>(null)
     }
-    var isFramesLoading by remember(book.bookId, book.chapterIndex, loadConfigKey) {
+    var activeLoadConfigKey by remember(book.bookId, book.chapterIndex) {
+        mutableStateOf<com.example.kairo.core.model.RsvpConfig?>(null)
+    }
+    var isFramesLoading by remember(book.bookId, book.chapterIndex) {
         mutableStateOf(true)
     }
     var loadAttempt by remember(book.bookId, book.chapterIndex, loadConfigKey) {
@@ -254,12 +257,15 @@ private fun rememberFrameLoadState(
                 loadAttempt += 1
                 return@LaunchedEffect
             }
-            frameSet = null
+            if (!hadFrames) {
+                frameSet = null
+            }
             isFramesLoading = false
             return@LaunchedEffect
         }
 
         frameSet = computed
+        activeLoadConfigKey = loadConfigKey
         isFramesLoading = false
     }
 
