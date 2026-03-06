@@ -72,7 +72,7 @@ internal fun currentResumePoint(context: RsvpUiContext): RsvpResumePoint {
         resolveCurrentResumeCursor(
             frames = frames,
             frameIndex = runtime.frameIndex,
-            fallbackCursor = book.startResumeCursor.takeIf { it >= 0 } ?: book.startIndex,
+            fallbackCursor = book.startResumeCursor.takeIf { it >= 0 } ?: -1,
         )
     return RsvpResumePoint(tokenIndex = safeIndex, resumeCursor = resumeCursor)
 }
@@ -108,16 +108,15 @@ internal fun completePlayback(context: RsvpUiContext) {
     val frames = context.frameState.frames
     val fallbackIndex = context.state.book.startIndex
     val completedFrame = frames.getOrNull(runtime.frameIndex)
-    val rawNextIndex = (completedFrame?.originalTokenIndex ?: fallbackIndex) + 1
-    val safeNextIndex =
-        if (context.state.book.tokens.isNotEmpty()) {
-            context.state.book.tokens.nearestWordIndex(rawNextIndex)
-        } else {
-            rawNextIndex
-        }
+    val rawNextIndex = ((completedFrame?.originalTokenIndex ?: fallbackIndex) + 1).coerceAtLeast(0)
 
     runtime.isPlaying = false
     runtime.completed = true
     runtime.currentResumeCursor = -1
-    context.callbacks.playback.onFinished(RsvpResumePoint(tokenIndex = safeNextIndex))
+    context.callbacks.playback.onFinished(
+        RsvpResumePoint(
+            tokenIndex = rawNextIndex,
+            chapterIndex = context.state.book.chapterIndex,
+        ),
+    )
 }

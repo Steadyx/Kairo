@@ -40,6 +40,7 @@ import com.example.kairo.core.model.Book
 import com.example.kairo.core.model.BookId
 import com.example.kairo.core.model.Bookmark
 import com.example.kairo.core.model.ReadingPosition
+import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.UserPreferences
 import com.example.kairo.core.model.buildWordCountByToken
 import com.example.kairo.core.model.nearestWordIndex
@@ -60,6 +61,7 @@ import com.example.kairo.ui.rsvp.RsvpLayoutBias
 import com.example.kairo.ui.rsvp.RsvpPlaybackCallbacks
 import com.example.kairo.ui.rsvp.RsvpPreferenceCallbacks
 import com.example.kairo.ui.rsvp.RsvpProfileContext
+import com.example.kairo.ui.rsvp.RsvpResumePoint
 import com.example.kairo.ui.rsvp.RsvpScreen
 import com.example.kairo.ui.rsvp.RsvpScreenCallbacks
 import com.example.kairo.ui.rsvp.RsvpScreenDependencies
@@ -111,6 +113,57 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+}
+
+private const val RSVP_RESULT_CHAPTER_INDEX_KEY = "rsvp_result_chapter_index"
+private const val RSVP_RESULT_TOKEN_INDEX_KEY = "rsvp_result_token_index"
+private const val RSVP_RESULT_RESUME_CURSOR_KEY = "rsvp_result_resume_cursor"
+
+private data class RsvpReturnTarget(
+    val chapterIndex: Int,
+    val tokenIndex: Int,
+    val resumeCursor: Int,
+)
+
+private fun resolveRsvpReturnTarget(
+    resumePoint: RsvpResumePoint,
+    currentChapterIndex: Int,
+    chapterCount: Int,
+    currentChapterTokens: List<Token>,
+): RsvpReturnTarget {
+    val lastTokenIndex = currentChapterTokens.lastIndex
+    val nextChapterIndex =
+        if (resumePoint.tokenIndex > lastTokenIndex && currentChapterIndex < chapterCount - 1) {
+            currentChapterIndex + 1
+        } else {
+            currentChapterIndex
+        }
+    if (nextChapterIndex != currentChapterIndex) {
+        return RsvpReturnTarget(
+            chapterIndex = nextChapterIndex,
+            tokenIndex = 0,
+            resumeCursor = -1,
+        )
+    }
+
+    val tokenIndex =
+        when {
+            currentChapterTokens.isEmpty() -> resumePoint.tokenIndex.coerceAtLeast(0)
+            resumePoint.tokenIndex > lastTokenIndex ->
+                currentChapterTokens.nearestWordIndex(lastTokenIndex)
+            else -> currentChapterTokens.nearestWordIndex(resumePoint.tokenIndex.coerceAtLeast(0))
+        }
+    val resumeCursor =
+        if (resumePoint.tokenIndex > lastTokenIndex) {
+            -1
+        } else {
+            resumePoint.resumeCursor
+        }
+    return RsvpReturnTarget(
+        chapterIndex = resumePoint.chapterIndex ?: currentChapterIndex,
+        tokenIndex = tokenIndex,
+        resumeCursor = resumeCursor,
+    )
 }
 
 private fun resolveWordIndex(
@@ -371,57 +424,78 @@ private fun KairoNavHost(
             // Resume index returned from RSVP. Use it immediately to avoid focus "jump".
             val rsvpResultFlow =
                 remember(backStackEntry) {
-                    backStackEntry.savedStateHandle.getStateFlow("rsvp_result_token_index", -1)
+                    backStackEntry.savedStateHandle.getStateFlow(RSVP_RESULT_TOKEN_INDEX_KEY, -1)
                 }
             val rsvpResultIndex by rsvpResultFlow.collectAsState(initial = -1)
+            val rsvpResultChapterFlow =
+                remember(backStackEntry) {
+                    backStackEntry.savedStateHandle.getStateFlow(RSVP_RESULT_CHAPTER_INDEX_KEY, -1)
+                }
+            val rsvpResultChapterIndex by rsvpResultChapterFlow.collectAsState(initial = -1)
             val rsvpResumeCursorFlow =
                 remember(backStackEntry) {
-                    backStackEntry.savedStateHandle.getStateFlow("rsvp_result_resume_cursor", -1)
+                    backStackEntry.savedStateHandle.getStateFlow(RSVP_RESULT_RESUME_CURSOR_KEY, -1)
                 }
             val rsvpResultResumeCursor by rsvpResumeCursorFlow.collectAsState(initial = -1)
             val safeRsvpResultIndex =
                 if (rsvpResultIndex >= 0) {
                     val tokens = uiState.chapterData?.tokens
-                    if (tokens != null && tokens.isNotEmpty()) {
+                    if (rsvpResultChapterIndex == uiState.chapterIndex &&
+                        tokens != null &&
+                        tokens.isNotEmpty()
+                    ) {
                         tokens.nearestWordIndex(rsvpResultIndex)
                     } else {
-                        rsvpResultIndex
+                        rsvpResultIndex.coerceAtLeast(0)
                     }
                 } else {
                     rsvpResultIndex
                 }
             val effectiveUiState =
-                if (safeRsvpResultIndex >=
-                    0
+                if (safeRsvpResultIndex >= 0 &&
+                    rsvpResultChapterIndex == uiState.chapterIndex
                 ) {
                     uiState.copy(focusIndex = safeRsvpResultIndex)
                 } else {
                     uiState
                 }
 
-            LaunchedEffect(safeRsvpResultIndex, rsvpResultResumeCursor) {
-                if (safeRsvpResultIndex >= 0) {
-                    if (safeRsvpResultIndex != uiState.focusIndex) {
+            LaunchedEffect(rsvpResultChapterIndex, safeRsvpResultIndex, rsvpResultResumeCursor) {
+                if (rsvpResultChapterIndex >= 0 && safeRsvpResultIndex >= 0) {
+                    if (rsvpResultChapterIndex != uiState.chapterIndex) {
+                        readerViewModel.loadChapter(rsvpResultChapterIndex, safeRsvpResultIndex)
+                    } else if (safeRsvpResultIndex != uiState.focusIndex) {
                         readerViewModel.applyFocusIndex(safeRsvpResultIndex)
                     }
                     val wordIndex =
-                        resolveWordIndex(
-                            uiState.chapterData?.wordCountByToken,
-                            safeRsvpResultIndex,
-                        )
+                        if (rsvpResultChapterIndex == uiState.chapterIndex) {
+                            resolveWordIndex(
+                                uiState.chapterData?.wordCountByToken,
+                                safeRsvpResultIndex,
+                            )
+                        } else {
+                            0
+                        }
+                    val resumeCursor =
+                        if (rsvpResultChapterIndex == uiState.chapterIndex) {
+                            rsvpResultResumeCursor
+                        } else {
+                            -1
+                        }
                     coroutineScope.launch(dispatcherProvider.io) {
                         container.readingPositionRepository.savePosition(
                             ReadingPosition(
                                 BookId(bookId),
-                                uiState.chapterIndex,
+                                rsvpResultChapterIndex,
                                 safeRsvpResultIndex,
                                 wordIndex,
-                                rsvpResumeCursor = rsvpResultResumeCursor,
+                                rsvpResumeCursor = resumeCursor,
                             ),
                         )
                     }
-                    backStackEntry.savedStateHandle["rsvp_result_token_index"] = -1
-                    backStackEntry.savedStateHandle["rsvp_result_resume_cursor"] = -1
+                    backStackEntry.savedStateHandle[RSVP_RESULT_CHAPTER_INDEX_KEY] = -1
+                    backStackEntry.savedStateHandle[RSVP_RESULT_TOKEN_INDEX_KEY] = -1
+                    backStackEntry.savedStateHandle[RSVP_RESULT_RESUME_CURSOR_KEY] = -1
                 }
             }
 
@@ -448,7 +522,9 @@ private fun KairoNavHost(
             LaunchedEffect(lifecycleState) {
                 if (lifecycleState == Lifecycle.State.RESUMED && hasInitialized) {
                     // If a resume index from RSVP is pending, don't overwrite it.
-                    if (safeRsvpResultIndex >= 0) return@LaunchedEffect
+                    if (rsvpResultChapterIndex >= 0 && safeRsvpResultIndex >= 0) {
+                        return@LaunchedEffect
+                    }
                     val savedPosition = container.readingPositionRepository.getPosition(
                         BookId(bookId)
                     )
@@ -657,55 +733,78 @@ private fun KairoNavHost(
             // Resume index returned from RSVP. Use it immediately to avoid focus "jump".
             val rsvpResultFlow =
                 remember(backStackEntry) {
-                    backStackEntry.savedStateHandle.getStateFlow("rsvp_result_token_index", -1)
+                    backStackEntry.savedStateHandle.getStateFlow(RSVP_RESULT_TOKEN_INDEX_KEY, -1)
                 }
             val rsvpResultIndex by rsvpResultFlow.collectAsState(initial = -1)
+            val rsvpResultChapterFlow =
+                remember(backStackEntry) {
+                    backStackEntry.savedStateHandle.getStateFlow(RSVP_RESULT_CHAPTER_INDEX_KEY, -1)
+                }
+            val rsvpResultChapterIndex by rsvpResultChapterFlow.collectAsState(initial = -1)
             val rsvpResumeCursorFlow =
                 remember(backStackEntry) {
-                    backStackEntry.savedStateHandle.getStateFlow("rsvp_result_resume_cursor", -1)
+                    backStackEntry.savedStateHandle.getStateFlow(RSVP_RESULT_RESUME_CURSOR_KEY, -1)
                 }
             val rsvpResultResumeCursor by rsvpResumeCursorFlow.collectAsState(initial = -1)
             val safeRsvpResultIndex =
                 if (rsvpResultIndex >= 0) {
                     val tokens = uiState.chapterData?.tokens
-                    if (tokens != null && tokens.isNotEmpty()) {
+                    if (rsvpResultChapterIndex == uiState.chapterIndex &&
+                        tokens != null &&
+                        tokens.isNotEmpty()
+                    ) {
                         tokens.nearestWordIndex(rsvpResultIndex)
                     } else {
-                        rsvpResultIndex
+                        rsvpResultIndex.coerceAtLeast(0)
                     }
                 } else {
                     rsvpResultIndex
                 }
             val effectiveUiState =
-                if (safeRsvpResultIndex >= 0) {
+                if (safeRsvpResultIndex >= 0 &&
+                    rsvpResultChapterIndex == uiState.chapterIndex
+                ) {
                     uiState.copy(focusIndex = safeRsvpResultIndex)
                 } else {
                     uiState
                 }
 
-            LaunchedEffect(safeRsvpResultIndex, rsvpResultResumeCursor) {
-                if (safeRsvpResultIndex >= 0) {
-                    if (safeRsvpResultIndex != uiState.focusIndex) {
+            LaunchedEffect(rsvpResultChapterIndex, safeRsvpResultIndex, rsvpResultResumeCursor) {
+                if (rsvpResultChapterIndex >= 0 && safeRsvpResultIndex >= 0) {
+                    if (rsvpResultChapterIndex != uiState.chapterIndex) {
+                        readerViewModel.loadChapter(rsvpResultChapterIndex, safeRsvpResultIndex)
+                    } else if (safeRsvpResultIndex != uiState.focusIndex) {
                         readerViewModel.applyFocusIndex(safeRsvpResultIndex)
                     }
                     val wordIndex =
-                        resolveWordIndex(
-                            uiState.chapterData?.wordCountByToken,
-                            safeRsvpResultIndex,
-                        )
+                        if (rsvpResultChapterIndex == uiState.chapterIndex) {
+                            resolveWordIndex(
+                                uiState.chapterData?.wordCountByToken,
+                                safeRsvpResultIndex,
+                            )
+                        } else {
+                            0
+                        }
+                    val resumeCursor =
+                        if (rsvpResultChapterIndex == uiState.chapterIndex) {
+                            rsvpResultResumeCursor
+                        } else {
+                            -1
+                        }
                     coroutineScope.launch(dispatcherProvider.io) {
                         container.readingPositionRepository.savePosition(
                             ReadingPosition(
                                 BookId(bookId),
-                                uiState.chapterIndex,
+                                rsvpResultChapterIndex,
                                 safeRsvpResultIndex,
                                 wordIndex,
-                                rsvpResumeCursor = rsvpResultResumeCursor,
+                                rsvpResumeCursor = resumeCursor,
                             ),
                         )
                     }
-                    backStackEntry.savedStateHandle["rsvp_result_token_index"] = -1
-                    backStackEntry.savedStateHandle["rsvp_result_resume_cursor"] = -1
+                    backStackEntry.savedStateHandle[RSVP_RESULT_CHAPTER_INDEX_KEY] = -1
+                    backStackEntry.savedStateHandle[RSVP_RESULT_TOKEN_INDEX_KEY] = -1
+                    backStackEntry.savedStateHandle[RSVP_RESULT_RESUME_CURSOR_KEY] = -1
                 }
             }
 
@@ -745,7 +844,9 @@ private fun KairoNavHost(
 
             LaunchedEffect(lifecycleState) {
                 if (lifecycleState == Lifecycle.State.RESUMED && hasInitialized) {
-                    if (safeRsvpResultIndex >= 0) return@LaunchedEffect
+                    if (rsvpResultChapterIndex >= 0 && safeRsvpResultIndex >= 0) {
+                        return@LaunchedEffect
+                    }
                     val savedPosition = container.readingPositionRepository.getPosition(
                         BookId(bookId)
                     )
@@ -937,6 +1038,16 @@ private fun KairoNavHost(
             val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
             val bookIdValue = BookId(bookId)
             val safeStartIndex = startIndex.coerceAtLeast(0)
+            val chapterCountState =
+                produceState(
+                    initialValue = chapterIndex + 1,
+                    bookId,
+                ) {
+                    value =
+                        runCatching {
+                            container.bookRepository.getBook(bookIdValue).chapters.size
+                        }.getOrDefault(chapterIndex + 1)
+                }
             val savedResumePositionState =
                 produceState<com.example.kairo.core.model.ReadingPosition?>(
                     initialValue = null,
@@ -1032,30 +1143,39 @@ private fun KairoNavHost(
                     playback =
                     RsvpPlaybackCallbacks(
                         onFinished = { resumePoint ->
-                            val resumeIndex =
-                                if (tokens.isNotEmpty()) {
-                                    resumePoint.tokenIndex.coerceIn(0, tokens.lastIndex)
+                            val returnTarget =
+                                resolveRsvpReturnTarget(
+                                    resumePoint = resumePoint,
+                                    currentChapterIndex = chapterIndex,
+                                    chapterCount = chapterCountState.value,
+                                    currentChapterTokens = tokens,
+                                )
+                            val wordIndex =
+                                if (returnTarget.chapterIndex == chapterIndex) {
+                                    resolveWordIndex(wordCountByToken, returnTarget.tokenIndex)
                                 } else {
-                                    resumePoint.tokenIndex.coerceAtLeast(0)
+                                    0
                                 }
-                            val wordIndex = resolveWordIndex(wordCountByToken, resumeIndex)
                             coroutineScope.launch {
                                 container.readingPositionRepository.savePosition(
                                     ReadingPosition(
                                         bookIdValue,
-                                        chapterIndex,
-                                        resumeIndex,
+                                        returnTarget.chapterIndex,
+                                        returnTarget.tokenIndex,
                                         wordIndex,
-                                        rsvpResumeCursor = resumePoint.resumeCursor,
+                                        rsvpResumeCursor = returnTarget.resumeCursor,
                                     ),
                                 )
                             }
                             navController.previousBackStackEntry
                                 ?.savedStateHandle
-                                ?.set("rsvp_result_token_index", resumeIndex)
+                                ?.set(RSVP_RESULT_CHAPTER_INDEX_KEY, returnTarget.chapterIndex)
                             navController.previousBackStackEntry
                                 ?.savedStateHandle
-                                ?.set("rsvp_result_resume_cursor", resumePoint.resumeCursor)
+                                ?.set(RSVP_RESULT_TOKEN_INDEX_KEY, returnTarget.tokenIndex)
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set(RSVP_RESULT_RESUME_CURSOR_KEY, returnTarget.resumeCursor)
                             navController.popBackStack()
                         },
                         onPositionChanged = { resumePoint ->
@@ -1111,10 +1231,13 @@ private fun KairoNavHost(
                             }
                             navController.previousBackStackEntry
                                 ?.savedStateHandle
-                                ?.set("rsvp_result_token_index", resumeIndex)
+                                ?.set(RSVP_RESULT_CHAPTER_INDEX_KEY, chapterIndex)
                             navController.previousBackStackEntry
                                 ?.savedStateHandle
-                                ?.set("rsvp_result_resume_cursor", resumePoint.resumeCursor)
+                                ?.set(RSVP_RESULT_TOKEN_INDEX_KEY, resumeIndex)
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set(RSVP_RESULT_RESUME_CURSOR_KEY, resumePoint.resumeCursor)
                             navController.popBackStack()
                         },
                     ),

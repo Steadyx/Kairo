@@ -1,6 +1,7 @@
 package com.example.kairo.core.tokenization.rtl
 
 import com.example.kairo.core.model.normalizeWhitespace
+import com.example.kairo.core.tokenization.PageNumberHeuristics
 
 internal object RtlTextNormalizer {
     fun normalize(text: String): String {
@@ -22,7 +23,7 @@ internal object RtlTextNormalizer {
     }
 
     fun shouldStripPageNumbers(html: String): Boolean =
-        html.contains("kairo://chapter/", ignoreCase = true)
+        PageNumberHeuristics.shouldStripStandalonePageNumbers(html)
 
     fun stripStandalonePageNumbers(text: String): String =
         text.lineSequence()

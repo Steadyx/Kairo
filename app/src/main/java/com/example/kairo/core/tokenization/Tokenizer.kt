@@ -81,7 +81,7 @@ class Tokenizer {
      */
     private fun applyLinks(tokens: MutableList<Token>, chapter: Chapter): List<Token> {
         if (chapter.links.isNotEmpty()) {
-            applyLinksByCharPositions(tokens, chapter.links)
+            applyLinksByCharPositions(tokens, chapter.links, chapter.plainText)
         }
         applyLinksFromHtml(tokens, chapter.htmlContent)
         return tokens
@@ -90,51 +90,9 @@ class Tokenizer {
     private fun applyLinksByCharPositions(
         tokens: MutableList<Token>,
         links: List<ChapterLink>,
+        plainText: String,
     ) {
-        if (links.isEmpty()) return
-        val sortedLinks =
-            if (links.size <= 1) {
-                links
-            } else {
-                links.sortedBy { it.startChar }
-            }
-        var linkIndex = 0
-        var currentLink: ChapterLink? = sortedLinks.getOrNull(linkIndex) ?: return
-
-        // Track character position as we iterate through tokens
-        var charPos = 0
-        tokens.forEachIndexed { index, token ->
-            val tokenStart = charPos
-            val tokenEnd = charPos + token.text.length
-
-            while (currentLink != null && tokenStart >= currentLink.endChar) {
-                linkIndex += 1
-                currentLink = sortedLinks.getOrNull(linkIndex)
-            }
-
-            val linkChapterIndex =
-                if (currentLink != null &&
-                    tokenStart >= currentLink.startChar &&
-                    tokenStart < currentLink.endChar
-                ) {
-                    currentLink.targetChapterIndex
-                } else {
-                    null
-                }
-
-            // Update character position (account for spaces between word tokens)
-            charPos = tokenEnd
-            if (index < tokens.lastIndex) {
-                val nextToken = tokens[index + 1]
-                if (token.type == TokenType.WORD && nextToken.type == TokenType.WORD) {
-                    charPos++
-                }
-            }
-
-            if (linkChapterIndex != null && token.linkChapterIndex == null) {
-                tokens[index] = token.copy(linkChapterIndex = linkChapterIndex)
-            }
-        }
+        LinkPositionMapper.apply(tokens, links, plainText)
     }
 
     private fun applyLinksFromHtml(
@@ -340,7 +298,7 @@ class Tokenizer {
         text.replace(ELLIPSIS_REGEX, ELLIPSIS_CHAR.toString())
 
     private fun shouldStripPageNumbers(html: String): Boolean =
-        html.contains("kairo://chapter/", ignoreCase = true)
+        PageNumberHeuristics.shouldStripStandalonePageNumbers(html)
 
     private fun stripStandalonePageNumbers(text: String): String {
         return text.lineSequence()

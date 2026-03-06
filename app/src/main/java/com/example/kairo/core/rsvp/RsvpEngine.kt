@@ -1444,16 +1444,41 @@ class ComprehensionRsvpEngine : RsvpEngine {
         if (ch == '.' && isDecimalPoint(word.text, tokenAfterPunct)) return 1.0
 
         val contourStrength =
-            boundaryContourWeight(
+            boundaryTailLiftWeight(
                 token = punctToken,
                 prevWord = word,
                 nextToken = tokenAfterPunct,
             )
         if (contourStrength <= 0.0) return 1.0
 
+        val effectiveStrength = max(speedStrength, MIN_BOUNDARY_TAIL_LIFT_STRENGTH)
         val extra = MAX_BOUNDARY_TAIL_LIFT * contourStrength
 
-        return 1.0 + (extra * speedStrength)
+        return 1.0 + (extra * effectiveStrength)
+    }
+
+    private fun boundaryTailLiftWeight(
+        token: Token,
+        prevWord: Token?,
+        nextToken: Token?,
+    ): Double {
+        val ch = token.text.firstOrNull() ?: return 0.0
+        val prevText = prevWord?.text.orEmpty()
+        return when {
+            ch == '.' ->
+                when {
+                    isDecimalPoint(prevText, nextToken) || isAbbreviationDot(prevText, nextToken) -> 0.0
+                    isLikelySentenceContinuation(nextToken) -> 1.18
+                    else -> 1.34
+                }
+            ch == '\u2026' -> 1.40
+            isSentenceEndingPunctuation(ch) -> 1.26
+            ch == ';' -> 0.62
+            ch == ':' -> 0.58
+            ch == '\u2014' || ch == '\u2013' || ch == '-' -> 0.46
+            ch == ',' && isClauseLeadPunctuation(ch, nextToken) -> 0.24
+            else -> 0.0
+        }
     }
 
     private fun breakMarkerToken(type: TokenType): Token =
@@ -2118,6 +2143,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
         private const val FLOW_MAX_SLOWDOWN = 0.05
         private const val FLOW_STRENGTH = 0.12
         private const val MAX_BOUNDARY_TAIL_LIFT = 0.12
+        private const val MIN_BOUNDARY_TAIL_LIFT_STRENGTH = 0.35
         private const val MIN_LANDING_HOLD_MS = 8.0
         private const val MAX_LANDING_HOLD_MS = 30.0
         private const val LANDING_HOLD_SPEED_BOOST = 0.35

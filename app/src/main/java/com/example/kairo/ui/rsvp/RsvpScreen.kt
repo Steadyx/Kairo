@@ -38,7 +38,7 @@ fun RsvpScreen(
             textStyle = state.textStyle,
             layoutBias = state.layoutBias,
             startIndex = state.book.startIndex,
-            startResumeCursor = state.book.startResumeCursor.takeIf { it >= 0 } ?: state.book.startIndex,
+            startResumeCursor = state.book.startResumeCursor,
             sessionKey = sessionKey,
         )
     val frameState =
@@ -139,7 +139,7 @@ private fun rememberRsvpRuntimeState(
                 dragStartBias = savedVerticalBias
                 dragStartHorizontalBias = savedHorizontalBias
                 currentTokenIndex = savedTokenIndex.coerceAtLeast(0)
-                currentResumeCursor = savedResumeCursor.coerceAtLeast(0)
+                currentResumeCursor = savedResumeCursor.takeIf { it >= 0 } ?: -1
                 isPlaying = savedIsPlaying
                 completed = savedCompleted
             }

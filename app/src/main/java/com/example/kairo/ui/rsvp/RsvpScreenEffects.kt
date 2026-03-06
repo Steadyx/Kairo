@@ -32,7 +32,7 @@ internal fun RsvpPositionSaveEffect(context: RsvpUiContext) {
             resolveCurrentResumeCursor(
                 frames = frames,
                 frameIndex = runtime.frameIndex,
-                fallbackCursor = book.startResumeCursor.takeIf { it >= 0 } ?: book.startIndex,
+                fallbackCursor = book.startResumeCursor.takeIf { it >= 0 } ?: -1,
             )
         runtime.currentTokenIndex = currentIndex
         runtime.currentResumeCursor = currentResumeCursor
@@ -73,7 +73,7 @@ internal fun RsvpSessionResetEffect(context: RsvpUiContext, sessionKey: String) 
         if (lastSessionKey == sessionKey) return@LaunchedEffect
         lastSessionKey = sessionKey
         runtime.currentTokenIndex = book.startIndex
-        runtime.currentResumeCursor = book.startResumeCursor.takeIf { it >= 0 } ?: book.startIndex
+        runtime.currentResumeCursor = book.startResumeCursor.takeIf { it >= 0 } ?: -1
         runtime.frameIndex = alignFrameIndex(frames, book.startIndex, runtime.currentResumeCursor)
         runtime.rampStartFrameIndex = runtime.frameIndex
         runtime.scheduledFrameIndex = -1
