@@ -17,6 +17,8 @@ internal data class OrpTextLayout(
     val horizontalBias: Float,
     val lockPivot: Boolean,
     val smoothTranslation: Boolean,
+    val preferWindowing: Boolean,
+    val simplifyPunctuation: Boolean,
 )
 
 internal data class OrpTextContent(

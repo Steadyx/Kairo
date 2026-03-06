@@ -43,6 +43,8 @@ import com.example.kairo.core.model.RsvpFontFamily
 import com.example.kairo.core.model.RsvpFontWeight
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.nearestWordIndex
+import com.example.kairo.core.model.prefersOrpWindowing
+import com.example.kairo.core.model.prefersSimplifiedOrpDisplay
 import com.example.kairo.ui.theme.InterFontFamily
 import com.example.kairo.ui.theme.RobotoFontFamily
 import kotlin.math.abs
@@ -187,6 +189,9 @@ private fun RsvpFocusWord(
                 profile.config.enablePhraseChunking &&
                     profile.config.maxWordsPerUnit.coerceAtLeast(2) > ORP_LOCK_PIVOT_WORDS,
                 smoothTranslation = runtime.isScrubbing || runtime.isAdjustingPosition,
+                preferWindowing = profile.config.prefersOrpWindowing(runtime.currentTempoMsPerWord),
+                simplifyPunctuation =
+                    profile.config.prefersSimplifiedOrpDisplay(runtime.currentTempoMsPerWord),
             ),
         )
     }

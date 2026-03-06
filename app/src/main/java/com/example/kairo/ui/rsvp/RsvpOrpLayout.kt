@@ -55,8 +55,15 @@ internal fun OrpAlignedTextLayout(
     ) {
         val maxWidthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(MIN_ORP_WIDTH_PX)
         val display =
-            remember(content, textStyle, colors, maxWidthPx) {
-                resolveOrpDisplay(content, textStyle, colors, textMeasurer, maxWidthPx)
+            remember(content, textStyle, colors, maxWidthPx, layout.preferWindowing) {
+                resolveOrpDisplay(
+                    content = content,
+                    textStyle = textStyle,
+                    colors = colors,
+                    textMeasurer = textMeasurer,
+                    maxWidthPx = maxWidthPx,
+                    preferWindowing = layout.preferWindowing,
+                )
             }
         val measuredWidthPx = display.measured.size.width.toFloat()
         val baseEdgePx = with(density) { ORP_BASE_EDGE.toPx() }
@@ -82,13 +89,21 @@ internal fun OrpAlignedTextLayout(
                 safePivotIndex,
             )
         val layoutResult =
-            calculateOrpLayout(
-                display.content,
-                layout,
-                display.measured,
-                bounds,
-                pivotRange,
-            )
+            if (display.content.fullText.isEmpty()) {
+                OrpLayoutResult(
+                    pivotIndex = DEFAULT_PIVOT_INDEX,
+                    translationX = ZERO_FLOAT,
+                    guideBias = stableGuideBias(bounds),
+                )
+            } else {
+                calculateOrpLayout(
+                    display.content,
+                    layout,
+                    display.measured,
+                    bounds,
+                    pivotRange,
+                )
+            }
         val animatedTranslationX =
             animateFloatAsState(
                 targetValue = layoutResult.translationX,
@@ -136,6 +151,7 @@ private fun resolveOrpDisplay(
     colors: OrpColors,
     textMeasurer: TextMeasurer,
     maxWidthPx: Float,
+    preferWindowing: Boolean,
 ): OrpDisplay {
     val baseAnnotated =
         buildOrpAnnotatedText(
@@ -159,7 +175,7 @@ private fun resolveOrpDisplay(
     }
 
     val scale = (maxWidthPx / baseWidthPx).coerceAtMost(1f)
-    if (scale >= ORP_MIN_AUTO_FIT_SCALE) {
+    if (!preferWindowing && scale >= ORP_MIN_AUTO_FIT_SCALE) {
         val scaledStyle =
             textStyle.copy(
                 fontSize = textStyle.fontSize.scaledBy(scale),

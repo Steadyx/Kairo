@@ -19,7 +19,9 @@ internal fun OrpAlignedText(
     colors: OrpColors,
     layout: OrpTextLayout,
 ) {
-    val content = remember(tokens) { buildOrpTextContent(tokens) }
+    val content = remember(tokens, layout.simplifyPunctuation) {
+        buildOrpTextContent(tokens, simplifyPunctuation = layout.simplifyPunctuation)
+    }
     OrpAlignedTextLayout(
         content = content,
         layout = layout,
@@ -61,16 +63,21 @@ internal fun buildOrpAnnotatedText(
 
 internal fun buildOrpTextContent(
     tokens: List<Token>,
+    simplifyPunctuation: Boolean = false,
 ): OrpTextContent {
     val state = OrpTextBuildState()
     val wordCount = tokens.count { it.type == TokenType.WORD }
+    val shouldSimplifyPunctuation = simplifyPunctuation && wordCount > 0
     val fullText =
         buildString {
             tokens.forEachIndexed { index, token ->
                 val nextToken = tokens.getOrNull(index + 1)
                 when (token.type) {
                     TokenType.WORD -> appendWord(token, state, this)
-                    TokenType.PUNCTUATION -> appendPunctuation(token, nextToken, state, this)
+                    TokenType.PUNCTUATION ->
+                        if (!shouldSimplifyPunctuation) {
+                            appendPunctuation(token, nextToken, state, this)
+                        }
                     TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> Unit
                 }
             }

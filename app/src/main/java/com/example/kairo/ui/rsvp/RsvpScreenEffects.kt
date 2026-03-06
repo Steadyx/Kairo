@@ -12,9 +12,11 @@ import androidx.compose.runtime.setValue
 import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
+import com.example.kairo.core.model.effectiveBlinkMode
 import com.example.kairo.core.model.isMidSentencePunctuation
 import com.example.kairo.core.model.isSentenceEndingPunctuation
 import com.example.kairo.core.model.nearestWordIndex
+import com.example.kairo.core.model.wordFloorMsForReadability
 import kotlin.math.max
 import kotlin.math.roundToLong
 import kotlinx.coroutines.delay
@@ -113,7 +115,9 @@ internal fun RsvpPlaybackLoopEffect(context: RsvpUiContext) {
         if (!runtime.isPlaying || runtime.completed) return@LaunchedEffect
         if (runtime.frameIndex >= frames.size) return@LaunchedEffect
         val frame = frames[runtime.frameIndex]
-        if (config.blinkMode == com.example.kairo.core.model.BlinkMode.OFF &&
+        val effectiveTempoMs = (config.tempoMsPerWord * tempoScale).roundToLong()
+        val effectiveBlinkMode = config.effectiveBlinkMode(effectiveTempoMs)
+        if (effectiveBlinkMode == com.example.kairo.core.model.BlinkMode.OFF &&
             shouldSkipBlinkFrame(frame, tempoScale, config)
         ) {
             if (runtime.frameIndex >= frames.lastIndex) {
@@ -135,7 +139,7 @@ internal fun RsvpPlaybackLoopEffect(context: RsvpUiContext) {
             ((frameMs + resumeDelayMs) * tempoScale)
                 .roundToLong()
                 .coerceAtLeast(MIN_FRAME_DELAY_MS)
-        val floorMs = frameFloorMs(frame, config)
+        val floorMs = frameFloorMs(frame, config, effectiveTempoMs)
         if (scaledMs < floorMs) {
             scaledMs = floorMs
         }
@@ -209,6 +213,7 @@ private const val CATCH_UP_FACTOR = 0.25
 private fun frameFloorMs(
     frame: com.example.kairo.core.model.RsvpFrame,
     config: RsvpConfig,
+    effectiveTempoMs: Long,
 ): Long {
     val tokens = frame.tokens
     if (tokens.isEmpty()) return frame.durationMs
@@ -219,7 +224,7 @@ private fun frameFloorMs(
     var total = 0L
     tokens.forEachIndexed { index, token ->
         when (token.type) {
-            TokenType.WORD -> total += wordFloorMs(token, config)
+            TokenType.WORD -> total += wordFloorMs(token, config, effectiveTempoMs)
             TokenType.PUNCTUATION ->
                 total += punctuationFloorMs(tokens, token, index, firstWordIndex, config)
             TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> Unit
@@ -231,11 +236,8 @@ private fun frameFloorMs(
 private fun wordFloorMs(
     word: Token,
     config: RsvpConfig,
-): Long {
-    if (word.isSubwordChunk) return config.longWordMinMs
-    val letters = word.text.count { it.isLetterOrDigit() }
-    return if (letters >= config.longWordChars) config.longWordMinMs else config.minWordMs
-}
+    effectiveTempoMs: Long,
+): Long = config.wordFloorMsForReadability(word, effectiveTempoMs)
 
 private fun punctuationFloorMs(
     tokens: List<Token>,

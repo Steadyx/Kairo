@@ -19,6 +19,7 @@ import com.example.kairo.core.model.RsvpConfig
 import com.example.kairo.core.model.RsvpFrame
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
+import com.example.kairo.core.model.effectiveBlinkMode
 import com.example.kairo.core.model.isMidSentencePunctuation
 import com.example.kairo.core.model.isSentenceEndingPunctuation
 import com.example.kairo.core.model.splitTokenForRsvp
@@ -1783,8 +1784,9 @@ class ComprehensionRsvpEngine : RsvpEngine {
         frames: MutableList<RsvpFrame>,
         config: RsvpConfig,
     ) {
+        val blinkMode = config.effectiveBlinkMode()
         // Early exit if blink mode is disabled - no processing needed
-        if (config.blinkMode == BlinkMode.OFF) return
+        if (blinkMode == BlinkMode.OFF) return
         if (frames.size < 2) return
 
         val strength = speedStrength(config.tempoMsPerWord.toDouble())
@@ -1838,7 +1840,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
                 val maxBlink = (frame.durationMs - floorMs).coerceAtLeast(0L)
                 val punctuationFactor = blinkPunctuationFactor(frame.tokens)
                 val weight =
-                    when (config.blinkMode) {
+                    when (blinkMode) {
                         BlinkMode.SUBTLE -> punctuationFactor
                         BlinkMode.ADAPTIVE -> {
                             val ease = (wordEase(firstWord) + wordEase(nextWord ?: firstWord)) * 0.5
