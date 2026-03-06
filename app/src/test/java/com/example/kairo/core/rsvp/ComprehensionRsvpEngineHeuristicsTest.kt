@@ -38,6 +38,15 @@ class ComprehensionRsvpEngineHeuristicsTest {
             enablePhraseChunking = false,
         )
 
+    private val punctuationConfig =
+        stableConfig.copy(
+            rarityExtraMaxMs = 0L,
+            syllableExtraMs = 0L,
+            complexityStrength = 0.0,
+            lengthStrength = 0.0,
+            lengthExponent = 1.0,
+        )
+
     @Test
     fun abbreviationDotsDoNotCauseSentencePause() {
         val abbrevTokens = listOf(w("Dr"), p("."), w("Alice"))
@@ -119,14 +128,7 @@ class ComprehensionRsvpEngineHeuristicsTest {
 
     @Test
     fun openingQuoteDoesNotAddExtraPause() {
-        val config =
-            stableConfig.copy(
-                rarityExtraMaxMs = 0L,
-                syllableExtraMs = 0L,
-                complexityStrength = 0.0,
-                lengthStrength = 0.0,
-                lengthExponent = 1.0,
-            )
+        val config = punctuationConfig
 
         val plain = engine.generateFrames(
             tokens = listOf(w("Hello")),
@@ -144,14 +146,7 @@ class ComprehensionRsvpEngineHeuristicsTest {
 
     @Test
     fun closingQuoteDoesNotDoubleSentencePause() {
-        val config =
-            stableConfig.copy(
-                rarityExtraMaxMs = 0L,
-                syllableExtraMs = 0L,
-                complexityStrength = 0.0,
-                lengthStrength = 0.0,
-                lengthExponent = 1.0,
-            )
+        val config = punctuationConfig
 
         val base = engine.generateFrames(
             tokens = listOf(w("Hello"), p(".")),
@@ -179,6 +174,127 @@ class ComprehensionRsvpEngineHeuristicsTest {
         assertTrue(
             "Comma inside number should be shorter than a normal comma pause",
             numberFrames[0].durationMs < commaFrames[0].durationMs - 40,
+        )
+    }
+
+    @Test
+    fun semicolonRestartsMoreGentlyThanPeriod() {
+        val semicolonFrames = engine.generateFrames(
+            tokens = listOf(w("Wait"), p(";"), w("then")),
+            startIndex = 0,
+            config = punctuationConfig,
+        )
+        val periodFrames = engine.generateFrames(
+            tokens = listOf(w("Wait"), p("."), w("then")),
+            startIndex = 0,
+            config = punctuationConfig,
+        )
+        val plainFrames = engine.generateFrames(
+            tokens = listOf(w("Wait"), w("then")),
+            startIndex = 0,
+            config = punctuationConfig,
+        )
+
+        assertTrue(semicolonFrames.size >= 2 && periodFrames.size >= 2 && plainFrames.size >= 2)
+        assertTrue(
+            "Expected semicolon to restart more than plain spacing",
+            semicolonFrames[1].durationMs > plainFrames[1].durationMs + 5L,
+        )
+        assertTrue(
+            "Expected semicolon to restart less than a full stop",
+            semicolonFrames[1].durationMs < periodFrames[1].durationMs - 10L,
+        )
+    }
+
+    @Test
+    fun boundaryContourLiftsLastWordBeforeStrongerStops() {
+        val contourConfig =
+            punctuationConfig.copy(
+                commaPauseMs = 0L,
+                periodPauseMs = 0L,
+                sentenceEndPauseMs = 0L,
+                semicolonPauseMs = 0L,
+                colonPauseMs = 0L,
+                dashPauseMs = 0L,
+                usePunctuationLandingHold = false,
+                useAdaptiveTiming = false,
+                useClausePausing = false,
+                useProsodyPacing = false,
+            )
+
+        val plain = engine.generateFrames(
+            tokens = listOf(w("Wait"), w("again")),
+            startIndex = 0,
+            config = contourConfig,
+        )[0].durationMs
+        val comma = engine.generateFrames(
+            tokens = listOf(w("Wait"), p(","), w("again")),
+            startIndex = 0,
+            config = contourConfig,
+        )[0].durationMs
+        val semicolon = engine.generateFrames(
+            tokens = listOf(w("Wait"), p(";"), w("again")),
+            startIndex = 0,
+            config = contourConfig,
+        )[0].durationMs
+        val period = engine.generateFrames(
+            tokens = listOf(w("Wait"), p("."), w("again")),
+            startIndex = 0,
+            config = contourConfig,
+        )[0].durationMs
+
+        assertTrue("Expected plain word baseline", plain > 0L)
+        assertTrue("Expected non-clause comma not to contour like a hard stop", comma <= plain + 3L)
+        assertTrue("Expected semicolon tail lift over plain", semicolon > plain + 3L)
+        assertTrue("Expected period tail lift over semicolon", period > semicolon + 3L)
+    }
+
+    @Test
+    fun clauseLeadingCommaAddsSoftRestartToNextWord() {
+        val commaFrames = engine.generateFrames(
+            tokens = listOf(w("Wait"), p(","), w("because")),
+            startIndex = 0,
+            config = punctuationConfig,
+        )
+        val plainFrames = engine.generateFrames(
+            tokens = listOf(w("Wait"), w("because")),
+            startIndex = 0,
+            config = punctuationConfig,
+        )
+
+        assertTrue(commaFrames.size >= 2 && plainFrames.size >= 2)
+        assertTrue(
+            "Expected clause-leading comma to add a soft restart",
+            commaFrames[1].durationMs > plainFrames[1].durationMs + 5L,
+        )
+    }
+
+    @Test
+    fun ellipsisPauseGetsStrongerBeforeSentenceLikeRestart() {
+        val sentenceLikeFrames = engine.generateFrames(
+            tokens = listOf(w("Wait"), p("\u2026"), w("Now")),
+            startIndex = 0,
+            config = punctuationConfig,
+        )
+        val inlineFrames = engine.generateFrames(
+            tokens = listOf(w("Wait"), p("\u2026"), w("and")),
+            startIndex = 0,
+            config = punctuationConfig,
+        )
+
+        assertTrue(sentenceLikeFrames.isNotEmpty() && inlineFrames.isNotEmpty())
+        assertTrue(
+            "Expected ellipsis before a sentence-like restart to linger longer",
+            sentenceLikeFrames[0].durationMs > inlineFrames[0].durationMs + 20L,
+        )
+        assertTrue(
+            "Expected ellipsis to still be softer than a full stop",
+            sentenceLikeFrames[0].durationMs <
+                engine.generateFrames(
+                    tokens = listOf(w("Wait"), p("."), w("Now")),
+                    startIndex = 0,
+                    config = punctuationConfig,
+                )[0].durationMs,
         )
     }
 

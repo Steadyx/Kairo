@@ -970,6 +970,15 @@ fun RsvpSettingsContent(
                     )
                 }
 
+                SettingsSwitchRow(
+                    title = stringResource(R.string.rsvp_punctuation_landing_title),
+                    subtitle = stringResource(R.string.rsvp_punctuation_landing_subtitle),
+                    checked = config.usePunctuationLandingHold,
+                    onCheckedChange = { enabled ->
+                        updateConfig { it.copy(usePunctuationLandingHold = enabled) }
+                    },
+                )
+
                 BlinkModeSelector(
                     selected = config.blinkMode,
                     onSelect = { mode -> updateConfig { it.copy(blinkMode = mode) } },

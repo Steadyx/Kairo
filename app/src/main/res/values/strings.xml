@@ -186,6 +186,8 @@
     <string name="rsvp_prosody_pacing_subtitle">Shapes cadence more like inner speech by gliding helper words and stressing key meaning words.</string>
     <string name="rsvp_prosody_strength_title">Prosody strength</string>
     <string name="rsvp_prosody_strength_subtitle">Higher = stronger inner-voice shaping.</string>
+    <string name="rsvp_punctuation_landing_title">Punctuation landing</string>
+    <string name="rsvp_punctuation_landing_subtitle">Adds a tiny settling hold after strong punctuation so stops and clause turns do not feel clipped.</string>
     <string name="rsvp_phrase_chunking_title">Phrase chunking</string>
     <string name="rsvp_phrase_chunking_subtitle">Shows short 2-word units to reduce flicker.</string>
     <string name="rsvp_display_details_title">Display details</string>

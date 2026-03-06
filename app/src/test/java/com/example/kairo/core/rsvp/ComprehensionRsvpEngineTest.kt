@@ -84,7 +84,118 @@ class ComprehensionRsvpEngineTest {
                 ).first()
                 .durationMs
 
-        assertTrue("Expected punctuation to add a meaningful pause", withPeriod - plain >= 100L)
+        assertTrue("Expected punctuation to add a meaningful pause", withPeriod - plain >= 140L)
+    }
+
+    @Test
+    fun commaPauseStillLandsAtHighWpm() {
+        val config =
+            RsvpConfig(
+                tempoMsPerWord = 65L,
+                commaPauseMs = 130L,
+                startDelayMs = 0L,
+                endDelayMs = 0L,
+                rampUpFrames = 0,
+                rampDownFrames = 0,
+                enablePhraseChunking = false,
+            )
+
+        val plain =
+            engine
+                .generateFrames(
+                    tokens = listOf(
+                        Token(text = "Hello", type = TokenType.WORD, frequencyScore = 1.0)
+                    ),
+                    startIndex = 0,
+                    config = config,
+                ).first()
+                .durationMs
+
+        val withComma =
+            engine
+                .generateFrames(
+                    tokens =
+                    listOf(
+                        Token(text = "Hello", type = TokenType.WORD, frequencyScore = 1.0),
+                        Token(text = ",", type = TokenType.PUNCTUATION),
+                    ),
+                    startIndex = 0,
+                    config = config,
+                ).first()
+                .durationMs
+
+        assertTrue("Expected comma pause to remain noticeable", withComma - plain >= 70L)
+    }
+
+    @Test
+    fun punctuationLandingHoldCanBeDisabled() {
+        val baseConfig =
+            RsvpConfig(
+                tempoMsPerWord = 75L,
+                startDelayMs = 0L,
+                endDelayMs = 0L,
+                rampUpFrames = 0,
+                rampDownFrames = 0,
+                enablePhraseChunking = false,
+            )
+
+        val withLanding =
+            engine.generateFrames(
+                tokens = listOf(
+                    Token(text = "Hello", type = TokenType.WORD, frequencyScore = 1.0),
+                    Token(text = ".", type = TokenType.PUNCTUATION),
+                    Token(text = "Again", type = TokenType.WORD, frequencyScore = 1.0),
+                ),
+                startIndex = 0,
+                config = baseConfig,
+            ).first().durationMs
+
+        val withoutLanding =
+            engine.generateFrames(
+                tokens = listOf(
+                    Token(text = "Hello", type = TokenType.WORD, frequencyScore = 1.0),
+                    Token(text = ".", type = TokenType.PUNCTUATION),
+                    Token(text = "Again", type = TokenType.WORD, frequencyScore = 1.0),
+                ),
+                startIndex = 0,
+                config = baseConfig.copy(usePunctuationLandingHold = false),
+            ).first().durationMs
+
+        assertTrue(
+            "Expected landing hold to make strong punctuation linger slightly longer",
+            withLanding > withoutLanding,
+        )
+    }
+
+    @Test
+    fun paragraphBreakStillBreathesAtHighWpm() {
+        val config =
+            RsvpConfig(
+                tempoMsPerWord = 65L,
+                paragraphPauseMs = 260L,
+                startDelayMs = 0L,
+                endDelayMs = 0L,
+                rampUpFrames = 0,
+                rampDownFrames = 0,
+                enablePhraseChunking = false,
+            )
+
+        val frames =
+            engine.generateFrames(
+                tokens = listOf(
+                    Token(text = "Hello", type = TokenType.WORD, frequencyScore = 1.0),
+                    Token(text = "\n", type = TokenType.PARAGRAPH_BREAK),
+                    Token(text = "Again", type = TokenType.WORD, frequencyScore = 1.0),
+                ),
+                startIndex = 0,
+                config = config,
+            )
+
+        assertTrue("Expected paragraph break frame", frames.size >= 3)
+        assertTrue(
+            "Expected paragraph break to keep substantial breathing room",
+            frames[1].durationMs >= 220L,
+        )
     }
 
     @Test

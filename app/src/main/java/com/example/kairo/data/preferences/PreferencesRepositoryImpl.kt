@@ -494,6 +494,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
     private fun JSONObject.putPauseScaling(config: RsvpConfig) {
         put("pauseScaleExponent", config.pauseScaleExponent)
         put("minPauseScale", config.minPauseScale)
+        put("usePunctuationLandingHold", config.usePunctuationLandingHold)
     }
 
     private fun JSONObject.putContextMultipliers(config: RsvpConfig) {
@@ -645,6 +646,8 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         copy(
             pauseScaleExponent = obj.optDouble("pauseScaleExponent", defaults.pauseScaleExponent),
             minPauseScale = obj.optDouble("minPauseScale", defaults.minPauseScale),
+            usePunctuationLandingHold =
+                obj.optBoolean("usePunctuationLandingHold", defaults.usePunctuationLandingHold),
         )
 
     private fun RsvpConfig.withContextMultipliersFromJson(
@@ -799,6 +802,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
     private fun writePauseScaling(prefs: MutablePreferences, config: RsvpConfig) {
         prefs[keys.pauseScaleExponent] = config.pauseScaleExponent
         prefs[keys.minPauseScale] = config.minPauseScale
+        prefs[keys.usePunctuationLandingHold] = config.usePunctuationLandingHold
     }
 
     private fun writeContextMultipliers(prefs: MutablePreferences, config: RsvpConfig) {
@@ -990,6 +994,11 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
             pauseScaleExponent =
                 prefs.readOrDefault(keys.pauseScaleExponent, defaults.pauseScaleExponent),
             minPauseScale = prefs.readOrDefault(keys.minPauseScale, defaults.minPauseScale),
+            usePunctuationLandingHold =
+                prefs.readOrDefault(
+                    keys.usePunctuationLandingHold,
+                    defaults.usePunctuationLandingHold,
+                ),
         )
 
     private fun RsvpConfig.withContextMultipliers(
@@ -1122,6 +1131,7 @@ private object PrefKeys {
     val longWordMultiplier = doublePreferencesKey("long_word_multiplier")
     val pauseScaleExponent = doublePreferencesKey("pause_scale_exponent")
     val minPauseScale = doublePreferencesKey("min_pause_scale")
+    val usePunctuationLandingHold = booleanPreferencesKey("use_punctuation_landing_hold")
     val parentheticalMultiplier = doublePreferencesKey("parenthetical_multiplier")
     val dialogueMultiplier = doublePreferencesKey("dialogue_multiplier")
     val smoothingAlpha = doublePreferencesKey("rhythm_smoothing_alpha")
