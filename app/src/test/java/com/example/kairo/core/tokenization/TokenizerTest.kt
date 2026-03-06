@@ -1,6 +1,7 @@
 package com.example.kairo.core.tokenization
 
 import com.example.kairo.core.model.Chapter
+import com.example.kairo.core.model.ChapterLink
 import com.example.kairo.core.model.TokenType
 import com.example.kairo.core.model.joinTokensForDisplay
 import org.junit.Assert.assertEquals
@@ -105,6 +106,60 @@ class TokenizerTest {
 
         assertTrue(words.contains("I"))
         assertEquals(listOf("Indiana", "and", "I", "walked", "home"), words)
+    }
+
+    @Test
+    fun doesNotStripStandaloneNumbersJustBecauseInternalLinksExist() {
+        val tokens =
+            tokenizer.tokenize(
+                chapter(
+                    text = "Preface\n12\ncontinues here.",
+                    htmlContent = "<a href=\"kairo://chapter/1\">toc</a>",
+                ),
+            )
+        val words = tokens.filter { it.type == TokenType.WORD }.map { it.text }
+
+        assertTrue(words.contains("12"))
+    }
+
+    @Test
+    fun stripsStandalonePageNumbersWhenMarkupExplicitlyMarksPageNumbers() {
+        val tokens =
+            tokenizer.tokenize(
+                chapter(
+                    text = "12\ncontinues here.",
+                    htmlContent = "<span epub:type=\"pagebreak\" class=\"pagenum\">12</span><p>continues here.</p>",
+                ),
+            )
+        val words = tokens.filter { it.type == TokenType.WORD }.map { it.text }
+
+        assertEquals(listOf("continues", "here"), words)
+    }
+
+    @Test
+    fun appliesLinksByCharacterPositionsAcrossPunctuationSpacing() {
+        val tokens =
+            tokenizer.tokenize(
+                Chapter(
+                    index = 0,
+                    title = null,
+                    htmlContent = "",
+                    plainText = "Hello, world again",
+                    links =
+                        listOf(
+                            ChapterLink(
+                                startChar = 7,
+                                endChar = 12,
+                                targetChapterIndex = 2,
+                            ),
+                        ),
+                ),
+            )
+        val words = tokens.filter { it.type == TokenType.WORD }
+
+        assertEquals("world", words[1].text)
+        assertEquals(2, words[1].linkChapterIndex)
+        assertTrue(words.filterIndexed { index, _ -> index != 1 }.none { it.linkChapterIndex == 2 })
     }
 
     @Test

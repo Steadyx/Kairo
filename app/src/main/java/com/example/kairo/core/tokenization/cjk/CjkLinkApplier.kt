@@ -4,16 +4,16 @@ import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.ChapterLink
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
+import com.example.kairo.core.tokenization.LinkPositionMapper
 
 internal object CjkLinkApplier {
     fun apply(
         tokens: MutableList<Token>,
         chapter: Chapter,
         tokenizeInlineText: (String) -> List<String>,
-        insertWordSpaces: Boolean,
     ): List<Token> {
         if (chapter.links.isNotEmpty()) {
-            applyLinksByCharPositions(tokens, chapter.links, insertWordSpaces)
+            applyLinksByCharPositions(tokens, chapter.links, chapter.plainText)
         }
         applyLinksFromHtml(tokens, chapter.htmlContent, tokenizeInlineText)
         return tokens
@@ -22,58 +22,9 @@ internal object CjkLinkApplier {
     private fun applyLinksByCharPositions(
         tokens: MutableList<Token>,
         links: List<ChapterLink>,
-        insertWordSpaces: Boolean,
+        plainText: String,
     ) {
-        if (links.isEmpty()) return
-        val sortedLinks =
-            if (links.size <= 1) {
-                links
-            } else {
-                links.sortedBy { it.startChar }
-            }
-        var linkIndex = 0
-        var currentLink: ChapterLink? = sortedLinks.getOrNull(linkIndex) ?: return
-
-        var charPos = 0
-        tokens.forEachIndexed { index, token ->
-            val tokenStart = charPos
-            val tokenEnd = charPos + token.text.length
-
-            while (currentLink != null && tokenStart >= currentLink.endChar) {
-                linkIndex += 1
-                currentLink = sortedLinks.getOrNull(linkIndex)
-            }
-
-            val linkChapterIndex =
-                if (currentLink != null &&
-                    tokenStart >= currentLink.startChar &&
-                    tokenStart < currentLink.endChar
-                ) {
-                    currentLink.targetChapterIndex
-                } else {
-                    null
-                }
-
-            charPos = tokenEnd
-            if (index < tokens.lastIndex) {
-                val nextToken = tokens[index + 1]
-                val shouldInsertSpace =
-                    insertWordSpaces ||
-                        (
-                            token.type == TokenType.WORD &&
-                                nextToken.type == TokenType.WORD &&
-                                isLatinWord(token.text) &&
-                                isLatinWord(nextToken.text)
-                        )
-                if (shouldInsertSpace) {
-                    charPos++
-                }
-            }
-
-            if (linkChapterIndex != null && token.linkChapterIndex == null) {
-                tokens[index] = token.copy(linkChapterIndex = linkChapterIndex)
-            }
-        }
+        LinkPositionMapper.apply(tokens, links, plainText)
     }
 
     private fun applyLinksFromHtml(
@@ -191,21 +142,6 @@ internal object CjkLinkApplier {
             }
             .replace(Regex("\\s+"), " ")
             .trim()
-
-    private fun isLatinWord(text: String): Boolean {
-        if (text.isBlank()) return false
-        var index = 0
-        while (index < text.length) {
-            val codePoint = text.codePointAt(index)
-            if (!CjkCharClassifier.isLatinLike(codePoint) &&
-                !CjkCharClassifier.isWordConnector(codePoint)
-            ) {
-                return false
-            }
-            index += Character.charCount(codePoint)
-        }
-        return true
-    }
 
     private fun isPageNumberText(text: String): Boolean {
         val trimmed = text.trim()

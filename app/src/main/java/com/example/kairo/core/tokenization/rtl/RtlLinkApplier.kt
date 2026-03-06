@@ -4,6 +4,7 @@ import com.example.kairo.core.model.Chapter
 import com.example.kairo.core.model.ChapterLink
 import com.example.kairo.core.model.Token
 import com.example.kairo.core.model.TokenType
+import com.example.kairo.core.tokenization.LinkPositionMapper
 
 internal object RtlLinkApplier {
     fun apply(
@@ -12,7 +13,7 @@ internal object RtlLinkApplier {
         tokenizeInlineText: (String) -> List<String>,
     ): List<Token> {
         if (chapter.links.isNotEmpty()) {
-            applyLinksByCharPositions(tokens, chapter.links)
+            applyLinksByCharPositions(tokens, chapter.links, chapter.plainText)
         }
         applyLinksFromHtml(tokens, chapter.htmlContent, tokenizeInlineText)
         return tokens
@@ -21,49 +22,9 @@ internal object RtlLinkApplier {
     private fun applyLinksByCharPositions(
         tokens: MutableList<Token>,
         links: List<ChapterLink>,
+        plainText: String,
     ) {
-        if (links.isEmpty()) return
-        val sortedLinks =
-            if (links.size <= 1) {
-                links
-            } else {
-                links.sortedBy { it.startChar }
-            }
-        var linkIndex = 0
-        var currentLink: ChapterLink? = sortedLinks.getOrNull(linkIndex) ?: return
-
-        var charPos = 0
-        tokens.forEachIndexed { index, token ->
-            val tokenStart = charPos
-            val tokenEnd = charPos + token.text.length
-
-            while (currentLink != null && tokenStart >= currentLink.endChar) {
-                linkIndex += 1
-                currentLink = sortedLinks.getOrNull(linkIndex)
-            }
-
-            val linkChapterIndex =
-                if (currentLink != null &&
-                    tokenStart >= currentLink.startChar &&
-                    tokenStart < currentLink.endChar
-                ) {
-                    currentLink.targetChapterIndex
-                } else {
-                    null
-                }
-
-            charPos = tokenEnd
-            if (index < tokens.lastIndex) {
-                val nextToken = tokens[index + 1]
-                if (token.type == TokenType.WORD && nextToken.type == TokenType.WORD) {
-                    charPos++
-                }
-            }
-
-            if (linkChapterIndex != null && token.linkChapterIndex == null) {
-                tokens[index] = token.copy(linkChapterIndex = linkChapterIndex)
-            }
-        }
+        LinkPositionMapper.apply(tokens, links, plainText)
     }
 
     private fun applyLinksFromHtml(

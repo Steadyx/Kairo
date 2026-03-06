@@ -59,6 +59,33 @@ class RsvpPlaybackStateTest {
         assertFalse(context.runtime.isPlaying)
         assertEquals(1, finishedPoint.tokenIndex)
         assertEquals(-1, finishedPoint.resumeCursor)
+        assertEquals(0, finishedPoint.chapterIndex)
+    }
+
+    @Test
+    fun completePlaybackReturnsOverflowIndexAtChapterEnd() {
+        var finishedPoint = RsvpResumePoint(tokenIndex = -1, resumeCursor = -1)
+        val context =
+            createContext(
+                frames = listOf(
+                    RsvpFrame(
+                        tokens = listOf(Token(text = "World", type = TokenType.WORD)),
+                        durationMs = 120L,
+                        originalTokenIndex = 1,
+                    ),
+                ),
+                tokens = listOf(
+                    Token(text = "Hello", type = TokenType.WORD),
+                    Token(text = "World", type = TokenType.WORD),
+                ),
+                onFinished = { finishedPoint = it },
+            )
+
+        completePlayback(context)
+
+        assertEquals(2, finishedPoint.tokenIndex)
+        assertEquals(-1, finishedPoint.resumeCursor)
+        assertEquals(0, finishedPoint.chapterIndex)
     }
 
     @Test

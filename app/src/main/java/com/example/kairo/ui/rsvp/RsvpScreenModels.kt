@@ -55,6 +55,7 @@ data class RsvpBookmarkCallbacks(val onAddBookmark: (tokenIndex: Int, previewTex
 data class RsvpResumePoint(
     val tokenIndex: Int,
     val resumeCursor: Int = -1,
+    val chapterIndex: Int? = null,
 )
 
 data class RsvpPlaybackCallbacks(

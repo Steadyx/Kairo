@@ -7,7 +7,6 @@ import com.example.kairo.core.tokenization.ChapterTokenizer
 class CjkTokenizer(
     config: CjkSegmenterConfig = CjkSegmenterConfig(),
 ) : ChapterTokenizer {
-    private val segmenterConfig = config
     private val segmenter = CjkSegmenter(config)
 
     override fun tokenize(chapter: Chapter): List<Token> {
@@ -44,7 +43,6 @@ class CjkTokenizer(
             tokens,
             chapter,
             segmenter::tokenizeInlineText,
-            insertWordSpaces = segmenterConfig.treatHangulAsWord,
         )
     }
 }
