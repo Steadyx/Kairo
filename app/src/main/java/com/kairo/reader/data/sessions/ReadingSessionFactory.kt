@@ -10,7 +10,7 @@ object ReadingSessionFactory {
     fun create(draft: ReadingSessionDraft): ReadingSession? {
         val safeDuration = draft.activeDurationMs.coerceAtLeast(0L)
         val safeWords = draft.wordsRead.coerceAtLeast(0)
-        if (safeDuration < MIN_SESSION_DURATION_MS || safeWords == 0) return null
+        if (safeDuration == 0L || safeWords == 0) return null
         val effectiveWpm =
             ((safeWords * MILLIS_PER_MINUTE.toDouble()) / safeDuration.toDouble())
                 .roundToInt()
@@ -32,7 +32,6 @@ object ReadingSessionFactory {
         )
     }
 
-    private const val MIN_SESSION_DURATION_MS = 300_000L
     private const val MILLIS_PER_MINUTE = 60_000L
     private const val MIN_EFFECTIVE_WPM = 1
     private const val MAX_EFFECTIVE_WPM = 2_000
