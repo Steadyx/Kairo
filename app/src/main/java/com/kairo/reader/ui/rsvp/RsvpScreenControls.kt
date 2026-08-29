@@ -51,6 +51,8 @@ import com.kairo.reader.core.model.nearestWordIndex
 
 private data class PausedPreviewContent(val paragraph: AnnotatedString, val focusWord: String,)
 
+/** [controlsModifier] targets the tutorial-highlighted playback row inside the controls panel. */
+@Suppress("ModifierParameter")
 @Composable
 internal fun BoxScope.RsvpBottomControls(
     context: RsvpUiContext,
@@ -91,6 +93,8 @@ internal fun BoxScope.RsvpBottomControls(
     }
 }
 
+/** [controlsModifier] is forwarded to the playback row rather than this panel's root column. */
+@Suppress("ModifierParameter")
 @Composable
 private fun RsvpDefaultBottomControls(
     context: RsvpUiContext,
@@ -157,6 +161,8 @@ private fun RsvpDefaultBottomControls(
     }
 }
 
+/** [controlsModifier] is forwarded to the playback row rather than this panel's root column. */
+@Suppress("ModifierParameter")
 @Composable
 private fun RsvpCompactBottomControls(
     context: RsvpUiContext,

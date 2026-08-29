@@ -47,9 +47,9 @@ internal fun ReaderSelectionBar(
     onNote: () -> Unit,
     onSearch: () -> Unit,
     onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
     canSaveSelection: Boolean = true,
     selectionSupportingText: String? = null,
-    modifier: Modifier = Modifier,
 ) {
     Surface(
         modifier = modifier,

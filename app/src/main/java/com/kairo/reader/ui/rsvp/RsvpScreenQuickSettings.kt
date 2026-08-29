@@ -51,6 +51,11 @@ import com.kairo.reader.ui.settings.SettingsSwitchRow
 import com.kairo.reader.ui.settings.ThemeSelector
 import kotlin.math.roundToInt
 
+/**
+ * These modifiers target the tutorial-highlighted panel and settings row, not the visibility
+ * container that is this composable's root.
+ */
+@Suppress("ModifierParameter")
 @Composable
 internal fun BoxScope.RsvpQuickSettingsPanel(
     context: RsvpUiContext,
@@ -136,6 +141,8 @@ private fun RsvpQuickSettingsHandle() {
     }
 }
 
+/** [settingsRowModifier] is forwarded to the tutorial-highlighted settings row. */
+@Suppress("ModifierParameter")
 @Composable
 private fun RsvpQuickSettingsMain(
     context: RsvpUiContext,
@@ -205,6 +212,8 @@ private fun RsvpQuickSettingsHeader(context: RsvpUiContext) {
     )
 }
 
+/** [settingsRowModifier] targets only the mode-settings navigation row. */
+@Suppress("ModifierParameter")
 @Composable
 private fun RsvpQuickSettingsBookmarks(
     context: RsvpUiContext,
