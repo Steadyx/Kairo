@@ -42,10 +42,7 @@ internal enum class RsvpSegmentationReason {
     ARTIFICIAL_HORIZON_NEUTRAL,
 }
 
-internal data class RsvpScoreComponent(
-    val reason: RsvpSegmentationReason,
-    val value: Int,
-)
+internal data class RsvpScoreComponent(val reason: RsvpSegmentationReason, val value: Int,)
 
 internal data class RsvpSegmentationDecision(
     val selectedWordCount: Int,

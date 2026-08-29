@@ -98,6 +98,4 @@ internal fun RecordReaderSessionEffect(
     }
 }
 
-private data class ReaderSessionSnapshot(
-    val progress: ReaderProgress,
-)
+private data class ReaderSessionSnapshot(val progress: ReaderProgress,)

@@ -11,11 +11,7 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
-internal data class MomentumDurationValue(
-    val hours: Int,
-    val minutes: Int,
-    val isLessThanMinute: Boolean,
-)
+internal data class MomentumDurationValue(val hours: Int, val minutes: Int, val isLessThanMinute: Boolean,)
 
 internal fun momentumDurationValue(durationMs: Long): MomentumDurationValue {
     val safeDurationMs = durationMs.coerceAtLeast(0L)

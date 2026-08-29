@@ -355,10 +355,10 @@ class ReaderViewModelConcurrencyTest {
                 bookRepository = FakeBookRepository(book, listOf(chapter)),
                 tokenRepository = FakeTokenRepository(tokens = emptyList()),
                 dispatcherProvider =
-                    object : DispatcherProvider {
-                        override val default = testDispatcher
-                        override val io = testDispatcher
-                    },
+                object : DispatcherProvider {
+                    override val default = testDispatcher
+                    override val io = testDispatcher
+                },
                 imageBoundsResolver = ReaderImageBoundsResolver { imagePath ->
                     requestedPaths += imagePath
                     ReaderImageSize(widthPx = 640f, heightPx = 480f)
@@ -398,10 +398,10 @@ class ReaderViewModelConcurrencyTest {
                 bookRepository = repository,
                 tokenRepository = FakeTokenRepository(),
                 dispatcherProvider =
-                    object : DispatcherProvider {
-                        override val default = testDispatcher
-                        override val io = testDispatcher
-                    },
+                object : DispatcherProvider {
+                    override val default = testDispatcher
+                    override val io = testDispatcher
+                },
                 imageBoundsResolver = ReaderImageBoundsResolver { imagePath ->
                     requestedImagePaths += imagePath
                     ReaderImageSize(widthPx = 640f, heightPx = 480f)
@@ -583,11 +583,11 @@ private fun overLimitImageChapter(index: Int): Chapter =
         index = index,
         title = "Over limit",
         htmlContent =
-            buildString {
-                repeat(257) { imageIndex ->
-                    append("<img src='kairo_epub_assets/book/images/$imageIndex.png'>")
-                }
-            },
+        buildString {
+            repeat(257) { imageIndex ->
+                append("<img src='kairo_epub_assets/book/images/$imageIndex.png'>")
+            }
+        },
         plainText = "Hello world",
         wordCount = 2,
     )
@@ -631,10 +631,10 @@ private class FakeBookRepository(
 
 private class FakeTokenRepository(
     private val tokens: List<Token> =
-    listOf(
-        Token(text = "Hello", type = TokenType.WORD),
-        Token(text = "world", type = TokenType.WORD),
-    ),
+        listOf(
+            Token(text = "Hello", type = TokenType.WORD),
+            Token(text = "world", type = TokenType.WORD),
+        ),
 ) : TokenRepository {
     override suspend fun getTokens(
         bookId: BookId,

@@ -7,8 +7,7 @@ internal const val MAX_READER_CHAPTER_LOCAL_IMAGE_CANDIDATES = 256
 internal const val READER_CHAPTER_IMAGE_LIMIT_MESSAGE =
     "This chapter contains too many images to display."
 
-internal class ReaderChapterImageLimitException :
-    IllegalArgumentException(READER_CHAPTER_IMAGE_LIMIT_MESSAGE)
+internal class ReaderChapterImageLimitException : IllegalArgumentException(READER_CHAPTER_IMAGE_LIMIT_MESSAGE)
 
 private sealed interface HtmlBlockMarker {
     data object Paragraph : HtmlBlockMarker

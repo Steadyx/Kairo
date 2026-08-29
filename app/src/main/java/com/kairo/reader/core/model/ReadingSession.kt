@@ -20,20 +20,9 @@ data class ReadingSession(
 
 data class ReadingSessionItem(val session: ReadingSession, val book: Book,)
 
-data class ReadingMomentumDay(
-    val startedAt: Long,
-    val activeDurationMs: Long = 0L,
-    val wordsRead: Int = 0,
-    val sessionCount: Int = 0,
-)
+data class ReadingMomentumDay(val startedAt: Long, val activeDurationMs: Long = 0L, val wordsRead: Int = 0, val sessionCount: Int = 0,)
 
-data class ReadingMomentumWeek(
-    val startedAt: Long,
-    val endedAt: Long,
-    val activeDurationMs: Long,
-    val wordsRead: Int,
-    val activeDays: Int,
-)
+data class ReadingMomentumWeek(val startedAt: Long, val endedAt: Long, val activeDurationMs: Long, val wordsRead: Int, val activeDays: Int,)
 
 data class ReadingMomentum(
     val sessions: List<ReadingSessionItem> = emptyList(),

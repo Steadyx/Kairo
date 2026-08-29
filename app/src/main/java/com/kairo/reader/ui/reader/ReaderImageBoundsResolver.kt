@@ -14,10 +14,8 @@ fun interface ReaderImageBoundsResolver {
     }
 }
 
-internal class FileReaderImageBoundsResolver(
-    private val filesDirectory: File,
-    private val ioDispatcher: CoroutineDispatcher,
-) : ReaderImageBoundsResolver {
+internal class FileReaderImageBoundsResolver(private val filesDirectory: File, private val ioDispatcher: CoroutineDispatcher,) :
+    ReaderImageBoundsResolver {
     override suspend fun resolve(imagePath: String): ReaderImageSize? =
         withContext(ioDispatcher) {
             try {

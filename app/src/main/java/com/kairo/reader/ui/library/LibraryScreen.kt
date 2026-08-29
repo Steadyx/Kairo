@@ -54,8 +54,8 @@ import com.kairo.reader.core.model.SavedAnnotationItem
 import com.kairo.reader.data.books.BookImportFormats
 import com.kairo.reader.data.books.TextImportRequest
 import com.kairo.reader.data.search.LibrarySearchState
-import com.kairo.reader.ui.search.LibrarySearchOverlay
 import com.kairo.reader.ui.saved.SavedAnnotationEditorDialog
+import com.kairo.reader.ui.search.LibrarySearchOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
 import com.kairo.reader.ui.tutorial.StartingTutorialTargetIds
@@ -342,15 +342,15 @@ fun LibraryScreen(
     pendingEditAnnotationId
         ?.let { id -> annotations.firstOrNull { it.annotation.id == id } }
         ?.let { item ->
-        SavedAnnotationEditorDialog(
-            annotation = item.annotation,
-            onSave = { request ->
-                onEditAnnotation(request)
-                pendingEditAnnotationId = null
-            },
-            onDismiss = { pendingEditAnnotationId = null },
-        )
-    }
+            SavedAnnotationEditorDialog(
+                annotation = item.annotation,
+                onSave = { request ->
+                    onEditAnnotation(request)
+                    pendingEditAnnotationId = null
+                },
+                onDismiss = { pendingEditAnnotationId = null },
+            )
+        }
 
     pendingDeleteAnnotationId?.let { annotationId ->
         AlertDialog(

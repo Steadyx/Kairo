@@ -15,10 +15,7 @@ sealed interface LibrarySearchState {
 
     data class Loading(val query: String) : LibrarySearchState
 
-    data class Success(
-        val query: String,
-        val results: List<LibrarySearchResult>,
-    ) : LibrarySearchState
+    data class Success(val query: String, val results: List<LibrarySearchResult>,) : LibrarySearchState
 
     data class Error(val query: String) : LibrarySearchState
 }

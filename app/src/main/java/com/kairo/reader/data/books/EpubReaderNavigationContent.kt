@@ -27,10 +27,7 @@ internal enum class EpubNavigationProvenance {
     NCX,
 }
 
-internal data class EpubReaderNavigationHeading(
-    val level: Int,
-    val text: String,
-)
+internal data class EpubReaderNavigationHeading(val level: Int, val text: String,)
 
 internal object EpubReaderNavigationContent {
     const val MARKER = "data-kairo-reader-nav=\"toc-v2\""
@@ -41,11 +38,11 @@ internal object EpubReaderNavigationContent {
     ): String? =
         render(
             references =
-                result.references.map { reference ->
-                    reference.copy(
-                        href = persistedChapterHref(reference.href, validChapterIndexes),
-                    )
-                },
+            result.references.map { reference ->
+                reference.copy(
+                    href = persistedChapterHref(reference.href, validChapterIndexes),
+                )
+            },
             heading = result.heading,
             ariaLabel = result.ariaLabel,
         )

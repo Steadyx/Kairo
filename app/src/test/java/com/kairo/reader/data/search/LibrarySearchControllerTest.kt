@@ -3,8 +3,8 @@ package com.kairo.reader.data.search
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.LibrarySearchResult
 import com.kairo.reader.core.model.LibrarySearchResultKind
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -76,9 +76,7 @@ class LibrarySearchControllerTest {
         }
 }
 
-private class FakeSearchRepository(
-    private val searchHandler: suspend (String) -> List<LibrarySearchResult>,
-) : LibrarySearchRepository {
+private class FakeSearchRepository(private val searchHandler: suspend (String) -> List<LibrarySearchResult>,) : LibrarySearchRepository {
     override suspend fun search(
         query: String,
         bookId: String?,

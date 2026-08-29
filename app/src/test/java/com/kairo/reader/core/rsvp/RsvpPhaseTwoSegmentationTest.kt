@@ -157,9 +157,11 @@ class RsvpPhaseTwoSegmentationTest {
         assertFalse(frames.any { frame -> frame.words().containsAll(listOf("12", "50")) })
         assertEquals(listOf("(", "New", "York", ")"), frames.first().tokens.map(Token::text))
         assertTrue(frames.zipWithNext().all { (left, right) -> left.resumeCursor < right.resumeCursor })
-        assertTrue(frames.all { frame ->
-            frame.displayOriginalStartIndex < frame.displayOriginalEndExclusive
-        })
+        assertTrue(
+            frames.all { frame ->
+                frame.displayOriginalStartIndex < frame.displayOriginalEndExclusive
+            }
+        )
     }
 
     @Test
@@ -202,9 +204,11 @@ class RsvpPhaseTwoSegmentationTest {
                     config = config.copy(maxWordsPerUnit = 2),
                     languagePolicy = fixture.policy,
                 )
-            assertTrue(decision.components.none { component ->
-                component.reason in ENGLISH_ONLY_REASONS
-            })
+            assertTrue(
+                decision.components.none { component ->
+                    component.reason in ENGLISH_ONLY_REASONS
+                }
+            )
         }
     }
 
@@ -361,11 +365,7 @@ class RsvpPhaseTwoSegmentationTest {
     private fun RsvpFrame.words(): List<String> =
         tokens.filter { it.type == TokenType.WORD }.map(Token::text)
 
-    private data class LanguageFixture(
-        val languageTag: String,
-        val text: String,
-        val policy: RsvpLanguagePolicy,
-    )
+    private data class LanguageFixture(val languageTag: String, val text: String, val policy: RsvpLanguagePolicy,)
 
     private companion object {
         val ENGLISH_ONLY_REASONS =

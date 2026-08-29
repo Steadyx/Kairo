@@ -31,10 +31,10 @@ class ReaderTableOfContentsTest {
                     label = "The Crossing",
                     depth = 0,
                     target =
-                        TableOfContentsTarget(
-                            chapterIndex = 0,
-                            characterOffset = plainText.indexOf("The Crossing"),
-                        ),
+                    TableOfContentsTarget(
+                        chapterIndex = 0,
+                        characterOffset = plainText.indexOf("The Crossing"),
+                    ),
                 ),
             )
         val crossingToken = tokens.indexOfFirst { it.text == "Crossing" }

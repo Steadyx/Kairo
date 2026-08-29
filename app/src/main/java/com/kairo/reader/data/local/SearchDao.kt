@@ -3,16 +3,9 @@ package com.kairo.reader.data.local
 import androidx.room.Dao
 import androidx.room.Query
 
-data class SearchPassageBookEntity(
-    val bookId: String,
-    val bookTitle: String,
-)
+data class SearchPassageBookEntity(val bookId: String, val bookTitle: String,)
 
-data class SearchPassageChapterPageEntity(
-    val chapterIndex: Int,
-    val chapterTitle: String?,
-    val plainText: String,
-)
+data class SearchPassageChapterPageEntity(val chapterIndex: Int, val chapterTitle: String?, val plainText: String,)
 
 @Dao
 interface SearchDao {

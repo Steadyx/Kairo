@@ -13,17 +13,9 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.max
 import kotlin.math.min
 
-internal data class ReaderParagraphVisualContent(
-    val text: AnnotatedString,
-    val highlights: List<ReaderInlineHighlightRange>,
-)
+internal data class ReaderParagraphVisualContent(val text: AnnotatedString, val highlights: List<ReaderInlineHighlightRange>,)
 
-internal data class ReaderInlineHighlightRange(
-    val key: String,
-    val start: Int,
-    val endExclusive: Int,
-    val color: Color,
-)
+internal data class ReaderInlineHighlightRange(val key: String, val start: Int, val endExclusive: Int, val color: Color,)
 
 internal fun MutableList<ReaderInlineHighlightRange>.addOrExtendInlineHighlight(
     key: String,

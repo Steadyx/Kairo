@@ -135,9 +135,9 @@ private fun ReaderHeaderTopRow(
             )
             Text(
                 text =
-                    state.tableOfContentsLabel
-                        ?: state.chapterTitle
-                        ?: stringResource(R.string.reader_chapter_title, state.chapterIndex + 1),
+                state.tableOfContentsLabel
+                    ?: state.chapterTitle
+                    ?: stringResource(R.string.reader_chapter_title, state.chapterIndex + 1),
                 style = if (state.landscapeCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

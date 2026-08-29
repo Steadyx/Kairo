@@ -102,7 +102,7 @@ class LibrarySearchRepositoryImplTest {
                 FakeSearchDao(
                     passageBooks = listOf(passageBook()),
                     passagesByBook =
-                        mapOf("book" to listOf(passageChapter(plainText = plainText))),
+                    mapOf("book" to listOf(passageChapter(plainText = plainText))),
                 )
             val repository = repository(searchDao, FakeSavedAnnotationDao())
 
@@ -124,7 +124,7 @@ class LibrarySearchRepositoryImplTest {
                 FakeSearchDao(
                     passageBooks = listOf(passageBook()),
                     passagesByBook =
-                        mapOf("book" to listOf(passageChapter(plainText = plainText))),
+                    mapOf("book" to listOf(passageChapter(plainText = plainText))),
                 )
             val repository = repository(searchDao, FakeSavedAnnotationDao())
 
@@ -141,20 +141,20 @@ class LibrarySearchRepositoryImplTest {
                 FakeSearchDao(
                     passageBooks = listOf(passageBook()),
                     passagesByBook =
-                        mapOf(
-                            "book" to
-                                (0..35).map { chapterIndex ->
-                                    passageChapter(
-                                        chapterIndex = chapterIndex,
-                                        plainText =
-                                            if (chapterIndex == 35) {
-                                                "finally needle"
-                                            } else {
-                                                "no match here"
-                                            },
-                                    )
-                                },
-                        ),
+                    mapOf(
+                        "book" to
+                            (0..35).map { chapterIndex ->
+                                passageChapter(
+                                    chapterIndex = chapterIndex,
+                                    plainText =
+                                    if (chapterIndex == 35) {
+                                        "finally needle"
+                                    } else {
+                                        "no match here"
+                                    },
+                                )
+                            },
+                    ),
                 )
             val repository = repository(searchDao, FakeSavedAnnotationDao())
 
@@ -172,12 +172,12 @@ class LibrarySearchRepositoryImplTest {
                 FakeSearchDao(
                     passageBooks = listOf(passageBook()),
                     passagesByBook =
-                        mapOf(
-                            "book" to
-                                (0 until 40).map { chapterIndex ->
-                                    passageChapter(chapterIndex, plainText = "one needle")
-                                },
-                        ),
+                    mapOf(
+                        "book" to
+                            (0 until 40).map { chapterIndex ->
+                                passageChapter(chapterIndex, plainText = "one needle")
+                            },
+                    ),
                 )
             val repository = repository(searchDao, FakeSavedAnnotationDao())
 
@@ -195,15 +195,15 @@ class LibrarySearchRepositoryImplTest {
                 FakeSearchDao(
                     passageBooks = listOf(passageBook()),
                     passagesByBook =
-                        mapOf(
-                            "book" to
-                                (0 until 32).map { chapterIndex ->
-                                    passageChapter(
-                                        chapterIndex,
-                                        plainText = "needle needle needle needle",
-                                    )
-                                },
-                        ),
+                    mapOf(
+                        "book" to
+                            (0 until 32).map { chapterIndex ->
+                                passageChapter(
+                                    chapterIndex,
+                                    plainText = "needle needle needle needle",
+                                )
+                            },
+                    ),
                 )
             val repository = repository(searchDao, FakeSavedAnnotationDao())
 
@@ -274,9 +274,8 @@ private class FakeSearchDao(
     ): List<BookEntity> = bookSearch()
 }
 
-private class FakeSavedAnnotationDao(
-    private val search: suspend () -> List<SavedAnnotationWithBookEntity> = { emptyList() },
-) : SavedAnnotationDao {
+private class FakeSavedAnnotationDao(private val search: suspend () -> List<SavedAnnotationWithBookEntity> = { emptyList() },) :
+    SavedAnnotationDao {
     override suspend fun upsertInternal(entity: SavedAnnotationEntity) = Unit
 
     override suspend fun bookExists(bookId: String): Boolean = true
@@ -331,19 +330,19 @@ private fun passageChapter(
 private fun savedWithBook(): SavedAnnotationWithBookEntity =
     SavedAnnotationWithBookEntity(
         annotation =
-            SavedAnnotationEntity(
-                id = "saved",
-                bookId = "book",
-                chapterIndex = 1,
-                startTokenIndex = 4,
-                endTokenIndex = 5,
-                selectedText = "needle",
-                note = "Saved needle",
-                color = "YELLOW",
-                kind = "HIGHLIGHT",
-                createdAt = 1L,
-                updatedAt = 1L,
-            ),
+        SavedAnnotationEntity(
+            id = "saved",
+            bookId = "book",
+            chapterIndex = 1,
+            startTokenIndex = 4,
+            endTokenIndex = 5,
+            selectedText = "needle",
+            note = "Saved needle",
+            color = "YELLOW",
+            kind = "HIGHLIGHT",
+            createdAt = 1L,
+            updatedAt = 1L,
+        ),
         book = book(),
         chapterCount = 4,
     )

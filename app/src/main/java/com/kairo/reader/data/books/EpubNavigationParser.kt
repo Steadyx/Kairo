@@ -4,9 +4,7 @@ import com.kairo.reader.data.books.epub.EpubHtmlEntities
 import com.kairo.reader.data.books.epub.EpubNavigationReference
 import java.util.Locale
 
-internal class EpubNavigationParser(
-    private val markupParser: EpubMarkupParser = EpubMarkupParser(),
-) {
+internal class EpubNavigationParser(private val markupParser: EpubMarkupParser = EpubMarkupParser(),) {
     fun parse(
         document: String,
         isNcx: Boolean,
@@ -80,21 +78,21 @@ internal class EpubNavigationParser(
         return EpubNavigationParseResult(
             references = references,
             readerHtml =
-                if (complete) {
-                    EpubReaderNavigationContent.render(
-                        references = references,
-                        heading = heading,
-                        ariaLabel = ariaLabel,
-                    )
-                } else {
-                    null
-                },
+            if (complete) {
+                EpubReaderNavigationContent.render(
+                    references = references,
+                    heading = heading,
+                    ariaLabel = ariaLabel,
+                )
+            } else {
+                null
+            },
             provenance =
-                if (explicitToc != null) {
-                    EpubNavigationProvenance.EXPLICIT_TOC
-                } else {
-                    EpubNavigationProvenance.UNTYPED_FALLBACK
-                },
+            if (explicitToc != null) {
+                EpubNavigationProvenance.EXPLICIT_TOC
+            } else {
+                EpubNavigationProvenance.UNTYPED_FALLBACK
+            },
             navigationOnly = navigationOnly,
             complete = complete,
             heading = heading,
@@ -409,11 +407,7 @@ internal class EpubNavigationParser(
         document: EpubMarkupDocument,
         extractionStatus: NavigationExtractionStatus,
     ): Boolean {
-        data class PendingNode(
-            val node: EpubMarkupNode,
-            val insideNavigation: Boolean,
-            val inert: Boolean,
-        )
+        data class PendingNode(val node: EpubMarkupNode, val insideNavigation: Boolean, val inert: Boolean,)
 
         val stack = ArrayDeque<PendingNode>()
         val budget = MarkupTraversalBudget(extractionStatus)
@@ -478,9 +472,7 @@ internal class EpubNavigationParser(
         }
     }
 
-    private class NavigationEntryBudget(
-        private val extractionStatus: NavigationExtractionStatus,
-    ) {
+    private class NavigationEntryBudget(private val extractionStatus: NavigationExtractionStatus,) {
         private var remainingCharacters = MAX_NAVIGATION_TOTAL_CHARACTERS
 
         fun consume(
@@ -498,9 +490,7 @@ internal class EpubNavigationParser(
         }
     }
 
-    private class MarkupTraversalBudget(
-        private val extractionStatus: NavigationExtractionStatus,
-    ) {
+    private class MarkupTraversalBudget(private val extractionStatus: NavigationExtractionStatus,) {
         private var remainingNodes = MAX_TRAVERSAL_NODES
         private var remainingSourceCharacters = MAX_TRAVERSAL_SOURCE_CHARACTERS
 

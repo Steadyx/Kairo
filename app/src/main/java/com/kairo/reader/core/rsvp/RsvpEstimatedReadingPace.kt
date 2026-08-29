@@ -176,7 +176,6 @@ object RsvpEstimatedReadingPace {
             rampUpFrames = 0,
             rampDownFrames = 0,
         )
-
 }
 
 internal data class EstimatedWpmCacheKey(

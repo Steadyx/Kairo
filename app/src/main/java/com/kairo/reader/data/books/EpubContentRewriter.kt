@@ -4,10 +4,7 @@ import com.kairo.reader.data.books.epub.EpubHtmlEntities
 import com.kairo.reader.data.books.epub.EpubPathResolver
 import java.util.Locale
 
-internal data class EpubPlainTextContent(
-    val text: String,
-    val anchorOffsets: Map<String, Int>,
-)
+internal data class EpubPlainTextContent(val text: String, val anchorOffsets: Map<String, Int>,)
 
 internal class EpubContentRewriter {
     private companion object {
@@ -283,14 +280,14 @@ internal class EpubContentRewriter {
         return EpubPlainTextContent(
             text = finalText,
             anchorOffsets =
-                anchorOffsets.mapValues { (_, offset) ->
-                    var resolved =
-                        (offset - leadingTrimmedCharacters).coerceIn(0, finalText.length)
-                    while (resolved < finalText.length && finalText[resolved].isWhitespace()) {
-                        resolved += 1
-                    }
-                    resolved
-                },
+            anchorOffsets.mapValues { (_, offset) ->
+                var resolved =
+                    (offset - leadingTrimmedCharacters).coerceIn(0, finalText.length)
+                while (resolved < finalText.length && finalText[resolved].isWhitespace()) {
+                    resolved += 1
+                }
+                resolved
+            },
         )
     }
 

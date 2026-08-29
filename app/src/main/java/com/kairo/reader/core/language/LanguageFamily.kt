@@ -10,11 +10,7 @@ enum class LanguageFamily {
     UNKNOWN,
 }
 
-data class LanguageClassification(
-    val normalizedTag: String?,
-    val primaryLanguage: String?,
-    val family: LanguageFamily,
-)
+data class LanguageClassification(val normalizedTag: String?, val primaryLanguage: String?, val family: LanguageFamily,)
 
 object LanguageFamilyClassifier {
     fun classify(languageTag: String?): LanguageClassification {

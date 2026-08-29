@@ -11,18 +11,11 @@ internal data class OpfData(
     val navigationHref: String? = null,
 )
 
-internal data class SpineItem(
-    val idref: String,
-    val isLinear: Boolean = true,
-)
+internal data class SpineItem(val idref: String, val isLinear: Boolean = true,)
 
 internal data class ManifestItem(val id: String, val href: String, val mediaType: String?, val properties: Set<String>,)
 
-internal data class EpubNavigationReference(
-    val label: String,
-    val depth: Int,
-    val href: String?,
-)
+internal data class EpubNavigationReference(val label: String, val depth: Int, val href: String?,)
 
 internal data class ContainerXmlResolution(
     val path: String,

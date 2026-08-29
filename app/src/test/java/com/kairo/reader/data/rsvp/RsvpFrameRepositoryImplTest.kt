@@ -339,11 +339,11 @@ class RsvpFrameRepositoryImplTest {
                     tokens = tokens,
                     startIndex = 2,
                     config =
-                        RsvpConfig(
-                            enablePhraseChunking = true,
-                            maxWordsPerUnit = 2,
-                            rampDownFrames = 0,
-                        ),
+                    RsvpConfig(
+                        enablePhraseChunking = true,
+                        maxWordsPerUnit = 2,
+                        rampDownFrames = 0,
+                    ),
                     maxTokenCount = 2,
                     options = scored,
                 )
@@ -634,5 +634,4 @@ class RsvpFrameRepositoryImplTest {
         val cache = field.get(this) as Map<*, *>
         return cache.size
     }
-
 }

@@ -238,7 +238,7 @@ class RsvpFrameRepositoryImpl(
                     originalIndexOffset = contextStartIndex,
                     tokenCount = tokens.size,
                     visibleEndExclusive =
-                        visibleEndExclusive.takeIf { useScoredSegmentation },
+                    visibleEndExclusive.takeIf { useScoredSegmentation },
                 )
             }.let { previewFrames ->
                 if (useScoredSegmentation) {
@@ -337,12 +337,12 @@ class RsvpFrameRepositoryImpl(
         copy(
             originalTokenIndex = (originalTokenIndex + originalIndexOffset).coerceIn(0, tokenCount),
             nextOriginalTokenIndex =
-                (nextOriginalTokenIndex + originalIndexOffset)
-                    .coerceIn(0, minOf(tokenCount, visibleEndExclusive ?: tokenCount)),
+            (nextOriginalTokenIndex + originalIndexOffset)
+                .coerceIn(0, minOf(tokenCount, visibleEndExclusive ?: tokenCount)),
             displayOriginalStartIndex =
-                (displayOriginalStartIndex + originalIndexOffset).coerceIn(0, tokenCount),
+            (displayOriginalStartIndex + originalIndexOffset).coerceIn(0, tokenCount),
             displayOriginalEndExclusive =
-                (displayOriginalEndExclusive + originalIndexOffset).coerceIn(0, tokenCount),
+            (displayOriginalEndExclusive + originalIndexOffset).coerceIn(0, tokenCount),
             resumeCursor = -1,
         )
 

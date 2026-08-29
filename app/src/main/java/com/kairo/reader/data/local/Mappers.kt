@@ -97,12 +97,12 @@ fun TableOfContentsEntryEntity.toDomain(): TableOfContentsEntry =
         label = label,
         depth = depth,
         target =
-            chapterIndex?.let { resolvedChapterIndex ->
-                TableOfContentsTarget(
-                    chapterIndex = resolvedChapterIndex,
-                    characterOffset = characterOffset ?: 0,
-                )
-            },
+        chapterIndex?.let { resolvedChapterIndex ->
+            TableOfContentsTarget(
+                chapterIndex = resolvedChapterIndex,
+                characterOffset = characterOffset ?: 0,
+            )
+        },
     )
 
 fun ChapterEntity.toDomain(): Chapter =

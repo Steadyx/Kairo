@@ -1,9 +1,6 @@
 package com.kairo.reader.data.books.epub
 
-internal data class EpubReaderChapterPlan(
-    val paths: List<String>,
-    val preservedNavigationPaths: Set<String>,
-)
+internal data class EpubReaderChapterPlan(val paths: List<String>, val preservedNavigationPaths: Set<String>,)
 
 internal object EpubReaderChapterPlanner {
     fun create(

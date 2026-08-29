@@ -534,19 +534,19 @@ class LibraryScreenTest {
     ): SavedAnnotationItem =
         SavedAnnotationItem(
             annotation =
-                SavedAnnotation(
-                    id = "note-1",
-                    bookId = sampleBook.id,
-                    chapterIndex = 0,
-                    startTokenIndex = 2,
-                    endTokenIndex = 5,
-                    selectedText = "A highlighted passage",
-                    note = note,
-                    color = HighlightColor.YELLOW,
-                    kind = kind,
-                    createdAt = 100L,
-                    updatedAt = 100L,
-                ),
+            SavedAnnotation(
+                id = "note-1",
+                bookId = sampleBook.id,
+                chapterIndex = 0,
+                startTokenIndex = 2,
+                endTokenIndex = 5,
+                selectedText = "A highlighted passage",
+                note = note,
+                color = HighlightColor.YELLOW,
+                kind = kind,
+                createdAt = 100L,
+                updatedAt = 100L,
+            ),
             book = sampleBook,
             chapterCount = 1,
         )

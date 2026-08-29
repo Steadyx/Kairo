@@ -48,16 +48,9 @@ data class Book(
     }
 }
 
-data class TableOfContentsTarget(
-    val chapterIndex: Int,
-    val characterOffset: Int = 0,
-)
+data class TableOfContentsTarget(val chapterIndex: Int, val characterOffset: Int = 0,)
 
-data class TableOfContentsEntry(
-    val label: String,
-    val depth: Int,
-    val target: TableOfContentsTarget?,
-)
+data class TableOfContentsEntry(val label: String, val depth: Int, val target: TableOfContentsTarget?,)
 
 /**
  * Represents an internal link within chapter content.

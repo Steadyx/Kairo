@@ -16,11 +16,7 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalCoroutinesApi::class)
 class TokenRepositoryImpl(private val bookRepository: BookRepository, private val dispatcherProvider: DispatcherProvider,) :
     TokenRepository {
-    private data class CacheKey(
-        val bookId: String,
-        val chapterIndex: Int,
-        val languageTag: String?,
-    )
+    private data class CacheKey(val bookId: String, val chapterIndex: Int, val languageTag: String?,)
 
     // LRU cache with max 10 chapters to prevent unbounded memory growth.
     private val cache =

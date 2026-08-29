@@ -137,16 +137,16 @@ private fun generateFramesWithNormalizedConfig(
             config = config,
             options = options,
             atomStream =
-                if (options.usesScoredSegmentation(config)) {
-                    RsvpAtomStream.build(
-                        expandedTokens = expanded,
-                        languagePolicy = options.languagePolicy,
-                        useDialogueDetection = config.useDialogueDetection,
-                        useParentheticalAside = config.useParentheticalAside,
-                    )
-                } else {
-                    null
-                },
+            if (options.usesScoredSegmentation(config)) {
+                RsvpAtomStream.build(
+                    expandedTokens = expanded,
+                    languagePolicy = options.languagePolicy,
+                    useDialogueDetection = config.useDialogueDetection,
+                    useParentheticalAside = config.useParentheticalAside,
+                )
+            } else {
+                null
+            },
             analysis = analyzeExpandedTokens(expanded, config),
             frames = mutableListOf(),
             state = ContextState(),
@@ -417,9 +417,9 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
                 (frameStartCursor until nextCursor).any { it in analysis.pairedEmDashIndices },
                 afterPairedEmDash = followsPairedEmDash(wordCursor),
                 rhythmBoundaryStrengthMilli =
-                    scoredSelection?.boundaryStrengthBeforeMilli ?: 0,
+                scoredSelection?.boundaryStrengthBeforeMilli ?: 0,
                 explicitSpeakerTag =
-                    scoredSelection?.dialogueRole == RsvpDialogueRole.SPEAKER_TAG,
+                scoredSelection?.dialogueRole == RsvpDialogueRole.SPEAKER_TAG,
             ),
         )
 

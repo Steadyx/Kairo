@@ -11,11 +11,7 @@ internal enum class InAppUpdateCheckResult {
     FAILED,
 }
 
-internal data class InAppUpdateSnapshot(
-    val updateAvailable: Boolean,
-    val flexibleUpdateAllowed: Boolean,
-    val updateDownloaded: Boolean,
-)
+internal data class InAppUpdateSnapshot(val updateAvailable: Boolean, val flexibleUpdateAllowed: Boolean, val updateDownloaded: Boolean,)
 
 internal fun selectInAppUpdatePrompt(
     snapshot: InAppUpdateSnapshot,

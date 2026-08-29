@@ -5,9 +5,7 @@ import com.kairo.reader.core.model.TableOfContentsTarget
 import com.kairo.reader.data.books.epub.EpubNavigationReference
 import com.kairo.reader.data.books.epub.EpubPathResolver
 
-internal class EpubTableOfContentsResolver(
-    private val contentRewriter: EpubContentRewriter,
-) {
+internal class EpubTableOfContentsResolver(private val contentRewriter: EpubContentRewriter,) {
     fun resolve(
         references: List<EpubNavigationReference>,
         navigationPathLower: String,
@@ -22,14 +20,14 @@ internal class EpubTableOfContentsResolver(
                 label = reference.label,
                 depth = reference.depth.coerceAtLeast(0),
                 target =
-                    reference.href?.let { href ->
-                        resolveTarget(
-                            href = href,
-                            navigationPathLower = navigationPathLower,
-                            navigationBaseDir = navigationBaseDir,
-                            chapterByPathLower = chapterByPathLower,
-                        )
-                    },
+                reference.href?.let { href ->
+                    resolveTarget(
+                        href = href,
+                        navigationPathLower = navigationPathLower,
+                        navigationBaseDir = navigationBaseDir,
+                        chapterByPathLower = chapterByPathLower,
+                    )
+                },
             )
         }
     }

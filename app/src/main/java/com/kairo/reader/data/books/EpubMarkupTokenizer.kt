@@ -21,10 +21,7 @@ internal class EpubMarkupTokenization internal constructor(
         get() = state.limitExceeded
 }
 
-internal class EpubMarkupTokenizationState(
-    var complete: Boolean = true,
-    var limitExceeded: Boolean = false,
-)
+internal class EpubMarkupTokenizationState(var complete: Boolean = true, var limitExceeded: Boolean = false,)
 
 internal class EpubMarkupTokenizer {
     companion object {
@@ -178,11 +175,11 @@ internal class EpubMarkupTokenizer {
         if (parsedAttributes.limitExceeded) return ParsedTagToken(limitExceeded = true)
         return ParsedTagToken(
             token =
-                EpubStartTagToken(
-                    name = name,
-                    attributes = parsedAttributes.attributes,
-                    selfClosing = selfClosing,
-                ),
+            EpubStartTagToken(
+                name = name,
+                attributes = parsedAttributes.attributes,
+                selfClosing = selfClosing,
+            ),
         )
     }
 
@@ -272,13 +269,7 @@ internal class EpubMarkupTokenizer {
         return -1
     }
 
-    private data class ParsedTagToken(
-        val token: EpubMarkupToken? = null,
-        val limitExceeded: Boolean = false,
-    )
+    private data class ParsedTagToken(val token: EpubMarkupToken? = null, val limitExceeded: Boolean = false,)
 
-    private data class ParsedAttributes(
-        val attributes: Map<String, String> = emptyMap(),
-        val limitExceeded: Boolean = false,
-    )
+    private data class ParsedAttributes(val attributes: Map<String, String> = emptyMap(), val limitExceeded: Boolean = false,)
 }

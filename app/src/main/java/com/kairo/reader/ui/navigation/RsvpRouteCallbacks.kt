@@ -277,11 +277,11 @@ private fun buildRsvpPlaybackCallbacks(
                 bookId = dependencies.bookIdValue,
                 mode = dependencies.sessionMode,
                 location =
-                    ReadingSessionLocation(
-                        chapterIndex = dependencies.chapterIndex,
-                        tokenIndex = safeTokenIndex,
-                        wordIndex = resolveWordIndex(dependencies.wordCountByToken, safeTokenIndex),
-                    ),
+                ReadingSessionLocation(
+                    chapterIndex = dependencies.chapterIndex,
+                    tokenIndex = safeTokenIndex,
+                    wordIndex = resolveWordIndex(dependencies.wordCountByToken, safeTokenIndex),
+                ),
                 words = completed.words,
             )
         },

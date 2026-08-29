@@ -171,10 +171,10 @@ internal class EpubChapterBuilderTest : EpubParserTestBase() {
                 zipTextEntries = entries,
                 imageRelativePathByEpubPathLower = emptyMap(),
                 preferredChapterPathsLower =
-                    listOf(
-                        "oebps/nav.xhtml",
-                        "oebps/chapter1.xhtml",
-                    ),
+                listOf(
+                    "oebps/nav.xhtml",
+                    "oebps/chapter1.xhtml",
+                ),
                 preservedNavigationPathsLower = setOf("oebps/nav.xhtml"),
             )
 
@@ -225,9 +225,9 @@ internal class EpubChapterBuilderTest : EpubParserTestBase() {
                 html = navigationChapter.htmlContent,
                 baseDir = "oebps",
                 chapterIndexByPathLower =
-                    result.chapters.associate { parsed ->
-                        parsedChapterPath(parsed) to parsedChapter(parsed).index
-                    },
+                result.chapters.associate { parsed ->
+                    parsedChapterPath(parsed) to parsedChapter(parsed).index
+                },
                 currentChapterPath = "oebps/nav.xhtml",
             )
         val linkedTokens =

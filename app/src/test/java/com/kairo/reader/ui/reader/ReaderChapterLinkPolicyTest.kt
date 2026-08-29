@@ -21,18 +21,18 @@ class ReaderChapterLinkPolicyTest {
                 title = "Book",
                 authors = emptyList(),
                 chapters =
-                    listOf(
-                        chapter(index = 0, title = "Contents"),
-                        chapter(index = 1, title = "Chapter One"),
-                    ),
+                listOf(
+                    chapter(index = 0, title = "Contents"),
+                    chapter(index = 1, title = "Chapter One"),
+                ),
                 tableOfContents =
-                    listOf(
-                        TableOfContentsEntry(
-                            label = "Table of Contents",
-                            depth = 0,
-                            target = TableOfContentsTarget(chapterIndex = 0),
-                        ),
+                listOf(
+                    TableOfContentsEntry(
+                        label = "Table of Contents",
+                        depth = 0,
+                        target = TableOfContentsTarget(chapterIndex = 0),
                     ),
+                ),
             )
         val targets = resolveNonInteractiveChapterLinkTargets(book)
         val token = Token(text = "Chapter", type = TokenType.WORD, linkChapterIndex = 0)
@@ -53,15 +53,15 @@ class ReaderChapterLinkPolicyTest {
                 title = "Book",
                 authors = emptyList(),
                 chapters =
-                    listOf(
-                        chapter(
-                            index = 0,
-                            title = "Sommaire",
-                            htmlContent = "<p>$links</p>",
-                            plainText = "Un Deux Trois Quatre",
-                        ),
-                        chapter(index = 1, title = "Chapitre Un"),
+                listOf(
+                    chapter(
+                        index = 0,
+                        title = "Sommaire",
+                        htmlContent = "<p>$links</p>",
+                        plainText = "Un Deux Trois Quatre",
                     ),
+                    chapter(index = 1, title = "Chapitre Un"),
+                ),
             )
 
         assertEquals(setOf(0), resolveNonInteractiveChapterLinkTargets(book))
@@ -81,10 +81,10 @@ class ReaderChapterLinkPolicyTest {
             title = "Book",
             authors = emptyList(),
             chapters =
-                listOf(
-                    chapter(index = 0, title = "Opening"),
-                    chapter(index = 1, title = "Chapter One"),
-                ),
+            listOf(
+                chapter(index = 0, title = "Opening"),
+                chapter(index = 1, title = "Chapter One"),
+            ),
         )
 
     private fun chapter(

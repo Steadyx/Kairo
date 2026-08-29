@@ -14,9 +14,9 @@ class SampleSeeder(private val bookDao: BookDao,) {
             book = sample.toEntity(),
             chapters = sample.chapters.map { it.toEntity(sample.id) },
             tableOfContentsEntries =
-                sample.tableOfContents.mapIndexed { index, entry ->
-                    entry.toEntity(sample.id, index)
-                },
+            sample.tableOfContents.mapIndexed { index, entry ->
+                entry.toEntity(sample.id, index)
+            },
         )
     }
 }

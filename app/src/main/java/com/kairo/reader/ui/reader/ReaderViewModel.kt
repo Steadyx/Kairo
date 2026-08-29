@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.kairo.reader.core.dispatchers.DispatcherProvider
 import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.Chapter
-import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TableOfContentsTarget
+import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.countWords
 import com.kairo.reader.core.model.nearestWordIndex
 import com.kairo.reader.data.books.BookRepository

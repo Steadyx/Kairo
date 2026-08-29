@@ -1,9 +1,6 @@
 package com.kairo.reader.data.sessions
 
-class ReadingSessionTracker(
-    startedAt: Long,
-    initiallyActive: Boolean,
-) {
+class ReadingSessionTracker(startedAt: Long, initiallyActive: Boolean,) {
     val startedAt: Long = startedAt
     private var activeSince: Long? = startedAt.takeIf { initiallyActive }
     private var accumulatedActiveMs: Long = 0L

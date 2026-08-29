@@ -108,7 +108,7 @@ internal fun resolveSearchResultTokenRange(
                 matchOffset = startUtf16Offset,
                 matchLength = (endUtf16Offset - startUtf16Offset).coerceAtLeast(1),
             )
-    } ?: result.tokenRange
+        } ?: result.tokenRange
 
 internal fun codePointOffsetToUtf16Offset(
     text: String,

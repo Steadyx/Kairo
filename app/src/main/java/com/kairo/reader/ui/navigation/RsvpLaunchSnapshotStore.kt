@@ -10,11 +10,7 @@ internal object RsvpLaunchSnapshotStore {
 
     internal data class LaunchSnapshot(val tokens: List<Token>, val languageTag: String?,)
 
-    private data class Snapshot(
-        val tokens: List<Token>,
-        val languageTag: String?,
-        val createdAtMs: Long,
-    )
+    private data class Snapshot(val tokens: List<Token>, val languageTag: String?, val createdAtMs: Long,)
 
     private val snapshots = LinkedHashMap<SnapshotKey, Snapshot>()
 
