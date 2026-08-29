@@ -469,7 +469,6 @@ class ReaderViewModel(
      * Clear cache when ViewModel is cleared to free memory.
      */
     override fun onCleared() {
-        super.onCleared()
         val session = activeSession.getAndSet(null)
         chapterLoadSequence.incrementAndGet()
         session?.cache?.clear()

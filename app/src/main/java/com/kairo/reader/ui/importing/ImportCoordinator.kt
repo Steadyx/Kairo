@@ -152,12 +152,11 @@ internal class ImportCoordinatorViewModel(private val container: KairoApplicatio
     private val _events = Channel<ImportCoordinatorEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    private val context = container.applicationContext
     private val resources: Resources = container.resources
     private var importProgressJob: Job? = null
 
     fun importFile(uri: Uri): Boolean =
-        handleImport(resolveImportFileName(context, uri)) {
+        handleImport(resolveImportFileName(container, uri)) {
             container.libraryRepository.import(uri)
         }
 
