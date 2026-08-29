@@ -89,7 +89,7 @@ The reader, tokenizer, persistence layer, and RSVP engine all work toward the sa
 
 ## Built With
 
-- Kotlin 2.3.10
+- Kotlin 2.4.10
 - Jetpack Compose
 - AndroidX Navigation
 - Room
@@ -97,13 +97,13 @@ The reader, tokenizer, persistence layer, and RSVP engine all work toward the sa
 - Coil
 - KSP
 - Detekt and Ktlint
-- Gradle Wrapper 9.6.1
+- Gradle Wrapper 9.7.1
 
 ## Requirements
 
 To build and run Kairo locally you will need:
 
-- Android Studio with Android SDK 36 installed
+- Android Studio with Android SDK 37 installed
 - JDK 17
 - An Android emulator or device running Android 7.0 (API 24) or newer
 - Internet access the first time Gradle dependencies are resolved
