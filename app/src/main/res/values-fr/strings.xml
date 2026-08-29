@@ -119,7 +119,7 @@
 
     <string name="rsvp_settings_title">Paramètres de lecture rapide</string>
     <string name="rsvp_settings_subtitle">Profil temporel, lisibilité, affichage</string>
-    <string name="rsvp_preparing">Préparation de la lecture rapide...</string>
+    <string name="rsvp_preparing">Préparation de la lecture rapide…</string>
     <string name="rsvp_empty_state">Aucun contenu à afficher.\nTouchez pour revenir.</string>
     <string name="rsvp_quick_settings_title">Réglages rapides</string>
     <string name="rsvp_quick_settings_hints">Balayez vers le haut/bas pour ajuster la vitesse\nUtilisez les curseurs pour prévisualiser les changements\nAppui long pour quitter</string>
@@ -231,7 +231,7 @@
     <string name="rsvp_profile_study">Étude</string>
     <string name="rsvp_profile_study_description">Rythme délibéré pour la compréhension</string>
     <string name="rsvp_estimated_pace">Rythme estimé : %1$d mots/min</string>
-    <string name="rsvp_estimating_pace">Estimation du rythme...</string>
+    <string name="rsvp_estimating_pace">Estimation du rythme…</string>
 
     <string name="blink_mode_title">Mode clignement</string>
     <string name="blink_mode_off">Désactivé</string>
@@ -482,7 +482,7 @@
     <string name="bionic_brightness_title">Luminosité du texte bionique</string>
     <string name="bionic_brightness_subtitle">Atténue le texte du bloc sans modifier le thème actuel.</string>
     <string name="bionic_advanced_settings_subtitle">Fixation, focus mobile et luminosité.</string>
-    <string name="bionic_preparing">Préparation de la lecture bionique...</string>
+    <string name="bionic_preparing">Préparation de la lecture bionique…</string>
     <string name="bionic_frame_load_failed">Impossible de préparer la lecture bionique. Touchez pour revenir au lecteur.</string>
     <string name="bionic_empty_state">Aucun contenu à afficher.\nTouchez pour revenir.</string>
     <string name="update_available_message">Une mise à jour de Kairo est disponible.</string>

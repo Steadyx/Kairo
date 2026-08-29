@@ -119,7 +119,7 @@
 
     <string name="rsvp_settings_title">速读设置</string>
     <string name="rsvp_settings_subtitle">时间配置、可读性、显示</string>
-    <string name="rsvp_preparing">正在准备速读...</string>
+    <string name="rsvp_preparing">正在准备速读…</string>
     <string name="rsvp_empty_state">没有可显示的内容。\n点击返回。</string>
     <string name="rsvp_quick_settings_title">快速设置</string>
     <string name="rsvp_quick_settings_hints">上下滑动以调整速度\n使用滑块预览更改\n长按退出</string>
@@ -231,7 +231,7 @@
     <string name="rsvp_profile_study">学习</string>
     <string name="rsvp_profile_study_description">为了理解而刻意放慢</string>
     <string name="rsvp_estimated_pace">预计速度：%1$d 词/分</string>
-    <string name="rsvp_estimating_pace">正在估算速度...</string>
+    <string name="rsvp_estimating_pace">正在估算速度…</string>
 
     <string name="blink_mode_title">闪烁模式</string>
     <string name="blink_mode_off">关闭</string>
@@ -476,7 +476,7 @@
     <string name="bionic_brightness_title">仿生文字亮度</string>
     <string name="bionic_brightness_subtitle">在不更改当前主题的情况下调暗文本块中的文字。</string>
     <string name="bionic_advanced_settings_subtitle">注视、移动焦点和亮度。</string>
-    <string name="bionic_preparing">正在准备仿生阅读...</string>
+    <string name="bionic_preparing">正在准备仿生阅读…</string>
     <string name="bionic_frame_load_failed">无法准备仿生阅读。点按以返回阅读器。</string>
     <string name="bionic_empty_state">没有可显示的内容。\n点按返回。</string>
     <string name="update_available_message">Kairo 有可用更新。</string>

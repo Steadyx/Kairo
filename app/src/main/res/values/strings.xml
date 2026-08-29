@@ -176,7 +176,7 @@
 
     <string name="rsvp_settings_title">RSVP settings</string>
     <string name="rsvp_settings_subtitle">Timing profile, readability, display</string>
-    <string name="rsvp_preparing">Preparing RSVP...</string>
+    <string name="rsvp_preparing">Preparing RSVP…</string>
     <string name="rsvp_frame_load_failed">RSVP could not be prepared. Tap to return to the reader.</string>
     <string name="rsvp_empty_state">No content to display.\nTap to go back.</string>
     <string name="rsvp_quick_settings_title">Quick Settings</string>
@@ -366,7 +366,7 @@
     <string name="rsvp_profile_study">Study</string>
     <string name="rsvp_profile_study_description">Deliberate comprehension-focused timing for dense text</string>
     <string name="rsvp_estimated_pace">Estimated pace: %1$d WPM</string>
-    <string name="rsvp_estimating_pace">Estimating pace...</string>
+    <string name="rsvp_estimating_pace">Estimating pace…</string>
 
     <string name="blink_mode_title">Blink mode</string>
     <string name="blink_mode_off">Off</string>
@@ -394,7 +394,7 @@
     <string name="bionic_brightness_title">Bionic text brightness</string>
     <string name="bionic_brightness_subtitle">Dims the chunk text without changing the current theme.</string>
     <string name="bionic_advanced_settings_subtitle">Fixation, moving focus, and brightness.</string>
-    <string name="bionic_preparing">Preparing Bionic Reading...</string>
+    <string name="bionic_preparing">Preparing Bionic Reading…</string>
     <string name="bionic_frame_load_failed">Bionic Reading could not be prepared. Tap to return to the reader.</string>
     <string name="bionic_empty_state">No content to display.\nTap to go back.</string>
     <string name="settings_starting_tutorial_title">Starting tutorial</string>
