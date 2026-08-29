@@ -7,7 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
@@ -29,7 +29,7 @@ internal fun RsvpEssentialSettingsContent(
     state: RsvpSettingsState,
     actions: RsvpSettingsActions,
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val config = state.config
     val tempoMsPerWord = state.tempoMsPerWord
     val unlockExtremeSpeed = state.unlockExtremeSpeed
@@ -59,9 +59,9 @@ internal fun RsvpEssentialSettingsContent(
             title = stringResource(R.string.rsvp_reading_speed_title),
             subtitle = stringResource(R.string.rsvp_reading_speed_details_subtitle),
             valueLabel = {
-                context.getString(
+                resources.getString(
                     R.string.rsvp_reading_speed_indicator,
-                    context.getString(
+                    resources.getString(
                         rsvpSpeedBandLabelRes(
                             tempoMsPerWord =
                             RsvpSpeedControl.tempoForSpeed(
@@ -90,7 +90,7 @@ internal fun RsvpEssentialSettingsContent(
         DeferredSliderRow(
             title = stringResource(R.string.rsvp_min_word_time_title),
             subtitle = stringResource(R.string.rsvp_min_word_time_subtitle),
-            valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+            valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
             rawValue = config.minWordMs.toFloat(),
             onCommit = { newValue ->
                 updateConfig {
@@ -105,7 +105,7 @@ internal fun RsvpEssentialSettingsContent(
         DeferredSliderRow(
             title = stringResource(R.string.rsvp_long_word_min_title),
             subtitle = stringResource(R.string.rsvp_long_word_min_subtitle),
-            valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+            valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
             rawValue = config.longWordMinMs.toFloat(),
             onCommit = { newValue ->
                 updateConfig {
@@ -124,7 +124,7 @@ internal fun RsvpEssentialSettingsContent(
         DeferredSliderRow(
             title = stringResource(R.string.rsvp_sentence_end_pause_title),
             subtitle = stringResource(R.string.rsvp_sentence_end_pause_subtitle),
-            valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+            valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
             rawValue = config.sentenceEndPauseMs.toFloat(),
             onCommit = { newValue ->
                 updateConfig {
@@ -178,7 +178,7 @@ internal fun RsvpEssentialSettingsContent(
             DeferredIntegerSliderRow(
                 title = stringResource(R.string.rsvp_phrase_chunk_size_title),
                 subtitle = stringResource(R.string.rsvp_phrase_chunk_size_subtitle),
-                valueLabel = { context.getString(R.string.format_words, it) },
+                valueLabel = { resources.getString(R.string.format_words, it) },
                 rawValue = config.maxWordsPerUnit,
                 onCommit = { wordLimit ->
                     updateConfig {
@@ -206,7 +206,7 @@ internal fun RsvpEssentialSettingsContent(
     ) {
         DeferredSliderRow(
             title = stringResource(R.string.reader_font_size_title),
-            valueLabel = { context.getString(R.string.format_sp, it.toInt()) },
+            valueLabel = { resources.getString(R.string.format_sp, it.toInt()) },
             rawValue = rsvpFontSizeSp,
             onCommit = { onRsvpFontSizeChange(it.coerceIn(MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP)) },
             valueRange = MIN_FONT_SIZE_SP..MAX_FONT_SIZE_SP,
@@ -216,7 +216,7 @@ internal fun RsvpEssentialSettingsContent(
             title = stringResource(R.string.reader_text_brightness_title),
             subtitle = stringResource(R.string.rsvp_text_brightness_subtitle),
             valueLabel = {
-                context.getString(
+                resources.getString(
                     R.string.format_percent,
                     (
                         it.coerceIn(
@@ -266,7 +266,7 @@ internal fun RsvpEssentialSettingsContent(
                 title = stringResource(R.string.rsvp_orp_guide_brightness_title),
                 subtitle = stringResource(R.string.rsvp_orp_guide_brightness_subtitle),
                 valueLabel = {
-                    context.getString(
+                    resources.getString(
                         R.string.format_percent,
                         it.coerceIn(
                             (Constraints.MIN_ORP_GUIDE_BRIGHTNESS * Constraints.PERCENT_SCALE).toFloat(),
@@ -293,7 +293,7 @@ internal fun RsvpEssentialSettingsContent(
             DeferredSliderRow(
                 title = stringResource(R.string.rsvp_orp_guide_thickness_title),
                 subtitle = stringResource(R.string.rsvp_orp_guide_thickness_subtitle),
-                valueLabel = { context.getString(R.string.format_multiplier, it) },
+                valueLabel = { resources.getString(R.string.format_multiplier, it) },
                 rawValue = config.orpGuideThickness.toFloat(),
                 onCommit = { newValue ->
                     updateConfig {

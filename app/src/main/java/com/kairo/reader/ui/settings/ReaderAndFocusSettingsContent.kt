@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -40,11 +41,11 @@ fun ReaderSettingsContent(
     onTextBrightnessChange: (Float) -> Unit,
     onInvertedScrollChange: (Boolean) -> Unit,
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
 
     DeferredSliderRow(
         title = stringResource(R.string.reader_font_size_title),
-        valueLabel = { context.getString(R.string.format_sp, it.toInt()) },
+        valueLabel = { resources.getString(R.string.format_sp, it.toInt()) },
         rawValue = fontSizeSp,
         onCommit = { onFontSizeChange(it.coerceIn(READER_FONT_SIZE_MIN_SP, READER_FONT_SIZE_MAX_SP)) },
         valueRange = READER_FONT_SIZE_MIN_SP..READER_FONT_SIZE_MAX_SP,
