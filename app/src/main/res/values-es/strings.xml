@@ -9,7 +9,6 @@
     <string name="action_save">Guardar</string>
 
     <string name="format_chars">%1$d caracteres</string>
-    <string name="format_estimated_wpm">~%1$d ppm</string>
     <string name="format_ms">%1$d ms</string>
     <string name="format_multiplier">x%1$.2f</string>
     <string name="format_percent">%1$d%%</string>
@@ -33,7 +32,6 @@
     <string name="content_desc_next_page">Página siguiente</string>
     <string name="content_desc_pause">Pausar</string>
     <string name="content_desc_play">Reproducir</string>
-    <string name="content_desc_previous">Anterior</string>
     <string name="content_desc_previous_page">Página anterior</string>
     <string name="content_desc_reader_menu">Menú del lector</string>
     <string name="content_desc_reader_swipe_next_page">Vista previa de deslizamiento: página siguiente</string>
@@ -41,7 +39,6 @@
     <string name="content_desc_mark_book_completed">Marcar libro como completado</string>
     <string name="content_desc_move_book_to_library">Volver a mover libro a la biblioteca</string>
     <string name="content_desc_settings">Ajustes</string>
-    <string name="content_desc_start_rsvp">Iniciar lectura rápida</string>
     <string name="content_desc_title_page_of_title">Página de título de %1$s</string>
 
     <string name="import_status_title">Importando</string>
@@ -50,13 +47,8 @@
 
     <string name="library_title">Tu biblioteca</string>
     <string name="library_subtitle">Importa archivos compatibles para empezar.</string>
-    <string name="library_tab_library">Biblioteca</string>
-    <string name="library_tab_completed">Completados</string>
-    <string name="library_tab_bookmarks">Marcadores</string>
     <string name="library_bookmarks_subtitle">Abrir marcadores guardados</string>
     <string name="library_import_button">Importar libro</string>
-    <string name="library_no_bookmarks">Aún no hay marcadores</string>
-    <string name="library_no_completed_books">Aún no hay libros completados</string>
     <string name="library_time_left">~%1$s restante</string>
     <string name="library_percent_complete">%1$d%% completado</string>
     <string name="library_completed_status">Completado</string>
@@ -96,7 +88,6 @@
     <string name="reader_eta_chapter">capítulo ~%1$s</string>
     <string name="reader_eta_book">libro ~%1$s</string>
     <string name="reader_eta_prefix">Tiempo estimado: %1$s</string>
-    <string name="reader_rsvp_dock_progress">RSVP %1$d%%</string>
     <string name="reader_empty_chapter">Sin contenido en este capítulo</string>
     <string name="reader_image_not_found">Imagen no encontrada</string>
 
@@ -132,9 +123,6 @@
     <string name="rsvp_text_brightness_subtitle">Atenúa la palabra de lectura rápida sin cambiar el tema.</string>
     <string name="rsvp_quick_tune_title">Ajuste rápido</string>
     <string name="rsvp_quick_tune_subtitle">Empieza aquí. Los controles avanzados están abajo.</string>
-    <string name="rsvp_tempo_title">Tempo</string>
-    <string name="rsvp_tempo_subtitle">Más bajo = más rápido.</string>
-    <string name="rsvp_tempo_details_subtitle">Tempo más bajo = más rápido. Es el control de velocidad general.</string>
     <string name="rsvp_min_word_time_title">Tiempo mínimo por palabra</string>
     <string name="rsvp_min_word_time_subtitle">Límite mínimo para cualquier palabra mostrada.</string>
     <string name="rsvp_long_word_min_title">Mínimo para palabras largas</string>
@@ -297,10 +285,8 @@
     <string name="reader_chapter_load_failed">No se pudo cargar este capítulo: %1$s</string>
     <string name="reader_missing_book_title">Libro no encontrado</string>
     <string name="reader_missing_book_body">Es posible que este libro se haya eliminado o ya no esté disponible.</string>
-    <string name="reader_start_rsvp_action">Iniciar RSVP desde la palabra enfocada</string>
     <string name="reader_image_hold_to_view">Mantén pulsado para ver</string>
     <string name="reader_image_viewer_hint">Pellizca para ampliar. Arrastra para desplazar. Toca dos veces para restablecer.</string>
-    <string name="rsvp_selected_speed">Velocidad seleccionada: %1$d WPM</string>
     <string name="rsvp_reading_speed_title">Velocidad de lectura</string>
     <string name="rsvp_reading_speed_subtitle">Más lento a la izquierda, más rápido a la derecha.</string>
     <string name="rsvp_reading_speed_details_subtitle">Solo ritmo general. Los perfiles siguen dando forma a pausas y cadencia.</string>

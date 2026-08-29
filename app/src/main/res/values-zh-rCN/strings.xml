@@ -9,7 +9,6 @@
     <string name="action_save">保存</string>
 
     <string name="format_chars">%1$d 个字符</string>
-    <string name="format_estimated_wpm">约%1$d 词/分</string>
     <string name="format_ms">%1$d毫秒</string>
     <string name="format_multiplier">x%1$.2f</string>
     <string name="format_percent">%1$d％</string>
@@ -33,7 +32,6 @@
     <string name="content_desc_next_page">下一页</string>
     <string name="content_desc_pause">暂停</string>
     <string name="content_desc_play">播放</string>
-    <string name="content_desc_previous">上一步</string>
     <string name="content_desc_previous_page">上一页</string>
     <string name="content_desc_reader_menu">阅读器菜单</string>
     <string name="content_desc_reader_swipe_next_page">滑动预览：下一页</string>
@@ -41,7 +39,6 @@
     <string name="content_desc_mark_book_completed">标记为已完成</string>
     <string name="content_desc_move_book_to_library">移回书库</string>
     <string name="content_desc_settings">设置</string>
-    <string name="content_desc_start_rsvp">开始速读</string>
     <string name="content_desc_title_page_of_title">%1$s 的标题页</string>
 
     <string name="import_status_title">导入中</string>
@@ -50,13 +47,8 @@
 
     <string name="library_title">你的书库</string>
     <string name="library_subtitle">导入支持的文件以开始。</string>
-    <string name="library_tab_library">书库</string>
-    <string name="library_tab_completed">已完成</string>
-    <string name="library_tab_bookmarks">书签</string>
     <string name="library_bookmarks_subtitle">打开已保存的书签</string>
     <string name="library_import_button">导入图书</string>
-    <string name="library_no_bookmarks">暂无书签</string>
-    <string name="library_no_completed_books">暂无已完成图书</string>
     <string name="library_time_left">剩余 ~%1$s</string>
     <string name="library_percent_complete">已完成 %1$d％</string>
     <string name="library_completed_status">已完成</string>
@@ -96,7 +88,6 @@
     <string name="reader_eta_chapter">章节 ~%1$s</string>
     <string name="reader_eta_book">全书 ~%1$s</string>
     <string name="reader_eta_prefix">预计：%1$s</string>
-    <string name="reader_rsvp_dock_progress">RSVP %1$d%%</string>
     <string name="reader_empty_chapter">本章无内容</string>
     <string name="reader_image_not_found">未找到图片</string>
 
@@ -132,9 +123,6 @@
     <string name="rsvp_text_brightness_subtitle">不改变主题的情况下调暗速读文字。</string>
     <string name="rsvp_quick_tune_title">快速调节</string>
     <string name="rsvp_quick_tune_subtitle">从这里开始。高级控制在下方。</string>
-    <string name="rsvp_tempo_title">节奏</string>
-    <string name="rsvp_tempo_subtitle">越低越快。</string>
-    <string name="rsvp_tempo_details_subtitle">节奏越低越快。这是总体速度调节。</string>
     <string name="rsvp_min_word_time_title">最短单词时间</string>
     <string name="rsvp_min_word_time_subtitle">任何显示单词的硬性下限。</string>
     <string name="rsvp_long_word_min_title">长词最短时间</string>
@@ -297,10 +285,8 @@
     <string name="reader_chapter_load_failed">无法加载此章节：%1$s</string>
     <string name="reader_missing_book_title">找不到书籍</string>
     <string name="reader_missing_book_body">这本书可能已被删除或不再可用。</string>
-    <string name="reader_start_rsvp_action">从焦点词开始 RSVP</string>
     <string name="reader_image_hold_to_view">长按查看</string>
     <string name="reader_image_viewer_hint">双指缩放。拖动平移。双击重置。</string>
-    <string name="rsvp_selected_speed">已选速度：%1$d WPM</string>
     <string name="rsvp_reading_speed_title">阅读速度</string>
     <string name="rsvp_reading_speed_subtitle">左侧更慢，右侧更快。</string>
     <string name="rsvp_reading_speed_details_subtitle">仅调整整体节奏。配置仍会影响停顿和韵律。</string>

@@ -9,7 +9,6 @@
     <string name="action_save">保存</string>
 
     <string name="format_chars">%1$d 文字</string>
-    <string name="format_estimated_wpm">約%1$d 語/分</string>
     <string name="format_ms">%1$dミリ秒</string>
     <string name="format_multiplier">x%1$.2f</string>
     <string name="format_percent">%1$d％</string>
@@ -33,7 +32,6 @@
     <string name="content_desc_next_page">次のページ</string>
     <string name="content_desc_pause">一時停止</string>
     <string name="content_desc_play">再生</string>
-    <string name="content_desc_previous">前へ</string>
     <string name="content_desc_previous_page">前のページ</string>
     <string name="content_desc_reader_menu">リーダーメニュー</string>
     <string name="content_desc_reader_swipe_next_page">スワイププレビュー: 次のページ</string>
@@ -41,7 +39,6 @@
     <string name="content_desc_mark_book_completed">読了としてマーク</string>
     <string name="content_desc_move_book_to_library">ライブラリに戻す</string>
     <string name="content_desc_settings">設定</string>
-    <string name="content_desc_start_rsvp">速読を開始</string>
     <string name="content_desc_title_page_of_title">%1$s のタイトルページ</string>
 
     <string name="import_status_title">インポート中</string>
@@ -50,13 +47,8 @@
 
     <string name="library_title">ライブラリ</string>
     <string name="library_subtitle">対応ファイルをインポートして開始します。</string>
-    <string name="library_tab_library">ライブラリ</string>
-    <string name="library_tab_completed">読了</string>
-    <string name="library_tab_bookmarks">ブックマーク</string>
     <string name="library_bookmarks_subtitle">保存したブックマークを開く</string>
     <string name="library_import_button">本をインポート</string>
-    <string name="library_no_bookmarks">ブックマークはまだありません</string>
-    <string name="library_no_completed_books">読了した本はまだありません</string>
     <string name="library_time_left">残り ~%1$s</string>
     <string name="library_percent_complete">%1$d％ 完了</string>
     <string name="library_completed_status">読了</string>
@@ -96,7 +88,6 @@
     <string name="reader_eta_chapter">章 ~%1$s</string>
     <string name="reader_eta_book">本 ~%1$s</string>
     <string name="reader_eta_prefix">予想: %1$s</string>
-    <string name="reader_rsvp_dock_progress">RSVP %1$d%%</string>
     <string name="reader_empty_chapter">この章には内容がありません</string>
     <string name="reader_image_not_found">画像が見つかりません</string>
 
@@ -132,9 +123,6 @@
     <string name="rsvp_text_brightness_subtitle">テーマを変えずに速読の単語を暗くします。</string>
     <string name="rsvp_quick_tune_title">クイック調整</string>
     <string name="rsvp_quick_tune_subtitle">まずはこちら。高度な設定は下にあります。</string>
-    <string name="rsvp_tempo_title">テンポ</string>
-    <string name="rsvp_tempo_subtitle">低いほど速い。</string>
-    <string name="rsvp_tempo_details_subtitle">テンポが低いほど速い。全体の速度調整です。</string>
     <string name="rsvp_min_word_time_title">最小表示時間</string>
     <string name="rsvp_min_word_time_subtitle">表示される単語の最低時間。</string>
     <string name="rsvp_long_word_min_title">長い単語の最小時間</string>
@@ -297,10 +285,8 @@
     <string name="reader_chapter_load_failed">この章を読み込めませんでした: %1$s</string>
     <string name="reader_missing_book_title">本が見つかりません</string>
     <string name="reader_missing_book_body">この本は削除されたか、利用できなくなっている可能性があります。</string>
-    <string name="reader_start_rsvp_action">フォーカス語からRSVPを開始</string>
     <string name="reader_image_hold_to_view">長押しで表示</string>
     <string name="reader_image_viewer_hint">ピンチでズーム。ドラッグで移動。ダブルタップでリセット。</string>
-    <string name="rsvp_selected_speed">選択中の速度: %1$d WPM</string>
     <string name="rsvp_reading_speed_title">読書速度</string>
     <string name="rsvp_reading_speed_subtitle">左ほど遅く、右ほど速くなります。</string>
     <string name="rsvp_reading_speed_details_subtitle">全体のペースのみです。プロファイルは引き続き一時停止とリズムを調整します。</string>
