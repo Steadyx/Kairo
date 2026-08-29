@@ -26,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -40,6 +39,7 @@ import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.shouldInsertSpaceBeforeToken
+import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.rsvp.RsvpRuntimeState
 import com.kairo.reader.ui.rsvp.resolveFontFamily
 import kotlin.math.ceil
@@ -65,12 +65,14 @@ internal fun BionicReadingText(
 ) {
     if (frames.isEmpty() || tokens.isEmpty()) return
 
-    val configuration = LocalConfiguration.current
+    val windowMetrics = rememberWindowContainerMetrics()
     val density = LocalDensity.current
+    val screenWidthDp = windowMetrics.roundedWidthDp
+    val screenHeightDp = windowMetrics.roundedHeightDp
     val paneLineCount =
         bionicPaneLineCount(
-            screenWidthDp = configuration.screenWidthDp,
-            screenHeightDp = configuration.screenHeightDp,
+            screenWidthDp = screenWidthDp,
+            screenHeightDp = screenHeightDp,
             fontSizeSp = runtime.currentFontSizeSp,
             fontScale = density.fontScale,
         )
@@ -78,11 +80,11 @@ internal fun BionicReadingText(
         remember(
             runtime.currentFontSizeSp,
             density.fontScale,
-            configuration.screenWidthDp,
+            screenWidthDp,
             paneLineCount,
         ) {
             estimateBionicWordCapacity(
-                screenWidthDp = configuration.screenWidthDp,
+                screenWidthDp = screenWidthDp,
                 fontSizeSp = runtime.currentFontSizeSp,
                 fontScale = density.fontScale,
                 paneLineCount = paneLineCount,
@@ -92,11 +94,11 @@ internal fun BionicReadingText(
         remember(
             runtime.currentFontSizeSp,
             density.fontScale,
-            configuration.screenWidthDp,
+            screenWidthDp,
             paneLineCount,
         ) {
             estimateBionicCharacterCapacity(
-                screenWidthDp = configuration.screenWidthDp,
+                screenWidthDp = screenWidthDp,
                 fontSizeSp = runtime.currentFontSizeSp,
                 paneLineCount = paneLineCount,
                 fontScale = density.fontScale,
@@ -154,9 +156,9 @@ internal fun BionicReadingText(
     val lineHeightSp = safeFontSize * 1.48f
     val paneHeight = with(density) { lineHeightSp.sp.toDp() } * paneLineCount.toFloat() + 44.dp
     val minimumTopPadding =
-        if (configuration.screenWidthDp > configuration.screenHeightDp) 20.dp else 32.dp
+        if (windowMetrics.isLandscape) 20.dp else 32.dp
     val paneTopPadding =
-        (((configuration.screenHeightDp.dp - paneHeight) / 2f) - 12.dp)
+        (((windowMetrics.heightDp - paneHeight) / 2f) - 12.dp)
             .coerceAtLeast(minimumTopPadding)
             .coerceAtMost(112.dp)
 
