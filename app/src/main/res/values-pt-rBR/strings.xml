@@ -443,16 +443,19 @@
 
     <plurals name="library_chapter_count">
         <item quantity="one">%1$d capítulo</item>
+        <item quantity="many">%1$d capítulos</item>
         <item quantity="other">%1$d capítulos</item>
     </plurals>
 
     <plurals name="library_bookmark_count">
         <item quantity="one">%1$d marcador</item>
+        <item quantity="many">%1$d marcadores</item>
         <item quantity="other">%1$d marcadores</item>
     </plurals>
 
     <plurals name="toast_imported_with_chapter_count">
         <item quantity="one">Importado: %1$s (%2$d capítulo)</item>
+        <item quantity="many">Importado: %1$s (%2$d capítulos)</item>
         <item quantity="other">Importado: %1$s (%2$d capítulos)</item>
     </plurals>
     <string name="content_desc_start_timed_reading">Iniciar %1$s</string>
@@ -555,14 +558,17 @@
     <string name="momentum_estimated_suffix"> estimadas</string>
     <plurals name="momentum_sessions_count">
         <item quantity="one">%1$d sessão</item>
+        <item quantity="many">%1$d sessões</item>
         <item quantity="other">%1$d sessões</item>
     </plurals>
     <plurals name="momentum_previous_weeks_count">
         <item quantity="one">%1$d semana com leitura</item>
+        <item quantity="many">%1$d semanas com leitura</item>
         <item quantity="other">%1$d semanas com leitura</item>
     </plurals>
     <plurals name="momentum_active_days_count">
         <item quantity="one">%1$d dia ativo</item>
+        <item quantity="many">%1$d dias ativos</item>
         <item quantity="other">%1$d dias ativos</item>
     </plurals>
     <string name="search_kairo_title">Pesquisar no Kairo</string>

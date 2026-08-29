@@ -442,17 +442,14 @@
     <string name="rsvp_regression_pacing_subtitle">重读或向后滑动后，暂时放缓阅读节奏。</string>
 
     <plurals name="library_chapter_count">
-        <item quantity="one">%1$d 章</item>
         <item quantity="other">%1$d 章</item>
     </plurals>
 
     <plurals name="library_bookmark_count">
-        <item quantity="one">%1$d 个书签</item>
         <item quantity="other">%1$d 个书签</item>
     </plurals>
 
     <plurals name="toast_imported_with_chapter_count">
-        <item quantity="one">已导入：%1$s（%2$d 章）</item>
         <item quantity="other">已导入：%1$s（%2$d 章）</item>
     </plurals>
     <string name="content_desc_start_timed_reading">开始%1$s</string>
