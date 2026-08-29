@@ -1,7 +1,7 @@
 # <p align="center">Kairo</p>
 
 <p align="center">
-  <img src="app/src/main/res/drawable-nodpi/kairo_logo.png" alt="Kairo logo" width="220" />
+  <img src="docs/assets/kairo_logo.png" alt="Kairo logo" width="220" />
 </p>
 
 <p align="center"><strong>An Android ebook reader built for momentum, focus, and high-speed reading.</strong></p>
