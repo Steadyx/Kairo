@@ -40,6 +40,9 @@ jobs:
           path: |
             app/build/reports/detekt/
             app/build/reports/ktlint/
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.txt
+            app/build/reports/lint-results-debug.xml
             app/build/reports/tests/testDebugUnitTest/
             app/build/test-results/testDebugUnitTest/
           if-no-files-found: ignore

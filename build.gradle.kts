@@ -41,6 +41,6 @@ tasks.register("qualityCheck") {
 
 tasks.register("qualityGate") {
     group = "verification"
-    description = "Runs the complete deterministic CI quality gate, including debug APK assembly"
-    dependsOn("qualityCheck", ":app:assembleDebug")
+    description = "Runs the complete deterministic CI quality gate, including Android Lint and debug APK assembly"
+    dependsOn("qualityCheck", ":app:lintDebug", ":app:assembleDebug")
 }
