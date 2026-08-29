@@ -2,11 +2,12 @@ package com.kairo.reader.data.books
 
 import com.kairo.reader.core.model.BookId
 import java.io.ByteArrayOutputStream
-import java.util.Base64
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.io.encoding.Base64
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -14,7 +15,7 @@ class Fb2ParserEngineTest {
     @Test
     fun parseReadsMetadataSectionsAndEmbeddedImages() {
         val imageBytes = byteArrayOf(1, 2, 3, 4)
-        val xml = fixtureXml(Base64.getEncoder().encodeToString(imageBytes))
+        val xml = fixtureXml(Base64.Default.encode(imageBytes))
         val writtenImages = mutableMapOf<String, ByteArray>()
 
         val book =
@@ -32,6 +33,41 @@ class Fb2ParserEngineTest {
         assertEquals(1, book.chapters.first().imagePaths.size)
         assertArrayEquals(imageBytes, book.coverImage)
         assertArrayEquals(imageBytes, writtenImages.values.single())
+    }
+
+    @Test
+    fun parseReadsUnpaddedEmbeddedImages() {
+        val imageBytes = byteArrayOf(1, 2)
+        val encoded = Base64.Default.encode(imageBytes).trimEnd('=')
+
+        val book = Fb2ParserEngine.parse(request("novel.fb2", "fb2", fixtureXml(encoded).toByteArray()))
+
+        assertArrayEquals(imageBytes, book.coverImage)
+    }
+
+    @Test
+    fun parseReadsWhitespaceWrappedEmbeddedImages() {
+        val imageBytes = ByteArray(24) { it.toByte() }
+        val encoded = Base64.Default.encode(imageBytes).chunked(8).joinToString("\n            ")
+
+        val book = Fb2ParserEngine.parse(request("novel.fb2", "fb2", fixtureXml(encoded).toByteArray()))
+
+        assertArrayEquals(imageBytes, book.coverImage)
+    }
+
+    @Test
+    fun parseIgnoresMalformedEmbeddedImages() {
+        val writtenImages = mutableMapOf<String, ByteArray>()
+
+        val book =
+            Fb2ParserEngine.parse(request("novel.fb2", "fb2", fixtureXml("not-base64!").toByteArray())) { name, bytes ->
+                writtenImages[name] = bytes
+                "kairo_fb2_assets/test/images/$name"
+            }
+
+        assertNull(book.coverImage)
+        assertTrue(book.chapters.first().imagePaths.isEmpty())
+        assertTrue(writtenImages.isEmpty())
     }
 
     @Test

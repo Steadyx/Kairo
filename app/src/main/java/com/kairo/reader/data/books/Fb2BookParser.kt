@@ -5,8 +5,8 @@ import com.kairo.reader.core.dispatchers.DispatcherProvider
 import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.countWords
-import java.util.Base64
 import java.util.Locale
+import kotlin.io.encoding.Base64
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 
@@ -181,7 +181,11 @@ internal object Fb2ParserEngine {
 
     private data class Fb2BinaryImage(val contentType: String, val encoded: String,) {
         fun decode(): ByteArray? =
-            runCatching { Base64.getDecoder().decode(encoded) }
+            runCatching {
+                Base64.Default
+                    .withPadding(Base64.PaddingOption.PRESENT_OPTIONAL)
+                    .decode(encoded)
+            }
                 .getOrNull()
                 ?.takeIf { bytes -> bytes.size <= MAX_DECODED_IMAGE_BYTES }
 
