@@ -19,11 +19,20 @@ internal enum class InAppUpdateAction {
 internal class PlayInAppUpdateCoordinator(activity: Activity, private val onPromptChanged: (InAppUpdatePrompt?) -> Unit,) {
     private val updateManager: AppUpdateManager = AppUpdateManagerFactory.create(activity)
     private val updateOptions = AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build()
+
+    // Play Core still includes the deprecated REQUIRES_UI_INTENT value in its InstallStatus set.
+    @Suppress("DEPRECATION")
     private val installStateListener =
         InstallStateUpdatedListener { state ->
             when (state.installStatus()) {
                 InstallStatus.DOWNLOADED -> publishPrompt(InAppUpdatePrompt.READY_TO_RESTART)
                 InstallStatus.CANCELED, InstallStatus.FAILED, InstallStatus.INSTALLED -> publishPrompt(null)
+                InstallStatus.DOWNLOADING,
+                InstallStatus.INSTALLING,
+                InstallStatus.PENDING,
+                InstallStatus.REQUIRES_UI_INTENT,
+                InstallStatus.UNKNOWN,
+                -> Unit
             }
         }
 
