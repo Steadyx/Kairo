@@ -3,6 +3,12 @@ package com.kairo.reader.ui.reader
 import java.util.Locale
 
 private const val HEX_RADIX = 16
+internal const val MAX_READER_CHAPTER_LOCAL_IMAGE_CANDIDATES = 256
+internal const val READER_CHAPTER_IMAGE_LIMIT_MESSAGE =
+    "This chapter contains too many images to display."
+
+internal class ReaderChapterImageLimitException :
+    IllegalArgumentException(READER_CHAPTER_IMAGE_LIMIT_MESSAGE)
 
 private sealed interface HtmlBlockMarker {
     data object Paragraph : HtmlBlockMarker
@@ -15,7 +21,7 @@ internal fun buildReaderBlocks(
     paragraphs: List<Paragraph>,
     imagePaths: List<String>,
 ): List<ReaderBlock> {
-    if (paragraphs.isEmpty() && imagePaths.isEmpty()) {
+    if (paragraphs.isEmpty() && imagePaths.isEmpty() && htmlContent.isBlank()) {
         return emptyList()
     }
 
@@ -25,6 +31,7 @@ internal fun buildReaderBlocks(
     var imageIndex = 0
 
     if (markers.isEmpty() && paragraphs.isEmpty() && imagePaths.isNotEmpty()) {
+        enforceReaderChapterImageLimit(imagePaths.size)
         imagePaths.forEachIndexed { index, path ->
             blocks.add(ReaderImageBlock(path, index))
         }
@@ -118,7 +125,7 @@ private fun extractHtmlBlockMarkers(
     var fallbackIndex = 0
     val imgRegex =
         Regex(
-            "<img[^>]+?src\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>",
+            "<img\\b[^>]+?src\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>",
             RegexOption.IGNORE_CASE,
         )
     val svgRegex =
@@ -126,29 +133,33 @@ private fun extractHtmlBlockMarkers(
             "<image\\b[^>]*?\\b(?:xlink:href|href)\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>",
             RegexOption.IGNORE_CASE,
         )
+    var localImageCandidateCount = 0
+
+    fun collectLocalImageMatches(
+        block: String,
+        regex: Regex,
+        destination: MutableList<HtmlImageMatch>,
+    ) {
+        regex.findAll(block).forEach { match ->
+            val src = match.groupValues[1]
+            if (isGuaranteedNonLocalImageSource(src)) return@forEach
+            localImageCandidateCount += 1
+            enforceReaderChapterImageLimit(localImageCandidateCount)
+            destination.add(
+                HtmlImageMatch(
+                    start = match.range.first,
+                    endInclusive = match.range.last,
+                    src = src,
+                    size = extractImageSize(match.value),
+                ),
+            )
+        }
+    }
 
     rawBlocks.forEach { block ->
         val imageMatches = mutableListOf<HtmlImageMatch>()
-        imgRegex.findAll(block).forEach { match ->
-            imageMatches.add(
-                HtmlImageMatch(
-                    start = match.range.first,
-                    endInclusive = match.range.last,
-                    src = match.groupValues[1],
-                    size = extractImageSize(match.value),
-                )
-            )
-        }
-        svgRegex.findAll(block).forEach { match ->
-            imageMatches.add(
-                HtmlImageMatch(
-                    start = match.range.first,
-                    endInclusive = match.range.last,
-                    src = match.groupValues[1],
-                    size = extractImageSize(match.value),
-                )
-            )
-        }
+        collectLocalImageMatches(block, imgRegex, imageMatches)
+        collectLocalImageMatches(block, svgRegex, imageMatches)
         var cursor = 0
         var paragraphAdded = false
 
@@ -181,6 +192,19 @@ private fun extractHtmlBlockMarkers(
 }
 
 private data class HtmlImageMatch(val start: Int, val endInclusive: Int, val src: String, val size: ReaderImageSize?,)
+
+private fun enforceReaderChapterImageLimit(candidateCount: Int) {
+    if (candidateCount > MAX_READER_CHAPTER_LOCAL_IMAGE_CANDIDATES) {
+        throw ReaderChapterImageLimitException()
+    }
+}
+
+private fun isGuaranteedNonLocalImageSource(rawSrc: String): Boolean {
+    val src = rawSrc.trim()
+    return src.startsWith("data:", ignoreCase = true) ||
+        src.startsWith("http:", ignoreCase = true) ||
+        src.startsWith("https:", ignoreCase = true)
+}
 
 private fun extractImageSize(tag: String): ReaderImageSize? {
     val width = extractImageLength(tag, "width")
