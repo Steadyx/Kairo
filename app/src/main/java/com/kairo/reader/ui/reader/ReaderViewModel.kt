@@ -16,6 +16,7 @@ import com.kairo.reader.data.token.TokenRepository
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val PAGINATION_WORDS_MIN_DELTA = 14
+
+@Suppress("TooGenericExceptionCaught")
+private suspend fun <T> runCatchingPreservingCancellation(block: suspend () -> T): Result<T> =
+    try {
+        Result.success(block())
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Exception) {
+        Result.failure(failure)
+    }
+
+private class ReaderBookSession(val book: Book,) {
+    val cache = ReaderChapterCache()
+}
 
 /**
  * ViewModel for the Reader screen.
@@ -36,16 +51,14 @@ class ReaderViewModel(
     private val tokenRepository: TokenRepository,
     private val dispatcherProvider: DispatcherProvider,
     private val chapterProcessor: ReaderChapterProcessor = ReaderChapterProcessor(),
+    private val imageBoundsResolver: ReaderImageBoundsResolver = ReaderImageBoundsResolver.NoOp,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
 
-    // LRU cache for processed chapters - avoids re-tokenizing when switching back
-    private val chapterCache = ReaderChapterCache()
     private val tokenizationDispatcher = dispatcherProvider.default.limitedParallelism(1)
 
-    // Thread-safe book reference for cross-coroutine access
-    private val currentBook = AtomicReference<Book?>(null)
+    private val activeSession = AtomicReference<ReaderBookSession?>(null)
     private val chapterLoadSequence = AtomicInteger(0)
 
     // Pending focus index to apply after chapter loads (thread-safe for cross-coroutine access)
@@ -64,22 +77,24 @@ class ReaderViewModel(
         initialFocusIndex: Int = 0,
         initialSearchCodePointOffset: Int? = null,
     ) {
-        currentBook.set(book)
+        val session = ReaderBookSession(book)
+        activeSession.set(session)
         chapterLoadSequence.incrementAndGet()
-        chapterCache.clear()
         pendingFocusIndex.set(if (initialFocusIndex > 0) initialFocusIndex else null)
         pendingPageIndex.set(null)
         pendingCharacterOffset.set(null)
         pendingSearchCodePointOffset.set(initialSearchCodePointOffset)
         _uiState.update { it.copy(bookWordCounts = emptyList(), bookTotalWords = 0) }
-        loadBookWordCounts(book)
+        loadBookWordCounts(session)
         loadChapter(
+            session = session,
             chapterIndex = initialChapterIndex,
             initialSearchCodePointOffset = initialSearchCodePointOffset,
         )
     }
 
-    private fun loadBookWordCounts(book: Book) {
+    private fun loadBookWordCounts(session: ReaderBookSession) {
+        val book = session.book
         val bookId = book.id
         val initialCounts = book.chapters.map { it.wordCount }
         _uiState.update {
@@ -121,7 +136,7 @@ class ReaderViewModel(
                     }
                 }.getOrNull() ?: emptyList()
 
-            if (currentBook.get()?.id != bookId) return@launch
+            if (activeSession.get() !== session) return@launch
             val total = counts.sum()
             _uiState.update { it.copy(bookWordCounts = counts, bookTotalWords = total) }
         }
@@ -138,11 +153,30 @@ class ReaderViewModel(
         initialCharacterOffset: Int? = null,
         initialSearchCodePointOffset: Int? = null,
     ) {
-        val book = currentBook.get() ?: return
+        val session = activeSession.get() ?: return
+        loadChapter(
+            session = session,
+            chapterIndex = chapterIndex,
+            initialFocusIndex = initialFocusIndex,
+            initialPageIndex = initialPageIndex,
+            initialCharacterOffset = initialCharacterOffset,
+            initialSearchCodePointOffset = initialSearchCodePointOffset,
+        )
+    }
+
+    private fun loadChapter(
+        session: ReaderBookSession,
+        chapterIndex: Int,
+        initialFocusIndex: Int? = null,
+        initialPageIndex: Int? = null,
+        initialCharacterOffset: Int? = null,
+        initialSearchCodePointOffset: Int? = null,
+    ) {
+        if (activeSession.get() !== session) return
+        val book = session.book
 
         if (chapterIndex !in book.chapters.indices) return
         val requestId = chapterLoadSequence.incrementAndGet()
-        val requestedBookId = book.id
 
         pendingCharacterOffset.set(initialCharacterOffset)
         pendingSearchCodePointOffset.set(initialSearchCodePointOffset)
@@ -158,8 +192,9 @@ class ReaderViewModel(
         }
 
         // Check cache first - instant load if available
-        val cached = chapterCache[chapterIndex]
+        val cached = session.cache[chapterIndex]
         if (cached != null) {
+            if (!isActiveSessionRequest(session, requestId)) return
             // Use pending focus if set, otherwise use first word
             val pageIdx = pendingPageIndex.getAndSet(null)
             val focusIdx =
@@ -184,7 +219,7 @@ class ReaderViewModel(
                 )
             }
             // Preload adjacent chapters in background
-            preloadAdjacentChapters(chapterIndex)
+            preloadAdjacentChapters(session, chapterIndex)
         } else {
             // Not cached - show loading state immediately (UI stays responsive)
             _uiState.update {
@@ -198,7 +233,7 @@ class ReaderViewModel(
 
             viewModelScope.launch {
                 val processed =
-                    runCatching {
+                    runCatchingPreservingCancellation {
                         val chapter =
                             withContext(dispatcherProvider.io) {
                                 bookRepository.getChapter(book.id, chapterIndex)
@@ -212,16 +247,13 @@ class ReaderViewModel(
                         ?.takeIf { it.isNotBlank() }
                         ?: if (processed.isFailure) DEFAULT_CHAPTER_LOAD_ERROR else null
 
-                if (
-                    chapterLoadSequence.get() != requestId ||
-                    currentBook.get()?.id != requestedBookId
-                ) {
+                if (!isActiveSessionRequest(session, requestId)) {
                     return@launch
                 }
 
                 // Cache the result
                 result?.let {
-                    chapterCache[chapterIndex] = it
+                    session.cache[chapterIndex] = it
                 }
 
                 // Use pending focus if set, otherwise use first word
@@ -256,10 +288,17 @@ class ReaderViewModel(
                 }
 
                 // Preload adjacent chapters after current one loads
-                preloadAdjacentChapters(chapterIndex)
+                preloadAdjacentChapters(session, chapterIndex)
             }
         }
     }
+
+    private fun isActiveSessionRequest(
+        session: ReaderBookSession,
+        requestId: Int,
+    ): Boolean =
+        activeSession.get() === session &&
+            chapterLoadSequence.get() == requestId
 
     fun loadTableOfContentsTarget(target: TableOfContentsTarget) {
         loadChapter(
@@ -283,39 +322,77 @@ class ReaderViewModel(
     private suspend fun processChapter(
         chapter: Chapter,
         tokens: List<Token>,
-    ): ChapterData? =
-        withContext(tokenizationDispatcher) {
-            chapterProcessor.process(chapter, tokens, wordsPerPageTarget.get())
+    ): ChapterData? {
+        val chapterData =
+            withContext(tokenizationDispatcher) {
+                chapterProcessor.process(chapter, tokens, wordsPerPageTarget.get())
+            } ?: return null
+
+        return resolveMissingImageBounds(chapterData)
+    }
+
+    private suspend fun resolveMissingImageBounds(chapterData: ChapterData): ChapterData {
+        val unresolvedPaths =
+            chapterData.blocks
+                .asSequence()
+                .filterIsInstance<ReaderImageBlock>()
+                .filterNot { it.imageSize.hasCompleteValidImageSize() }
+                .map { it.imagePath }
+                .distinct()
+                .toList()
+        if (unresolvedPaths.isEmpty()) return chapterData
+
+        val intrinsicSizesByPath = mutableMapOf<String, ReaderImageSize?>()
+        unresolvedPaths.forEach { imagePath ->
+            intrinsicSizesByPath[imagePath] = imageBoundsResolver.resolve(imagePath)
         }
+        val resolvedBlocks =
+            chapterData.blocks.map { block ->
+                if (block !is ReaderImageBlock || block.imageSize.hasCompleteValidImageSize()) {
+                    block
+                } else {
+                    val mergedSize =
+                        mergeReaderImageSize(
+                            authoredSize = block.imageSize,
+                            intrinsicSize = intrinsicSizesByPath[block.imagePath],
+                        )
+                    if (mergedSize == block.imageSize) block else block.copy(imageSize = mergedSize)
+                }
+            }
+
+        return if (resolvedBlocks == chapterData.blocks) {
+            chapterData
+        } else {
+            chapterData.copy(blocks = resolvedBlocks)
+        }
+    }
 
     /**
      * Preload adjacent chapters in background so chapter switching feels instant.
      */
-    private fun preloadAdjacentChapters(currentIndex: Int) {
-        val book = currentBook.get() ?: return
+    private fun preloadAdjacentChapters(
+        session: ReaderBookSession,
+        currentIndex: Int,
+    ) {
+        val book = session.book
 
         viewModelScope.launch(tokenizationDispatcher) {
             listOf(currentIndex + 1)
                 .filter { it in book.chapters.indices }
                 .filter { index ->
-                    !chapterCache.contains(index)
+                    !session.cache.contains(index)
                 }
                 .forEach { index ->
-                    val chapter =
-                        runCatching {
-                            withContext(dispatcherProvider.io) {
-                                bookRepository.getChapter(book.id, index)
-                            }
+                    val data =
+                        runCatchingPreservingCancellation {
+                            val chapter =
+                                withContext(dispatcherProvider.io) {
+                                    bookRepository.getChapter(book.id, index)
+                                }
+                            val tokens = tokenRepository.getTokens(book.id, index, chapter)
+                            processChapter(chapter, tokens)
                         }.getOrNull() ?: return@forEach
-
-                    val tokens = runCatching {
-                        tokenRepository.getTokens(book.id, index, chapter)
-                    }.getOrNull()
-                    if (tokens != null) {
-                        processChapter(chapter, tokens)?.let { data ->
-                            chapterCache[index] = data
-                        }
-                    }
+                    session.cache[index] = data
                 }
         }
     }
@@ -359,7 +436,9 @@ class ReaderViewModel(
         if (abs(resolvedWordsPerPage - previousWordsPerPage) < PAGINATION_WORDS_MIN_DELTA) return
         wordsPerPageTarget.set(resolvedWordsPerPage)
 
-        chapterCache.transformAll { chapterProcessor.repage(it, resolvedWordsPerPage) }
+        val session = activeSession.get() ?: return
+        session.cache.transformAll { chapterProcessor.repage(it, resolvedWordsPerPage) }
+        if (activeSession.get() !== session) return
 
         _uiState.update { state ->
             val chapterData = state.chapterData ?: return@update state
@@ -369,18 +448,20 @@ class ReaderViewModel(
 
     @Suppress("unused")
     fun nextChapter() {
-        val book = currentBook.get() ?: return
+        val session = activeSession.get() ?: return
+        val book = session.book
         val nextIndex = (_uiState.value.chapterIndex + 1).coerceAtMost(book.chapters.lastIndex)
         if (nextIndex != _uiState.value.chapterIndex) {
-            loadChapter(nextIndex)
+            loadChapter(session = session, chapterIndex = nextIndex)
         }
     }
 
     @Suppress("unused")
     fun previousChapter() {
+        val session = activeSession.get() ?: return
         val prevIndex = (_uiState.value.chapterIndex - 1).coerceAtLeast(0)
         if (prevIndex != _uiState.value.chapterIndex) {
-            loadChapter(prevIndex)
+            loadChapter(session = session, chapterIndex = prevIndex)
         }
     }
 
@@ -389,7 +470,9 @@ class ReaderViewModel(
      */
     override fun onCleared() {
         super.onCleared()
-        chapterCache.clear()
+        val session = activeSession.getAndSet(null)
+        chapterLoadSequence.incrementAndGet()
+        session?.cache?.clear()
     }
 
     companion object {
@@ -399,6 +482,7 @@ class ReaderViewModel(
             bookRepository: BookRepository,
             tokenRepository: TokenRepository,
             dispatcherProvider: DispatcherProvider,
+            imageBoundsResolver: ReaderImageBoundsResolver = ReaderImageBoundsResolver.NoOp,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -407,7 +491,8 @@ class ReaderViewModel(
                         return ReaderViewModel(
                             bookRepository,
                             tokenRepository,
-                            dispatcherProvider
+                            dispatcherProvider,
+                            imageBoundsResolver = imageBoundsResolver,
                         ) as T
                     }
                     throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

@@ -47,6 +47,7 @@ import com.kairo.reader.core.model.nearestWordIndex
 import com.kairo.reader.core.rsvp.RsvpConfigResolver
 import com.kairo.reader.core.rsvp.RsvpGenerationOptions
 import com.kairo.reader.core.rsvp.RsvpSegmentationRolloutResolver
+import com.kairo.reader.ui.reader.FileReaderImageBoundsResolver
 import com.kairo.reader.ui.reader.ReaderScreen
 import com.kairo.reader.ui.reader.ReaderUiState
 import com.kairo.reader.ui.reader.ReaderViewModel
@@ -265,15 +266,24 @@ private fun rememberReaderRsvpGenerationOptions(
     }
 
 @Composable
-private fun rememberReaderViewModel(container: KairoApplication): ReaderViewModel =
-    viewModel(
+private fun rememberReaderViewModel(container: KairoApplication): ReaderViewModel {
+    val imageBoundsResolver =
+        remember(container) {
+            FileReaderImageBoundsResolver(
+                filesDirectory = container.filesDir,
+                ioDispatcher = container.dispatcherProvider.io,
+            )
+        }
+    return viewModel(
         factory =
         ReaderViewModel.factory(
             container.bookRepository,
             container.tokenRepository,
             container.dispatcherProvider,
+            imageBoundsResolver,
         ),
     )
+}
 
 @Composable
 private fun rememberReaderPositionSaver(

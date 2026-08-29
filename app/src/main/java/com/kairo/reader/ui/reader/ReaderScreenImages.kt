@@ -6,15 +6,15 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -38,7 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -54,6 +53,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.kairo.reader.R
 import java.io.File
 
@@ -114,94 +115,86 @@ internal fun InlineImageBlock(
     val file = remember(imagePath) { resolveImageFile(context, imagePath) }
     if (!file.exists()) return
 
-    var intrinsicSize by remember(imagePath) { mutableStateOf(Size.Unspecified) }
-    val displaySize =
-        remember(imageSize, intrinsicSize) {
-            resolveInlineImageDisplaySize(
-                imageSize = imageSize,
-                intrinsicSize = intrinsicSize,
-            )
+    val request =
+        remember(file) {
+            ImageRequest.Builder(context)
+                .data(file)
+                .crossfade(false)
+                .build()
         }
-    val imageModifier =
-        if (displaySize != null) {
-            Modifier
-                .widthIn(max = displaySize.width)
-                .aspectRatio(displaySize.aspectRatio)
-        } else {
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 180.dp, max = 420.dp)
-        }
-    val longPressModifier =
-        Modifier.openReaderImageOnLongPress(
-            imagePath = imagePath,
-            onOpen = onOpen,
-        )
     val illustrationDescription = stringResource(R.string.content_desc_illustration)
 
-    Box(modifier = Modifier.fillMaxWidth()) {
-        AsyncImage(
-            model = file,
-            contentDescription = illustrationDescription,
-            contentScale = ContentScale.Fit,
-            onSuccess = { state ->
-                intrinsicSize = state.painter.intrinsicSize
-            },
-            modifier =
-            imageModifier
-                .align(Alignment.Center)
-                .then(longPressModifier),
-        )
-        ReaderImageOpenHint(
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val availableWidth = maxWidth
+        val displaySize =
+            resolveInlineImageDisplaySize(
+                imageSize = imageSize,
+                availableWidth = availableWidth,
+            )
+
+        Box(
             modifier =
             Modifier
-                .align(Alignment.TopCenter)
-                .padding(12.dp),
-        )
+                .inlineImageDisplaySize(displaySize)
+                .align(Alignment.Center),
+        ) {
+            AsyncImage(
+                model = request,
+                contentDescription = illustrationDescription,
+                contentScale = ContentScale.Fit,
+                modifier =
+                Modifier
+                    .fillMaxSize()
+                    .openReaderImageOnLongPress(
+                        imagePath = imagePath,
+                        onOpen = onOpen,
+                    ),
+            )
+            ReaderImageOpenHint(
+                modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(12.dp),
+            )
+        }
     }
 }
 
-private data class InlineImageDisplaySize(val width: Dp, val aspectRatio: Float,)
+internal data class InlineImageDisplaySize(val width: Dp, val aspectRatio: Float,)
 
-private fun resolveInlineImageDisplaySize(
+internal fun resolveInlineImageDisplaySize(
     imageSize: ReaderImageSize?,
-    intrinsicSize: Size,
+    availableWidth: Dp,
 ): InlineImageDisplaySize? {
-    val requestedWidth = imageSize?.widthPx
-    val requestedHeight = imageSize?.heightPx
-    val intrinsicWidth = intrinsicSize.width.takeIfValidImageLength()
-    val intrinsicHeight = intrinsicSize.height.takeIfValidImageLength()
-    val aspectRatio =
-        when {
-            intrinsicWidth != null && intrinsicHeight != null -> intrinsicWidth / intrinsicHeight
-            requestedWidth != null && requestedHeight != null ->
-                requestedWidth / requestedHeight
-            else -> null
-        }?.takeIf { it > 0f && it.isFinite() }
-
-    val sourceWidth =
-        when {
-            requestedWidth != null -> requestedWidth
-            requestedHeight != null && aspectRatio != null -> requestedHeight * aspectRatio
-            intrinsicWidth != null -> intrinsicWidth
-            else -> return null
-        }
-    val sourceHeight =
-        when {
-            requestedHeight != null -> requestedHeight
-            aspectRatio != null -> sourceWidth / aspectRatio
-            intrinsicHeight != null -> intrinsicHeight
-            else -> return null
+    val maximumWidth = availableWidth.value.validImageLengthOrNull() ?: return null
+    val imageWidth = imageSize?.widthPx.validImageLengthOrNull()
+    val imageHeight = imageSize?.heightPx.validImageLengthOrNull()
+    val imageAspectRatio =
+        if (imageWidth != null && imageHeight != null) {
+            (imageWidth / imageHeight).validImageLengthOrNull()
+        } else {
+            null
         }
 
     return InlineImageDisplaySize(
-        width = sourceWidth.dp,
-        aspectRatio = sourceWidth / sourceHeight,
+        width =
+            if (imageAspectRatio != null && imageWidth != null) {
+                imageWidth.coerceAtMost(maximumWidth).dp
+            } else {
+                availableWidth
+            },
+        aspectRatio = imageAspectRatio ?: INLINE_IMAGE_FALLBACK_ASPECT_RATIO,
     )
 }
 
-private fun Float.takeIfValidImageLength(): Float? =
-    takeIf { this != Size.Unspecified.width && isFinite() && this > 0f }
+private fun Modifier.inlineImageDisplaySize(displaySize: InlineImageDisplaySize?): Modifier =
+    if (displaySize != null) {
+        width(displaySize.width).aspectRatio(displaySize.aspectRatio)
+    } else {
+        fillMaxWidth().aspectRatio(INLINE_IMAGE_FALLBACK_ASPECT_RATIO)
+    }
+
+internal const val INLINE_IMAGE_FALLBACK_ASPECT_RATIO = 4f / 3f
 
 @Composable
 internal fun FullScreenImageViewer(
