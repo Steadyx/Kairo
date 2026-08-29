@@ -535,7 +535,7 @@
     <string name="momentum_not_available">まだ十分なデータがありません</string>
     <string name="momentum_recent_sessions">最近のセッション</string>
     <string name="momentum_recent_sessions_limit">最新の%1$dセッションのみ表示しています。</string>
-    <string name="momentum_no_sessions">5分以上読むとMomentumの記録が始まります。</string>
+    <string name="momentum_no_sessions">読書を始めてMomentumを築きましょう。</string>
     <string name="momentum_goal_title">週間目標</string>
     <string name="momentum_custom_goal">カスタム</string>
     <string name="momentum_custom_goal_value">カスタム · %1$d分</string>

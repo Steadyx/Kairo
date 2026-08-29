@@ -116,14 +116,14 @@ internal class LogicalReadingSession private constructor(
         pause(timestamp, timeZone)
         val duration = segments.values.sumOf { it.activeDurationMs }
         val words = segments.values.sumOf { it.wordsRead.toLong() }
-        if (duration < MIN_LOGICAL_SESSION_DURATION_MS || words <= 0L) return emptyList()
+        if (duration <= 0L || words <= 0L) return emptyList()
         return segments.values
             .filter { it.activeDurationMs > 0L || it.wordsRead > 0 }
             .map { it.toReadingSession() }
     }
 
     fun isEligibleForFinalization(): Boolean =
-        segments.values.sumOf { it.activeDurationMs } >= MIN_LOGICAL_SESSION_DURATION_MS &&
+        segments.values.sumOf { it.activeDurationMs } > 0L &&
             segments.values.any { it.wordsRead > 0 }
 
     private fun accrueActiveTime(
@@ -366,7 +366,6 @@ private fun safeAdd(
     second: Int,
 ): Int = if (Int.MAX_VALUE - first < second) Int.MAX_VALUE else first + second
 
-private const val MIN_LOGICAL_SESSION_DURATION_MS = 300_000L
 private const val MILLIS_PER_MINUTE = 60_000L
 private const val MIN_EFFECTIVE_WPM = 1
 private const val MAX_EFFECTIVE_WPM = 2_000

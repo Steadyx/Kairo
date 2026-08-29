@@ -3,6 +3,7 @@ package com.kairo.reader.data.sessions
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.ReadingSession
 import com.kairo.reader.core.model.ReadingSessionItem
+import com.kairo.reader.core.model.ReadingSessionMode
 import java.util.Calendar
 import java.util.TimeZone
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +21,56 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReadingSessionCoordinatorTest {
     @Test
+    fun fourMinuteReaderSessionWithForwardProgressPersists() =
+        runTest {
+            val repository = FakeReadingSessionRepository()
+            val clock = FakeReadingSessionClock(wallTime = 500_000L)
+            val bookId = BookId("short-reader")
+            val coordinator = coordinator(repository, clock, logicalId = "logical-short-reader")
+
+            coordinator.beginReader(bookId, progress(location(0), listOf(100)), active = true)
+            clock.advance(240_000L)
+            coordinator.moveReader(bookId, progress(location(20), listOf(100)))
+            coordinator.finalizeReader(bookId)
+            coordinator.awaitIdle()
+
+            val session = repository.sessions.single()
+            assertEquals(ReadingSessionMode.READER, session.mode)
+            assertEquals(240_000L, session.activeDurationMs)
+            assertEquals(20, session.wordsRead)
+        }
+
+    @Test
+    fun fourMinuteRsvpSessionWithConsumedWordsPersists() =
+        runTest {
+            val repository = FakeReadingSessionRepository()
+            val clock = FakeReadingSessionClock(wallTime = 750_000L)
+            val bookId = BookId("short-rsvp")
+            val coordinator = coordinator(repository, clock, logicalId = "logical-short-rsvp")
+
+            coordinator.beginTimed(
+                bookId = bookId,
+                mode = ReadingSessionMode.RSVP,
+                location = location(0),
+                active = true,
+            )
+            clock.advance(240_000L)
+            coordinator.consumeTimedFrame(
+                bookId = bookId,
+                mode = ReadingSessionMode.RSVP,
+                location = location(100),
+                words = 100,
+            )
+            coordinator.finalizeTimed(bookId, ReadingSessionMode.RSVP)
+            coordinator.awaitIdle()
+
+            val session = repository.sessions.single()
+            assertEquals(ReadingSessionMode.RSVP, session.mode)
+            assertEquals(240_000L, session.activeDurationMs)
+            assertEquals(100, session.wordsRead)
+        }
+
+    @Test
     fun checkpointResumesAcrossCoordinatorAndFinalizeIsIdempotent() =
         runTest {
             val repository = FakeReadingSessionRepository()
@@ -30,14 +81,13 @@ class ReadingSessionCoordinatorTest {
 
             first.beginReader(bookId, progress(location(word = 10), counts), active = true)
             clock.advance(120_000L)
-            first.moveReader(bookId, progress(location(word = 20), counts))
             first.checkpointReader(bookId)
             first.awaitIdle()
 
             assertTrue(repository.checkpoints.isNotEmpty())
 
             val restored = coordinator(repository, clock, logicalId = "unused-new-id")
-            restored.beginReader(bookId, progress(location(word = 20), counts), active = true)
+            restored.beginReader(bookId, progress(location(word = 10), counts), active = true)
             clock.advance(240_000L)
             restored.moveReader(bookId, progress(location(word = 40), counts))
             restored.finalizeReader(bookId)
@@ -226,30 +276,32 @@ class ReadingSessionCoordinatorTest {
         }
 
     @Test
-    fun startupFinalizesEligibleCheckpointsAndRetainsShortDraftsIdempotently() =
+    fun startupFinalizesShortProgressCheckpointAndRetainsNoProgressCheckpointIdempotently() =
         runTest {
             val repository = FakeReadingSessionRepository()
             val clock = FakeReadingSessionClock(wallTime = 7_000_000L)
-            val eligibleBook = BookId("eligible")
-            val shortBook = BookId("short")
+            val shortProgressBook = BookId("short-progress")
+            val noProgressBook = BookId("no-progress")
             val writer = coordinator(repository, clock, logicalId = "writer")
 
-            writer.beginReader(eligibleBook, progress(location(0), listOf(100)), active = true)
-            clock.advance(300_000L)
-            writer.moveReader(eligibleBook, progress(location(20), listOf(100)))
-            writer.checkpointReader(eligibleBook)
-            writer.beginReader(shortBook, progress(location(0), listOf(100)), active = true)
+            writer.beginReader(shortProgressBook, progress(location(0), listOf(100)), active = true)
+            clock.advance(240_000L)
+            writer.moveReader(shortProgressBook, progress(location(20), listOf(100)))
+            writer.checkpointReader(shortProgressBook)
+            writer.beginReader(noProgressBook, progress(location(0), listOf(100)), active = true)
             clock.advance(60_000L)
-            writer.moveReader(shortBook, progress(location(5), listOf(100)))
-            writer.checkpointReader(shortBook)
+            writer.checkpointReader(noProgressBook)
             writer.awaitIdle()
 
             val recovered = coordinator(repository, clock, logicalId = "unused")
             recovered.awaitIdle()
 
-            assertEquals(listOf(eligibleBook), repository.sessions.map { it.bookId })
+            val recoveredSession = repository.sessions.single()
+            assertEquals(shortProgressBook, recoveredSession.bookId)
+            assertEquals(240_000L, recoveredSession.activeDurationMs)
+            assertEquals(20, recoveredSession.wordsRead)
             assertEquals(
-                listOf(ReadingSessionCoordinator.readerSessionKey(shortBook)),
+                listOf(ReadingSessionCoordinator.readerSessionKey(noProgressBook)),
                 repository.checkpoints.map { it.sessionKey }.distinct(),
             )
 

@@ -9,9 +9,17 @@ import org.junit.Test
 
 class ReadingSessionFactoryTest {
     @Test
-    fun ignoresShortOrStationarySessions() {
-        assertNull(create(durationMs = 299_999L, wordsRead = 100))
-        assertNull(create(durationMs = 600_000L, wordsRead = 0))
+    fun acceptsPositiveSubFiveMinuteSession() {
+        val session = create(durationMs = 240_000L, wordsRead = 100)
+
+        assertTrue(session != null)
+        assertEquals(240_000L, session?.activeDurationMs)
+    }
+
+    @Test
+    fun ignoresZeroDurationOrStationarySessions() {
+        assertNull(create(durationMs = 0L, wordsRead = 100))
+        assertNull(create(durationMs = 240_000L, wordsRead = 0))
     }
 
     @Test

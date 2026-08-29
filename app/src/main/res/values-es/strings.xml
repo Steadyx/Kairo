@@ -535,7 +535,7 @@
     <string name="momentum_not_available">Aún no hay suficientes datos</string>
     <string name="momentum_recent_sessions">Sesiones recientes</string>
     <string name="momentum_recent_sessions_limit">Solo se muestran las últimas %1$d sesiones.</string>
-    <string name="momentum_no_sessions">Lee al menos cinco minutos para empezar a crear Momentum.</string>
+    <string name="momentum_no_sessions">Empieza a leer para crear Momentum.</string>
     <string name="momentum_goal_title">Objetivo semanal</string>
     <string name="momentum_custom_goal">Personalizado</string>
     <string name="momentum_custom_goal_value">Personalizado · %1$d min</string>

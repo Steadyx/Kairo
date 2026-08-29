@@ -535,7 +535,7 @@
     <string name="momentum_not_available">数据暂时不足</string>
     <string name="momentum_recent_sessions">最近的阅读会话</string>
     <string name="momentum_recent_sessions_limit">仅显示最近 %1$d 个阅读会话。</string>
-    <string name="momentum_no_sessions">阅读至少五分钟即可开始建立 Momentum。</string>
+    <string name="momentum_no_sessions">开始阅读以建立 Momentum。</string>
     <string name="momentum_goal_title">每周目标</string>
     <string name="momentum_custom_goal">自定义</string>
     <string name="momentum_custom_goal_value">自定义 · %1$d 分钟</string>
