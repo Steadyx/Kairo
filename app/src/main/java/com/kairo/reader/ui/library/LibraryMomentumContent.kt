@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -133,7 +132,7 @@ private fun MomentumSummaryCard(
     goalProgress: Float,
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
@@ -143,8 +142,7 @@ private fun MomentumSummaryCard(
         ) {
             Text(
                 text = stringResource(R.string.momentum_this_week),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLargeEmphasized,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 MomentumMetric(stringResource(R.string.momentum_minutes_read, weekMinutes))
@@ -179,7 +177,7 @@ private fun MomentumSummaryCard(
 
 @Composable
 private fun MomentumMetric(value: String) {
-    Text(text = value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    Text(text = value, style = MaterialTheme.typography.titleMediumEmphasized)
 }
 
 @Composable
@@ -191,8 +189,8 @@ private fun MomentumConsistencyCard(momentum: ReadingMomentum) {
     var selectedDayIndex by remember(days, todayIndex) { mutableIntStateOf(todayIndex) }
     val selectedDay = days[selectedDayIndex.coerceIn(days.indices)]
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -264,7 +262,7 @@ private fun MomentumDayBar(
     Column(
         modifier =
         modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(
                 if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
             ).clickable(role = Role.RadioButton, onClick = onClick)
@@ -285,7 +283,7 @@ private fun MomentumDayBar(
                 Modifier
                     .width(DAY_BAR_WIDTH_DP.dp)
                     .height(barHeight.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(MaterialTheme.shapes.extraSmall)
                     .background(
                         when {
                             duration == 0L -> MaterialTheme.colorScheme.outlineVariant
@@ -322,7 +320,7 @@ private fun MomentumDaySummary(
             remember(day.startedAt) { fullDayLabel(day.startedAt) }
         }
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
     ) {
         Column(
@@ -419,8 +417,8 @@ private fun fullDayLabel(timestamp: Long): String =
 @Composable
 private fun MomentumProfileCard(momentum: ReadingMomentum) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -471,8 +469,8 @@ private fun MomentumSessionRow(item: ReadingSessionItem) {
     val wordText = NumberFormat.getIntegerInstance().format(session.wordsRead)
     val estimatedSuffix = if (session.isWordCountEstimated) stringResource(R.string.momentum_estimated_suffix) else ""
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Row(

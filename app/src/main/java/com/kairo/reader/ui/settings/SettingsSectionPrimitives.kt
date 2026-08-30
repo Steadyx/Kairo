@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
@@ -109,8 +108,8 @@ internal fun SettingsCard(
     content: @Composable () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = MaterialTheme.shapes.largeIncreased,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -134,7 +133,12 @@ internal fun AdvancedSettingsToggle(
     onToggle: () -> Unit,
     subtitle: String? = null,
 ) {
-    val rotation by animateFloatAsState(if (expanded) EXPANDED_ROTATION_DEGREES else 0f, label = "advanced-toggle")
+    val rotation by
+        animateFloatAsState(
+            targetValue = if (expanded) EXPANDED_ROTATION_DEGREES else 0f,
+            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+            label = "advanced-toggle",
+        )
     val disclosureStateDescription =
         stringResource(
             if (expanded) {
@@ -144,12 +148,12 @@ internal fun AdvancedSettingsToggle(
             }
         )
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier =
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(MaterialTheme.shapes.large)
             .semantics { stateDescription = disclosureStateDescription }
             .clickable(role = Role.Button) { onToggle() },
     ) {
@@ -186,24 +190,29 @@ internal fun ExpandableSettingsSection(
     content: @Composable () -> Unit,
 ) {
     var expanded by rememberSaveable(title) { mutableStateOf(defaultExpanded) }
-    val rotation by animateFloatAsState(if (expanded) EXPANDED_ROTATION_DEGREES else 0f, label = "section-toggle")
+    val rotation by
+        animateFloatAsState(
+            targetValue = if (expanded) EXPANDED_ROTATION_DEGREES else 0f,
+            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+            label = "section-toggle",
+        )
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        shape = MaterialTheme.shapes.largeIncreased,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier =
             Modifier
-                .animateContentSize()
+                .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
                 .padding(14.dp),
         ) {
             Row(
                 modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .clickable { expanded = !expanded }
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,

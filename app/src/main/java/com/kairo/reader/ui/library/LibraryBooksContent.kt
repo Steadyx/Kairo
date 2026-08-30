@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
@@ -34,6 +36,7 @@ internal fun LibraryBooksContent(
     filter: LibraryBookFilter,
     bookProgress: Map<String, LibraryBookProgress>,
     compactLandscape: Boolean,
+    horizontalImportActionVisible: Boolean,
     isImporting: Boolean,
     actions: LibraryTabContentActions,
     tutorialTargets: MutableMap<String, Rect>,
@@ -46,8 +49,10 @@ internal fun LibraryBooksContent(
             LibraryBookFilter.ALL -> books
         }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (!compactLandscape) {
-            LibraryImportSources(isImporting, actions, tutorialTargets)
+        if (compactLandscape) {
+            CompactLibraryImportActions(isImporting, actions, tutorialTargets)
+        } else {
+            LibraryImportSources(isImporting, actions)
         }
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -63,7 +68,16 @@ internal fun LibraryBooksContent(
             }
         }
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().testTag(LIBRARY_BOOKS_LIST_TEST_TAG),
+            contentPadding =
+            PaddingValues(
+                bottom =
+                if (horizontalImportActionVisible) {
+                    HORIZONTAL_IMPORT_ACTION_CLEARANCE
+                } else {
+                    0.dp
+                },
+            ),
             verticalArrangement = Arrangement.spacedBy(if (compactLandscape) 6.dp else 8.dp),
         ) {
             if (books.isNotEmpty() && visibleBooks.isEmpty()) {
@@ -99,16 +113,57 @@ internal fun LibraryBooksContent(
 }
 
 @Composable
-private fun LibraryImportSources(
+private fun CompactLibraryImportActions(
     isImporting: Boolean,
     actions: LibraryTabContentActions,
     tutorialTargets: MutableMap<String, Rect>,
 ) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.library_add_content_title),
+            style = MaterialTheme.typography.titleSmallEmphasized,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            ImportBookButton(
+                onClick = actions.onLaunchBookImport,
+                enabled = !isImporting,
+                compact = true,
+                modifier =
+                Modifier.startingTutorialTarget(StartingTutorialTargetIds.LIBRARY_IMPORT) {
+                        targetId,
+                        bounds,
+                    ->
+                    tutorialTargets[targetId] = bounds
+                },
+            )
+            ReadFromLinkButton(
+                onClick = actions.onShowReadLinkDialog,
+                enabled = !isImporting,
+                compact = true,
+            )
+            AddTextButton(
+                onClick = actions.onShowAddTextDialog,
+                enabled = !isImporting,
+                compact = true,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LibraryImportSources(
+    isImporting: Boolean,
+    actions: LibraryTabContentActions,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.library_add_content_title),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.titleMediumEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -120,12 +175,8 @@ private fun LibraryImportSources(
                 supportingText = stringResource(R.string.library_source_book_hint),
                 onClick = actions.onLaunchBookImport,
                 enabled = !isImporting,
-                modifier =
-                Modifier
-                    .weight(1f)
-                    .startingTutorialTarget(StartingTutorialTargetIds.LIBRARY_IMPORT) { targetId, bounds ->
-                        tutorialTargets[targetId] = bounds
-                    },
+                prominent = true,
+                modifier = Modifier.weight(1f),
             )
             ImportSourceCard(
                 icon = Icons.Default.Link,
@@ -146,6 +197,9 @@ private fun LibraryImportSources(
         }
     }
 }
+
+private val HORIZONTAL_IMPORT_ACTION_CLEARANCE = 88.dp
+internal const val LIBRARY_BOOKS_LIST_TEST_TAG = "library_books_list"
 
 private fun LibraryBookFilter.labelResource(): Int =
     when (this) {

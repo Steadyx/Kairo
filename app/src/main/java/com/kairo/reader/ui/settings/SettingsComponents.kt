@@ -30,15 +30,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +57,72 @@ import com.kairo.reader.ui.theme.readerThemePalette
 enum class SettingsNavRowPresentation {
     COMPACT,
     PROMINENT,
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun SettingsSegmentedNavRow(
+    index: Int,
+    count: Int,
+    title: String,
+    subtitle: String?,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SegmentedListItem(
+        onClick = onClick,
+        shapes =
+        ListItemDefaults.segmentedShapes(
+            index = index,
+            count = count,
+            defaultShapes =
+            ListItemDefaults.shapes(
+                shape = MaterialTheme.shapes.large,
+                pressedShape = MaterialTheme.shapes.medium,
+            ),
+        ),
+        colors =
+        ListItemDefaults.segmentedColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            leadingContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            trailingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        modifier = modifier.fillMaxWidth().heightIn(min = 76.dp),
+        leadingContent = {
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ) {
+                Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+        },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+        },
+        supportingContent =
+        subtitle?.takeIf(String::isNotBlank)?.let { supportingText ->
+            {
+                Text(
+                    text = supportingText,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        },
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMediumEmphasized)
+    }
 }
 
 @Composable
@@ -211,11 +279,11 @@ fun SettingsScaffold(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
+            MediumFlexibleTopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack) {
+                        androidx.compose.material3.FilledTonalIconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back),
@@ -223,8 +291,14 @@ fun SettingsScaffold(
                         }
                     }
                 },
+                colors =
+                androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
             )
         },
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
         content(
             Modifier

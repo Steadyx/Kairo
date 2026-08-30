@@ -57,7 +57,7 @@ class SettingsHomeScreenTest {
             .onNodeWithText(checkForUpdatesTitle)
             .performScrollTo()
             .assertHasClickAction()
-            .assertHeightIsAtLeast(72.dp)
+            .assertHeightIsAtLeast(76.dp)
             .performClick()
 
         composeRule.runOnIdle {

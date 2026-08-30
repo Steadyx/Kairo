@@ -1,6 +1,7 @@
 # Material 3 Expressive migration assessment
 
-- Status: Settings Home pilot source implemented; visual/device verification outstanding
+- Status: Native alpha Expressive migration implemented for the app theme, Library, Settings,
+  and import progress; automated and visual/device verification status recorded below
 - Created: 30 August 2026
 - Original audit baseline: b0dc6ca on chore/lint-enforcement
 - Implementation baseline: 5f11a98 on main
@@ -8,11 +9,9 @@
 
 ## Purpose
 
-This document records the repository investigation, accepted production
-direction, and recommended migration strategy for giving Kairo a complete
-Material 3 Expressive visual treatment. It remains the durable plan for later
-phases while also recording the bounded production pilots completed against
-it.
+This document records the repository investigation, the user's decision to
+adopt native Material 3 Expressive on this isolated feature branch, the source
+scope completed, and the remaining release qualification work.
 
 The migration should make Kairo feel more polished, tactile, coherent, and
 adaptive without compromising the calm reading experience, Reader pagination,
@@ -20,22 +19,24 @@ RSVP timing, ORP geometry, gestures, accessibility, or saved state.
 
 ## Accepted production direction
 
-The production migration will remain on stable Material 3 1.4.0. Kairo can
-adopt the Expressive design language through its public stable colour,
-typography, shape, surface, and component APIs without depending on internal or
-alpha-only APIs.
+The user explicitly selected the literal native Material 3 Expressive direction
+and accepted alpha risk on `feat/material3-expressive`. Kairo therefore uses
+the public `MaterialExpressiveTheme`, `MotionScheme.expressive()`, expressive
+typography roles and the increased shape scale from Material 3
+`1.5.0-alpha27`. This supersedes the earlier stable-1.4 recommendation.
 
-The public native Expressive theme APIs are deferred until they reach a stable
-Material 3 release. A separate alpha compatibility spike remains optional and
-would be evidence-gathering only, not approval to ship an alpha dependency.
+The alpha dependency is deliberately isolated and exactly pinned. It is not a
+recommendation to merge or ship without completing the qualification work in
+this document. The rollback is to change `compose-bom-alpha` back to the stable
+`compose-bom`, remove the two alpha27 overrides and adaptive navigation-suite
+dependency, then restore the prior `MaterialTheme` root while retaining any
+independently approved surface styling.
 
-Settings Home is the first bounded production pilot. It establishes an
-explicit theme seam through `KairoShapes = Shapes()`, preserving the stable
-Material 3 1.4 default shape values, plus a prominent navigation-row
-presentation. This is not yet a bespoke Kairo shape scale. The existing compact
-row remains in place for Reader, RSVP, Info, and other callers. Library, Reader,
-and RSVP migration are explicitly outside this pilot and must pass their own
-later review gates.
+Library and Settings are the broad native Expressive reference slice. Reader,
+RSVP, and Bionic destinations keep their existing content metrics and run
+inside `KairoFocusedReadingTheme`, which uses standard motion and the previous
+calm typography/shapes. The compact `SettingsNavRow` also remains for Reader,
+RSVP, Info, and other callers that rely on its existing density.
 
 ## Executive summary
 
@@ -44,10 +45,10 @@ Material 3 rewrite and it is not primarily an import or dependency migration.
 The work is a design-system and interaction migration across a UI that contains
 many intentionally custom reading surfaces.
 
-The central theme seam is favourable, so a convincing theme and standard-screen
-pilot is moderate work. A genuinely complete, production-ready migration is a
-large visual release because Reader and RSVP must be redesigned and verified
-without changing their domain-specific behaviour.
+The central theme seam made a convincing shell and standard-screen migration
+moderate work. A genuinely release-complete migration remains a large visual
+release because Reader and RSVP chrome still require redesign and device-level
+qualification without changing their domain-specific behaviour.
 
 Estimated effort for one experienced Compose engineer, assuming prompt product
 and design decisions:
@@ -63,30 +64,30 @@ specification must be invented and approved while implementation is under way,
 allow an additional one to three calendar weeks. Repeated upstream alpha
 upgrades would be ongoing maintenance outside these estimates.
 
-## AndroidX status at the time of investigation
+## Resolved AndroidX graph
 
-The application declares Compose BOM 2026.08.00 and a versionless Material 3
-dependency. Gradle dependency insight resolved:
+The implementation declares `androidx.compose:compose-bom-alpha:2026.08.00`.
+That BOM aligns Compose UI, Foundation, and Runtime to `1.13.0-alpha01`, but it
+selects Material 3 and the adaptive navigation suite at `1.5.0-alpha26`.
+Because this migration deliberately targets APIs verified in alpha27, the
+version catalogue explicitly overrides both Material 3 artifacts instead of
+assuming the BOM supplies that version.
 
-- androidx.compose.material3:material3:1.4.0
-- androidx.compose.ui and foundation: 1.12.0
+Gradle dependency insight for `debugRuntimeClasspath` resolves:
 
-On 30 August 2026, AndroidX listed Material 3 version 1.4.0 as stable and
-1.5.0-alpha27 as the latest alpha. The public MaterialExpressiveTheme API was
-added in 1.5.0-alpha27. Kairo's resolved 1.4.0 source contains internal
-Expressive motion and theme implementation details, but they are not public
-application APIs.
+- `androidx.compose:compose-bom-alpha:2026.08.00`
+- `androidx.compose.ui:ui:1.13.0-alpha01`
+- `androidx.compose.foundation:foundation:1.13.0-alpha01`
+- `androidx.compose.runtime:runtime:1.13.0-alpha01`
+- `androidx.compose.material3:material3:1.5.0-alpha27`
+- `androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-alpha27`
+- `androidx.compose.material3:material3-ripple:1.5.0-alpha27` transitively
 
-Therefore:
-
-- Applying much of the Expressive design language does not require an immediate
-  alpha dependency.
-- A literal adoption of the public MaterialExpressiveTheme API currently
-  requires the 1.5 alpha line.
-- Some individual Expressive components remain experimental even on that line.
-- Android's Compose BOM guidance says alpha and beta BOMs are intended for
-  testing upcoming features and are not intended for production use.
-- These facts are time-sensitive and must be rechecked before implementation.
+The explicit alpha27 overrides are intentional: without them the selected BOM
+would resolve alpha26. Some native Expressive components still require
+`ExperimentalMaterial3ExpressiveApi`; those opt-ins are kept at the narrowest
+theme or component boundary. This graph must be reviewed again before merge or
+release because all three Compose lines are prerelease dependencies.
 
 Official references:
 
@@ -107,10 +108,12 @@ Official references:
 - The platform themes inherit Theme.Material3.DayNight.NoActionBar.
 - MainActivity uses edge-to-edge rendering and applies KairoTheme at the
   application root.
-- At the original audit, KairoTheme supplied a ColorScheme and Typography but
-  no explicit Shapes. The Settings Home pilot now passes `KairoShapes =
-  Shapes()` through that seam while retaining Material 3 1.4 defaults.
-- The global Typography overrides only bodyLarge and titleLarge.
+- At the original audit, `KairoTheme` supplied a `ColorScheme` and typography
+  but no explicit shapes. It now supplies `MaterialExpressiveTheme`,
+  `MotionScheme.expressive()`, an eight-role expressive shape scale, and a
+  token-preserving expressive typography scale including emphasized roles.
+- `KairoFocusedReadingTheme` preserves the former calm reading typography and
+  default shapes while changing motion back to `MotionScheme.standard()`.
 - Reader and RSVP have their own bundled font families and domain-specific text
   sizing.
 - Dynamic colour is not currently used.
@@ -141,7 +144,7 @@ Static inspection found:
   CircleShape.
 - No Compose Preview annotations.
 - No screenshot, golden, Paparazzi, or Roborazzi baseline framework.
-- Eight Compose instrumentation test classes focused primarily on behaviour,
+- Nine Compose instrumentation test classes focused primarily on behaviour,
   semantics, accessibility, input, and scrolling.
 
 Frequently used Material 3 building blocks include Text, Surface, Icon,
@@ -188,6 +191,53 @@ measurement, and specialised typography. Stock components are not automatically
 better here. Custom components remain valid within a Material 3 Expressive
 application.
 
+## Implemented source slice
+
+The current feature-branch implementation includes:
+
+- the exact prerelease dependency graph above and native
+  `MaterialExpressiveTheme` foundation;
+- all 12 persisted Kairo colour schemes unchanged;
+- expressive motion, increased shapes, and token-preserving emphasized
+  typography for conventional application surfaces;
+- a focused-reading theme boundary around Reader, RSVP, and Bionic
+  destinations, without changing routes, state, paginator inputs, paragraph
+  metrics, gestures, RSVP scheduling, ORP placement, or frame geometry;
+- a Library shell with `LargeFlexibleTopAppBar`, filled-tonal header actions,
+  adaptive `NavigationSuiteScaffold`, prominent import action, expressive book
+  and import cards, and updated Saved and Momentum containers;
+- preserved `LibraryTab` local saved state and a group-level tutorial target
+  spanning all adaptive navigation items;
+- native segmented Settings Home rows, an expressive flexible detail-app-bar
+  scaffold, and expressive shared settings surfaces while retaining the compact
+  row variant for focused-reading callers;
+- native determinate `ContainedLoadingIndicator` in the import overlay while
+  preserving progress and file/status semantics; and
+- targeted instrumentation source coverage for Library navigation/restoration
+  and Settings row click/minimum-height behaviour.
+
+This is a broad reference slice, not a claim that every Kairo screen has been
+visually migrated. Search, snackbar/tutorial chrome, Reader/RSVP chrome,
+goldens, and the full accessibility/device matrix remain later work unless
+separately accepted as intentional focused-reading exceptions.
+
+## Validation status
+
+- Dependency insight has confirmed the exact graph recorded above.
+- Production compilation exposed one alpha27 source-compatibility change:
+  `ExposedDropdownMenu` is now imported as an extension; behaviour is unchanged.
+- `:app:ktlintCheck` passes.
+- `:app:compileDebugKotlin :app:compileDebugAndroidTestKotlin` passes with
+  Kotlin warnings treated as errors.
+- `qualityCheck` passes, including detekt, production and unit-test compilation,
+  and the debug unit-test suite.
+- Gradle reports only the repository's existing warning that deprecated Gradle
+  features will be incompatible with Gradle 10; no new Kotlin/API deprecation
+  warning remains after using the auto-mirrored Momentum icon.
+- No connected tests, emulator, physical Android device, screenshots, or visual
+  baselines have been used. Visual quality, compact/wide rendering, tutorial
+  geometry, accessibility, and runtime motion therefore remain unverified.
+
 ## Target experience
 
 Expressiveness should vary by context:
@@ -213,17 +263,15 @@ Expressive APIs, whether stable or experimental, should be isolated behind the
 theme and a small set of shared primitives rather than imported throughout
 feature screens.
 
-The foundation will likely need:
+The foundation now includes:
 
-- A complete Kairo typography scale.
-- Explicit Material Shapes, including increased expressive shapes when the
-  selected AndroidX version supports them.
-- A motion policy that distinguishes prominent transitions from recurring
-  utility interactions.
+- A token-preserving Kairo typography scale with emphasized roles.
+- Explicit Material shapes including the increased expressive roles.
+- Expressive application motion and standard focused-reading motion.
 - A small set of Kairo-specific semantic tokens for reading chrome needs that
   Material does not model directly.
-- Shared component defaults for recurring Kairo cards, rows, grouped settings,
-  icon controls, dialogs, and transient chrome.
+- Shared treatments for recurring Kairo cards, grouped settings, icon controls,
+  and transient chrome.
 
 Do not create a token for every existing dimension. RSVP collision bounds,
 Reader pagination measurements, gesture thresholds, text geometry, and similar
@@ -301,14 +349,14 @@ domain exceptions are clear.
 
 ### Phase 3: Settings and Library pilot
 
-Migrate Settings first, then Library, search, import, saved content, dialogs,
-and sheets. This pilot should:
+The current branch completes the broad Settings, Library, import, Saved, and
+Momentum source slice. Its review should:
 
 - validate the theme and component abstraction;
 - establish real migration velocity;
 - expose large-text and narrow-width issues early;
 - provide product feedback before Reader and RSVP work;
-- create reference screenshot coverage.
+- create reference screenshot coverage, which is still outstanding.
 
 Use the pilot as a go/no-go gate. Re-estimate the full project if actual effort
 differs from the planning range by more than roughly 50 percent.
@@ -344,41 +392,35 @@ handling, play/pause state, and session keys unchanged. Expressive motion must
 never run per word. Stop and investigate any missed, duplicated, delayed, or
 visually unstable frame transition.
 
-### Phase 7: native Expressive API and release hardening
+### Phase 7: native Expressive release hardening
 
-When Material 3 1.5 is stable, or alpha risk is explicitly accepted:
+Native alpha adoption and dependency pinning are complete on the isolated
+branch. Before merge or release:
 
-1. Adopt the native theme through the isolated KairoTheme boundary.
-2. Pin and record the exact dependency graph.
-3. Resolve component API differences at shared adapters.
-4. Complete the visual-state inventory and documented exception list.
-5. Run accessibility, device, performance, and screenshot qualification.
+1. Complete the visual-state inventory and documented exception list.
+2. Add and review screenshot baselines across representative themes and widths.
+3. Run connected accessibility, device, performance, and interaction checks.
+4. Re-resolve the pinned graph and review upstream alpha changes deliberately.
+5. Decide whether to ship the pinned alpha, update to a newer tested build, or
+   exercise the documented rollback.
 
-## Alpha compatibility spike
+## Native alpha implementation decision
 
-Before committing the product migration to an alpha dependency, run a separate
-one-to-two-day spike:
+The optional compatibility spike became the selected implementation direction
+after the user judged the stable-inspired pilot too subtle. The branch pins
+Material 3 and adaptive navigation suite at `1.5.0-alpha27`, compiles against
+warnings as errors, and uses the real public Expressive theme and components.
 
-1. Pin Material 3 1.5.0-alpha27 or the then-current exact version without
-   broadly changing the Compose BOM unless dependency alignment requires it.
-2. Confirm dependency resolution and inspect transitive changes.
-3. Compile production and Android test sources with warnings as errors.
-4. Run qualityGate and the relevant connected tests.
-5. Render a small Settings or Library reference screen under
-   MaterialExpressiveTheme.
-6. Check system bars, edge-to-edge, sheets, menus, fields, tabs, and current
-   experimental opt-ins.
-7. Record all source changes required by the alpha.
-
-The spike is evidence, not automatic approval to ship. If the alpha introduces
-unacceptable churn, the stable design-language migration should continue
-without it.
+The source change required outside the intended UI slice was limited to the
+alpha27 `ExposedDropdownMenu` extension import. This does not constitute release
+approval: visual rendering, connected tests, accessibility, performance, and
+upstream-alpha maintenance remain explicit gates.
 
 ## Main risks
 
 | Risk | Likelihood | Impact | Mitigation |
 | --- | --- | --- | --- |
-| Alpha API and BOM churn | High | High | Stay stable initially; pin spike versions; isolate native APIs |
+| Alpha API and BOM churn | High | High | Pin exact overrides; isolate native APIs; review graph before merge/release |
 | Visually undefined meaning of complete | High | High | Approve references, state inventory, and exception list first |
 | Inconsistent partial migration | High | High | Central tokens, shared primitives, and per-surface completion tracking |
 | Missing visual regressions | High | High | Establish screenshot or golden baselines before broad changes |
@@ -437,7 +479,7 @@ without it.
 1. Definition gate: do not begin broad work without reference screens, motion
    policy, state inventory, and domain exceptions.
 2. Dependency gate: an alpha must resolve, compile, test, and render cleanly.
-   Failure means continue on stable Material 3.
+   Failure means fix or deliberately exercise the documented rollback.
 3. Foundation gate: palette, contrast, typography, shape, and baseline checks
    must pass before wide screen migration.
 4. Pilot gate: review Settings and Library and recalibrate effort.
@@ -447,46 +489,45 @@ without it.
    performance regression.
 7. Release gate: complete the visual inventory, goldens, accessibility,
    connected tests, manual verification, and performance checks.
-8. Alpha shipping gate: require explicit product acceptance, exact version
-   pinning, and a rollback plan; otherwise wait for stable AndroidX support.
+8. Alpha shipping gate: branch-level alpha acceptance is recorded; shipping
+   still requires an explicit release decision after qualification.
 
 ## Decisions to make when revisiting
 
-- Is the goal an Expressive-inspired stable design or mandatory use of the
-  native MaterialExpressiveTheme API?
-- Must the implementation ship before Material 3 1.5 is stable?
 - Which reference screen defines the final Kairo visual direction?
 - Should Android dynamic colour become an optional mode, or should Kairo's
   palettes remain exclusive?
-- Should all 12 themes remain, and must every theme receive bespoke tuning?
+- Do the retained 12 themes require bespoke Expressive tuning after visual
+  review?
 - Which current Reader and RSVP surfaces are explicit Kairo-specific
   exceptions?
-- Does navigation need an adaptive navigation suite, or is the current route
-  model preferable?
 - Which screenshot or golden tool should be adopted?
 - What reduced-motion behaviour and performance threshold are required?
 - Which Android API levels, screen classes, locales, and devices make up the
   release matrix?
+- Is alpha27 approved for release after qualification, or should the branch be
+  updated or rolled back before merge?
 
 ## Revisit checklist
 
 - [ ] Refresh the implementation baseline from the intended parent branch.
 - [ ] Re-read this document and mark stale findings.
-- [ ] Re-run Gradle dependency insight for Material 3.
+- [x] Resolve and record Material 3, adaptive navigation, UI, Foundation, and
+  Runtime versions.
 - [ ] Check the latest stable, beta, alpha, and Compose BOM guidance.
 - [ ] Re-inventory theme, UI, custom shapes, motion, and test coverage.
 - [ ] Approve reference designs and explicit reading-mode exceptions.
 - [ ] Select screenshot tooling and capture current baselines.
-- [ ] Run the dependency compatibility spike.
-- [ ] Implement the Settings and Library pilot.
-- [ ] Review the pilot before authorising Reader and RSVP migration.
+- [x] Adopt native Expressive foundation on the isolated alpha branch.
+- [x] Implement the broad Settings and Library source slice.
+- [ ] Review the rendered slice before expanding Reader and RSVP chrome.
 
 ## Investigation boundary
 
 The original assessment used static repository inspection, official Android
 documentation, local Material 3 source artifacts, and Gradle dependency
-insight. At that historical boundary no application source had been changed
-and no full test suite or emulator/physical-device rendering was required. The
-Settings Home pilot now changes application source and adds deterministic
-coverage, but its visual quality, accessibility behaviour, and physical-device
-rendering remain outstanding until the pilot is rendered and reviewed.
+insight. This branch now includes the native theme and broad application-source
+slice recorded above. Automated check results are recorded in Validation
+status; visual quality, accessibility behaviour, connected interaction tests,
+and emulator/physical-device rendering remain outstanding until the branch is
+rendered and reviewed.

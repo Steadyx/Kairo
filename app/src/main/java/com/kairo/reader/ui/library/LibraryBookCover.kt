@@ -3,7 +3,6 @@ package com.kairo.reader.ui.library
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material3.Icon
@@ -48,7 +47,7 @@ internal fun BookCover(
                     .build()
             },
             contentDescription = coverDescription,
-            modifier = modifier.clip(RoundedCornerShape(4.dp)),
+            modifier = modifier.clip(MaterialTheme.shapes.small),
             contentScale = ContentScale.Crop,
         )
     } else {
@@ -61,7 +60,7 @@ internal fun PlaceholderCover(modifier: Modifier = Modifier) {
     Box(
         modifier =
         modifier
-            .clip(RoundedCornerShape(4.dp))
+            .clip(MaterialTheme.shapes.small)
             .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center,
     ) {

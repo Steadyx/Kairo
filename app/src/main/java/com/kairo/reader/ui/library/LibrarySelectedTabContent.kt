@@ -18,6 +18,7 @@ internal fun LibrarySelectedTabContent(
                 filter = state.bookFilter,
                 bookProgress = state.bookProgress,
                 compactLandscape = state.compactLandscape,
+                horizontalImportActionVisible = state.horizontalImportActionVisible,
                 isImporting = state.isImporting,
                 actions = actions,
                 tutorialTargets = tutorialTargets,

@@ -1,11 +1,19 @@
 package com.kairo.reader.ui.settings
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kairo.reader.R
 import com.kairo.reader.TestActivity
@@ -57,15 +65,21 @@ class InfoSettingsScreenTest {
             }
 
         composeRule.setContent {
-            CompositionLocalProvider(LocalUriHandler provides uriHandler) {
+            val currentDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalUriHandler provides uriHandler,
+                LocalDensity provides Density(currentDensity.density, fontScale = 2f),
+            ) {
                 KairoTheme {
-                    InfoSettingsScreen(onBack = {})
+                    Box(modifier = Modifier.fillMaxWidth().height(320.dp)) {
+                        InfoSettingsScreen(onBack = {})
+                    }
                 }
             }
         }
 
         val contactTitle = composeRule.activity.getString(R.string.info_contact_title)
-        composeRule.onNodeWithText(contactTitle).performClick()
+        composeRule.onNodeWithText(contactTitle).performScrollTo().performClick()
 
         composeRule.runOnIdle {
             assertEquals("mailto:kairoapp@proton.me", openedUri)

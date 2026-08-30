@@ -5,6 +5,8 @@ package com.kairo.reader.ui.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Email
@@ -28,7 +30,7 @@ fun InfoSettingsScreen(onBack: () -> Unit) {
         onBack = onBack,
     ) { modifier ->
         Column(
-            modifier = modifier.padding(16.dp),
+            modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SettingsNavRow(

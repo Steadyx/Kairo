@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -103,9 +104,11 @@ fun SettingsHomeScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium)
-            PrimarySettingsRows(actions, languageLabel, tutorialTargets, tutorialTargetRequesters)
-            SupportingSettingsRows(actions, tutorialTargets, tutorialTargetRequesters)
+            Text(
+                stringResource(R.string.settings_title),
+                style = MaterialTheme.typography.displaySmallEmphasized,
+            )
+            SettingsHomeRows(actions, languageLabel, tutorialTargets, tutorialTargetRequesters)
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
                 onClick = { showResetConfirmation = true },
@@ -139,107 +142,98 @@ fun SettingsHomeScreen(
 }
 
 @Composable
-private fun PrimarySettingsRows(
+private fun SettingsHomeRows(
     actions: SettingsHomeActions,
     languageLabel: String,
     tutorialTargets: MutableMap<String, Rect>,
     tutorialTargetRequesters: Map<String, BringIntoViewRequester>,
 ) {
-    SettingsNavRow(
-        modifier =
-        Modifier.captureTutorialTarget(
-            StartingTutorialTargetIds.SETTINGS_LANGUAGE,
-            tutorialTargets,
-            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_LANGUAGE),
-        ),
-        title = stringResource(R.string.settings_language_title),
-        subtitle = languageLabel,
-        icon = Icons.Default.Language,
-        presentation = SettingsNavRowPresentation.PROMINENT,
-        onClick = actions.onOpenLanguage,
-    )
-    SettingsNavRow(
-        modifier =
-        Modifier.captureTutorialTarget(
-            StartingTutorialTargetIds.SETTINGS_RSVP,
-            tutorialTargets,
-            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_RSVP),
-        ),
-        title = stringResource(R.string.rsvp_settings_title),
-        subtitle = stringResource(R.string.settings_rsvp_subtitle),
-        icon = Icons.Default.Settings,
-        presentation = SettingsNavRowPresentation.PROMINENT,
-        onClick = actions.onOpenRsvp,
-    )
-    SettingsNavRow(
-        title = stringResource(R.string.bionic_settings_title),
-        subtitle = stringResource(R.string.settings_bionic_subtitle),
-        icon = Icons.Default.AutoStories,
-        presentation = SettingsNavRowPresentation.PROMINENT,
-        onClick = actions.onOpenBionic,
-    )
-    SettingsNavRow(
-        modifier =
-        Modifier.captureTutorialTarget(
-            StartingTutorialTargetIds.SETTINGS_READER,
-            tutorialTargets,
-            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_READER),
-        ),
-        title = stringResource(R.string.reader_settings_title),
-        subtitle = stringResource(R.string.reader_settings_subtitle),
-        icon = Icons.Default.Settings,
-        presentation = SettingsNavRowPresentation.PROMINENT,
-        onClick = actions.onOpenReader,
-    )
+    val rows =
+        listOf(
+            SettingsHomeRow(
+                title = stringResource(R.string.settings_language_title),
+                subtitle = languageLabel,
+                icon = Icons.Default.Language,
+                targetId = StartingTutorialTargetIds.SETTINGS_LANGUAGE,
+                onClick = actions.onOpenLanguage,
+            ),
+            SettingsHomeRow(
+                title = stringResource(R.string.rsvp_settings_title),
+                subtitle = stringResource(R.string.settings_rsvp_subtitle),
+                icon = Icons.Default.Settings,
+                targetId = StartingTutorialTargetIds.SETTINGS_RSVP,
+                onClick = actions.onOpenRsvp,
+            ),
+            SettingsHomeRow(
+                title = stringResource(R.string.bionic_settings_title),
+                subtitle = stringResource(R.string.settings_bionic_subtitle),
+                icon = Icons.Default.AutoStories,
+                onClick = actions.onOpenBionic,
+            ),
+            SettingsHomeRow(
+                title = stringResource(R.string.reader_settings_title),
+                subtitle = stringResource(R.string.reader_settings_subtitle),
+                icon = Icons.Default.Settings,
+                targetId = StartingTutorialTargetIds.SETTINGS_READER,
+                onClick = actions.onOpenReader,
+            ),
+            SettingsHomeRow(
+                title = stringResource(R.string.focus_settings_title),
+                subtitle = stringResource(R.string.focus_settings_subtitle),
+                icon = Icons.Default.Settings,
+                targetId = StartingTutorialTargetIds.SETTINGS_FOCUS,
+                onClick = actions.onOpenFocus,
+            ),
+            SettingsHomeRow(
+                title = stringResource(R.string.update_check_title),
+                subtitle = stringResource(R.string.update_check_subtitle),
+                icon = Icons.Default.Refresh,
+                onClick = actions.onCheckForUpdates,
+            ),
+            SettingsHomeRow(
+                title = stringResource(R.string.info_settings_title),
+                subtitle = stringResource(R.string.info_settings_subtitle),
+                icon = Icons.Default.Info,
+                onClick = actions.onOpenInfo,
+            ),
+            SettingsHomeRow(
+                title = stringResource(R.string.settings_starting_tutorial_title),
+                subtitle = stringResource(R.string.settings_starting_tutorial_subtitle),
+                icon = Icons.Default.Info,
+                targetId = StartingTutorialTargetIds.SETTINGS_TUTORIAL,
+                onClick = actions.onOpenStartingTutorial,
+            ),
+        )
+    Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+        rows.forEachIndexed { index, row ->
+            val rowModifier =
+                row.targetId?.let { targetId ->
+                    Modifier.captureTutorialTarget(
+                        targetId = targetId,
+                        targets = tutorialTargets,
+                        requester = tutorialTargetRequesters.getValue(targetId),
+                    )
+                } ?: Modifier
+            SettingsSegmentedNavRow(
+                index = index,
+                count = rows.size,
+                title = row.title,
+                subtitle = row.subtitle,
+                icon = row.icon,
+                onClick = row.onClick,
+                modifier = rowModifier,
+            )
+        }
+    }
 }
 
-@Composable
-private fun SupportingSettingsRows(
-    actions: SettingsHomeActions,
-    tutorialTargets: MutableMap<String, Rect>,
-    tutorialTargetRequesters: Map<String, BringIntoViewRequester>,
-) {
-    SettingsNavRow(
-        modifier =
-        Modifier.captureTutorialTarget(
-            StartingTutorialTargetIds.SETTINGS_FOCUS,
-            tutorialTargets,
-            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_FOCUS),
-        ),
-        title = stringResource(R.string.focus_settings_title),
-        subtitle = stringResource(R.string.focus_settings_subtitle),
-        icon = Icons.Default.Settings,
-        presentation = SettingsNavRowPresentation.PROMINENT,
-        onClick = actions.onOpenFocus,
-    )
-    SettingsNavRow(
-        title = stringResource(R.string.update_check_title),
-        subtitle = stringResource(R.string.update_check_subtitle),
-        icon = Icons.Default.Refresh,
-        presentation = SettingsNavRowPresentation.PROMINENT,
-        onClick = actions.onCheckForUpdates,
-    )
-    SettingsNavRow(
-        title = stringResource(R.string.info_settings_title),
-        subtitle = stringResource(R.string.info_settings_subtitle),
-        icon = Icons.Default.Info,
-        presentation = SettingsNavRowPresentation.PROMINENT,
-        onClick = actions.onOpenInfo,
-    )
-    SettingsNavRow(
-        modifier =
-        Modifier.captureTutorialTarget(
-            StartingTutorialTargetIds.SETTINGS_TUTORIAL,
-            tutorialTargets,
-            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_TUTORIAL),
-        ),
-        title = stringResource(R.string.settings_starting_tutorial_title),
-        subtitle = stringResource(R.string.settings_starting_tutorial_subtitle),
-        icon = Icons.Default.Info,
-        presentation = SettingsNavRowPresentation.PROMINENT,
-        onClick = actions.onOpenStartingTutorial,
-    )
-}
+private data class SettingsHomeRow(
+    val title: String,
+    val subtitle: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val targetId: String? = null,
+    val onClick: () -> Unit,
+)
 
 private fun Modifier.captureTutorialTarget(
     targetId: String,

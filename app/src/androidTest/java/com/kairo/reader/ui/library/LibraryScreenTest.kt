@@ -368,6 +368,43 @@ class LibraryScreenTest {
     }
 
     @Test
+    fun selectedTabSurvivesSavedStateRestoration() {
+        val restorationTester = StateRestorationTester(composeRule)
+        restorationTester.setContent {
+            KairoTheme {
+                LibraryScreen(
+                    books = listOf(sampleBook),
+                    bookmarks = emptyList(),
+                    bookProgress = emptyMap(),
+                    initialTab = LibraryTab.Books,
+                    onOpen = {},
+                    onOpenBookmark = { _, _, _ -> },
+                    onDeleteBookmark = {},
+                    onDeleteBookmarksForBook = {},
+                    onImportFile = {},
+                    onImportUrl = {},
+                    onSettings = {},
+                    onSetCompleted = { _, _ -> },
+                    onDelete = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.library_tab_saved),
+        ).performClick()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.saved_title),
+        ).assertIsDisplayed()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.saved_title),
+        ).assertIsDisplayed()
+    }
+
+    @Test
     fun savedViewShowsHighlightAndNote() {
         val annotation =
             SavedAnnotationItem(

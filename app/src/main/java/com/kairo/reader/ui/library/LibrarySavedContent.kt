@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -65,8 +65,7 @@ internal fun LibrarySavedContent(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.saved_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleLargeEmphasized,
         )
         Text(
             text = stringResource(R.string.saved_subtitle),
@@ -148,8 +147,8 @@ private fun SavedAnnotationRow(
         Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clip(MaterialTheme.shapes.largeIncreased)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable {
                 onOpenSaved(item.book.id.value, annotation.chapterIndex, annotation.startTokenIndex)
             },
@@ -221,7 +220,7 @@ private fun SavedAnnotationHeader(item: SavedAnnotationItem) {
             )
         }
         Surface(
-            shape = RoundedCornerShape(999.dp),
+            shape = CircleShape,
             color = annotation.color.displayColor().copy(alpha = SAVED_KIND_TINT_ALPHA),
         ) {
             Text(
@@ -271,7 +270,7 @@ private fun SavedPassageCard(
 ) {
     val annotation = item.annotation
     Surface(
-        shape = RoundedCornerShape(10.dp),
+        shape = MaterialTheme.shapes.medium,
         color = annotation.color.displayColor().copy(alpha = SAVED_PASSAGE_TINT_ALPHA),
     ) {
         Column(
