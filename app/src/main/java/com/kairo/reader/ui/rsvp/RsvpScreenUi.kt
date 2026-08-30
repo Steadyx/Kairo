@@ -24,7 +24,6 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -38,7 +37,9 @@ import com.kairo.reader.core.model.RsvpFontFamily
 import com.kairo.reader.core.model.RsvpFontWeight
 import com.kairo.reader.core.model.prefersOrpWindowing
 import com.kairo.reader.core.rsvp.RsvpSpeedControl
+import com.kairo.reader.ui.WindowContainerMetrics
 import com.kairo.reader.ui.bionic.BionicReadingText
+import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.theme.InterFontFamily
 import com.kairo.reader.ui.theme.RobotoFontFamily
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlay
@@ -63,11 +64,13 @@ internal fun RsvpPlaybackSurface(
             frameIndex = runtime.frameIndex,
             contextAssistMode = context.state.profile.config.contextAssistMode,
         )
-    val compactLandscape = isCompactLandscape()
+    val windowMetrics = rememberWindowContainerMetrics()
+    val compactLandscape = windowMetrics.isCompactLandscape(COMPACT_LANDSCAPE_MAX_HEIGHT_DP.dp)
     val bottomChromeInset =
         rememberBottomChromeInset(
             runtime = runtime,
             compactLandscape = compactLandscape,
+            windowMetrics = windowMetrics,
         )
     val typography =
         OrpTypography(
@@ -415,24 +418,16 @@ private fun RsvpPositionGuide(
 }
 
 @Composable
-private fun isCompactLandscape(): Boolean {
-    val configuration = LocalConfiguration.current
-    return configuration.screenWidthDp > configuration.screenHeightDp &&
-        configuration.screenHeightDp <= COMPACT_LANDSCAPE_MAX_HEIGHT_DP
-}
-
-@Composable
 private fun rememberBottomChromeInset(
     runtime: RsvpRuntimeState,
     compactLandscape: Boolean,
+    windowMetrics: WindowContainerMetrics,
 ): Dp {
     if (!runtime.showControls) return 0.dp
 
     val controlsInset = rememberControlsChromeInset(compactLandscape)
     val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
-    val viewportHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
-        .coerceAtLeast(1f)
+    val viewportHeightPx = windowMetrics.heightPx.toFloat().coerceAtLeast(1f)
     val controlsHeightPx = with(density) { controlsInset.toPx() }
     val orpDecorHeightPx =
         with(density) {

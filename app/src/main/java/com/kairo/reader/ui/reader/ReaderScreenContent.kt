@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,7 +38,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -51,6 +49,7 @@ import com.kairo.reader.R
 import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.SavedAnnotation
 import com.kairo.reader.core.model.TimedReadingMode
+import com.kairo.reader.ui.rememberWindowContainerMetrics
 import java.io.File
 import kotlinx.coroutines.flow.MutableSharedFlow
 
@@ -132,10 +131,8 @@ private fun ReaderLoadedContent(
     state: ReaderContentState,
     actions: ReaderContentActions,
 ) {
-    val configuration = LocalConfiguration.current
-    val compactLandscape =
-        configuration.screenWidthDp > configuration.screenHeightDp &&
-            configuration.screenHeightDp <= COMPACT_LANDSCAPE_MAX_HEIGHT_DP
+    val windowMetrics = rememberWindowContainerMetrics()
+    val compactLandscape = windowMetrics.isCompactLandscape(COMPACT_LANDSCAPE_MAX_HEIGHT_DP.dp)
     val paragraphSpacing =
         if (compactLandscape) {
             (state.fontSizeSp * COMPACT_PARAGRAPH_SPACING_FACTOR).dp.coerceIn(6.dp, 10.dp)
@@ -168,8 +165,8 @@ private fun ReaderLoadedContent(
             verticalArrangement = Arrangement.spacedBy(paragraphSpacing),
             contentPadding = PaddingValues(bottom = state.bottomInset + state.overlayBottomPadding),
         ) {
-            readerCoverItem(state, configuration.screenHeightDp.dp)
-            readerTitlePageItem(state, actions, configuration.screenHeightDp.dp)
+            readerCoverItem(state)
+            readerTitlePageItem(state, actions)
             readerHeaderCarouselItem(state, actions)
             readerBlockItems(state, actions)
         }
@@ -178,7 +175,6 @@ private fun ReaderLoadedContent(
 
 private fun LazyListScope.readerCoverItem(
     state: ReaderContentState,
-    viewportHeight: Dp,
 ) {
     if (!state.isCoverChapter || (state.isPagedChapter && state.resolvedPageIndex > 0)) return
     item(key = "book_cover_full_${state.book.id.value}") {
@@ -186,7 +182,7 @@ private fun LazyListScope.readerCoverItem(
         Surface(
             shape = RoundedCornerShape(14.dp),
             tonalElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth().height(viewportHeight).clip(RoundedCornerShape(14.dp)),
+            modifier = Modifier.fillMaxWidth().fillParentMaxHeight().clip(RoundedCornerShape(14.dp)),
         ) {
             AsyncImage(
                 model =
@@ -208,7 +204,6 @@ private fun LazyListScope.readerCoverItem(
 private fun LazyListScope.readerTitlePageItem(
     state: ReaderContentState,
     actions: ReaderContentActions,
-    viewportHeight: Dp,
 ) {
     val imagePath = state.fullScreenTitlePageImagePath ?: return
     if (state.isPagedChapter && state.resolvedPageIndex > 0) return
@@ -219,7 +214,7 @@ private fun LazyListScope.readerTitlePageItem(
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 tonalElevation = 2.dp,
-                modifier = Modifier.fillMaxWidth().height(viewportHeight).clip(RoundedCornerShape(14.dp)),
+                modifier = Modifier.fillMaxWidth().fillParentMaxHeight().clip(RoundedCornerShape(14.dp)),
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     AsyncImage(

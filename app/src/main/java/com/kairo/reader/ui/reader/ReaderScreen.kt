@@ -36,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,7 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
@@ -66,6 +68,7 @@ import com.kairo.reader.core.model.nearestWordIndex
 import com.kairo.reader.data.search.LibrarySearchConstraints
 import com.kairo.reader.data.search.LibrarySearchState
 import com.kairo.reader.data.search.resolveSearchResultTokenRange
+import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.search.LibrarySearchOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
@@ -75,6 +78,7 @@ import java.util.Locale
 
 private val READER_MIN_BOTTOM_CONTENT_PADDING = 24.dp
 private val READER_RSVP_LAUNCHER_CLEARANCE = 96.dp
+private val READER_COMPACT_LANDSCAPE_MAX_HEIGHT = 480.dp
 private const val READER_CHROME_COLLAPSE_SCROLL_PX = 56
 
 /**
@@ -203,13 +207,15 @@ fun ReaderScreen(
             state.firstVisibleItemIndex > 0 || state.firstVisibleItemScrollOffset > READER_CHROME_COLLAPSE_SCROLL_PX
         }
     }
-    val configuration = LocalConfiguration.current
-    val viewportHeightDp = configuration.screenHeightDp
-    val compactLandscape =
-        configuration.screenWidthDp > configuration.screenHeightDp &&
-            configuration.screenHeightDp <= 480
+    val windowMetrics = rememberWindowContainerMetrics()
+    val compactLandscape = windowMetrics.isCompactLandscape(READER_COMPACT_LANDSCAPE_MAX_HEIGHT)
+    val density = LocalDensity.current.density
+    var viewportHeightPx by remember { mutableIntStateOf(0) }
+    val viewportHeightDp = resolveReaderViewportHeightDp(viewportHeightPx, density)
     LaunchedEffect(fontSizeSp, viewportHeightDp) {
-        onViewportMetricsChanged(fontSizeSp, viewportHeightDp)
+        if (viewportHeightDp > 0) {
+            onViewportMetricsChanged(fontSizeSp, viewportHeightDp)
+        }
     }
 
     // Chapter list bottom sheet state
@@ -431,7 +437,14 @@ fun ReaderScreen(
 
             CompositionLocalProvider(LocalLayoutDirection provides contentLayoutDirection) {
                 ReaderContent(
-                    modifier = Modifier.weight(1f),
+                    modifier =
+                    Modifier
+                        .weight(1f)
+                        .onSizeChanged { size ->
+                            if (shouldRecordReaderViewportHeight(viewportHeightPx, size.height)) {
+                                viewportHeightPx = size.height
+                            }
+                        },
                     state =
                     ReaderContentState(
                         book = book,

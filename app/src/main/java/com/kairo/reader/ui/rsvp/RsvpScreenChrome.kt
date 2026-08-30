@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -42,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kairo.reader.R
+import com.kairo.reader.ui.rememberWindowContainerMetrics
 import kotlin.math.roundToInt
 
 @Composable
@@ -185,7 +185,7 @@ private fun wordAwareIndicatorTopPadding(
     flippedStackOffset: Dp = 0.dp,
 ): Dp {
     val runtime = context.runtime
-    val configuration = LocalConfiguration.current
+    val windowMetrics = rememberWindowContainerMetrics()
     val fontSizeSp = runtime.currentFontSizeSp.coerceIn(MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP)
     val verticalBias = runtime.currentVerticalBias.coerceIn(VERTICAL_BIAS_MIN, VERTICAL_BIAS_MAX)
     val textHeight =
@@ -195,7 +195,7 @@ private fun wordAwareIndicatorTopPadding(
     val wordBandHalfHeight =
         ((ORP_LINE_HEIGHT * 2) + (ORP_POINTER_HEIGHT * 2) + (ORP_TEXT_SPACER * 2) + textHeight) / 2
     val wordCenterY =
-        configuration.screenHeightDp.dp * ((ONE_FLOAT + verticalBias) / BIAS_SCALE_FACTOR)
+        windowMetrics.heightDp * ((ONE_FLOAT + verticalBias) / BIAS_SCALE_FACTOR)
     return resolveIndicatorTopPadding(
         defaultTopPadding = defaultTopPadding,
         flippedStackOffset = flippedStackOffset,

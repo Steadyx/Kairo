@@ -39,7 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,6 +53,7 @@ import com.kairo.reader.core.model.SavedAnnotationItem
 import com.kairo.reader.data.books.BookImportFormats
 import com.kairo.reader.data.books.TextImportRequest
 import com.kairo.reader.data.search.LibrarySearchState
+import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.saved.SavedAnnotationEditorDialog
 import com.kairo.reader.ui.search.LibrarySearchOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlay
@@ -103,10 +103,8 @@ fun LibraryScreen(
         ) { uri: Uri? ->
             uri?.let { onImportFile(it) }
         }
-    val configuration = LocalConfiguration.current
-    val compactLandscape =
-        configuration.screenWidthDp > configuration.screenHeightDp &&
-            configuration.screenHeightDp <= COMPACT_LANDSCAPE_MAX_HEIGHT_DP
+    val windowMetrics = rememberWindowContainerMetrics()
+    val compactLandscape = windowMetrics.isCompactLandscape(COMPACT_LANDSCAPE_MAX_HEIGHT_DP.dp)
     var selectedTabName by rememberSaveable(initialTab) { mutableStateOf(initialTab.name) }
     val selectedTab =
         remember(selectedTabName) {
