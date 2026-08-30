@@ -1,11 +1,11 @@
 package com.kairo.reader.ui.reader
 
-import android.content.Context
+import android.content.res.Resources
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.kairo.reader.R
 import com.kairo.reader.core.model.estimateMinutesForWords
@@ -39,7 +39,7 @@ private data class ChapterWordProgress(val currentWordIndex: Int, val progressPe
 internal fun rememberReaderProgressState(
     input: ReaderProgressInput,
 ): ReaderProgressState {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val metaSeparator = stringResource(R.string.meta_separator)
     val chapterProgress =
         remember(input.safeFocusIndex, input.totalChapterWords, input.wordCountByToken) {
@@ -52,7 +52,7 @@ internal fun rememberReaderProgressState(
     }
     val pageLabel =
         if (input.resolvedPageIndex >= 0 && input.pages.isNotEmpty()) {
-            context.getString(
+            resources.getString(
                 R.string.reader_page_of_total,
                 input.resolvedPageIndex + 1,
                 input.pages.size,
@@ -94,7 +94,7 @@ internal fun rememberReaderProgressState(
         }
     val etaLabel =
         buildEtaLabel(
-            context = context,
+            resources = resources,
             estimatedWpm = input.estimatedWpm,
             remainingPageWords = remainingPageWords,
             remainingChapterWords = remainingChapterWords,
@@ -156,7 +156,7 @@ private fun adjustedBookWordCounts(input: ReaderProgressInput): List<Int> {
 }
 
 private fun buildEtaLabel(
-    context: Context,
+    resources: Resources,
     estimatedWpm: Int,
     remainingPageWords: Int,
     remainingChapterWords: Int,
@@ -166,24 +166,24 @@ private fun buildEtaLabel(
     if (estimatedWpm <= 0) return null
     val parts =
         listOfNotNull(
-            etaPart(context, R.string.reader_eta_page, remainingPageWords, estimatedWpm),
-            etaPart(context, R.string.reader_eta_chapter, remainingChapterWords, estimatedWpm),
-            etaPart(context, R.string.reader_eta_book, remainingBookWords, estimatedWpm),
+            etaPart(resources, R.string.reader_eta_page, remainingPageWords, estimatedWpm),
+            etaPart(resources, R.string.reader_eta_chapter, remainingChapterWords, estimatedWpm),
+            etaPart(resources, R.string.reader_eta_book, remainingBookWords, estimatedWpm),
         )
     return parts.takeIf { it.isNotEmpty() }?.let {
-        context.getString(R.string.reader_eta_prefix, it.joinToString(separator))
+        resources.getString(R.string.reader_eta_prefix, it.joinToString(separator))
     }
 }
 
 private fun etaPart(
-    context: Context,
+    resources: Resources,
     labelRes: Int,
     remainingWords: Int,
     estimatedWpm: Int,
 ): String? {
     if (remainingWords <= 0) return null
     val minutes = estimateMinutesForWords(remainingWords, estimatedWpm)
-    return context.getString(labelRes, formatShortDurationMinutes(context, minutes))
+    return resources.getString(labelRes, formatShortDurationMinutes(resources, minutes))
 }
 
 private const val PERCENT_SCALE_INT = 100

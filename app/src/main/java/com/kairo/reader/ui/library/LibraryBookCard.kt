@@ -33,7 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -54,7 +54,7 @@ internal fun LibraryCard(
     onRequestDelete: (Book) -> Unit,
     compactLandscape: Boolean = false,
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val authorSeparator = stringResource(R.string.list_separator)
     var actionsExpanded by remember { mutableStateOf(false) }
     val deleteActionDescription = stringResource(R.string.content_desc_delete_book)
@@ -134,7 +134,7 @@ internal fun LibraryCard(
                         if (stats.remainingMinutes != null) {
                             stringResource(
                                 R.string.library_time_left,
-                                formatShortDurationMinutes(context, stats.remainingMinutes),
+                                formatShortDurationMinutes(resources, stats.remainingMinutes),
                             )
                         } else {
                             null

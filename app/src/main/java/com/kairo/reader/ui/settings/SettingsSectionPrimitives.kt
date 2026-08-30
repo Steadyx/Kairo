@@ -1,6 +1,6 @@
 package com.kairo.reader.ui.settings
 
-import android.content.Context
+import android.content.res.Resources
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
@@ -235,19 +235,19 @@ internal fun ExpandableSettingsSection(
 private const val EXPANDED_ROTATION_DEGREES = 180f
 private const val PERCENT_SCALE = 100
 
-internal fun formatPercent(context: Context, value: Double): String =
-    context.getString(R.string.format_percent, (value * PERCENT_SCALE).roundToInt())
+internal fun formatPercent(resources: Resources, value: Double): String =
+    resources.getString(R.string.format_percent, (value * PERCENT_SCALE).roundToInt())
 
-internal fun formatDeltaPercent(context: Context, multiplier: Double): String {
+internal fun formatDeltaPercent(resources: Resources, multiplier: Double): String {
     val delta = ((multiplier - 1.0) * PERCENT_SCALE).roundToInt()
-    return context.getString(R.string.format_signed_percent, delta)
+    return resources.getString(R.string.format_signed_percent, delta)
 }
 
-internal fun formatMultiplier(context: Context, value: Double): String =
-    context.getString(R.string.format_multiplier, value)
+internal fun formatMultiplier(resources: Resources, value: Double): String =
+    resources.getString(R.string.format_multiplier, value)
 
-internal fun formatBias(context: Context, value: Float): String =
-    context.getString(R.string.format_percent, (value * PERCENT_SCALE).roundToInt())
+internal fun formatBias(resources: Resources, value: Float): String =
+    resources.getString(R.string.format_percent, (value * PERCENT_SCALE).roundToInt())
 
 internal fun blinkModeLabelRes(mode: BlinkMode): Int =
     when (mode) {

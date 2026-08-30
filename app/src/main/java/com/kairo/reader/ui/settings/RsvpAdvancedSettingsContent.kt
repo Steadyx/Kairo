@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
@@ -27,7 +27,7 @@ internal fun RsvpAdvancedSettingsContent(
     state: RsvpSettingsState,
     actions: RsvpSettingsActions,
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val config = state.config
     val tempoMsPerWord = state.tempoMsPerWord
     val unlockExtremeSpeed = state.unlockExtremeSpeed
@@ -80,7 +80,7 @@ internal fun RsvpAdvancedSettingsContent(
             ) {
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_long_word_threshold_title),
-                    valueLabel = { context.getString(R.string.format_chars, it.toInt()) },
+                    valueLabel = { resources.getString(R.string.format_chars, it.toInt()) },
                     rawValue = config.longWordChars.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -99,7 +99,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_split_word_pause_title),
                     subtitle = stringResource(R.string.rsvp_split_word_pause_subtitle),
-                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.subwordChunkPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -120,12 +120,12 @@ internal fun RsvpAdvancedSettingsContent(
                     R.string.rsvp_difficulty_model_summary,
                     config.syllableExtraMs,
                     config.rarityExtraMaxMs,
-                    formatPercent(context, config.complexityStrength),
+                    formatPercent(resources, config.complexityStrength),
                 ),
             ) {
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_syllable_boost_title),
-                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.syllableExtraMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -139,7 +139,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_rarity_boost_title),
-                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.rarityExtraMaxMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -153,7 +153,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_complexity_strength_title),
-                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                    valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.complexityStrength * Constraints.PERCENT_SCALE).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -172,17 +172,17 @@ internal fun RsvpAdvancedSettingsContent(
                 summary =
                 stringResource(
                     R.string.rsvp_punctuation_pauses_summary,
-                    formatMultiplier(context, config.punctuationPauseFactor),
+                    formatMultiplier(resources, config.punctuationPauseFactor),
                     config.commaPauseMs,
                     config.periodPauseMs,
                     config.paragraphPauseMs,
-                    formatMultiplier(context, config.pageBreakPauseMultiplier),
+                    formatMultiplier(resources, config.pageBreakPauseMultiplier),
                 ),
             ) {
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_breathing_title),
                     subtitle = stringResource(R.string.rsvp_punctuation_breathing_subtitle),
-                    valueLabel = { context.getString(R.string.format_multiplier, it) },
+                    valueLabel = { resources.getString(R.string.format_multiplier, it) },
                     rawValue = config.punctuationPauseFactor.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -200,7 +200,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_comma),
-                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.commaPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -214,7 +214,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_period),
-                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.periodPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -228,7 +228,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_dash),
-                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.dashPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -242,7 +242,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_semicolon),
-                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.semicolonPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -256,7 +256,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_colon),
-                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.colonPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -270,7 +270,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_parentheses),
-                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.parenthesesPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -287,7 +287,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_quotes),
-                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.quotePauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -301,7 +301,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_paragraph),
-                    valueLabel = { context.getString(R.string.format_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
                     rawValue = config.paragraphPauseMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -316,7 +316,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_paragraph_strength_title),
                     subtitle = stringResource(R.string.rsvp_punctuation_paragraph_strength_subtitle),
-                    valueLabel = { context.getString(R.string.format_multiplier, it) },
+                    valueLabel = { resources.getString(R.string.format_multiplier, it) },
                     rawValue = config.paragraphPauseMultiplier.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -335,7 +335,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_page_break_title),
                     subtitle = stringResource(R.string.rsvp_punctuation_page_break_subtitle),
-                    valueLabel = { context.getString(R.string.format_multiplier, it) },
+                    valueLabel = { resources.getString(R.string.format_multiplier, it) },
                     rawValue = config.pageBreakPauseMultiplier.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -358,14 +358,14 @@ internal fun RsvpAdvancedSettingsContent(
                 summary =
                 stringResource(
                     R.string.rsvp_pause_scaling_summary,
-                    formatPercent(context, config.pauseScaleExponent),
-                    formatPercent(context, config.minPauseScale),
+                    formatPercent(resources, config.pauseScaleExponent),
+                    formatPercent(resources, config.minPauseScale),
                 ),
             ) {
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_scale_exponent_title),
                     subtitle = stringResource(R.string.rsvp_scale_exponent_subtitle),
-                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                    valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.pauseScaleExponent * Constraints.PERCENT_SCALE).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -385,7 +385,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_minimum_scale_title),
                     subtitle = stringResource(R.string.rsvp_minimum_scale_subtitle),
-                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                    valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.minPauseScale * Constraints.PERCENT_SCALE).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -409,13 +409,13 @@ internal fun RsvpAdvancedSettingsContent(
                 summary =
                 stringResource(
                     R.string.rsvp_context_shaping_summary,
-                    formatDeltaPercent(context, config.parentheticalMultiplier),
-                    formatPercent(context, config.dialogueMultiplier),
+                    formatDeltaPercent(resources, config.parentheticalMultiplier),
+                    formatPercent(resources, config.dialogueMultiplier),
                 ),
             ) {
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_parentheticals_title),
-                    valueLabel = { context.getString(R.string.format_plus_percent, it.toInt()) },
+                    valueLabel = { resources.getString(R.string.format_plus_percent, it.toInt()) },
                     rawValue =
                     (
                         (config.parentheticalMultiplier - Constraints.MIN_PARENTHETICAL_MULTIPLIER) *
@@ -446,7 +446,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_dialogue_pace_title),
-                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                    valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.dialogueMultiplier * Constraints.PERCENT_SCALE).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -466,7 +466,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_dialogue_punctuation_title),
                     subtitle = stringResource(R.string.rsvp_dialogue_punctuation_subtitle),
-                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                    valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.dialoguePunctuationScale * Constraints.PERCENT_SCALE).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -496,7 +496,7 @@ internal fun RsvpAdvancedSettingsContent(
                     DeferredSliderRow(
                         title = stringResource(R.string.rsvp_parenthetical_aside_pace_title),
                         subtitle = stringResource(R.string.rsvp_parenthetical_aside_pace_subtitle),
-                        valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                        valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
                         rawValue =
                         (config.parentheticalAsideMultiplier * Constraints.PERCENT_SCALE).toFloat(),
                         onCommit = { newValue ->
@@ -530,13 +530,13 @@ internal fun RsvpAdvancedSettingsContent(
                     R.string.rsvp_adaptive_pacing_summary,
                     config.adaptiveDifficultyMaxHoldMs,
                     config.complexWordHoldMs,
-                    formatMultiplier(context, config.complexWordThreshold),
+                    formatMultiplier(resources, config.complexWordThreshold),
                 ),
             ) {
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_difficulty_boost_title),
                     subtitle = stringResource(R.string.rsvp_difficulty_boost_subtitle),
-                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.adaptiveDifficultyMaxHoldMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -551,7 +551,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_complex_word_boost_title),
                     subtitle = stringResource(R.string.rsvp_complex_word_boost_subtitle),
-                    valueLabel = { context.getString(R.string.format_plus_ms, it.toLong()) },
+                    valueLabel = { resources.getString(R.string.format_plus_ms, it.toLong()) },
                     rawValue = config.complexWordHoldMs.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -566,7 +566,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_complex_word_threshold_title),
                     subtitle = stringResource(R.string.rsvp_complex_word_threshold_subtitle),
-                    valueLabel = { context.getString(R.string.format_multiplier, it) },
+                    valueLabel = { resources.getString(R.string.format_multiplier, it) },
                     rawValue = config.complexWordThreshold.toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -589,15 +589,15 @@ internal fun RsvpAdvancedSettingsContent(
                 summary =
                 stringResource(
                     R.string.rsvp_rhythm_summary,
-                    formatPercent(context, config.smoothingAlpha),
-                    formatDeltaPercent(context, config.clausePauseFactor),
+                    formatPercent(resources, config.smoothingAlpha),
+                    formatDeltaPercent(resources, config.clausePauseFactor),
                     stringResource(blinkModeLabelRes(config.blinkMode)),
                 ),
             ) {
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_stability_title),
                     subtitle = stringResource(R.string.rsvp_stability_subtitle),
-                    valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                    valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
                     rawValue = (config.smoothingAlpha * Constraints.PERCENT_SCALE).toFloat(),
                     onCommit = { newValue ->
                         updateConfig {
@@ -623,7 +623,7 @@ internal fun RsvpAdvancedSettingsContent(
                     DeferredSliderRow(
                         title = stringResource(R.string.rsvp_focal_support_title),
                         subtitle = stringResource(R.string.rsvp_focal_support_subtitle),
-                        valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                        valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
                         rawValue =
                         (config.focalSupportCompression * Constraints.PERCENT_SCALE).toFloat(),
                         onCommit = { newValue ->
@@ -658,7 +658,7 @@ internal fun RsvpAdvancedSettingsContent(
                     DeferredSliderRow(
                         title = stringResource(R.string.rsvp_anticipatory_landing_strength_title),
                         subtitle = stringResource(R.string.rsvp_anticipatory_landing_strength_subtitle),
-                        valueLabel = { context.getString(R.string.format_plus_percent, it.toInt()) },
+                        valueLabel = { resources.getString(R.string.format_plus_percent, it.toInt()) },
                         rawValue =
                         (
                             (
@@ -704,7 +704,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_clause_strength_title),
                     subtitle = stringResource(R.string.rsvp_clause_strength_subtitle),
-                    valueLabel = { context.getString(R.string.format_plus_percent, it.toInt()) },
+                    valueLabel = { resources.getString(R.string.format_plus_percent, it.toInt()) },
                     rawValue =
                     (
                         (
@@ -751,7 +751,7 @@ internal fun RsvpAdvancedSettingsContent(
                     DeferredSliderRow(
                         title = stringResource(R.string.rsvp_prosody_strength_title),
                         subtitle = stringResource(R.string.rsvp_prosody_strength_subtitle),
-                        valueLabel = { context.getString(R.string.format_percent, it.toInt()) },
+                        valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
                         rawValue = (config.prosodyStrength * Constraints.PERCENT_SCALE).toFloat(),
                         onCommit = { newValue ->
                             updateConfig {
@@ -792,8 +792,8 @@ internal fun RsvpAdvancedSettingsContent(
                     R.string.rsvp_display_details_summary,
                     stringResource(rsvpFontFamilyLabelRes(rsvpFontFamily)),
                     stringResource(rsvpFontWeightLabelRes(rsvpFontWeight)),
-                    formatBias(context, rsvpVerticalBias),
-                    formatBias(context, rsvpHorizontalBias),
+                    formatBias(resources, rsvpVerticalBias),
+                    formatBias(resources, rsvpHorizontalBias),
                 ),
             ) {
                 RsvpFontFamilySelector(
@@ -807,7 +807,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_vertical_position_title),
                     valueLabel = {
-                        context.getString(
+                        resources.getString(
                             R.string.format_percent,
                             (it * Constraints.PERCENT_SCALE).toInt(),
                         )
@@ -819,7 +819,7 @@ internal fun RsvpAdvancedSettingsContent(
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_left_bias_title),
                     valueLabel = {
-                        context.getString(
+                        resources.getString(
                             R.string.format_percent,
                             (it * Constraints.PERCENT_SCALE).toInt(),
                         )
