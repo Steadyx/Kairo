@@ -119,7 +119,7 @@
 
     <string name="rsvp_settings_title">速読設定</string>
     <string name="rsvp_settings_subtitle">タイミングプロファイル、可読性、表示</string>
-    <string name="rsvp_preparing">速読を準備中...</string>
+    <string name="rsvp_preparing">速読を準備中…</string>
     <string name="rsvp_empty_state">表示する内容がありません。\nタップして戻ります。</string>
     <string name="rsvp_quick_settings_title">クイック設定</string>
     <string name="rsvp_quick_settings_hints">上下にスワイプして速度を調整\nスライダーで変更をプレビュー\n長押しで終了</string>
@@ -231,7 +231,7 @@
     <string name="rsvp_profile_study">学習</string>
     <string name="rsvp_profile_study_description">理解重視のゆったりしたペース</string>
     <string name="rsvp_estimated_pace">推定ペース: %1$d 語/分</string>
-    <string name="rsvp_estimating_pace">ペースを推定中...</string>
+    <string name="rsvp_estimating_pace">ペースを推定中…</string>
 
     <string name="blink_mode_title">ブリンクモード</string>
     <string name="blink_mode_off">オフ</string>
@@ -442,17 +442,14 @@
     <string name="rsvp_regression_pacing_subtitle">フレーズの再読や後方への移動後、一時的にペースを緩めます。</string>
 
     <plurals name="library_chapter_count">
-        <item quantity="one">%1$d 章</item>
         <item quantity="other">%1$d 章</item>
     </plurals>
 
     <plurals name="library_bookmark_count">
-        <item quantity="one">%1$d件のブックマーク</item>
         <item quantity="other">%1$d件のブックマーク</item>
     </plurals>
 
     <plurals name="toast_imported_with_chapter_count">
-        <item quantity="one">インポートしました: %1$s（%2$d 章）</item>
         <item quantity="other">インポートしました: %1$s（%2$d 章）</item>
     </plurals>
     <string name="content_desc_start_timed_reading">%1$sを開始</string>
@@ -479,7 +476,7 @@
     <string name="bionic_brightness_title">バイオニックテキストの明るさ</string>
     <string name="bionic_brightness_subtitle">現在のテーマを変更せずに、ブロック内のテキストを暗くします。</string>
     <string name="bionic_advanced_settings_subtitle">注視、移動フォーカス、明るさ。</string>
-    <string name="bionic_preparing">バイオニックリーディングを準備しています...</string>
+    <string name="bionic_preparing">バイオニックリーディングを準備しています…</string>
     <string name="bionic_frame_load_failed">バイオニックリーディングを準備できませんでした。タップしてリーダーに戻ります。</string>
     <string name="bionic_empty_state">表示するコンテンツがありません。\nタップして戻ります。</string>
     <string name="update_available_message">Kairoのアップデートが利用可能です。</string>

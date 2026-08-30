@@ -119,7 +119,7 @@
 
     <string name="rsvp_settings_title">Schnelllesen-Einstellungen</string>
     <string name="rsvp_settings_subtitle">Zeitprofil, Lesbarkeit, Anzeige</string>
-    <string name="rsvp_preparing">Schnelllesen wird vorbereitet...</string>
+    <string name="rsvp_preparing">Schnelllesen wird vorbereitet…</string>
     <string name="rsvp_empty_state">Kein Inhalt zum Anzeigen.\nTippen, um zurückzugehen.</string>
     <string name="rsvp_quick_settings_title">Schnelleinstellungen</string>
     <string name="rsvp_quick_settings_hints">Wische nach oben/unten, um die Geschwindigkeit zu ändern\nVerwende Schieberegler, um Änderungen zu prüfen\nLang drücken, um zu beenden</string>
@@ -231,7 +231,7 @@
     <string name="rsvp_profile_study">Lernen</string>
     <string name="rsvp_profile_study_description">Bedachtes Tempo für Verständnis</string>
     <string name="rsvp_estimated_pace">Geschätztes Tempo: %1$d Wörter/min</string>
-    <string name="rsvp_estimating_pace">Tempo wird geschätzt...</string>
+    <string name="rsvp_estimating_pace">Tempo wird geschätzt…</string>
 
     <string name="blink_mode_title">Blinkmodus</string>
     <string name="blink_mode_off">Aus</string>
@@ -479,7 +479,7 @@
     <string name="bionic_brightness_title">Texthelligkeit für bionisches Lesen</string>
     <string name="bionic_brightness_subtitle">Dimmt den Text im Abschnitt, ohne das aktuelle Thema zu ändern.</string>
     <string name="bionic_advanced_settings_subtitle">Fixierung, bewegter Fokus und Helligkeit.</string>
-    <string name="bionic_preparing">Bionisches Lesen wird vorbereitet...</string>
+    <string name="bionic_preparing">Bionisches Lesen wird vorbereitet…</string>
     <string name="bionic_frame_load_failed">Bionisches Lesen konnte nicht vorbereitet werden. Tippe, um zum Reader zurückzukehren.</string>
     <string name="bionic_empty_state">Kein Inhalt zum Anzeigen.\nTippe, um zurückzugehen.</string>
     <string name="update_available_message">Ein Kairo-Update ist verfügbar.</string>

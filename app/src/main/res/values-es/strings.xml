@@ -119,7 +119,7 @@
 
     <string name="rsvp_settings_title">Ajustes de lectura rápida</string>
     <string name="rsvp_settings_subtitle">Perfil de tiempo, legibilidad, visualización</string>
-    <string name="rsvp_preparing">Preparando lectura rápida...</string>
+    <string name="rsvp_preparing">Preparando lectura rápida…</string>
     <string name="rsvp_empty_state">No hay contenido para mostrar.\nToca para volver.</string>
     <string name="rsvp_quick_settings_title">Ajustes rápidos</string>
     <string name="rsvp_quick_settings_hints">Desliza arriba/abajo para ajustar la velocidad\nUsa los controles deslizantes para previsualizar cambios\nMantén pulsado para salir</string>
@@ -231,7 +231,7 @@
     <string name="rsvp_profile_study">Estudio</string>
     <string name="rsvp_profile_study_description">Ritmo deliberado para comprensión</string>
     <string name="rsvp_estimated_pace">Ritmo estimado: %1$d ppm</string>
-    <string name="rsvp_estimating_pace">Estimando ritmo...</string>
+    <string name="rsvp_estimating_pace">Estimando ritmo…</string>
 
     <string name="blink_mode_title">Modo parpadeo</string>
     <string name="blink_mode_off">Desactivado</string>
@@ -443,16 +443,19 @@
 
     <plurals name="library_chapter_count">
         <item quantity="one">%1$d capítulo</item>
+        <item quantity="many">%1$d capítulos</item>
         <item quantity="other">%1$d capítulos</item>
     </plurals>
 
     <plurals name="library_bookmark_count">
         <item quantity="one">%1$d marcador</item>
+        <item quantity="many">%1$d marcadores</item>
         <item quantity="other">%1$d marcadores</item>
     </plurals>
 
     <plurals name="toast_imported_with_chapter_count">
         <item quantity="one">Importado: %1$s (%2$d capítulo)</item>
+        <item quantity="many">Importado: %1$s (%2$d capítulos)</item>
         <item quantity="other">Importado: %1$s (%2$d capítulos)</item>
     </plurals>
     <string name="content_desc_start_timed_reading">Iniciar %1$s</string>
@@ -479,7 +482,7 @@
     <string name="bionic_brightness_title">Brillo del texto biónico</string>
     <string name="bionic_brightness_subtitle">Atenúa el texto del fragmento sin cambiar el tema actual.</string>
     <string name="bionic_advanced_settings_subtitle">Fijación, foco móvil y brillo.</string>
-    <string name="bionic_preparing">Preparando la lectura biónica...</string>
+    <string name="bionic_preparing">Preparando la lectura biónica…</string>
     <string name="bionic_frame_load_failed">No se pudo preparar la lectura biónica. Toca para volver al lector.</string>
     <string name="bionic_empty_state">No hay contenido que mostrar.\nToca para volver.</string>
     <string name="update_available_message">Hay una actualización de Kairo disponible.</string>
@@ -555,14 +558,17 @@
     <string name="momentum_estimated_suffix"> estimadas</string>
     <plurals name="momentum_sessions_count">
         <item quantity="one">%1$d sesión</item>
+        <item quantity="many">%1$d sesiones</item>
         <item quantity="other">%1$d sesiones</item>
     </plurals>
     <plurals name="momentum_previous_weeks_count">
         <item quantity="one">%1$d semana con lectura</item>
+        <item quantity="many">%1$d semanas con lectura</item>
         <item quantity="other">%1$d semanas con lectura</item>
     </plurals>
     <plurals name="momentum_active_days_count">
         <item quantity="one">%1$d día activo</item>
+        <item quantity="many">%1$d días activos</item>
         <item quantity="other">%1$d días activos</item>
     </plurals>
     <string name="search_kairo_title">Buscar en Kairo</string>

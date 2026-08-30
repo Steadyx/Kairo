@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Kairo</string>
 
     <string name="action_back">Back</string>
@@ -12,7 +12,8 @@
     <string name="action_skip">Skip</string>
     <string name="action_return_to_library">Return to library</string>
 
-    <string name="format_chars">%1$d chars</string>
+    <!-- RsvpConfigConstraints keeps long-word thresholds within 8–14 characters. -->
+    <string name="format_chars" tools:ignore="PluralsCandidate">%1$d chars</string>
     <string name="format_estimated_wpm">~%1$d WPM</string>
     <string name="format_ms">%1$dms</string>
     <string name="format_multiplier">x%1$.2f</string>
@@ -176,7 +177,7 @@
 
     <string name="rsvp_settings_title">RSVP settings</string>
     <string name="rsvp_settings_subtitle">Timing profile, readability, display</string>
-    <string name="rsvp_preparing">Preparing RSVP...</string>
+    <string name="rsvp_preparing">Preparing RSVP…</string>
     <string name="rsvp_frame_load_failed">RSVP could not be prepared. Tap to return to the reader.</string>
     <string name="rsvp_empty_state">No content to display.\nTap to go back.</string>
     <string name="rsvp_quick_settings_title">Quick Settings</string>
@@ -254,7 +255,8 @@
     <string name="rsvp_unlock_extreme_speeds_subtitle">Allows down to %1$dms (can become unreadable).</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle_long">Allows very high speeds (can quickly become unreadable).</string>
     <string name="rsvp_readability_floors_title">Readability floors</string>
-    <string name="rsvp_readability_floors_summary">Threshold %1$d chars | Split +%2$dms</string>
+    <!-- Compound summary: threshold 8–14 chars and subword pause 0–200 ms. -->
+    <string name="rsvp_readability_floors_summary" tools:ignore="PluralsCandidate">Threshold %1$d chars | Split +%2$dms</string>
     <string name="rsvp_long_word_threshold_title">Long-word threshold</string>
     <string name="rsvp_split_word_pause_title">Split-word pause</string>
     <string name="rsvp_split_word_pause_subtitle">Extra time between long-word chunks.</string>
@@ -327,7 +329,8 @@
     <string name="rsvp_phrase_chunking_subtitle">Groups natural short phrases to reduce flicker.</string>
     <string name="rsvp_phrase_chunk_size_title">Max chunk words</string>
     <string name="rsvp_phrase_chunk_size_subtitle">Caps phrase chunks at 2 or 3 words when the text reads naturally.</string>
-    <string name="format_words">%1$d words</string>
+    <!-- PHRASE_CHUNK_MIN_WORDS and PHRASE_CHUNK_MAX_WORDS constrain this value to 2–3. -->
+    <string name="format_words" tools:ignore="PluralsCandidate">%1$d words</string>
     <string name="rsvp_display_details_title">Display details</string>
     <string name="rsvp_display_details_summary">%1$s | %2$s | Bias %3$s/%4$s</string>
     <string name="rsvp_font_title">Font</string>
@@ -366,7 +369,7 @@
     <string name="rsvp_profile_study">Study</string>
     <string name="rsvp_profile_study_description">Deliberate comprehension-focused timing for dense text</string>
     <string name="rsvp_estimated_pace">Estimated pace: %1$d WPM</string>
-    <string name="rsvp_estimating_pace">Estimating pace...</string>
+    <string name="rsvp_estimating_pace">Estimating pace…</string>
 
     <string name="blink_mode_title">Blink mode</string>
     <string name="blink_mode_off">Off</string>
@@ -394,7 +397,7 @@
     <string name="bionic_brightness_title">Bionic text brightness</string>
     <string name="bionic_brightness_subtitle">Dims the chunk text without changing the current theme.</string>
     <string name="bionic_advanced_settings_subtitle">Fixation, moving focus, and brightness.</string>
-    <string name="bionic_preparing">Preparing Bionic Reading...</string>
+    <string name="bionic_preparing">Preparing Bionic Reading…</string>
     <string name="bionic_frame_load_failed">Bionic Reading could not be prepared. Tap to return to the reader.</string>
     <string name="bionic_empty_state">No content to display.\nTap to go back.</string>
     <string name="settings_starting_tutorial_title">Starting tutorial</string>
@@ -517,7 +520,8 @@
     <string name="momentum_this_week">This week</string>
     <string name="momentum_minutes_read">%1$d min read</string>
     <string name="momentum_words_read">%1$s words</string>
-    <string name="momentum_goal_progress">%1$d of %2$d goal minutes</string>
+    <!-- MIN/MAX_WEEKLY_READING_GOAL_MINUTES constrain goals to 30–1,400. -->
+    <string name="momentum_goal_progress" tools:ignore="PluralsCandidate">%1$d of %2$d goal minutes</string>
     <string name="momentum_consistency">Active days this week: %1$d</string>
     <string name="momentum_consistency_title">Consistency</string>
     <string name="momentum_today">Today</string>
@@ -533,14 +537,16 @@
     <string name="momentum_preferred_mode">Most-used mode</string>
     <string name="momentum_not_available">Not enough data yet</string>
     <string name="momentum_recent_sessions">Recent sessions</string>
-    <string name="momentum_recent_sessions_limit">Only the latest %1$d sessions are shown.</string>
+    <!-- RECENT_SESSION_LIMIT fixes the displayed session count at five. -->
+    <string name="momentum_recent_sessions_limit" tools:ignore="PluralsCandidate">Only the latest %1$d sessions are shown.</string>
     <string name="momentum_no_sessions">Start reading to build Momentum.</string>
     <string name="momentum_goal_title">Weekly goal</string>
     <string name="momentum_custom_goal">Custom</string>
     <string name="momentum_custom_goal_value">Custom · %1$d min</string>
     <string name="momentum_custom_goal_title">Set a custom goal</string>
     <string name="momentum_custom_goal_field">Minutes per week</string>
-    <string name="momentum_custom_goal_range">Enter %1$d–%2$d minutes.</string>
+    <!-- MIN/MAX_WEEKLY_READING_GOAL_MINUTES fix this range at 30–1,400. -->
+    <string name="momentum_custom_goal_range" tools:ignore="PluralsCandidate">Enter %1$d–%2$d minutes.</string>
     <string name="momentum_custom_goal_error">Enter a whole number from %1$d to %2$d.</string>
     <string name="momentum_previous_weeks">Previous weeks</string>
     <string name="momentum_previous_weeks_collapsed">Previous weeks collapsed</string>
@@ -597,10 +603,14 @@
     <string name="reading_mode_bionic">Bionic</string>
     <string name="action_retry">Retry</string>
     <string name="search_error">Search could not be completed.</string>
-    <string name="saved_note_limit_error">Notes can be up to %1$d characters.</string>
-    <string name="saved_note_character_count">%1$d / %2$d characters</string>
-    <string name="saved_passage_selection_count">%1$d / %2$d characters • %3$d / %4$d words</string>
-    <string name="saved_passage_limit_error">Selection is too long: %1$d / %2$d characters • %3$d / %4$d words</string>
+    <!-- SavedAnnotationLimits.MAX_NOTE_CHARACTERS is fixed at 4,000. -->
+    <string name="saved_note_limit_error" tools:ignore="PluralsCandidate">Notes can be up to %1$d characters.</string>
+    <!-- Counter against SavedAnnotationLimits.MAX_NOTE_CHARACTERS (4,000). -->
+    <string name="saved_note_character_count" tools:ignore="PluralsCandidate">%1$d / %2$d characters</string>
+    <!-- Compound counter against limits of 8,000 characters and 500 tokens. -->
+    <string name="saved_passage_selection_count" tools:ignore="PluralsCandidate">%1$d / %2$d characters • %3$d / %4$d words</string>
+    <!-- Compound limit message for 8,000 characters and 500 tokens. -->
+    <string name="saved_passage_limit_error" tools:ignore="PluralsCandidate">Selection is too long: %1$d / %2$d characters • %3$d / %4$d words</string>
     <string name="toast_passage_save_failed">Could not save this passage</string>
     <string name="saved_delete_title">Delete saved passage?</string>
     <string name="saved_delete_message">This saved passage and its note will be permanently deleted.</string>
