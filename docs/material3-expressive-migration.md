@@ -66,28 +66,28 @@ upgrades would be ongoing maintenance outside these estimates.
 
 ## Resolved AndroidX graph
 
-The implementation declares `androidx.compose:compose-bom-alpha:2026.08.00`.
-That BOM aligns Compose UI, Foundation, and Runtime to `1.13.0-alpha01`, but it
-selects Material 3 and the adaptive navigation suite at `1.5.0-alpha26`.
-Because this migration deliberately targets APIs verified in alpha27, the
-version catalogue explicitly overrides both Material 3 artifacts instead of
-assuming the BOM supplies that version.
+The implementation declares `androidx.compose:compose-bom-alpha:2026.08.01`.
+That BOM aligns Compose UI, Foundation, and Runtime to `1.13.0-alpha02` and
+selects Material 3 and the adaptive navigation suite at `1.5.0-alpha27`. The
+version catalogue retains explicit alpha27 pins for both Material 3 artifacts
+so the native Expressive dependency boundary remains intentional and visible
+rather than relying on implicit BOM alignment.
 
 Gradle dependency insight for `debugRuntimeClasspath` resolves:
 
-- `androidx.compose:compose-bom-alpha:2026.08.00`
-- `androidx.compose.ui:ui:1.13.0-alpha01`
-- `androidx.compose.foundation:foundation:1.13.0-alpha01`
-- `androidx.compose.runtime:runtime:1.13.0-alpha01`
+- `androidx.compose:compose-bom-alpha:2026.08.01`
+- `androidx.compose.ui:ui:1.13.0-alpha02`
+- `androidx.compose.foundation:foundation:1.13.0-alpha02`
+- `androidx.compose.runtime:runtime:1.13.0-alpha02`
 - `androidx.compose.material3:material3:1.5.0-alpha27`
 - `androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-alpha27`
 - `androidx.compose.material3:material3-ripple:1.5.0-alpha27` transitively
 
-The explicit alpha27 overrides are intentional: without them the selected BOM
-would resolve alpha26. Some native Expressive components still require
-`ExperimentalMaterial3ExpressiveApi`; those opt-ins are kept at the narrowest
-theme or component boundary. This graph must be reviewed again before merge or
-release because all three Compose lines are prerelease dependencies.
+The explicit alpha27 overrides remain intentional even though the selected BOM
+currently aligns the same version. Some native Expressive components still
+require `ExperimentalMaterial3ExpressiveApi`; those opt-ins are kept at the
+narrowest theme or component boundary. This graph must be reviewed again before
+merge or release because all three Compose lines are prerelease dependencies.
 
 Official references:
 
