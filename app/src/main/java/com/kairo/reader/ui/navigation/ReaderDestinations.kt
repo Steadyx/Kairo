@@ -11,6 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.kairo.reader.KairoApplication
 import com.kairo.reader.core.model.UserPreferences
+import com.kairo.reader.ui.theme.KairoFocusedReadingTheme
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
 
 internal data class ReaderDestinationDependencies(
@@ -76,22 +77,24 @@ private fun KairoReaderDestination(
     initialTokenIndex: Int? = null,
     initialSearchCodePointOffset: Int? = null,
 ) {
-    ReaderRoute(
-        ReaderRouteInput(
-            backStackEntry = backStackEntry,
-            container = dependencies.container,
-            navController = dependencies.navController,
-            prefs = dependencies.prefs,
-            estimatedWpm = dependencies.estimatedWpm,
-            tutorialActive = dependencies.tutorialActive,
-            tutorialState = dependencies.tutorialState,
-            initialChapterIndex = initialChapterIndex,
-            initialTokenIndex = initialTokenIndex,
-            initialSearchCodePointOffset = initialSearchCodePointOffset,
-            onShowUserMessage = dependencies.onShowUserMessage,
-            onTutorialNext = dependencies.onTutorialNext,
-            onTutorialPrevious = dependencies.onTutorialPrevious,
-            onTutorialSkip = dependencies.onTutorialSkip,
-        ),
-    )
+    KairoFocusedReadingTheme {
+        ReaderRoute(
+            ReaderRouteInput(
+                backStackEntry = backStackEntry,
+                container = dependencies.container,
+                navController = dependencies.navController,
+                prefs = dependencies.prefs,
+                estimatedWpm = dependencies.estimatedWpm,
+                tutorialActive = dependencies.tutorialActive,
+                tutorialState = dependencies.tutorialState,
+                initialChapterIndex = initialChapterIndex,
+                initialTokenIndex = initialTokenIndex,
+                initialSearchCodePointOffset = initialSearchCodePointOffset,
+                onShowUserMessage = dependencies.onShowUserMessage,
+                onTutorialNext = dependencies.onTutorialNext,
+                onTutorialPrevious = dependencies.onTutorialPrevious,
+                onTutorialSkip = dependencies.onTutorialSkip,
+            ),
+        )
+    }
 }

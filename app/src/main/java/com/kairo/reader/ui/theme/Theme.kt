@@ -3,7 +3,9 @@
 package com.kairo.reader.ui.theme
 
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -17,10 +19,22 @@ fun KairoTheme(
 ) {
     val colorScheme = readerTheme.materialColorScheme()
 
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
-        shapes = KairoShapes,
+        motionScheme = MotionScheme.expressive(),
+        shapes = KairoExpressiveShapes,
         typography = Typography,
+        content = content,
+    )
+}
+
+@Composable
+internal fun KairoFocusedReadingTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = MaterialTheme.colorScheme,
+        motionScheme = MotionScheme.standard(),
+        shapes = KairoFocusedReadingShapes,
+        typography = FocusedReadingTypography,
         content = content,
     )
 }
