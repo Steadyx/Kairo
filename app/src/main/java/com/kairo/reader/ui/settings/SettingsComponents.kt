@@ -1,4 +1,4 @@
-@file:Suppress("FunctionNaming", "LongMethod", "LongParameterList", "MaxLineLength")
+@file:Suppress("FunctionNaming", "LongMethod", "LongParameterList", "MatchingDeclarationName", "MaxLineLength")
 
 package com.kairo.reader.ui.settings
 
@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -51,6 +52,11 @@ import com.kairo.reader.R
 import com.kairo.reader.core.model.ReaderTheme
 import com.kairo.reader.ui.theme.readerThemePalette
 
+enum class SettingsNavRowPresentation {
+    COMPACT,
+    PROMINENT,
+}
+
 @Composable
 fun SettingsNavRow(
     modifier: Modifier = Modifier,
@@ -58,6 +64,39 @@ fun SettingsNavRow(
     subtitle: String? = null,
     icon: ImageVector,
     showChevron: Boolean = true,
+    presentation: SettingsNavRowPresentation = SettingsNavRowPresentation.COMPACT,
+    onClick: () -> Unit,
+) {
+    when (presentation) {
+        SettingsNavRowPresentation.COMPACT ->
+            CompactSettingsNavRow(
+                modifier = modifier,
+                title = title,
+                subtitle = subtitle,
+                icon = icon,
+                showChevron = showChevron,
+                onClick = onClick,
+            )
+
+        SettingsNavRowPresentation.PROMINENT ->
+            ProminentSettingsNavRow(
+                modifier = modifier,
+                title = title,
+                subtitle = subtitle,
+                icon = icon,
+                showChevron = showChevron,
+                onClick = onClick,
+            )
+    }
+}
+
+@Composable
+private fun CompactSettingsNavRow(
+    modifier: Modifier,
+    title: String,
+    subtitle: String?,
+    icon: ImageVector,
+    showChevron: Boolean,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -95,6 +134,67 @@ fun SettingsNavRow(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProminentSettingsNavRow(
+    modifier: Modifier,
+    title: String,
+    subtitle: String?,
+    icon: ImageVector,
+    showChevron: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier =
+        modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Row(
+            modifier =
+            Modifier
+                .heightIn(min = 72.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (showChevron) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
                 )
             }

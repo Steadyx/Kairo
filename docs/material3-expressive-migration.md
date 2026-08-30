@@ -1,21 +1,41 @@
 # Material 3 Expressive migration assessment
 
-- Status: planning reference only
+- Status: Settings Home pilot source implemented; visual/device verification outstanding
 - Created: 30 August 2026
-- Audit baseline: b0dc6ca on chore/lint-enforcement
-- Planning branch: docs/material3-expressive-migration
+- Original audit baseline: b0dc6ca on chore/lint-enforcement
+- Implementation baseline: 5f11a98 on main
+- Implementation branch: feat/material3-expressive
 
 ## Purpose
 
-This document records the repository investigation and recommended migration
-strategy for giving Kairo a complete Material 3 Expressive visual treatment.
-It is deliberately not an implementation specification: the AndroidX API
-status, dependency graph, visual direction, and current application structure
-must be refreshed before work begins.
+This document records the repository investigation, accepted production
+direction, and recommended migration strategy for giving Kairo a complete
+Material 3 Expressive visual treatment. It remains the durable plan for later
+phases while also recording the bounded production pilots completed against
+it.
 
 The migration should make Kairo feel more polished, tactile, coherent, and
 adaptive without compromising the calm reading experience, Reader pagination,
 RSVP timing, ORP geometry, gestures, accessibility, or saved state.
+
+## Accepted production direction
+
+The production migration will remain on stable Material 3 1.4.0. Kairo can
+adopt the Expressive design language through its public stable colour,
+typography, shape, surface, and component APIs without depending on internal or
+alpha-only APIs.
+
+The public native Expressive theme APIs are deferred until they reach a stable
+Material 3 release. A separate alpha compatibility spike remains optional and
+would be evidence-gathering only, not approval to ship an alpha dependency.
+
+Settings Home is the first bounded production pilot. It establishes an
+explicit theme seam through `KairoShapes = Shapes()`, preserving the stable
+Material 3 1.4 default shape values, plus a prominent navigation-row
+presentation. This is not yet a bespoke Kairo shape scale. The existing compact
+row remains in place for Reader, RSVP, Info, and other callers. Library, Reader,
+and RSVP migration are explicitly outside this pilot and must pass their own
+later review gates.
 
 ## Executive summary
 
@@ -87,8 +107,9 @@ Official references:
 - The platform themes inherit Theme.Material3.DayNight.NoActionBar.
 - MainActivity uses edge-to-edge rendering and applies KairoTheme at the
   application root.
-- KairoTheme is one compact global seam that currently supplies a ColorScheme
-  and Typography but no explicit Shapes.
+- At the original audit, KairoTheme supplied a ColorScheme and Typography but
+  no explicit Shapes. The Settings Home pilot now passes `KairoShapes =
+  Shapes()` through that seam while retaining Material 3 1.4 defaults.
 - The global Typography overrides only bodyLarge and titleLarge.
 - Reader and RSVP have their own bundled font families and domain-specific text
   sizing.
@@ -462,8 +483,10 @@ without it.
 
 ## Investigation boundary
 
-This assessment used static repository inspection, official Android
+The original assessment used static repository inspection, official Android
 documentation, local Material 3 source artifacts, and Gradle dependency
-insight. No application source was changed, no full test suite was required for
-the investigation, and no emulator or physical-device rendering was performed.
-Actual visual quality and migration velocity remain unverified until the pilot.
+insight. At that historical boundary no application source had been changed
+and no full test suite or emulator/physical-device rendering was required. The
+Settings Home pilot now changes application source and adds deterministic
+coverage, but its visual quality, accessibility behaviour, and physical-device
+rendering remain outstanding until the pilot is rendered and reviewed.

@@ -19,6 +19,7 @@ fun KairoTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        shapes = KairoShapes,
         typography = Typography,
         content = content,
     )

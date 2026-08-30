@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -28,11 +30,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +47,7 @@ import com.kairo.reader.ui.tutorial.StartingTutorialOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
 import com.kairo.reader.ui.tutorial.StartingTutorialTargetIds
 import com.kairo.reader.ui.tutorial.startingTutorialTarget
+import kotlinx.coroutines.flow.first
 
 data class SettingsHomeActions(
     val onOpenRsvp: () -> Unit,
@@ -68,7 +73,25 @@ fun SettingsHomeScreen(
     val context = LocalContext.current
     val languageLabel = resolveLanguageLabel(context, getAppLanguageTag())
     val tutorialTargets = remember { mutableStateMapOf<String, Rect>() }
+    val tutorialTargetRequesters =
+        remember {
+            mapOf(
+                StartingTutorialTargetIds.SETTINGS_LANGUAGE to BringIntoViewRequester(),
+                StartingTutorialTargetIds.SETTINGS_RSVP to BringIntoViewRequester(),
+                StartingTutorialTargetIds.SETTINGS_READER to BringIntoViewRequester(),
+                StartingTutorialTargetIds.SETTINGS_FOCUS to BringIntoViewRequester(),
+                StartingTutorialTargetIds.SETTINGS_TUTORIAL to BringIntoViewRequester(),
+            )
+        }
+    val activeTutorialTargetId = tutorialState?.step?.targetId
     var showResetConfirmation by remember { mutableStateOf(false) }
+
+    LaunchedEffect(activeTutorialTargetId) {
+        val targetId = activeTutorialTargetId ?: return@LaunchedEffect
+        val targetRequester = tutorialTargetRequesters[targetId] ?: return@LaunchedEffect
+        snapshotFlow { tutorialTargets[targetId] }.first { it != null }
+        targetRequester.bringIntoView()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -80,9 +103,9 @@ fun SettingsHomeScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge)
-            PrimarySettingsRows(actions, languageLabel, tutorialTargets)
-            SupportingSettingsRows(actions, tutorialTargets)
+            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium)
+            PrimarySettingsRows(actions, languageLabel, tutorialTargets, tutorialTargetRequesters)
+            SupportingSettingsRows(actions, tutorialTargets, tutorialTargetRequesters)
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
                 onClick = { showResetConfirmation = true },
@@ -120,32 +143,52 @@ private fun PrimarySettingsRows(
     actions: SettingsHomeActions,
     languageLabel: String,
     tutorialTargets: MutableMap<String, Rect>,
+    tutorialTargetRequesters: Map<String, BringIntoViewRequester>,
 ) {
     SettingsNavRow(
-        modifier = Modifier.captureTutorialTarget(StartingTutorialTargetIds.SETTINGS_LANGUAGE, tutorialTargets),
+        modifier =
+        Modifier.captureTutorialTarget(
+            StartingTutorialTargetIds.SETTINGS_LANGUAGE,
+            tutorialTargets,
+            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_LANGUAGE),
+        ),
         title = stringResource(R.string.settings_language_title),
         subtitle = languageLabel,
         icon = Icons.Default.Language,
+        presentation = SettingsNavRowPresentation.PROMINENT,
         onClick = actions.onOpenLanguage,
     )
     SettingsNavRow(
-        modifier = Modifier.captureTutorialTarget(StartingTutorialTargetIds.SETTINGS_RSVP, tutorialTargets),
+        modifier =
+        Modifier.captureTutorialTarget(
+            StartingTutorialTargetIds.SETTINGS_RSVP,
+            tutorialTargets,
+            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_RSVP),
+        ),
         title = stringResource(R.string.rsvp_settings_title),
         subtitle = stringResource(R.string.settings_rsvp_subtitle),
         icon = Icons.Default.Settings,
+        presentation = SettingsNavRowPresentation.PROMINENT,
         onClick = actions.onOpenRsvp,
     )
     SettingsNavRow(
         title = stringResource(R.string.bionic_settings_title),
         subtitle = stringResource(R.string.settings_bionic_subtitle),
         icon = Icons.Default.AutoStories,
+        presentation = SettingsNavRowPresentation.PROMINENT,
         onClick = actions.onOpenBionic,
     )
     SettingsNavRow(
-        modifier = Modifier.captureTutorialTarget(StartingTutorialTargetIds.SETTINGS_READER, tutorialTargets),
+        modifier =
+        Modifier.captureTutorialTarget(
+            StartingTutorialTargetIds.SETTINGS_READER,
+            tutorialTargets,
+            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_READER),
+        ),
         title = stringResource(R.string.reader_settings_title),
         subtitle = stringResource(R.string.reader_settings_subtitle),
         icon = Icons.Default.Settings,
+        presentation = SettingsNavRowPresentation.PROMINENT,
         onClick = actions.onOpenReader,
     )
 }
@@ -154,31 +197,46 @@ private fun PrimarySettingsRows(
 private fun SupportingSettingsRows(
     actions: SettingsHomeActions,
     tutorialTargets: MutableMap<String, Rect>,
+    tutorialTargetRequesters: Map<String, BringIntoViewRequester>,
 ) {
     SettingsNavRow(
-        modifier = Modifier.captureTutorialTarget(StartingTutorialTargetIds.SETTINGS_FOCUS, tutorialTargets),
+        modifier =
+        Modifier.captureTutorialTarget(
+            StartingTutorialTargetIds.SETTINGS_FOCUS,
+            tutorialTargets,
+            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_FOCUS),
+        ),
         title = stringResource(R.string.focus_settings_title),
         subtitle = stringResource(R.string.focus_settings_subtitle),
         icon = Icons.Default.Settings,
+        presentation = SettingsNavRowPresentation.PROMINENT,
         onClick = actions.onOpenFocus,
     )
     SettingsNavRow(
         title = stringResource(R.string.update_check_title),
         subtitle = stringResource(R.string.update_check_subtitle),
         icon = Icons.Default.Refresh,
+        presentation = SettingsNavRowPresentation.PROMINENT,
         onClick = actions.onCheckForUpdates,
     )
     SettingsNavRow(
         title = stringResource(R.string.info_settings_title),
         subtitle = stringResource(R.string.info_settings_subtitle),
         icon = Icons.Default.Info,
+        presentation = SettingsNavRowPresentation.PROMINENT,
         onClick = actions.onOpenInfo,
     )
     SettingsNavRow(
-        modifier = Modifier.captureTutorialTarget(StartingTutorialTargetIds.SETTINGS_TUTORIAL, tutorialTargets),
+        modifier =
+        Modifier.captureTutorialTarget(
+            StartingTutorialTargetIds.SETTINGS_TUTORIAL,
+            tutorialTargets,
+            tutorialTargetRequesters.getValue(StartingTutorialTargetIds.SETTINGS_TUTORIAL),
+        ),
         title = stringResource(R.string.settings_starting_tutorial_title),
         subtitle = stringResource(R.string.settings_starting_tutorial_subtitle),
         icon = Icons.Default.Info,
+        presentation = SettingsNavRowPresentation.PROMINENT,
         onClick = actions.onOpenStartingTutorial,
     )
 }
@@ -186,10 +244,12 @@ private fun SupportingSettingsRows(
 private fun Modifier.captureTutorialTarget(
     targetId: String,
     targets: MutableMap<String, Rect>,
+    requester: BringIntoViewRequester,
 ): Modifier =
-    startingTutorialTarget(targetId) { resolvedId, bounds ->
-        targets[resolvedId] = bounds
-    }
+    bringIntoViewRequester(requester)
+        .startingTutorialTarget(targetId) { resolvedId, bounds ->
+            targets[resolvedId] = bounds
+        }
 
 @Composable
 private fun ResetSettingsDialog(
