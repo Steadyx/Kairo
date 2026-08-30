@@ -354,34 +354,18 @@ class ReadingSessionCoordinator(
 
         data class RebaseReader(val sessionKey: String) : Command
 
-        data class SetActive(
-            val sessionKey: String,
-            val active: Boolean,
-            val stamp: StampedTime,
-        ) : Command
+        data class SetActive(val sessionKey: String, val active: Boolean, val stamp: StampedTime,) : Command
 
-        data class Checkpoint(
-            val sessionKey: String,
-            val stamp: StampedTime,
-        ) : Command
+        data class Checkpoint(val sessionKey: String, val stamp: StampedTime,) : Command
 
-        data class Finalize(
-            val sessionKey: String,
-            val stamp: StampedTime,
-        ) : Command
+        data class Finalize(val sessionKey: String, val stamp: StampedTime,) : Command
 
         data class Barrier(val completion: CompletableDeferred<Unit>) : Command
     }
 
-    private data class StampedTime(
-        val timestamp: ReadingSessionTimestamp,
-        val timeZone: TimeZone,
-    )
+    private data class StampedTime(val timestamp: ReadingSessionTimestamp, val timeZone: TimeZone,)
 
-    private data class StampedReaderProgress(
-        val progress: ReaderProgress,
-        val stamp: StampedTime,
-    )
+    private data class StampedReaderProgress(val progress: ReaderProgress, val stamp: StampedTime,)
 
     private class ReaderMoveBatch(firstProgress: StampedReaderProgress) {
         val first = firstProgress
@@ -405,11 +389,7 @@ class ReadingSessionCoordinator(
         }
     }
 
-    private data class StampedTimedFrame(
-        val location: ReadingSessionLocation,
-        val words: Int,
-        val stamp: StampedTime,
-    )
+    private data class StampedTimedFrame(val location: ReadingSessionLocation, val words: Int, val stamp: StampedTime,)
 
     private class TimedFrameBatch(firstFrame: StampedTimedFrame) {
         var last = firstFrame
@@ -423,10 +403,7 @@ class ReadingSessionCoordinator(
         }
     }
 
-    private data class ProgressSnapshot(
-        val readerMoves: Map<String, ReaderMoveBatch>,
-        val timedFrames: Map<String, TimedFrameBatch>,
-    ) {
+    private data class ProgressSnapshot(val readerMoves: Map<String, ReaderMoveBatch>, val timedFrames: Map<String, TimedFrameBatch>,) {
         companion object {
             val EMPTY = ProgressSnapshot(emptyMap(), emptyMap())
         }

@@ -16,10 +16,7 @@ internal enum class InAppUpdateAction {
     RESTART_TO_INSTALL,
 }
 
-internal class PlayInAppUpdateCoordinator(
-    activity: Activity,
-    private val onPromptChanged: (InAppUpdatePrompt?) -> Unit,
-) {
+internal class PlayInAppUpdateCoordinator(activity: Activity, private val onPromptChanged: (InAppUpdatePrompt?) -> Unit,) {
     private val updateManager: AppUpdateManager = AppUpdateManagerFactory.create(activity)
     private val updateOptions = AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build()
     private val installStateListener =
@@ -60,13 +57,13 @@ internal class PlayInAppUpdateCoordinator(
                 val prompt =
                     selectInAppUpdatePrompt(
                         snapshot =
-                            InAppUpdateSnapshot(
-                                updateAvailable =
-                                    updateInfo.updateAvailability() ==
-                                        UpdateAvailability.UPDATE_AVAILABLE,
-                                flexibleUpdateAllowed = updateInfo.isUpdateTypeAllowed(updateOptions),
-                                updateDownloaded = updateInfo.installStatus() == InstallStatus.DOWNLOADED,
-                            ),
+                        InAppUpdateSnapshot(
+                            updateAvailable =
+                            updateInfo.updateAvailability() ==
+                                UpdateAvailability.UPDATE_AVAILABLE,
+                            flexibleUpdateAllowed = updateInfo.isUpdateTypeAllowed(updateOptions),
+                            updateDownloaded = updateInfo.installStatus() == InstallStatus.DOWNLOADED,
+                        ),
                         availablePromptSuppressed = availablePromptSuppressed,
                     )
                 publishPrompt(prompt)

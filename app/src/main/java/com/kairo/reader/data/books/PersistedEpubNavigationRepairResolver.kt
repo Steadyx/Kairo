@@ -2,14 +2,9 @@ package com.kairo.reader.data.books
 
 import com.kairo.reader.data.local.EpubNavigationChapterCandidate
 
-internal data class PersistedEpubNavigationRepair(
-    val candidate: EpubNavigationChapterCandidate,
-    val canonicalHtml: String,
-)
+internal data class PersistedEpubNavigationRepair(val candidate: EpubNavigationChapterCandidate, val canonicalHtml: String,)
 
-internal class PersistedEpubNavigationRepairResolver(
-    private val parser: EpubNavigationParser = EpubNavigationParser(),
-) {
+internal class PersistedEpubNavigationRepairResolver(private val parser: EpubNavigationParser = EpubNavigationParser(),) {
     fun resolve(
         candidates: List<EpubNavigationChapterCandidate>,
         validChapterIndexes: Set<Int>,

@@ -68,10 +68,7 @@ fun buildReadingMomentum(
     )
 }
 
-internal data class LocalWeekPeriod(
-    val startedAt: Long,
-    val endedAt: Long,
-)
+internal data class LocalWeekPeriod(val startedAt: Long, val endedAt: Long,)
 
 internal fun localWeekPeriod(
     timestamp: Long,
@@ -135,11 +132,11 @@ private fun buildPreviousWeeks(
                 activeDurationMs = weekSessions.sumOf { it.session.activeDurationMs },
                 wordsRead = weekSessions.sumOf { it.session.wordsRead },
                 activeDays =
-                    weekSessions
-                        .filter { it.session.activeDurationMs > 0L }
-                        .map { localDayStartedAt(it.session.startedAt, timeZone, locale) }
-                        .distinct()
-                        .size,
+                weekSessions
+                    .filter { it.session.activeDurationMs > 0L }
+                    .map { localDayStartedAt(it.session.startedAt, timeZone, locale) }
+                    .distinct()
+                    .size,
             )
         }
 

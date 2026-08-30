@@ -88,11 +88,11 @@ internal class EpubChapterBuilder(
                     baseDir = chapterDir,
                     imageRelativePathByEpubPathLower = imageRelativePathByEpubPathLower,
                     chapterSrcs =
-                        if (htmlOverride == null) {
-                            chapterImageSrcsByPathLower[pathLower]
-                        } else {
-                            emptyList()
-                        },
+                    if (htmlOverride == null) {
+                        chapterImageSrcsByPathLower[pathLower]
+                    } else {
+                        emptyList()
+                    },
                 )
                 val resolvedHtml = contentRewriter.rewriteHtmlImageSrcs(
                     html = originalHtml,
@@ -146,10 +146,10 @@ internal class EpubChapterBuilder(
             navigationClassifier.filter(
                 parsed = parsed,
                 preservedPathsLower =
-                    preservedNavigationPathsLower
-                        .asSequence()
-                        .map { it.lowercase(Locale.ROOT) }
-                        .toSet(),
+                preservedNavigationPathsLower
+                    .asSequence()
+                    .map { it.lowercase(Locale.ROOT) }
+                    .toSet(),
             )
         val reIndexedChapters = navigationFilterResult.chapters.mapIndexed { index, entry ->
             entry.copy(chapter = entry.chapter.copy(index = index))

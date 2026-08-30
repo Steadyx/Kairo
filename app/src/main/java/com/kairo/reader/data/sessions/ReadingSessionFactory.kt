@@ -49,8 +49,4 @@ data class ReadingSessionDraft(
     val isWordCountEstimated: Boolean,
 )
 
-data class ReadingSessionLocation(
-    val chapterIndex: Int,
-    val tokenIndex: Int,
-    val wordIndex: Int = -1,
-)
+data class ReadingSessionLocation(val chapterIndex: Int, val tokenIndex: Int, val wordIndex: Int = -1,)

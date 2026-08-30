@@ -27,12 +27,12 @@ class EpubTableOfContentsResolverTest {
                 pathLower = "oebps/text/story.xhtml",
                 baseDir = "oebps/text",
                 chapter =
-                    Chapter(
-                        index = 0,
-                        title = "Story",
-                        htmlContent = "",
-                        plainText = content.text,
-                    ),
+                Chapter(
+                    index = 0,
+                    title = "Story",
+                    htmlContent = "",
+                    plainText = content.text,
+                ),
                 anchorOffsets = content.anchorOffsets,
             )
         val references =

@@ -8,7 +8,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -54,11 +54,11 @@ class LibraryMomentumContentTest {
             KairoTheme {
                 LibraryMomentumContent(
                     momentum =
-                        ReadingMomentum(
-                            sessions = sessions,
-                            activeDaysInLastSeven = 2,
-                            dailyActivity = days,
-                        ),
+                    ReadingMomentum(
+                        sessions = sessions,
+                        activeDaysInLastSeven = 2,
+                        dailyActivity = days,
+                    ),
                     weeklyGoalMinutes = 120,
                     onWeeklyGoalChange = {},
                 )
@@ -97,10 +97,10 @@ class LibraryMomentumContentTest {
             KairoTheme {
                 LibraryMomentumContent(
                     momentum =
-                        ReadingMomentum(
-                            dailyActivity = days,
-                            todayStartedAt = days.first().startedAt,
-                        ),
+                    ReadingMomentum(
+                        dailyActivity = days,
+                        todayStartedAt = days.first().startedAt,
+                    ),
                     weeklyGoalMinutes = 120,
                     onWeeklyGoalChange = {},
                 )
@@ -276,21 +276,21 @@ class LibraryMomentumContentTest {
     private fun session(id: Long): ReadingSessionItem =
         ReadingSessionItem(
             session =
-                ReadingSession(
-                    id = id.toString(),
-                    bookId = BOOK.id,
-                    mode = ReadingSessionMode.READER,
-                    startedAt = id,
-                    endedAt = id + SESSION_DURATION_MS,
-                    activeDurationMs = SESSION_DURATION_MS,
-                    startChapterIndex = 0,
-                    startTokenIndex = 0,
-                    endChapterIndex = 0,
-                    endTokenIndex = 500,
-                    wordsRead = 500,
-                    effectiveWpm = 100,
-                    isWordCountEstimated = false,
-                ),
+            ReadingSession(
+                id = id.toString(),
+                bookId = BOOK.id,
+                mode = ReadingSessionMode.READER,
+                startedAt = id,
+                endedAt = id + SESSION_DURATION_MS,
+                activeDurationMs = SESSION_DURATION_MS,
+                startChapterIndex = 0,
+                startTokenIndex = 0,
+                endChapterIndex = 0,
+                endTokenIndex = 500,
+                wordsRead = 500,
+                effectiveWpm = 100,
+                isWordCountEstimated = false,
+            ),
             book = BOOK,
         )
 

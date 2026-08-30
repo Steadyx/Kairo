@@ -9,10 +9,7 @@ import androidx.room.Transaction
 import com.kairo.reader.core.model.ReadingSessionMode
 import kotlinx.coroutines.flow.Flow
 
-data class ReadingSessionWithBookEntity(
-    @Embedded val session: ReadingSessionEntity,
-    @Embedded(prefix = "book_") val book: BookEntity,
-)
+data class ReadingSessionWithBookEntity(@Embedded val session: ReadingSessionEntity, @Embedded(prefix = "book_") val book: BookEntity,)
 
 @Dao
 interface ReadingSessionDao {
@@ -59,7 +56,8 @@ interface ReadingSessionDao {
                     it.sessionKey != sessionKey ||
                         it.bookId != first.bookId ||
                         it.mode != first.mode
-                } || expectedSessionKey(first.bookId, first.mode) != sessionKey
+                } ||
+                expectedSessionKey(first.bookId, first.mode) != sessionKey
             ) {
                 return false
             }
@@ -82,7 +80,9 @@ interface ReadingSessionDao {
             if (
                 sessions.any { it.bookId != first.bookId || it.mode != first.mode } ||
                 expectedSessionKey(first.bookId, first.mode) != sessionKey
-            ) return false
+            ) {
+                return false
+            }
             val stored = getCheckpoints(sessionKey)
             if (stored.any { it.bookId != first.bookId || it.mode != first.mode }) return false
             if (!bookExists(first.bookId)) return false

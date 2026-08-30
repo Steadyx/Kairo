@@ -6,16 +6,9 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 
-data class EpubNavigationChapterCandidate(
-    val chapterIndex: Int,
-    val title: String?,
-    val htmlContent: String,
-)
+data class EpubNavigationChapterCandidate(val chapterIndex: Int, val title: String?, val htmlContent: String,)
 
-data class EpubChapterCoordinate(
-    val chapterIndex: Int,
-    val plainText: String,
-)
+data class EpubChapterCoordinate(val chapterIndex: Int, val plainText: String,)
 
 @Dao
 interface EpubNavigationDao {

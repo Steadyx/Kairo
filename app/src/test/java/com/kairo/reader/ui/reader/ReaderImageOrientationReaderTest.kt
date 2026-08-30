@@ -373,41 +373,41 @@ private fun minimalWebpImageChunks(hasExif: Boolean): List<WebpChunk> =
         WebpChunk(
             fourCc = "VP8X",
             payload =
-                byteArrayOf(
-                    (if (hasExif) 0x18 else 0x10).toByte(),
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ),
+            byteArrayOf(
+                (if (hasExif) 0x18 else 0x10).toByte(),
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ),
         ),
         WebpChunk(
             fourCc = "VP8L",
             payload =
-                byteArrayOf(
-                    0x2F,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x10,
-                    0x07,
-                    0xD0.toByte(),
-                    0x8D.toByte(),
-                    0x3A,
-                    0xF4.toByte(),
-                    0xA3.toByte(),
-                    0xFB.toByte(),
-                    0x81.toByte(),
-                    0x88.toByte(),
-                    0xE8.toByte(),
-                    0x7F,
-                    0x00,
-                ),
+            byteArrayOf(
+                0x2F,
+                0x00,
+                0x00,
+                0x00,
+                0x10,
+                0x07,
+                0xD0.toByte(),
+                0x8D.toByte(),
+                0x3A,
+                0xF4.toByte(),
+                0xA3.toByte(),
+                0xFB.toByte(),
+                0x81.toByte(),
+                0x88.toByte(),
+                0xE8.toByte(),
+                0x7F,
+                0x00,
+            ),
         ),
     )
 
@@ -477,10 +477,7 @@ private fun ByteArrayOutputStream.writeAscii(value: String) {
     write(value.toByteArray(Charsets.US_ASCII))
 }
 
-private data class WebpChunk(
-    val fourCc: String,
-    val payload: ByteArray,
-)
+private data class WebpChunk(val fourCc: String, val payload: ByteArray,)
 
 private enum class FixtureByteOrder {
     LITTLE_ENDIAN,

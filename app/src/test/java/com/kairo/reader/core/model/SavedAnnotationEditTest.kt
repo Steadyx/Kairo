@@ -11,11 +11,11 @@ class SavedAnnotationEditTest {
         val edited =
             annotation.withEdit(
                 request =
-                    EditSavedAnnotationRequest(
-                        annotationId = annotation.id,
-                        note = "  Updated note  ",
-                        color = HighlightColor.PINK,
-                    ),
+                EditSavedAnnotationRequest(
+                    annotationId = annotation.id,
+                    note = "  Updated note  ",
+                    color = HighlightColor.PINK,
+                ),
                 updatedAt = EDITED_AT,
             )
 
@@ -36,11 +36,11 @@ class SavedAnnotationEditTest {
         val edited =
             annotation.withEdit(
                 request =
-                    EditSavedAnnotationRequest(
-                        annotationId = annotation.id,
-                        note = "Ignored text",
-                        color = HighlightColor.BLUE,
-                    ),
+                EditSavedAnnotationRequest(
+                    annotationId = annotation.id,
+                    note = "Ignored text",
+                    color = HighlightColor.BLUE,
+                ),
                 updatedAt = EDITED_AT,
             )
 

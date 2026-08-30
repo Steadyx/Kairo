@@ -363,10 +363,7 @@ class ReadingSessionCoordinatorTest {
     ): ReaderProgress = ReaderWordBasis.from(counts).progress(location)
 }
 
-private class FakeReadingSessionClock(
-    private var wallTime: Long,
-    private var elapsedTime: Long = 0L,
-) : ReadingSessionClock {
+private class FakeReadingSessionClock(private var wallTime: Long, private var elapsedTime: Long = 0L,) : ReadingSessionClock {
     override fun wallTimeMillis(): Long = wallTime
 
     override fun elapsedRealtimeMillis(): Long = elapsedTime

@@ -85,12 +85,12 @@ internal object RsvpDpSegmenter {
     ): RsvpSegmentationDecision =
         selectWordCount(
             atomStream =
-                RsvpAtomStream.build(
-                    expandedTokens = expandedTokens,
-                    languagePolicy = languagePolicy,
-                    useDialogueDetection = useDialogueDetection,
-                    useParentheticalAside = useParentheticalAside,
-                ),
+            RsvpAtomStream.build(
+                expandedTokens = expandedTokens,
+                languagePolicy = languagePolicy,
+                useDialogueDetection = useDialogueDetection,
+                useParentheticalAside = useParentheticalAside,
+            ),
             startCursor = startCursor,
             config = config,
             languagePolicy = languagePolicy,
@@ -318,17 +318,17 @@ internal object RsvpDpSegmenter {
                 add(
                     RsvpScoreComponent(
                         reason =
-                            if (languagePolicy == RsvpLanguagePolicy.ENGLISH) {
-                                RsvpSegmentationReason.ENTITY_INTERNAL
-                            } else {
-                                RsvpSegmentationReason.CASE_SHAPE_COHESION
-                            },
+                        if (languagePolicy == RsvpLanguagePolicy.ENGLISH) {
+                            RsvpSegmentationReason.ENTITY_INTERNAL
+                        } else {
+                            RsvpSegmentationReason.CASE_SHAPE_COHESION
+                        },
                         value =
-                            if (languagePolicy == RsvpLanguagePolicy.ENGLISH) {
-                                RsvpSegmentationWeightsV2.ENTITY_INTERNAL_AFFINITY
-                            } else {
-                                RsvpSegmentationWeightsV2.CASE_SHAPE_COHESION_AFFINITY
-                            },
+                        if (languagePolicy == RsvpLanguagePolicy.ENGLISH) {
+                            RsvpSegmentationWeightsV2.ENTITY_INTERNAL_AFFINITY
+                        } else {
+                            RsvpSegmentationWeightsV2.CASE_SHAPE_COHESION_AFFINITY
+                        },
                     )
                 )
             }
@@ -408,8 +408,10 @@ internal object RsvpDpSegmenter {
                 maxDifficulty >= RsvpSegmentationWeightsV2.DIFFICULT_WORD_THRESHOLD
             ) {
                 RsvpSegmentationWeightsV2.DIFFICULT_COLLISION_BASE_PENALTY +
-                    ((maxDifficulty - RsvpSegmentationWeightsV2.DIFFICULT_WORD_THRESHOLD) /
-                        RsvpSegmentationWeightsV2.DIFFICULT_COLLISION_EXCESS_DIVISOR)
+                    (
+                        (maxDifficulty - RsvpSegmentationWeightsV2.DIFFICULT_WORD_THRESHOLD) /
+                            RsvpSegmentationWeightsV2.DIFFICULT_COLLISION_EXCESS_DIVISOR
+                        )
             } else {
                 0
             }

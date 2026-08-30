@@ -138,12 +138,12 @@ class LibrarySearchRepositoryImpl(
             matchLengthCodePoints = matchEndCodePointOffset - matchStartCodePointOffset,
             title = chapterTitle?.takeIf(String::isNotBlank) ?: book.bookTitle,
             snippet =
-                buildSearchSnippet(
-                    text = plainText,
-                    matchOffset = matchStartUtf16Offset,
-                    matchLength = query.length,
-                    contextCharacters = SNIPPET_CONTEXT_CHARS,
-                ),
+            buildSearchSnippet(
+                text = plainText,
+                matchOffset = matchStartUtf16Offset,
+                matchLength = query.length,
+                contextCharacters = SNIPPET_CONTEXT_CHARS,
+            ),
         )
     }
 

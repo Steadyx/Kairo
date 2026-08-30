@@ -24,8 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
@@ -52,11 +52,11 @@ internal fun MomentumHistoryHeader(
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(role = Role.Button, onClick = onToggle)
-                        .semantics { stateDescription = expansionState }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(role = Role.Button, onClick = onToggle)
+                    .semantics { stateDescription = expansionState }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -67,15 +67,15 @@ internal fun MomentumHistoryHeader(
                     )
                     Text(
                         text =
-                            if (previousWeekCount == 0) {
-                                stringResource(R.string.momentum_no_previous_weeks)
-                            } else {
-                                pluralStringResource(
-                                    R.plurals.momentum_previous_weeks_count,
-                                    previousWeekCount,
-                                    previousWeekCount,
-                                )
-                            },
+                        if (previousWeekCount == 0) {
+                            stringResource(R.string.momentum_no_previous_weeks)
+                        } else {
+                            pluralStringResource(
+                                R.plurals.momentum_previous_weeks_count,
+                                previousWeekCount,
+                                previousWeekCount,
+                            )
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -122,20 +122,20 @@ internal fun MomentumPreviousWeekRow(week: ReadingMomentumWeek) {
                 )
                 Text(
                     text =
-                        stringResource(
-                            R.string.momentum_words_read,
-                            NumberFormat.getIntegerInstance().format(week.wordsRead),
-                        ),
+                    stringResource(
+                        R.string.momentum_words_read,
+                        NumberFormat.getIntegerInstance().format(week.wordsRead),
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text =
-                        pluralStringResource(
-                            R.plurals.momentum_active_days_count,
-                            week.activeDays,
-                            week.activeDays,
-                        ),
+                    pluralStringResource(
+                        R.plurals.momentum_active_days_count,
+                        week.activeDays,
+                        week.activeDays,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

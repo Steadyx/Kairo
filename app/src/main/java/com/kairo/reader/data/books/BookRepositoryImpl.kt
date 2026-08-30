@@ -199,15 +199,15 @@ class BookRepositoryImpl(
     ): BookImportResult =
         BookImportResult(
             book =
-                existing.toDomain(
-                    chapters =
-                        if (includeChapterContent) {
-                            bookDao.getChaptersWithContent(existing.id)
-                        } else {
-                            bookDao.getChapters(existing.id)
-                        },
-                    tableOfContentsEntries = bookDao.getTableOfContentsEntries(existing.id),
-                ),
+            existing.toDomain(
+                chapters =
+                if (includeChapterContent) {
+                    bookDao.getChaptersWithContent(existing.id)
+                } else {
+                    bookDao.getChapters(existing.id)
+                },
+                tableOfContentsEntries = bookDao.getTableOfContentsEntries(existing.id),
+            ),
             alreadyImported = true,
         )
 
@@ -224,10 +224,10 @@ class BookRepositoryImpl(
             bookDao.getBookByImportFingerprint(sourceFingerprint)?.let { existing ->
                 return@withLock BookImportResult(
                     book =
-                        existing.toDomain(
-                            chapters = bookDao.getChapters(existing.id),
-                            tableOfContentsEntries = bookDao.getTableOfContentsEntries(existing.id),
-                        ),
+                    existing.toDomain(
+                        chapters = bookDao.getChapters(existing.id),
+                        tableOfContentsEntries = bookDao.getTableOfContentsEntries(existing.id),
+                    ),
                     alreadyImported = true,
                 )
             }
@@ -244,10 +244,10 @@ class BookRepositoryImpl(
             bookDao.getBookByImportFingerprint(sourceFingerprint)?.let { existing ->
                 return@withLock BookImportResult(
                     book =
-                        existing.toDomain(
-                            chapters = bookDao.getChapters(existing.id),
-                            tableOfContentsEntries = bookDao.getTableOfContentsEntries(existing.id),
-                        ),
+                    existing.toDomain(
+                        chapters = bookDao.getChapters(existing.id),
+                        tableOfContentsEntries = bookDao.getTableOfContentsEntries(existing.id),
+                    ),
                     alreadyImported = true,
                 )
             }

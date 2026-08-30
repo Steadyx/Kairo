@@ -116,13 +116,13 @@ class RsvpAtomizationTest {
         val roles =
             atomize(
                 tokens =
-                    listOf(
-                        punctuation("\u201C"),
-                        word("She"),
-                        word("said"),
-                        word("nothing"),
-                        punctuation("\u201D"),
-                    ),
+                listOf(
+                    punctuation("\u201C"),
+                    word("She"),
+                    word("said"),
+                    word("nothing"),
+                    punctuation("\u201D"),
+                ),
                 languagePolicy = RsvpLanguagePolicy.ENGLISH,
                 useDialogueDetection = true,
                 useParentheticalAside = false,
@@ -277,13 +277,13 @@ class RsvpAtomizationTest {
             val atoms =
                 atomize(
                     tokens =
-                        listOf(
-                            punctuation(opening),
-                            word("one"),
-                            word("two"),
-                            punctuation(closing),
-                            word("outside"),
-                        ),
+                    listOf(
+                        punctuation(opening),
+                        word("one"),
+                        word("two"),
+                        punctuation(closing),
+                        word("outside"),
+                    ),
                     languagePolicy = policy,
                     useDialogueDetection = true,
                     useParentheticalAside = false,

@@ -178,11 +178,11 @@ internal fun resolveInlineImageDisplaySize(
 
     return InlineImageDisplaySize(
         width =
-            if (imageAspectRatio != null && imageWidth != null) {
-                imageWidth.coerceAtMost(maximumWidth).dp
-            } else {
-                availableWidth
-            },
+        if (imageAspectRatio != null && imageWidth != null) {
+            imageWidth.coerceAtMost(maximumWidth).dp
+        } else {
+            availableWidth
+        },
         aspectRatio = imageAspectRatio ?: INLINE_IMAGE_FALLBACK_ASPECT_RATIO,
     )
 }

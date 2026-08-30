@@ -4,11 +4,7 @@ package com.kairo.reader.data.sessions
  * A compact reader position whose absolute word coordinate was resolved against one immutable
  * snapshot of the book's chapter word counts.
  */
-data class ReaderProgress(
-    val location: ReadingSessionLocation,
-    val absoluteWordIndex: Int?,
-    val basisFingerprint: Long,
-)
+data class ReaderProgress(val location: ReadingSessionLocation, val absoluteWordIndex: Int?, val basisFingerprint: Long,)
 
 /** Computes chapter prefixes once when the count snapshot changes, never during focus movement. */
 class ReaderWordBasis private constructor(

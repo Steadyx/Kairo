@@ -67,38 +67,38 @@ class EpubChapterOrderingTest {
                 languageTag = null,
                 coverHref = null,
                 manifest =
-                    mapOf(
-                        "contents" to "text/contents01.xhtml",
-                        "notes" to "text/notes.xhtml",
-                        "chapter" to "text/chapter.xhtml",
-                    ),
+                mapOf(
+                    "contents" to "text/contents01.xhtml",
+                    "notes" to "text/notes.xhtml",
+                    "chapter" to "text/chapter.xhtml",
+                ),
                 manifestItems =
-                    listOf(
-                        ManifestItem(
-                            id = "contents",
-                            href = "text/contents01.xhtml",
-                            mediaType = "application/xhtml+xml",
-                            properties = emptySet(),
-                        ),
-                        ManifestItem(
-                            id = "notes",
-                            href = "text/notes.xhtml",
-                            mediaType = "application/xhtml+xml",
-                            properties = emptySet(),
-                        ),
-                        ManifestItem(
-                            id = "chapter",
-                            href = "text/chapter.xhtml",
-                            mediaType = "application/xhtml+xml",
-                            properties = emptySet(),
-                        ),
+                listOf(
+                    ManifestItem(
+                        id = "contents",
+                        href = "text/contents01.xhtml",
+                        mediaType = "application/xhtml+xml",
+                        properties = emptySet(),
                     ),
+                    ManifestItem(
+                        id = "notes",
+                        href = "text/notes.xhtml",
+                        mediaType = "application/xhtml+xml",
+                        properties = emptySet(),
+                    ),
+                    ManifestItem(
+                        id = "chapter",
+                        href = "text/chapter.xhtml",
+                        mediaType = "application/xhtml+xml",
+                        properties = emptySet(),
+                    ),
+                ),
                 spineItems =
-                    listOf(
-                        SpineItem(idref = "contents", isLinear = false),
-                        SpineItem(idref = "notes", isLinear = false),
-                        SpineItem(idref = "chapter"),
-                    ),
+                listOf(
+                    SpineItem(idref = "contents", isLinear = false),
+                    SpineItem(idref = "notes", isLinear = false),
+                    SpineItem(idref = "chapter"),
+                ),
             )
         val available =
             setOf(

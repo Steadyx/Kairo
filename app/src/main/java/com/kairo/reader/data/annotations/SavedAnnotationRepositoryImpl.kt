@@ -10,9 +10,7 @@ import com.kairo.reader.data.local.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class SavedAnnotationRepositoryImpl(
-    private val annotationDao: SavedAnnotationDao,
-) : SavedAnnotationRepository {
+class SavedAnnotationRepositoryImpl(private val annotationDao: SavedAnnotationDao,) : SavedAnnotationRepository {
     override fun observeAnnotations(): Flow<List<SavedAnnotationItem>> =
         annotationDao.observeWithBook().map { items ->
             items.map { it.toDomain() }.sortedByDescending { it.annotation.updatedAt }

@@ -1,10 +1,6 @@
 package com.kairo.reader.data.books
 
-internal data class EpubMarkupParseResult(
-    val document: EpubMarkupDocument,
-    val complete: Boolean,
-    val limitExceeded: Boolean,
-)
+internal data class EpubMarkupParseResult(val document: EpubMarkupDocument, val complete: Boolean, val limitExceeded: Boolean,)
 
 internal class EpubMarkupParser(private val tokenizer: EpubMarkupTokenizer = EpubMarkupTokenizer(),) {
     companion object {

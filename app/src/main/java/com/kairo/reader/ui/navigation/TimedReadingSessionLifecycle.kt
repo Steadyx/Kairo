@@ -37,7 +37,7 @@ internal fun TrackTimedReadingSessionLifecycle(
             mode = mode,
             location = start,
             active =
-                isPlaying && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED),
+            isPlaying && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED),
         )
         hasBegun = true
     }
@@ -47,8 +47,8 @@ internal fun TrackTimedReadingSessionLifecycle(
                 bookId = bookId,
                 mode = mode,
                 active =
-                    isPlaying &&
-                        lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED),
+                isPlaying &&
+                    lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED),
             )
         }
     }

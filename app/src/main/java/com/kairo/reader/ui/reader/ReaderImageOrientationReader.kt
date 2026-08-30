@@ -260,10 +260,7 @@ private enum class TiffByteOrder {
     BIG_ENDIAN,
 }
 
-private class BoundedRandomAccessReader(
-    private val input: RandomAccessFile,
-    maximumAddressBytes: Long,
-) {
+private class BoundedRandomAccessReader(private val input: RandomAccessFile, maximumAddressBytes: Long,) {
     private val fileLength = input.length()
     val addressLimit: Long = minOf(fileLength, maximumAddressBytes.coerceAtLeast(0L))
 

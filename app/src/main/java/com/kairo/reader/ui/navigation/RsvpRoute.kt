@@ -115,11 +115,11 @@ internal fun RsvpRoute(
         bookId = bookIdValue,
         mode = sessionMode,
         start =
-            ReadingSessionLocation(
-                chapterIndex = chapterIndex,
-                tokenIndex = sessionStartIndex,
-                wordIndex = resolveWordIndex(wordCountByToken, sessionStartIndex),
-            ),
+        ReadingSessionLocation(
+            chapterIndex = chapterIndex,
+            tokenIndex = sessionStartIndex,
+            wordIndex = resolveWordIndex(wordCountByToken, sessionStartIndex),
+        ),
         lifecycleOwner = rsvpLifecycleOwner,
         isPlaying = playbackIsPlaying,
         enabled = tokens.isNotEmpty(),
@@ -209,10 +209,10 @@ internal fun RsvpRoute(
                         bookId = bookIdValue,
                         mode = sessionMode,
                         active =
-                            active &&
-                                rsvpLifecycleOwner.lifecycle.currentState.isAtLeast(
-                                    androidx.lifecycle.Lifecycle.State.STARTED
-                                ),
+                        active &&
+                            rsvpLifecycleOwner.lifecycle.currentState.isAtLeast(
+                                androidx.lifecycle.Lifecycle.State.STARTED
+                            ),
                     )
                 },
                 saveRsvpPosition = ::saveRsvpPosition,

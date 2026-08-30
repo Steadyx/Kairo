@@ -4,10 +4,7 @@ import java.util.Locale
 
 internal data class EpubPlainTextAnchorMarker(val marker: String, val anchorId: String,)
 
-internal data class EpubMarkedPlainText(
-    val text: String,
-    val markers: List<EpubPlainTextAnchorMarker>,
-)
+internal data class EpubMarkedPlainText(val text: String, val markers: List<EpubPlainTextAnchorMarker>,)
 
 internal object EpubMarkupInspector {
     private val BLOCK_ELEMENTS =

@@ -98,10 +98,10 @@ class ReadingMomentumCalculatorTest {
         val momentum =
             buildReadingMomentum(
                 sessions =
-                    listOf(
-                        session(monday, 60_000L, 100),
-                        session(sunday, 120_000L, 200),
-                    ),
+                listOf(
+                    session(monday, 60_000L, 100),
+                    session(sunday, 120_000L, 200),
+                ),
                 now = sunday,
                 timeZone = timeZone,
                 locale = Locale.UK,
@@ -183,21 +183,21 @@ class ReadingMomentumCalculatorTest {
     ): ReadingSessionItem =
         ReadingSessionItem(
             session =
-                ReadingSession(
-                    id = "$startedAt:$mode",
-                    bookId = BOOK.id,
-                    mode = mode,
-                    startedAt = startedAt,
-                    endedAt = startedAt + durationMs,
-                    activeDurationMs = durationMs,
-                    startChapterIndex = 0,
-                    startTokenIndex = 0,
-                    endChapterIndex = 0,
-                    endTokenIndex = words,
-                    wordsRead = words,
-                    effectiveWpm = 100,
-                    isWordCountEstimated = false,
-                ),
+            ReadingSession(
+                id = "$startedAt:$mode",
+                bookId = BOOK.id,
+                mode = mode,
+                startedAt = startedAt,
+                endedAt = startedAt + durationMs,
+                activeDurationMs = durationMs,
+                startChapterIndex = 0,
+                startTokenIndex = 0,
+                endChapterIndex = 0,
+                endTokenIndex = words,
+                wordsRead = words,
+                effectiveWpm = 100,
+                isWordCountEstimated = false,
+            ),
             book = BOOK,
         )
 

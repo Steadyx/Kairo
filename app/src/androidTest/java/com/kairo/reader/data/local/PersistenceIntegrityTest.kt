@@ -637,23 +637,23 @@ class PersistenceIntegrityTest {
     ) {
         database.bookDao().insertBook(
             book =
-                BookEntity(
-                    id = bookId,
-                    title = title,
-                    authors = listOf("Author"),
-                    languageTag = "en",
-                    coverImage = coverImage,
-                ),
+            BookEntity(
+                id = bookId,
+                title = title,
+                authors = listOf("Author"),
+                languageTag = "en",
+                coverImage = coverImage,
+            ),
             chapters =
-                chapterTexts.mapIndexed { chapterIndex, chapterText ->
-                    ChapterEntity(
-                        bookId = bookId,
-                        index = chapterIndex,
-                        title = "Chapter $chapterIndex",
-                        htmlContent = "<p>Chapter $chapterIndex</p>",
-                        plainText = chapterText,
-                    )
-                },
+            chapterTexts.mapIndexed { chapterIndex, chapterText ->
+                ChapterEntity(
+                    bookId = bookId,
+                    index = chapterIndex,
+                    title = "Chapter $chapterIndex",
+                    htmlContent = "<p>Chapter $chapterIndex</p>",
+                    plainText = chapterText,
+                )
+            },
             tableOfContentsEntries = emptyList(),
         )
     }
@@ -661,23 +661,23 @@ class PersistenceIntegrityTest {
     private suspend fun insertBookWithHtml(htmlContent: String) {
         database.bookDao().insertBook(
             book =
-                BookEntity(
-                    id = BOOK_ID,
-                    title = "Book",
-                    authors = listOf("Author"),
-                    languageTag = "en",
-                    coverImage = null,
-                ),
+            BookEntity(
+                id = BOOK_ID,
+                title = "Book",
+                authors = listOf("Author"),
+                languageTag = "en",
+                coverImage = null,
+            ),
             chapters =
-                listOf(
-                    ChapterEntity(
-                        bookId = BOOK_ID,
-                        index = 0,
-                        title = "Contents",
-                        htmlContent = htmlContent,
-                        plainText = "Chapter",
-                    ),
+            listOf(
+                ChapterEntity(
+                    bookId = BOOK_ID,
+                    index = 0,
+                    title = "Contents",
+                    htmlContent = htmlContent,
+                    plainText = "Chapter",
                 ),
+            ),
             tableOfContentsEntries = emptyList(),
         )
     }
@@ -710,25 +710,25 @@ class PersistenceIntegrityTest {
             }
         database.bookDao().insertBook(
             book =
-                BookEntity(
-                    id = BOOK_ID,
-                    title = "Book",
-                    authors = listOf("Author"),
-                    languageTag = "en",
-                    coverImage = ByteArray(16) { 3 },
-                ),
+            BookEntity(
+                id = BOOK_ID,
+                title = "Book",
+                authors = listOf("Author"),
+                languageTag = "en",
+                coverImage = ByteArray(16) { 3 },
+            ),
             chapters = chapters,
             tableOfContentsEntries =
-                listOf(
-                    TableOfContentsEntryEntity(
-                        bookId = BOOK_ID,
-                        entryIndex = 0,
-                        label = "Chapter One",
-                        depth = 0,
-                        chapterIndex = 1,
-                        characterOffset = 0,
-                    ),
+            listOf(
+                TableOfContentsEntryEntity(
+                    bookId = BOOK_ID,
+                    entryIndex = 0,
+                    label = "Chapter One",
+                    depth = 0,
+                    chapterIndex = 1,
+                    characterOffset = 0,
                 ),
+            ),
         )
     }
 

@@ -22,10 +22,10 @@ import com.kairo.reader.data.books.WebArticleExtractor
 import com.kairo.reader.data.library.LibraryRepository
 import com.kairo.reader.data.library.LibraryRepositoryImpl
 import com.kairo.reader.data.local.KairoDatabase
-import com.kairo.reader.data.local.MIGRATION_1_2
 import com.kairo.reader.data.local.MIGRATION_10_11
 import com.kairo.reader.data.local.MIGRATION_11_12
 import com.kairo.reader.data.local.MIGRATION_12_13
+import com.kairo.reader.data.local.MIGRATION_1_2
 import com.kairo.reader.data.local.MIGRATION_2_3
 import com.kairo.reader.data.local.MIGRATION_3_4
 import com.kairo.reader.data.local.MIGRATION_4_5
@@ -43,8 +43,8 @@ import com.kairo.reader.data.rsvp.RsvpFrameRepositoryImpl
 import com.kairo.reader.data.search.LibrarySearchRepository
 import com.kairo.reader.data.search.LibrarySearchRepositoryImpl
 import com.kairo.reader.data.seed.SampleSeeder
-import com.kairo.reader.data.sessions.ReadingSessionRepository
 import com.kairo.reader.data.sessions.ReadingSessionCoordinator
+import com.kairo.reader.data.sessions.ReadingSessionRepository
 import com.kairo.reader.data.sessions.ReadingSessionRepositoryImpl
 import com.kairo.reader.data.sessions.SystemReadingSessionClock
 import com.kairo.reader.data.token.TokenRepository

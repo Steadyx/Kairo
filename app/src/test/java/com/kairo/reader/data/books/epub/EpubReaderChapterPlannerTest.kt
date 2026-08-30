@@ -9,15 +9,15 @@ class EpubReaderChapterPlannerTest {
         val plan =
             EpubReaderChapterPlanner.create(
                 readingOrderPaths =
-                    listOf(
-                        "oebps/text/chapter1.xhtml",
-                        "oebps/text/chapter2.xhtml",
-                    ),
+                listOf(
+                    "oebps/text/chapter1.xhtml",
+                    "oebps/text/chapter2.xhtml",
+                ),
                 spinePaths =
-                    setOf(
-                        "oebps/text/chapter1.xhtml",
-                        "oebps/text/chapter2.xhtml",
-                    ),
+                setOf(
+                    "oebps/text/chapter1.xhtml",
+                    "oebps/text/chapter2.xhtml",
+                ),
                 navigationPath = "oebps/nav.xhtml",
             )
 

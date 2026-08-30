@@ -161,11 +161,11 @@ private fun MomentumSummaryCard(
             )
             Text(
                 text =
-                    stringResource(
-                        R.string.momentum_goal_progress,
-                        weekMinutes,
-                        weeklyGoalMinutes,
-                    ),
+                stringResource(
+                    R.string.momentum_goal_progress,
+                    weekMinutes,
+                    weeklyGoalMinutes,
+                ),
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(
@@ -240,9 +240,9 @@ private fun MomentumDayBars(
                 maxDuration = maxDuration,
                 onClick = { onDaySelected(index) },
                 modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(DAY_CHART_HEIGHT_DP.dp),
+                Modifier
+                    .weight(1f)
+                    .height(DAY_CHART_HEIGHT_DP.dp),
             )
         }
     }
@@ -263,16 +263,16 @@ private fun MomentumDayBar(
     val barHeight = momentumBarHeight(duration, maxDuration)
     Column(
         modifier =
-            modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(
-                    if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                ).clickable(role = Role.RadioButton, onClick = onClick)
-                .semantics {
-                    contentDescription = description
-                    role = Role.RadioButton
-                    selected = isSelected
-                }.padding(horizontal = 4.dp, vertical = 6.dp),
+        modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+            ).clickable(role = Role.RadioButton, onClick = onClick)
+            .semantics {
+                contentDescription = description
+                role = Role.RadioButton
+                selected = isSelected
+            }.padding(horizontal = 4.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -282,28 +282,28 @@ private fun MomentumDayBar(
         ) {
             Box(
                 modifier =
-                    Modifier
-                        .width(DAY_BAR_WIDTH_DP.dp)
-                        .height(barHeight.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(
-                            when {
-                                duration == 0L -> MaterialTheme.colorScheme.outlineVariant
-                                isSelected -> MaterialTheme.colorScheme.primary
-                                else -> MaterialTheme.colorScheme.primary.copy(alpha = UNSELECTED_BAR_ALPHA)
-                            },
-                        ),
+                Modifier
+                    .width(DAY_BAR_WIDTH_DP.dp)
+                    .height(barHeight.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        when {
+                            duration == 0L -> MaterialTheme.colorScheme.outlineVariant
+                            isSelected -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.primary.copy(alpha = UNSELECTED_BAR_ALPHA)
+                        },
+                    ),
             )
         }
         Text(
             text = dayLabel,
             style = MaterialTheme.typography.labelSmall,
             color =
-                if (isSelected) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+            if (isSelected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
         )
@@ -347,20 +347,20 @@ private fun MomentumDaySummary(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text =
-                        stringResource(
-                            R.string.momentum_words_read,
-                            NumberFormat.getIntegerInstance().format(day.wordsRead),
-                        ),
+                    stringResource(
+                        R.string.momentum_words_read,
+                        NumberFormat.getIntegerInstance().format(day.wordsRead),
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text =
-                        pluralStringResource(
-                            R.plurals.momentum_sessions_count,
-                            day.sessionCount,
-                            day.sessionCount,
-                        ),
+                    pluralStringResource(
+                        R.plurals.momentum_sessions_count,
+                        day.sessionCount,
+                        day.sessionCount,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

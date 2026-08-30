@@ -109,8 +109,8 @@ internal fun ChapterListSheet(
             book.chapters.mapIndexed { index, chapter ->
                 TableOfContentsEntry(
                     label =
-                        sanitizeChapterTitleForDisplay(chapter.title)
-                            .orEmpty(),
+                    sanitizeChapterTitleForDisplay(chapter.title)
+                        .orEmpty(),
                     depth = 0,
                     target = TableOfContentsTarget(chapterIndex = index),
                 )
@@ -187,12 +187,12 @@ internal fun ChapterListSheet(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text =
-                                entry.label.ifBlank {
-                                    stringResource(
-                                        R.string.reader_chapter_title,
-                                        (target?.chapterIndex ?: index) + 1,
-                                    )
-                                },
+                            entry.label.ifBlank {
+                                stringResource(
+                                    R.string.reader_chapter_title,
+                                    (target?.chapterIndex ?: index) + 1,
+                                )
+                            },
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (isCurrentChapter) FontWeight.Bold else FontWeight.Normal,
                             color =

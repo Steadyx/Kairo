@@ -14,10 +14,7 @@ class SystemReadingSessionClock : ReadingSessionClock {
     override fun elapsedRealtimeMillis(): Long = SystemClock.elapsedRealtime()
 }
 
-data class ReadingSessionTimestamp(
-    val wallTimeMillis: Long,
-    val elapsedRealtimeMillis: Long,
-)
+data class ReadingSessionTimestamp(val wallTimeMillis: Long, val elapsedRealtimeMillis: Long,)
 
 internal fun ReadingSessionClock.timestamp(): ReadingSessionTimestamp =
     ReadingSessionTimestamp(

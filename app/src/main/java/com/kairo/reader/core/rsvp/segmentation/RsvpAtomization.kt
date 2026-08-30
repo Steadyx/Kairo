@@ -39,10 +39,7 @@ internal data class RsvpAtom(
     val entitySpanId: Int? = null,
 )
 
-internal class RsvpAtomStream private constructor(
-    val atoms: List<RsvpAtom>,
-    val languagePolicy: RsvpLanguagePolicy,
-) {
+internal class RsvpAtomStream private constructor(val atoms: List<RsvpAtom>, val languagePolicy: RsvpLanguagePolicy,) {
     fun atomAtExpandedCursor(cursor: Int): RsvpAtom? = atoms.getOrNull(cursor)
 
     fun boundaryStrengthBefore(wordCursor: Int): Int {
@@ -107,12 +104,12 @@ internal class RsvpAtomStream private constructor(
                 sourceCharacterStart = expanded.sourceCharacterStart,
                 sourceCharacterEndExclusive = expanded.sourceCharacterEndExclusive,
                 kind =
-                    when (expanded.token.type) {
-                        TokenType.WORD -> RsvpAtomKind.WORD
-                        TokenType.PUNCTUATION -> RsvpAtomKind.PUNCTUATION
-                        TokenType.PARAGRAPH_BREAK,
-                        TokenType.PAGE_BREAK -> RsvpAtomKind.STRUCTURAL
-                    },
+                when (expanded.token.type) {
+                    TokenType.WORD -> RsvpAtomKind.WORD
+                    TokenType.PUNCTUATION -> RsvpAtomKind.PUNCTUATION
+                    TokenType.PARAGRAPH_BREAK,
+                    TokenType.PAGE_BREAK -> RsvpAtomKind.STRUCTURAL
+                },
             )
 
         private fun annotateRoles(
@@ -153,7 +150,8 @@ internal class RsvpAtomStream private constructor(
                             else -> RsvpDialogueRole.NARRATION
                         }
                 }
-                if (atom.kind == RsvpAtomKind.PUNCTUATION && character != null &&
+                if (atom.kind == RsvpAtomKind.PUNCTUATION &&
+                    character != null &&
                     character in CLOSING_BRACKETS
                 ) {
                     parentheticalDepth = (parentheticalDepth - 1).coerceAtLeast(0)

@@ -183,7 +183,7 @@ internal fun speakerTagMultiplier(
     val nextText = nextWord?.text
     val hasSpeakerVerb =
         explicitSpeakerTag ||
-        wordsInFrame.any { DialogueAnalyzer.isSpeakerVerb(it.text) } ||
+            wordsInFrame.any { DialogueAnalyzer.isSpeakerVerb(it.text) } ||
             (prevText != null && DialogueAnalyzer.isSpeakerVerb(prevText)) ||
             (nextText != null && DialogueAnalyzer.isSpeakerVerb(nextText))
     if (!hasSpeakerVerb) return 1.0

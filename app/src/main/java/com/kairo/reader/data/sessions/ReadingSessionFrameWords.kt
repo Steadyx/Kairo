@@ -9,10 +9,7 @@ fun countCompletedWordsInFrame(
     sourceTokens: List<Token>,
 ): Int = completedFrameProgress(frame, sourceTokens).words
 
-data class CompletedFrameProgress(
-    val words: Int,
-    val lastFullyConsumedOriginalTokenIndex: Int?,
-)
+data class CompletedFrameProgress(val words: Int, val lastFullyConsumedOriginalTokenIndex: Int?,)
 
 fun completedFrameProgress(
     frame: RsvpFrame,

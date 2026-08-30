@@ -1,7 +1,7 @@
 package com.kairo.reader.ui.reader
 
-import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.SavedAnnotationLimits
+import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.joinTokensForDisplay
 
 internal fun resolveReaderSelectionRange(
@@ -23,11 +23,7 @@ internal fun buildReaderSelectionText(
     return joinTokensForDisplay(tokens.subList(start, end + 1))
 }
 
-internal data class ReaderSelectionLimitState(
-    val characterCount: Int,
-    val tokenCount: Int,
-    val canSave: Boolean,
-)
+internal data class ReaderSelectionLimitState(val characterCount: Int, val tokenCount: Int, val canSave: Boolean,)
 
 internal fun readerSelectionLimitState(
     selectedText: String,

@@ -112,9 +112,7 @@ class TokenRepositoryImplTest {
             plainText = text,
         )
 
-    private class MutableBookRepository(
-        private val blockFirstLanguageLookup: Boolean = false,
-    ) : BookRepository {
+    private class MutableBookRepository(private val blockFirstLanguageLookup: Boolean = false,) : BookRepository {
         val languageLookupStarted = CompletableDeferred<Unit>()
         val releaseLanguageLookup = CompletableDeferred<Unit>()
         private var blocked = false

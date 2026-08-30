@@ -1,10 +1,10 @@
 package com.kairo.reader.data.search
 
-import com.kairo.reader.core.model.Token
-import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.LibrarySearchResult
 import com.kairo.reader.core.model.LibrarySearchResultKind
+import com.kairo.reader.core.model.Token
+import com.kairo.reader.core.model.TokenType
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

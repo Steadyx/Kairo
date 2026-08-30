@@ -27,11 +27,7 @@ data class SavedAnnotation(
         get() = minOf(startTokenIndex, endTokenIndex)..maxOf(startTokenIndex, endTokenIndex)
 }
 
-data class SavedAnnotationItem(
-    val annotation: SavedAnnotation,
-    val book: Book,
-    val chapterCount: Int,
-)
+data class SavedAnnotationItem(val annotation: SavedAnnotation, val book: Book, val chapterCount: Int,)
 
 data class SaveAnnotationRequest(
     val startTokenIndex: Int,
@@ -42,11 +38,7 @@ data class SaveAnnotationRequest(
     val kind: SavedAnnotationKind,
 )
 
-data class EditSavedAnnotationRequest(
-    val annotationId: String,
-    val note: String,
-    val color: HighlightColor,
-)
+data class EditSavedAnnotationRequest(val annotationId: String, val note: String, val color: HighlightColor,)
 
 fun SavedAnnotation.withEdit(
     request: EditSavedAnnotationRequest,

@@ -8,7 +8,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.click
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
@@ -46,33 +46,33 @@ class ReaderParagraphAccessibilityTest {
             KairoTheme {
                 ParagraphText(
                     state =
-                        ParagraphTextState(
-                            paragraph =
-                                Paragraph(
-                                    tokens =
-                                        listOf(
-                                            Token("One", TokenType.WORD),
-                                            Token("two", TokenType.WORD),
-                                        ),
-                                    startIndex = 0,
-                                ),
-                            focusIndex = 0,
-                            fontSizeSp = 18f,
-                            textBrightness = 1f,
-                            timedReadingMode = TimedReadingMode.RSVP,
-                            selectionRange = selection.value,
+                    ParagraphTextState(
+                        paragraph =
+                        Paragraph(
+                            tokens =
+                            listOf(
+                                Token("One", TokenType.WORD),
+                                Token("two", TokenType.WORD),
+                            ),
+                            startIndex = 0,
                         ),
+                        focusIndex = 0,
+                        fontSizeSp = 18f,
+                        textBrightness = 1f,
+                        timedReadingMode = TimedReadingMode.RSVP,
+                        selectionRange = selection.value,
+                    ),
                     actions =
-                        ParagraphTextActions(
-                            onFocusChange = {},
-                            onStartTimedReading = { timedReadingAt = it },
-                            onSelectionStart = { tokenIndex ->
-                                startedAt = tokenIndex
-                                selection.value = tokenIndex..tokenIndex
-                            },
-                            onSelectionExtend = { extendedTo = it },
-                            onSelectionCancel = { cancelled = true },
-                        ),
+                    ParagraphTextActions(
+                        onFocusChange = {},
+                        onStartTimedReading = { timedReadingAt = it },
+                        onSelectionStart = { tokenIndex ->
+                            startedAt = tokenIndex
+                            selection.value = tokenIndex..tokenIndex
+                        },
+                        onSelectionExtend = { extendedTo = it },
+                        onSelectionCancel = { cancelled = true },
+                    ),
                 )
             }
         }
@@ -109,31 +109,31 @@ class ReaderParagraphAccessibilityTest {
             KairoTheme {
                 ParagraphText(
                     state =
-                        ParagraphTextState(
-                            paragraph =
-                                Paragraph(
-                                    tokens =
-                                        listOf(
-                                            Token(
-                                                text = "Chapter",
-                                                type = TokenType.WORD,
-                                                linkChapterIndex = 3,
-                                            ),
-                                            Token("One", TokenType.WORD),
-                                        ),
-                                    startIndex = 0,
+                    ParagraphTextState(
+                        paragraph =
+                        Paragraph(
+                            tokens =
+                            listOf(
+                                Token(
+                                    text = "Chapter",
+                                    type = TokenType.WORD,
+                                    linkChapterIndex = 3,
                                 ),
-                            focusIndex = 0,
-                            fontSizeSp = 18f,
-                            textBrightness = 1f,
-                            timedReadingMode = TimedReadingMode.RSVP,
+                                Token("One", TokenType.WORD),
+                            ),
+                            startIndex = 0,
                         ),
+                        focusIndex = 0,
+                        fontSizeSp = 18f,
+                        textBrightness = 1f,
+                        timedReadingMode = TimedReadingMode.RSVP,
+                    ),
                     actions =
-                        ParagraphTextActions(
-                            onFocusChange = { focusChanges += 1 },
-                            onStartTimedReading = { timedReadingStarts += 1 },
-                            onChapterSelected = { selectedChapter = it },
-                        ),
+                    ParagraphTextActions(
+                        onFocusChange = { focusChanges += 1 },
+                        onStartTimedReading = { timedReadingStarts += 1 },
+                        onChapterSelected = { selectedChapter = it },
+                    ),
                 )
             }
         }
@@ -156,29 +156,29 @@ class ReaderParagraphAccessibilityTest {
             KairoTheme {
                 ParagraphText(
                     state =
-                        ParagraphTextState(
-                            paragraph =
-                                Paragraph(
-                                    tokens =
-                                        listOf(
-                                            Token("One", TokenType.WORD),
-                                            Token("two", TokenType.WORD),
-                                        ),
-                                    startIndex = 0,
-                                ),
-                            focusIndex = focusIndex.value,
-                            fontSizeSp = 18f,
-                            textBrightness = 1f,
-                            timedReadingMode = TimedReadingMode.RSVP,
+                    ParagraphTextState(
+                        paragraph =
+                        Paragraph(
+                            tokens =
+                            listOf(
+                                Token("One", TokenType.WORD),
+                                Token("two", TokenType.WORD),
+                            ),
+                            startIndex = 0,
                         ),
+                        focusIndex = focusIndex.value,
+                        fontSizeSp = 18f,
+                        textBrightness = 1f,
+                        timedReadingMode = TimedReadingMode.RSVP,
+                    ),
                     actions =
-                        ParagraphTextActions(
-                            onFocusChange = { focusIndex.value = it },
-                            onStartTimedReading = {
-                                timedReadingStarts += 1
-                                timedReadingAt = it
-                            },
-                        ),
+                    ParagraphTextActions(
+                        onFocusChange = { focusIndex.value = it },
+                        onStartTimedReading = {
+                            timedReadingStarts += 1
+                            timedReadingAt = it
+                        },
+                    ),
                 )
             }
         }
@@ -205,27 +205,27 @@ class ReaderParagraphAccessibilityTest {
             KairoTheme {
                 ParagraphText(
                     state =
-                        ParagraphTextState(
-                            paragraph =
-                                Paragraph(
-                                    tokens =
-                                        listOf(
-                                            Token("One", TokenType.WORD),
-                                            Token("two", TokenType.WORD),
-                                        ),
-                                    startIndex = 0,
-                                ),
-                            focusIndex = focusIndex.value,
-                            fontSizeSp = 18f,
-                            textBrightness = 1f,
-                            timedReadingMode = TimedReadingMode.RSVP,
+                    ParagraphTextState(
+                        paragraph =
+                        Paragraph(
+                            tokens =
+                            listOf(
+                                Token("One", TokenType.WORD),
+                                Token("two", TokenType.WORD),
+                            ),
+                            startIndex = 0,
                         ),
+                        focusIndex = focusIndex.value,
+                        fontSizeSp = 18f,
+                        textBrightness = 1f,
+                        timedReadingMode = TimedReadingMode.RSVP,
+                    ),
                     actions =
-                        ParagraphTextActions(
-                            onFocusChange = { focusIndex.value = it },
-                            onStartTimedReading = {},
-                            onSelectionStart = { selectionStart = it },
-                        ),
+                    ParagraphTextActions(
+                        onFocusChange = { focusIndex.value = it },
+                        onStartTimedReading = {},
+                        onSelectionStart = { selectionStart = it },
+                    ),
                 )
             }
         }
@@ -246,25 +246,25 @@ class ReaderParagraphAccessibilityTest {
             KairoTheme {
                 ParagraphText(
                     state =
-                        ParagraphTextState(
-                            paragraph =
-                                Paragraph(
-                                    tokens = listOf(Token("One", TokenType.WORD)),
-                                    startIndex = 4,
-                                ),
-                            focusIndex = 4,
-                            fontSizeSp = 18f,
-                            textBrightness = 1f,
-                            timedReadingMode = TimedReadingMode.RSVP,
+                    ParagraphTextState(
+                        paragraph =
+                        Paragraph(
+                            tokens = listOf(Token("One", TokenType.WORD)),
+                            startIndex = 4,
                         ),
+                        focusIndex = 4,
+                        fontSizeSp = 18f,
+                        textBrightness = 1f,
+                        timedReadingMode = TimedReadingMode.RSVP,
+                    ),
                     actions =
-                        ParagraphTextActions(
-                            onFocusChange = {},
-                            onStartTimedReading = { tokenIndex ->
-                                timedReadingStarts += 1
-                                timedReadingAt = tokenIndex
-                            },
-                        ),
+                    ParagraphTextActions(
+                        onFocusChange = {},
+                        onStartTimedReading = { tokenIndex ->
+                            timedReadingStarts += 1
+                            timedReadingAt = tokenIndex
+                        },
+                    ),
                 )
             }
         }
