@@ -8,7 +8,7 @@ import org.junit.runner.RunWith
 
 private const val DEBUG_APPLICATION_ID = "com.kairo.reader.debug"
 private const val DEBUG_APPLICATION_LABEL = "Kairo Dev"
-private const val EXPECTED_TARGET_SDK = 36
+private const val EXPECTED_TARGET_SDK = 37
 
 @RunWith(AndroidJUnit4::class)
 class KairoInstrumentedTest {
