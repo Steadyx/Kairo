@@ -143,6 +143,11 @@ android {
             excludes += "**/libdatastore_shared_counter.so"
         }
     }
+    lint {
+        warningsAsErrors = true
+        error += "AutoboxingStateCreation"
+        abortOnError = true
+    }
 }
 
 kotlin {
