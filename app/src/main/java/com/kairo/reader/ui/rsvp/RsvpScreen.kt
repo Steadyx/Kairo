@@ -6,7 +6,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -192,22 +194,24 @@ private fun rememberRsvpRuntimeState(
     sessionKey: String,
     onPlaybackStateChanged: (Boolean) -> Unit,
 ): RsvpRuntimeState {
-    var savedTokenIndex by rememberSaveable(sessionKey) { mutableStateOf(startIndex) }
-    var savedResumeCursor by rememberSaveable(sessionKey) { mutableStateOf(startResumeCursor) }
+    var savedTokenIndex by rememberSaveable(sessionKey) { mutableIntStateOf(startIndex) }
+    var savedResumeCursor by rememberSaveable(sessionKey) { mutableIntStateOf(startResumeCursor) }
     var savedIsPlaying by rememberSaveable(sessionKey) { mutableStateOf(initialIsPlaying) }
     var savedCompleted by rememberSaveable(sessionKey) { mutableStateOf(false) }
     var savedTempoMsPerWord by rememberSaveable(sessionKey) {
-        mutableStateOf(launchTempoMsPerWord ?: profile.config.tempoMsPerWord)
+        mutableLongStateOf(launchTempoMsPerWord ?: profile.config.tempoMsPerWord)
     }
-    var savedFontSizeSp by rememberSaveable(sessionKey) { mutableStateOf(textStyle.fontSizeSp) }
+    var savedFontSizeSp by rememberSaveable(sessionKey) { mutableFloatStateOf(textStyle.fontSizeSp) }
     var savedFontWeight by rememberSaveable(sessionKey) { mutableStateOf(textStyle.fontWeight) }
     var savedFontFamily by rememberSaveable(sessionKey) { mutableStateOf(textStyle.fontFamily) }
     var savedTextBrightness by rememberSaveable(sessionKey) {
-        mutableStateOf(textStyle.textBrightness)
+        mutableFloatStateOf(textStyle.textBrightness)
     }
-    var savedVerticalBias by rememberSaveable(sessionKey) { mutableStateOf(layoutBias.verticalBias) }
+    var savedVerticalBias by rememberSaveable(sessionKey) {
+        mutableFloatStateOf(layoutBias.verticalBias)
+    }
     var savedHorizontalBias by rememberSaveable(sessionKey) {
-        mutableStateOf(layoutBias.horizontalBias)
+        mutableFloatStateOf(layoutBias.horizontalBias)
     }
     val appearanceFingerprint =
         remember(textStyle, layoutBias) {

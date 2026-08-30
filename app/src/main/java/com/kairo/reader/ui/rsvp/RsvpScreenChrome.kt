@@ -84,6 +84,11 @@ internal fun shouldShowAmbientProgressBar(
 ): Boolean =
     !isPlaying && !showControls && !showQuickSettings
 
+/**
+ * The modifier parameters target individual tutorial-highlighted buttons, not this composable's
+ * root layout.
+ */
+@Suppress("ModifierParameter")
 @Composable
 internal fun BoxScope.RsvpTopBar(
     context: RsvpUiContext,
