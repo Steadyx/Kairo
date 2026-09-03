@@ -144,6 +144,8 @@ android {
         }
     }
     lint {
+        // AGP stays within the installed Android Studio support range; keep updates visible in lint.
+        informational += "AndroidGradlePluginVersion"
         warningsAsErrors = true
         error += "AutoboxingStateCreation"
         abortOnError = true
