@@ -48,6 +48,21 @@ Connected instrumentation tests remain required for changes to device behavior w
 ./gradlew connectedDebugAndroidTest
 ```
 
+## Keep local builds incremental
+
+Gradle's daemon, build cache, and incremental task outputs make repeated local
+builds much faster. Preserve them and run the narrowest relevant task while
+developing.
+
+- Do not routinely add `--no-daemon`, run `clean`, use `--rerun-tasks`, or
+  delete Gradle caches. Use those tools only when a specific diagnosis requires
+  invalidating normal reuse.
+- Do not launch concurrent Gradle builds against the same checkout. They compete
+  for CPU, memory, and cache locks and can make both builds slower or unstable.
+- Keep `qualityCheck`, `qualityGate`, Android Lint, release compilation, R8, and
+  resource shrinking intact. Local performance tuning is not a reason to skip
+  or weaken repository and release checks.
+
 ## Kotlin and architecture standards
 
 - Keep domain code independent from Compose and Android where practical.
