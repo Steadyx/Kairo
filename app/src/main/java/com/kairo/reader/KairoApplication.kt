@@ -19,6 +19,8 @@ import com.kairo.reader.data.books.MobiBookParser
 import com.kairo.reader.data.books.PdfBookParser
 import com.kairo.reader.data.books.TextFileBookParser
 import com.kairo.reader.data.books.WebArticleExtractor
+import com.kairo.reader.data.export.NoteExportService
+import com.kairo.reader.data.export.NoteExporter
 import com.kairo.reader.data.library.LibraryRepository
 import com.kairo.reader.data.library.LibraryRepositoryImpl
 import com.kairo.reader.data.local.KairoDatabase
@@ -67,6 +69,8 @@ class KairoApplication : Application() {
     lateinit var bookmarkRepository: BookmarkRepository
         private set
     lateinit var savedAnnotationRepository: SavedAnnotationRepository
+        private set
+    lateinit var noteExportService: NoteExporter
         private set
     lateinit var readingSessionRepository: ReadingSessionRepository
         private set
@@ -132,6 +136,13 @@ class KairoApplication : Application() {
         bookmarkRepository = BookmarkRepositoryImpl(database.bookmarkDao())
         savedAnnotationRepository =
             SavedAnnotationRepositoryImpl(database.savedAnnotationDao())
+        noteExportService =
+            NoteExportService(
+                context = applicationContext,
+                annotationRepository = savedAnnotationRepository,
+                bookRepository = bookRepository,
+                dispatcherProvider = dispatcherProvider,
+            )
         readingSessionRepository =
             ReadingSessionRepositoryImpl(database.readingSessionDao())
         readingSessionCoordinator =

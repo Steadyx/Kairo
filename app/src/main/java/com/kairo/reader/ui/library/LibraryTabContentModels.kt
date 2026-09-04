@@ -1,5 +1,6 @@
 package com.kairo.reader.ui.library
 
+import com.kairo.reader.core.export.NoteExportScope
 import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookmarkItem
 import com.kairo.reader.core.model.ReadingMomentum
@@ -27,6 +28,7 @@ data class LibraryTabContentActions(
     val onDeleteBookmark: (String) -> Unit,
     val onDeleteAnnotation: (String) -> Unit,
     val onEditAnnotation: (SavedAnnotationItem) -> Unit,
+    val onRequestNoteExport: (NoteExportScope) -> Unit,
     val onWeeklyGoalChange: (Int) -> Unit,
     val onResetMomentum: () -> Unit,
     val onRequestClearBookmarks: (Book) -> Unit,

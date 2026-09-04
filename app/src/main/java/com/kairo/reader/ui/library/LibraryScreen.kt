@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
+import com.kairo.reader.core.export.NoteExportScope
 import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookmarkItem
 import com.kairo.reader.core.model.EditSavedAnnotationRequest
@@ -79,6 +80,7 @@ fun LibraryScreen(
     onDeleteBookmark: (bookmarkId: String) -> Unit,
     onDeleteAnnotation: (annotationId: String) -> Unit = {},
     onEditAnnotation: (EditSavedAnnotationRequest) -> Unit = {},
+    onRequestNoteExport: (NoteExportScope) -> Unit = {},
     onDeleteBookmarksForBook: (bookId: String) -> Unit,
     onSearchQuery: (String) -> Unit = {},
     onRetrySearch: () -> Unit = {},
@@ -279,6 +281,7 @@ fun LibraryScreen(
                     onDeleteBookmark = onDeleteBookmark,
                     onDeleteAnnotation = { pendingDeleteAnnotationId = it },
                     onEditAnnotation = { pendingEditAnnotationId = it.annotation.id },
+                    onRequestNoteExport = onRequestNoteExport,
                     onWeeklyGoalChange = onWeeklyGoalChange,
                     onResetMomentum = onResetMomentum,
                     onRequestClearBookmarks = { pendingClearBookmarkBook = it },

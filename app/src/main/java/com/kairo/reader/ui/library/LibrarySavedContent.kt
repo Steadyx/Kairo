@@ -19,8 +19,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +35,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
+import com.kairo.reader.core.export.NoteExportScope
 import com.kairo.reader.core.model.BookmarkItem
 import com.kairo.reader.core.model.SavedAnnotationItem
 import com.kairo.reader.core.model.SavedAnnotationKind
@@ -52,6 +64,7 @@ internal fun LibrarySavedContent(
     onDeleteBookmark: (String) -> Unit,
     onDeleteAnnotation: (String) -> Unit,
     onEditAnnotation: (SavedAnnotationItem) -> Unit,
+    onRequestNoteExport: (NoteExportScope) -> Unit,
     onClearBookmarksForBook: (com.kairo.reader.core.model.Book) -> Unit,
 ) {
     val visibleAnnotations =
@@ -73,6 +86,17 @@ internal fun LibrarySavedContent(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        FilledTonalButton(
+            onClick = { onRequestNoteExport(NoteExportScope.All) },
+            modifier = Modifier.align(Alignment.End),
+            enabled = annotations.any { it.annotation.kind == SavedAnnotationKind.NOTE },
+        ) {
+            Icon(Icons.Default.Download, contentDescription = null)
+            Text(
+                text = stringResource(R.string.note_export_action),
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -115,7 +139,13 @@ internal fun LibrarySavedContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(visibleAnnotations, key = { "annotation:${it.annotation.id}" }) { item ->
-                    SavedAnnotationRow(item, onOpenSaved, onDeleteAnnotation, onEditAnnotation)
+                    SavedAnnotationRow(
+                        item,
+                        onOpenSaved,
+                        onDeleteAnnotation,
+                        onEditAnnotation,
+                        onRequestNoteExport,
+                    )
                 }
                 groupedBookmarks.forEach { group ->
                     val first = group.first()
@@ -141,6 +171,7 @@ private fun SavedAnnotationRow(
     onOpenSaved: (String, Int, Int) -> Unit,
     onDelete: (String) -> Unit,
     onEdit: (SavedAnnotationItem) -> Unit,
+    onRequestNoteExport: (NoteExportScope) -> Unit,
 ) {
     val annotation = item.annotation
     Row(
@@ -172,23 +203,79 @@ private fun SavedAnnotationRow(
                 SavedAnnotationKind.HIGHLIGHT -> SavedPassageCard(item, prominent = true)
             }
         }
-        Column(
-            modifier = Modifier.padding(top = 2.dp, end = 2.dp),
-        ) {
-            IconButton(onClick = { onEdit(item) }) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.content_desc_edit_saved),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        SavedAnnotationActions(
+            item = item,
+            onEdit = onEdit,
+            onDelete = onDelete,
+            onRequestNoteExport = onRequestNoteExport,
+        )
+    }
+}
+
+@Composable
+private fun SavedAnnotationActions(
+    item: SavedAnnotationItem,
+    onEdit: (SavedAnnotationItem) -> Unit,
+    onDelete: (String) -> Unit,
+    onRequestNoteExport: (NoteExportScope) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = Modifier.padding(top = 2.dp, end = 2.dp)) {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.content_desc_saved_actions),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            if (item.annotation.kind == SavedAnnotationKind.NOTE) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.note_export_menu_single)) },
+                    onClick = {
+                        expanded = false
+                        onRequestNoteExport(NoteExportScope.Single(item.annotation.id))
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Description, contentDescription = null)
+                    },
                 )
-            }
-            IconButton(onClick = { onDelete(annotation.id) }) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.content_desc_delete_saved),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.note_export_menu_book)) },
+                    onClick = {
+                        expanded = false
+                        onRequestNoteExport(NoteExportScope.Book(item.annotation.bookId.value))
+                    },
+                    leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) },
                 )
+                HorizontalDivider()
             }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_edit)) },
+                onClick = {
+                    expanded = false
+                    onEdit(item)
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                    )
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_delete)) },
+                onClick = {
+                    expanded = false
+                    onDelete(item.annotation.id)
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                    )
+                },
+            )
         }
     }
 }
