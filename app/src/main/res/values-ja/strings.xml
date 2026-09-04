@@ -493,8 +493,6 @@
     <string name="saved_note_label">メモ</string>
     <string name="saved_note_empty">メモ本文がありません</string>
     <string name="saved_note_passage">本からの引用</string>
-    <string name="content_desc_delete_saved">保存した文章を削除</string>
-    <string name="content_desc_edit_saved">保存した文章を編集</string>
     <string name="content_desc_saved_actions">保存項目の操作</string>
     <string name="action_edit">編集</string>
     <string name="note_export_action">メモをエクスポート</string>

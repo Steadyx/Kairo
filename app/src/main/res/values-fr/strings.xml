@@ -499,8 +499,6 @@
     <string name="saved_note_label">Note</string>
     <string name="saved_note_empty">Aucun texte de note</string>
     <string name="saved_note_passage">Extrait du livre</string>
-    <string name="content_desc_delete_saved">Supprimer le passage enregistré</string>
-    <string name="content_desc_edit_saved">Modifier le passage enregistré</string>
     <string name="content_desc_saved_actions">Actions de l’élément enregistré</string>
     <string name="action_edit">Modifier</string>
     <string name="note_export_action">Exporter les notes</string>

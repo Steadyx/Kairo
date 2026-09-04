@@ -499,8 +499,6 @@
     <string name="saved_note_label">Nota</string>
     <string name="saved_note_empty">Sin texto de nota</string>
     <string name="saved_note_passage">Del libro</string>
-    <string name="content_desc_delete_saved">Eliminar fragmento guardado</string>
-    <string name="content_desc_edit_saved">Editar fragmento guardado</string>
     <string name="content_desc_saved_actions">Acciones del elemento guardado</string>
     <string name="action_edit">Editar</string>
     <string name="note_export_action">Exportar notas</string>

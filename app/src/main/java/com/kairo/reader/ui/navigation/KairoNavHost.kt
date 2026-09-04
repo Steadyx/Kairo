@@ -11,6 +11,8 @@ import com.kairo.reader.KairoApplication
 import com.kairo.reader.R
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.data.books.SharedTextImport
+import com.kairo.reader.ui.export.NoteExportProgressDialog
+import com.kairo.reader.ui.export.rememberNoteExportCoordinator
 import com.kairo.reader.ui.importing.rememberImportCoordinator
 import com.kairo.reader.ui.tutorial.rememberStartingTutorialCoordinator
 import com.kairo.reader.ui.updates.InAppUpdateCheckResult
@@ -32,6 +34,11 @@ internal fun KairoNavHost(
     val navController = rememberNavController()
     val dispatcherProvider = container.dispatcherProvider
     val messageController = rememberKairoUserMessageController()
+    val noteExportUi =
+        rememberNoteExportCoordinator(
+            container = container,
+            onShowUserMessage = messageController::show,
+        )
     val upToDateMessage = stringResource(R.string.update_check_up_to_date)
     val updateCheckFailedMessage = stringResource(R.string.update_check_failed)
 
@@ -88,6 +95,7 @@ internal fun KairoNavHost(
                         onImportUrl = importCoordinator.importUrl,
                         onImportText = importCoordinator.importText,
                         tutorialState = tutorialCoordinator.libraryState,
+                        noteExportUi = noteExportUi,
                         onTutorialNext = tutorialCoordinator.next,
                         onTutorialPrevious = tutorialCoordinator.previous,
                         onTutorialSkip = tutorialCoordinator.skip,
@@ -144,4 +152,8 @@ internal fun KairoNavHost(
             )
         }
     }
+    NoteExportProgressDialog(
+        phase = noteExportUi.state.phase,
+        onCancelAwaiting = noteExportUi.cancelPending,
+    )
 }

@@ -499,8 +499,6 @@
     <string name="saved_note_label">Nota</string>
     <string name="saved_note_empty">Sem texto na nota</string>
     <string name="saved_note_passage">Do livro</string>
-    <string name="content_desc_delete_saved">Excluir trecho salvo</string>
-    <string name="content_desc_edit_saved">Editar trecho salvo</string>
     <string name="content_desc_saved_actions">Ações do item salvo</string>
     <string name="action_edit">Editar</string>
     <string name="note_export_action">Exportar notas</string>

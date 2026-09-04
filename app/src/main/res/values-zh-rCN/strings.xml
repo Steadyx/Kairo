@@ -493,8 +493,6 @@
     <string name="saved_note_label">笔记</string>
     <string name="saved_note_empty">没有笔记内容</string>
     <string name="saved_note_passage">摘自书中</string>
-    <string name="content_desc_delete_saved">删除已保存段落</string>
-    <string name="content_desc_edit_saved">编辑已保存段落</string>
     <string name="content_desc_saved_actions">已保存项目操作</string>
     <string name="action_edit">编辑</string>
     <string name="note_export_action">导出笔记</string>

@@ -496,8 +496,6 @@
     <string name="saved_note_label">Notiz</string>
     <string name="saved_note_empty">Kein Notiztext</string>
     <string name="saved_note_passage">Aus dem Buch</string>
-    <string name="content_desc_delete_saved">Gespeicherte Textstelle löschen</string>
-    <string name="content_desc_edit_saved">Gespeicherte Textstelle bearbeiten</string>
     <string name="content_desc_saved_actions">Aktionen für gespeicherten Eintrag</string>
     <string name="action_edit">Bearbeiten</string>
     <string name="note_export_action">Notizen exportieren</string>
