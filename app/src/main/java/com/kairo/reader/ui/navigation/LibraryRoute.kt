@@ -20,6 +20,8 @@ import com.kairo.reader.core.model.withEdit
 import com.kairo.reader.data.books.TextImportRequest
 import com.kairo.reader.data.search.LibrarySearchController
 import com.kairo.reader.data.sessions.buildReadingMomentum
+import com.kairo.reader.ui.export.NoteExportSheet
+import com.kairo.reader.ui.export.NoteExportUiBindings
 import com.kairo.reader.ui.library.ImportUiState
 import com.kairo.reader.ui.library.LibraryBookFilter
 import com.kairo.reader.ui.library.LibraryBookProgress
@@ -42,6 +44,7 @@ internal data class LibraryRouteInput(
     val onImportUrl: (String) -> Unit,
     val onImportText: (TextImportRequest) -> Unit,
     val tutorialState: StartingTutorialOverlayState?,
+    val noteExportUi: NoteExportUiBindings,
     val onTutorialNext: () -> Unit,
     val onTutorialPrevious: () -> Unit,
     val onTutorialSkip: () -> Unit,
@@ -186,6 +189,7 @@ internal fun LibraryRoute(input: LibraryRouteInput) =
                     )
                 }
             },
+            onRequestNoteExport = noteExportUi.requestExport,
             onDeleteBookmarksForBook = { bookId ->
                 coroutineScope.launch {
                     container.bookmarkRepository.deleteForBook(BookId(bookId))
@@ -222,5 +226,13 @@ internal fun LibraryRoute(input: LibraryRouteInput) =
             onTutorialNext = onTutorialNext,
             onTutorialPrevious = onTutorialPrevious,
             onTutorialSkip = onTutorialSkip,
+        )
+        NoteExportSheet(
+            state = noteExportUi.state,
+            annotations = annotations,
+            onSelectScope = noteExportUi.selectScope,
+            onSelectFormat = noteExportUi.selectFormat,
+            onDismiss = noteExportUi.dismissSheet,
+            onSave = noteExportUi.save,
         )
     }

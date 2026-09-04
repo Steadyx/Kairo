@@ -110,6 +110,37 @@ To build and run Kairo locally you will need:
 
 The project uses the checked-in Gradle wrapper, so you do not need to install Gradle separately.
 
+### JDK 17 on Apple silicon
+
+Apple-silicon Macs need a native ARM64 JDK 17. An Intel (`x86_64`) JDK can run
+through Rosetta, but it makes Gradle compilation and release builds noticeably
+slower. One way to install a native build is:
+
+```bash
+brew install --cask temurin@17
+export JAVA_HOME="$(/usr/libexec/java_home -F -v 17 -a arm64)"
+```
+
+Persist that `JAVA_HOME` value in the shell configuration used for command-line
+builds. In Android Studio, open the Gradle settings and select the same JDK path
+for **Gradle JDK**. Sharing one JDK lets terminal and IDE builds reuse compatible
+Gradle daemons and caches.
+
+Verify the selected runtime before building:
+
+```bash
+./scripts/check-build-environment.sh
+```
+
+The check reports the Java home, vendor, version, and JVM architecture. On Apple
+silicon, `os.arch` should be `aarch64` or `arm64`, not `x86_64` or `amd64`.
+After changing JDKs, stop the old Gradle daemons once and let the next build
+start a compatible daemon:
+
+```bash
+./gradlew --stop
+```
+
 ## Build Instructions
 
 ### Android Studio

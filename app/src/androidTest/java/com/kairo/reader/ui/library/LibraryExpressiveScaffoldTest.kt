@@ -259,6 +259,7 @@ class LibraryExpressiveScaffoldTest {
             onDeleteBookmark = {},
             onDeleteAnnotation = {},
             onEditAnnotation = {},
+            onRequestNoteExport = {},
             onWeeklyGoalChange = {},
             onResetMomentum = {},
             onRequestClearBookmarks = {},

@@ -1,8 +1,10 @@
 package com.kairo.reader.ui.library
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -12,9 +14,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kairo.reader.R
 import com.kairo.reader.TestActivity
+import com.kairo.reader.core.export.NoteExportScope
 import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.Bookmark
@@ -485,14 +489,18 @@ class LibraryScreenTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription(
-            composeRule.activity.getString(R.string.content_desc_edit_saved),
-        ).performClick()
+        openSavedActions()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_edit)).performClick()
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.saved_edit_note_title),
         ).assertIsDisplayed()
         composeRule.onNode(hasSetTextAction())
-            .assertTextEquals("A useful note")
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.EditableText,
+                    AnnotatedString("A useful note"),
+                ),
+            )
             .performTextReplacement("Updated thought")
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.highlight_pink),
@@ -539,9 +547,8 @@ class LibraryScreenTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription(
-            composeRule.activity.getString(R.string.content_desc_edit_saved),
-        ).performClick()
+        openSavedActions()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_edit)).performClick()
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.saved_edit_highlight_title),
         ).assertIsDisplayed()
@@ -648,16 +655,17 @@ class LibraryScreenTest {
             }
         }
 
-        val deleteDescription = composeRule.activity.getString(R.string.content_desc_delete_saved)
         val dialogTitle = composeRule.activity.getString(R.string.saved_delete_title)
-        composeRule.onNodeWithContentDescription(deleteDescription).performClick()
+        openSavedActions()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_delete)).performClick()
         composeRule.onNodeWithText(dialogTitle).assertIsDisplayed()
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.action_cancel)
         ).performClick()
         composeRule.runOnIdle { assertEquals(null, deletedAnnotationId) }
 
-        composeRule.onNodeWithContentDescription(deleteDescription).performClick()
+        openSavedActions()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_delete)).performClick()
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.action_delete)
         ).performClick()
@@ -758,12 +766,72 @@ class LibraryScreenTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription(
-            composeRule.activity.getString(R.string.content_desc_edit_saved)
-        ).performClick()
+        openSavedActions()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_edit)).performClick()
         composeRule.onNode(hasSetTextAction()).performTextReplacement("Unsaved draft")
         restorationTester.emulateSavedInstanceStateRestore()
 
-        composeRule.onNode(hasSetTextAction()).assertTextEquals("Unsaved draft")
+        composeRule.onNode(hasSetTextAction()).assert(
+            SemanticsMatcher.expectValue(
+                SemanticsProperties.EditableText,
+                AnnotatedString("Unsaved draft"),
+            ),
+        )
+    }
+
+    @Test
+    fun savedExportActionsExposeLibrarySingleAndSourceScopes() {
+        val requestedScopes = mutableListOf<NoteExportScope>()
+        val annotation = savedAnnotation(kind = SavedAnnotationKind.NOTE, note = "A useful note")
+        composeRule.setContent {
+            KairoTheme {
+                LibraryScreen(
+                    books = listOf(sampleBook),
+                    bookmarks = emptyList(),
+                    annotations = listOf(annotation),
+                    bookProgress = emptyMap(),
+                    initialTab = LibraryTab.Saved,
+                    onOpen = {},
+                    onOpenBookmark = { _, _, _ -> },
+                    onDeleteBookmark = {},
+                    onRequestNoteExport = requestedScopes::add,
+                    onDeleteBookmarksForBook = {},
+                    onImportFile = {},
+                    onImportUrl = {},
+                    onSettings = {},
+                    onSetCompleted = { _, _ -> },
+                    onDelete = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.note_export_action),
+        ).performClick()
+        openSavedActions()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.note_export_menu_single),
+        ).performClick()
+        openSavedActions()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.note_export_menu_book),
+        ).performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(
+                listOf(
+                    NoteExportScope.All,
+                    NoteExportScope.Single("note-1"),
+                    NoteExportScope.Book("book-1"),
+                ),
+                requestedScopes,
+            )
+        }
+    }
+
+    private fun openSavedActions() {
+        composeRule.onNodeWithContentDescription(
+            composeRule.activity.getString(R.string.content_desc_saved_actions),
+        ).performClick()
     }
 }
