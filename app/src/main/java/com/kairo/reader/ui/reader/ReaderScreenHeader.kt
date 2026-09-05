@@ -3,6 +3,8 @@ package com.kairo.reader.ui.reader
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -118,33 +120,42 @@ private fun ReaderHeaderTopRow(
     state: ReaderHeaderState,
     actions: ReaderHeaderActions,
 ) {
-    val compressedChrome = state.compactMode || state.landscapeCompact
-    val iconButtonSize = if (state.landscapeCompact) 40.dp else 48.dp
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = state.book.title,
-                style = if (compressedChrome) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text =
-                state.tableOfContentsLabel
-                    ?: state.chapterTitle
-                    ?: stringResource(R.string.reader_chapter_title, state.chapterIndex + 1),
-                style = if (state.landscapeCompact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        if (maxWidth < 480.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                ReaderHeaderTitle(state)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    ReaderHeaderActionButtons(state, actions, 48.dp)
+                }
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Box(modifier = Modifier.weight(1f)) { ReaderHeaderTitle(state) }
+                ReaderHeaderActionButtons(state, actions, 48.dp)
+            }
         }
-        ReaderHeaderActionButtons(state, actions, iconButtonSize)
+    }
+}
+
+@Composable
+private fun ReaderHeaderTitle(state: ReaderHeaderState) {
+    val compressedChrome = state.compactMode || state.landscapeCompact
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = state.book.title,
+            style = if (compressedChrome) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = state.tableOfContentsLabel ?: state.chapterTitle
+                ?: stringResource(R.string.reader_chapter_title, state.chapterIndex + 1),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

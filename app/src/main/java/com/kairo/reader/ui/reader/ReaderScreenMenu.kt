@@ -1,39 +1,47 @@
 package com.kairo.reader.ui.reader
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
 import com.kairo.reader.core.model.ReaderTheme
+import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.settings.ReaderSettingsContent
 import com.kairo.reader.ui.settings.SettingsNavRow
 import com.kairo.reader.ui.settings.SettingsSwitchRow
@@ -65,8 +73,12 @@ internal fun ReaderMenuOverlay(
     state: ReaderMenuState,
     actions: ReaderMenuActions,
 ) {
-    var showReaderSettings by remember { mutableStateOf(false) }
+    var showReaderSettings by rememberSaveable { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val window = rememberWindowContainerMetrics()
+    BackHandler {
+        if (showReaderSettings) showReaderSettings = false else actions.onDismiss()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -80,34 +92,42 @@ internal fun ReaderMenuOverlay(
         Surface(
             modifier =
             Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-            tonalElevation = 3.dp,
+                .align(if (window.isCompactLandscape(480.dp)) Alignment.CenterEnd else Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(12.dp)
+                .widthIn(max = 640.dp)
+                .fillMaxWidth()
+                .heightIn(max = window.heightDp * 0.9f),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainer,
         ) {
-            Column(
-                modifier =
-                Modifier
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Box(
-                    modifier =
-                    Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .size(width = 42.dp, height = 4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)),
-                )
-
-                ReaderMenuContent(
-                    showReaderSettings = showReaderSettings,
-                    state = state,
-                    actions = actions,
-                    onShowReaderSettingsChange = { showReaderSettings = it },
-                )
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.settings_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = actions.onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_close))
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f, fill = false)
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ReaderMenuContent(
+                        showReaderSettings = showReaderSettings,
+                        state = state,
+                        actions = actions,
+                        onShowReaderSettingsChange = { showReaderSettings = it },
+                    )
+                }
             }
         }
     }
