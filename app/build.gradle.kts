@@ -144,6 +144,8 @@ android {
         }
     }
     lint {
+        // AGP stays within the installed Android Studio support range; keep updates visible in lint.
+        informational += "AndroidGradlePluginVersion"
         warningsAsErrors = true
         error += "AutoboxingStateCreation"
         abortOnError = true
@@ -187,6 +189,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.activity.compose)

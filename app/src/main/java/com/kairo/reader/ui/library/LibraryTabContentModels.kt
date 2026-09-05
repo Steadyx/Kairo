@@ -17,6 +17,7 @@ data class LibraryTabContentState(
     val savedFilter: SavedFilter,
     val bookProgress: Map<String, LibraryBookProgress>,
     val compactLandscape: Boolean,
+    val horizontalImportActionVisible: Boolean,
     val isImporting: Boolean,
 )
 

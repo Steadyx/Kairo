@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.kairo.reader.KairoApplication
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.ui.rsvp.ReadingPresentationMode
+import com.kairo.reader.ui.theme.KairoFocusedReadingTheme
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
 
 internal data class RsvpDestinationDependencies(
@@ -37,17 +38,19 @@ internal fun NavGraphBuilder.rsvpDestination(dependencies: RsvpDestinationDepend
             },
         ),
     ) { backStackEntry ->
-        RsvpRoute(
-            backStackEntry = backStackEntry,
-            container = dependencies.container,
-            navController = dependencies.navController,
-            prefs = dependencies.prefs,
-            tutorialState = dependencies.tutorialState,
-            onShowUserMessage = dependencies.onShowUserMessage,
-            onTutorialNext = dependencies.onTutorialNext,
-            onTutorialPrevious = dependencies.onTutorialPrevious,
-            onTutorialSkip = dependencies.onTutorialSkip,
-        )
+        KairoFocusedReadingTheme {
+            RsvpRoute(
+                backStackEntry = backStackEntry,
+                container = dependencies.container,
+                navController = dependencies.navController,
+                prefs = dependencies.prefs,
+                tutorialState = dependencies.tutorialState,
+                onShowUserMessage = dependencies.onShowUserMessage,
+                onTutorialNext = dependencies.onTutorialNext,
+                onTutorialPrevious = dependencies.onTutorialPrevious,
+                onTutorialSkip = dependencies.onTutorialSkip,
+            )
+        }
     }
 }
 
@@ -65,17 +68,19 @@ internal fun NavGraphBuilder.bionicDestination(dependencies: RsvpDestinationDepe
             },
         ),
     ) { backStackEntry ->
-        RsvpRoute(
-            backStackEntry = backStackEntry,
-            container = dependencies.container,
-            navController = dependencies.navController,
-            prefs = dependencies.prefs,
-            tutorialState = null,
-            onShowUserMessage = dependencies.onShowUserMessage,
-            onTutorialNext = {},
-            onTutorialPrevious = {},
-            onTutorialSkip = {},
-            presentationMode = ReadingPresentationMode.BIONIC,
-        )
+        KairoFocusedReadingTheme {
+            RsvpRoute(
+                backStackEntry = backStackEntry,
+                container = dependencies.container,
+                navController = dependencies.navController,
+                prefs = dependencies.prefs,
+                tutorialState = null,
+                onShowUserMessage = dependencies.onShowUserMessage,
+                onTutorialNext = {},
+                onTutorialPrevious = {},
+                onTutorialSkip = {},
+                presentationMode = ReadingPresentationMode.BIONIC,
+            )
+        }
     }
 }

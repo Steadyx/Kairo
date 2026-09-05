@@ -2,29 +2,32 @@
 
 package com.kairo.reader.ui.rsvp
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,9 +45,10 @@ import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
 import com.kairo.reader.core.model.RsvpContextAssistMode
 import com.kairo.reader.core.rsvp.RsvpSpeedControl
+import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.settings.BionicSettingsContent
 import com.kairo.reader.ui.settings.RsvpSettingsActions
-import com.kairo.reader.ui.settings.RsvpSettingsContent
+import com.kairo.reader.ui.settings.RsvpSettingsDialog
 import com.kairo.reader.ui.settings.RsvpSettingsState
 import com.kairo.reader.ui.settings.SettingsNavRow
 import com.kairo.reader.ui.settings.SettingsSliderRow
@@ -64,46 +69,46 @@ internal fun BoxScope.RsvpQuickSettingsPanel(
     settingsRowModifier: Modifier = Modifier,
 ) {
     val runtime = context.runtime
-
+    val compactLandscape = rememberWindowContainerMetrics().isCompactLandscape(480.dp)
+    var showModeSettings by rememberSaveable { mutableStateOf(false) }
+    if (runtime.showQuickSettings && showModeSettings && context.presentationMode == ReadingPresentationMode.RSVP) {
+        RsvpFullSettings(context, onBack = { showModeSettings = false })
+        return
+    }
+    BackHandler(enabled = runtime.showQuickSettings) {
+        if (showModeSettings) showModeSettings = false else runtime.showQuickSettings = false
+    }
     AnimatedVisibility(
         visible = runtime.showQuickSettings,
         enter = fadeIn(),
         exit = fadeOut(),
-        modifier = Modifier.align(Alignment.BottomCenter),
+        modifier = Modifier.align(if (compactLandscape) Alignment.CenterEnd else Alignment.BottomCenter),
     ) {
-        Box(
-            modifier =
-            panelModifier
+        Column(
+            modifier = panelModifier
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(QUICK_SETTINGS_OUTER_PADDING)
+                .widthIn(max = QUICK_SETTINGS_MAX_WIDTH)
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(QUICK_SETTINGS_OUTER_PADDING),
-            contentAlignment = Alignment.BottomCenter,
+                .fillMaxHeight(if (compactLandscape) 1f else QUICK_SETTINGS_HEIGHT_FRACTION)
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(MaterialTheme.colorScheme.surfaceContainer),
         ) {
-            Column(
-                modifier =
-                Modifier
-                    .widthIn(max = QUICK_SETTINGS_MAX_WIDTH)
-                    .fillMaxWidth()
-                    .fillMaxHeight(QUICK_SETTINGS_HEIGHT_FRACTION)
-                    .clip(RoundedCornerShape(QUICK_SETTINGS_CORNER))
-                    .background(
-                        MaterialTheme.colorScheme.surface.copy(alpha = QUICK_SETTINGS_BACKGROUND_ALPHA),
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = QUICK_SETTINGS_BORDER_ALPHA),
-                        shape = RoundedCornerShape(QUICK_SETTINGS_CORNER),
-                    )
-                    .verticalScroll(rememberScrollState())
-                    .padding(
-                        horizontal = QUICK_SETTINGS_HORIZONTAL_PADDING,
-                        vertical = QUICK_SETTINGS_VERTICAL_PADDING,
-                    ),
-                verticalArrangement = Arrangement.spacedBy(QUICK_SETTINGS_SPACING),
-                horizontalAlignment = Alignment.Start,
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                RsvpQuickSettingsHandle()
-                var showModeSettings by remember { mutableStateOf(false) }
+                Box(modifier = Modifier.weight(1f)) { RsvpQuickSettingsHeader(context) }
+                IconButton(onClick = { runtime.showQuickSettings = false }) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_close))
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = QUICK_SETTINGS_HORIZONTAL_PADDING, vertical = QUICK_SETTINGS_VERTICAL_PADDING),
+                verticalArrangement = Arrangement.spacedBy(QUICK_SETTINGS_SPACING),
+            ) {
                 if (showModeSettings) {
                     RsvpQuickSettingsAdvanced(context) { showModeSettings = false }
                 } else {
@@ -119,28 +124,6 @@ internal fun BoxScope.RsvpQuickSettingsPanel(
     }
 }
 
-@Composable
-private fun RsvpQuickSettingsHandle() {
-    Box(
-        modifier =
-        Modifier
-            .fillMaxWidth()
-            .padding(bottom = QUICK_SETTINGS_HANDLE_BOTTOM_PADDING),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier =
-            Modifier
-                .width(QUICK_SETTINGS_HANDLE_WIDTH)
-                .height(QUICK_SETTINGS_HANDLE_HEIGHT)
-                .clip(RoundedCornerShape(QUICK_SETTINGS_HANDLE_HEIGHT))
-                .background(
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = QUICK_SETTINGS_HANDLE_ALPHA),
-                ),
-        )
-    }
-}
-
 /** [settingsRowModifier] is forwarded to the tutorial-highlighted settings row. */
 @Suppress("ModifierParameter")
 @Composable
@@ -150,28 +133,18 @@ private fun RsvpQuickSettingsMain(
     onOpenModeSettings: () -> Unit,
     settingsRowModifier: Modifier = Modifier,
 ) {
-    RsvpQuickSettingsHeader(context)
-    if (context.presentationMode == ReadingPresentationMode.BIONIC) {
-        RsvpQuickSettingsTempoControls(context, speedPercent)
-        RsvpQuickSettingsTextSizeControls(context)
-        RsvpQuickSettingsThemeAndFocus(context)
-        RsvpQuickSettingsBookmarks(
-            context = context,
-            onOpenModeSettings = onOpenModeSettings,
-            settingsRowModifier = settingsRowModifier,
-        )
-    } else {
-        RsvpQuickSettingsBookmarks(
-            context = context,
-            onOpenModeSettings = onOpenModeSettings,
-            settingsRowModifier = settingsRowModifier,
-        )
-        RsvpQuickSettingsThemeAndFocus(context)
+    RsvpQuickSettingsTempoControls(context, speedPercent)
+    RsvpQuickSettingsTextSizeControls(context)
+    RsvpQuickSettingsThemeAndFocus(context)
+    if (context.presentationMode != ReadingPresentationMode.BIONIC) {
         RsvpQuickSettingsPositioningToggle(context)
         RsvpQuickSettingsContextAssist(context)
-        RsvpQuickSettingsTempoControls(context, speedPercent)
-        RsvpQuickSettingsTextSizeControls(context)
     }
+    RsvpQuickSettingsBookmarks(
+        context = context,
+        onOpenModeSettings = onOpenModeSettings,
+        settingsRowModifier = settingsRowModifier,
+    )
     RsvpQuickSettingsHints()
 }
 
@@ -456,18 +429,16 @@ private fun RsvpQuickSettingsAdvanced(
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurface,
     )
-    RsvpQuickSettingsAdvancedContent(context)
+    BionicQuickSettingsAdvancedContent(context)
 }
 
 @Composable
-private fun RsvpQuickSettingsAdvancedContent(context: RsvpUiContext) {
-    if (context.presentationMode == ReadingPresentationMode.BIONIC) {
-        BionicQuickSettingsAdvancedContent(context)
-        return
-    }
+private fun RsvpFullSettings(context: RsvpUiContext, onBack: () -> Unit) {
     val runtime = context.runtime
     val profile = context.state.profile
-    RsvpSettingsContent(
+    RsvpSettingsDialog(
+        readerTheme = context.state.uiPrefs.readerTheme,
+        onBack = onBack,
         state =
         RsvpSettingsState(
             selectedProfileId = profile.selectedProfileId,

@@ -1,7 +1,6 @@
 package com.kairo.reader.ui.library
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
@@ -34,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -67,16 +67,20 @@ internal fun LibraryCard(
             },
         )
     Card(
-        modifier =
-        Modifier
-            .fillMaxWidth()
-            .clickable { onOpen(book) },
+        onClick = { onOpen(book) },
+        modifier = Modifier.fillMaxWidth(),
+        shape =
+        if (compactLandscape) {
+            MaterialTheme.shapes.large
+        } else {
+            MaterialTheme.shapes.largeIncreased
+        },
         colors =
         CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
             contentColor = MaterialTheme.colorScheme.onSurface,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
             modifier =
@@ -164,7 +168,10 @@ internal fun LibraryCard(
             }
 
             Box {
-                IconButton(onClick = { actionsExpanded = true }) {
+                IconButton(
+                    onClick = { actionsExpanded = true },
+                    modifier = Modifier.testTag(libraryBookActionsTestTag(book.id.value)),
+                ) {
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.content_desc_book_actions),
@@ -219,13 +226,15 @@ internal fun LibraryCard(
     }
 }
 
+internal fun libraryBookActionsTestTag(bookId: String) = "library_book_actions_$bookId"
+
 @Composable
 internal fun CompletedStatusPill() {
     Row(
         modifier =
         Modifier
-            .clip(RoundedCornerShape(BOOK_PROGRESS_CORNER_PERCENT))
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -243,5 +252,3 @@ internal fun CompletedStatusPill() {
         )
     }
 }
-
-private const val BOOK_PROGRESS_CORNER_PERCENT = 50

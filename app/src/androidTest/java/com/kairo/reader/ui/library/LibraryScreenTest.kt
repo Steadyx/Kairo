@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -248,7 +249,7 @@ class LibraryScreenTest {
         val dialogTitle = composeRule.activity.getString(R.string.library_bookmark_clear_book_title)
         composeRule.onNodeWithText(dialogTitle).assertIsDisplayed()
 
-        val deleteText = composeRule.activity.getString(R.string.action_delete)
+        val deleteText = composeRule.activity.getString(R.string.library_bookmark_clear_book_confirm)
         composeRule.onNodeWithText(deleteText).performClick()
 
         composeRule.runOnIdle { assertEquals("book-1", clearedBookId) }
@@ -317,8 +318,8 @@ class LibraryScreenTest {
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.library_source_text)
         ).performClick()
-        composeRule.onNodeWithText(
-            composeRule.activity.getString(R.string.library_text_import_content_placeholder)
+        composeRule.onNode(
+            hasSetTextAction() and hasText(composeRule.activity.getString(R.string.library_text_import_content_label))
         ).performTextInput("# Shared note\n\nThis is enough shared text to read in Kairo.")
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.library_text_import_submit)
@@ -368,6 +369,43 @@ class LibraryScreenTest {
         ).assertIsDisplayed()
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.momentum_stored_locally),
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun selectedTabSurvivesSavedStateRestoration() {
+        val restorationTester = StateRestorationTester(composeRule)
+        restorationTester.setContent {
+            KairoTheme {
+                LibraryScreen(
+                    books = listOf(sampleBook),
+                    bookmarks = emptyList(),
+                    bookProgress = emptyMap(),
+                    initialTab = LibraryTab.Books,
+                    onOpen = {},
+                    onOpenBookmark = { _, _, _ -> },
+                    onDeleteBookmark = {},
+                    onDeleteBookmarksForBook = {},
+                    onImportFile = {},
+                    onImportUrl = {},
+                    onSettings = {},
+                    onSetCompleted = { _, _ -> },
+                    onDelete = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.library_tab_saved),
+        ).performClick()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.saved_title),
+        ).assertIsDisplayed()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.saved_title),
         ).assertIsDisplayed()
     }
 

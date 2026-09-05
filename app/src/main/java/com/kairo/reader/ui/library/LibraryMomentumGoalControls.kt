@@ -33,7 +33,7 @@ internal fun MomentumGoalSelector(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = stringResource(R.string.momentum_goal_title),
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.titleMediumEmphasized,
         )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -638,4 +638,6 @@
     <string name="reader_extend_selection_backward_action">選択範囲を前に広げる</string>
     <string name="reader_extend_selection_forward_action">選択範囲を後ろに広げる</string>
     <string name="reader_cancel_selection_action">テキスト選択をキャンセル</string>
+    <string name="settings_group_reading">読書</string>
+    <string name="settings_group_app">アプリとサポート</string>
 </resources>

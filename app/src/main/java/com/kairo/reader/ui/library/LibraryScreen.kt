@@ -3,32 +3,13 @@ package com.kairo.reader.ui.library
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -36,12 +17,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
 import com.kairo.reader.core.export.NoteExportScope
@@ -59,8 +37,6 @@ import com.kairo.reader.ui.saved.SavedAnnotationEditorDialog
 import com.kairo.reader.ui.search.LibrarySearchOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
-import com.kairo.reader.ui.tutorial.StartingTutorialTargetIds
-import com.kairo.reader.ui.tutorial.startingTutorialTarget
 
 @Suppress("LongMethod", "LongParameterList")
 @Composable
@@ -107,6 +83,14 @@ fun LibraryScreen(
         }
     val windowMetrics = rememberWindowContainerMetrics()
     val compactLandscape = windowMetrics.isCompactLandscape(COMPACT_LANDSCAPE_MAX_HEIGHT_DP.dp)
+    val navigationSuiteType =
+        when {
+            windowMetrics.widthDp >= WIDE_NAVIGATION_MIN_WIDTH_DP.dp ->
+                NavigationSuiteType.WideNavigationRailCollapsed
+            else -> NavigationSuiteType.ShortNavigationBarCompact
+        }
+    val horizontalImportActionVisible =
+        !importState.isImporting && !compactLandscape
     var selectedTabName by rememberSaveable(initialTab) { mutableStateOf(initialTab.name) }
     val selectedTab =
         remember(selectedTabName) {
@@ -142,121 +126,17 @@ fun LibraryScreen(
     val launchBookImport = { showSupportedFormats = true }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(
-                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                    )
-                )
-                .padding(
-                    horizontal = if (compactLandscape) 12.dp else 16.dp,
-                    vertical = if (compactLandscape) 8.dp else 16.dp,
-                ),
-            verticalArrangement = Arrangement.spacedBy(if (compactLandscape) 8.dp else 12.dp),
+        LibraryExpressiveScaffold(
+            selectedTab = selectedTab,
+            navigationSuiteType = navigationSuiteType,
+            compactLandscape = compactLandscape,
+            importEnabled = !importState.isImporting,
+            tutorialTargets = tutorialTargets,
+            onTabSelected = { selectedTabName = it.name },
+            onImport = launchBookImport,
+            onSearch = { showSearch = true },
+            onSettings = onSettings,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.library_title),
-                        style =
-                        if (compactLandscape) {
-                            MaterialTheme.typography.titleMedium
-                        } else {
-                            MaterialTheme.typography.titleLarge
-                        },
-                    )
-                    Text(
-                        stringResource(R.string.library_subtitle),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (compactLandscape && selectedTab == LibraryTab.Books) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        ImportBookButton(
-                            onClick = launchBookImport,
-                            enabled = !importState.isImporting,
-                            compact = true,
-                            modifier =
-                            Modifier.startingTutorialTarget(StartingTutorialTargetIds.LIBRARY_IMPORT) {
-                                    targetId,
-                                    bounds,
-                                ->
-                                tutorialTargets[targetId] = bounds
-                            },
-                        )
-                        ReadFromLinkButton(
-                            onClick = { showReadLinkDialog = true },
-                            enabled = !importState.isImporting,
-                            compact = true,
-                        )
-                        AddTextButton(
-                            onClick = { showAddTextDialog = true },
-                            enabled = !importState.isImporting,
-                            compact = true,
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                IconButton(onClick = { showSearch = true }) {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = stringResource(R.string.content_desc_search),
-                    )
-                }
-                IconButton(
-                    onClick = onSettings,
-                    modifier =
-                    Modifier.startingTutorialTarget(StartingTutorialTargetIds.LIBRARY_SETTINGS) {
-                            targetId,
-                            bounds,
-                        ->
-                        tutorialTargets[targetId] = bounds
-                    },
-                ) {
-                    Icon(
-                        Icons.Default.Settings,
-                        contentDescription = stringResource(R.string.content_desc_settings),
-                    )
-                }
-            }
-
-            PrimaryTabRow(
-                selectedTabIndex = selectedTab.ordinal,
-                modifier =
-                Modifier.startingTutorialTarget(StartingTutorialTargetIds.LIBRARY_TABS) {
-                        targetId,
-                        bounds,
-                    ->
-                    tutorialTargets[targetId] = bounds
-                },
-            ) {
-                Tab(
-                    selected = selectedTab == LibraryTab.Books,
-                    onClick = { selectedTabName = LibraryTab.Books.name },
-                    text = { Text(stringResource(R.string.library_tab_books)) },
-                )
-                Tab(
-                    selected = selectedTab == LibraryTab.Saved,
-                    onClick = { selectedTabName = LibraryTab.Saved.name },
-                    text = { Text(stringResource(R.string.library_tab_saved)) },
-                )
-                Tab(
-                    selected = selectedTab == LibraryTab.Momentum,
-                    onClick = { selectedTabName = LibraryTab.Momentum.name },
-                    text = { Text(stringResource(R.string.library_tab_momentum)) },
-                )
-            }
-
             LibrarySelectedTabContent(
                 state =
                 LibraryTabContentState(
@@ -270,6 +150,7 @@ fun LibraryScreen(
                     savedFilter = savedFilter,
                     bookProgress = bookProgress,
                     compactLandscape = compactLandscape,
+                    horizontalImportActionVisible = horizontalImportActionVisible,
                     isImporting = importState.isImporting,
                 ),
                 actions =
@@ -459,5 +340,6 @@ fun LibraryScreen(
 }
 
 private const val COMPACT_LANDSCAPE_MAX_HEIGHT_DP = 480
+private const val WIDE_NAVIGATION_MIN_WIDTH_DP = 600
 
 enum class LibraryTab { Books, Saved, Momentum }

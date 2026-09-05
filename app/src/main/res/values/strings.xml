@@ -662,4 +662,6 @@
     <string name="reader_extend_selection_backward_action">Extend selection backward</string>
     <string name="reader_extend_selection_forward_action">Extend selection forward</string>
     <string name="reader_cancel_selection_action">Cancel text selection</string>
+    <string name="settings_group_reading">Reading</string>
+    <string name="settings_group_app">App &amp; support</string>
 </resources>

@@ -638,4 +638,6 @@
     <string name="reader_extend_selection_backward_action">向前扩展选择范围</string>
     <string name="reader_extend_selection_forward_action">向后扩展选择范围</string>
     <string name="reader_cancel_selection_action">取消文本选择</string>
+    <string name="settings_group_reading">阅读</string>
+    <string name="settings_group_app">应用与支持</string>
 </resources>

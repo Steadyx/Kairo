@@ -12,12 +12,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -105,6 +110,7 @@ internal fun BoxScope.RsvpTopBar(
         Modifier
             .align(Alignment.TopStart)
             .statusBarsPadding()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
             .padding(TOP_BAR_PADDING),
         horizontalArrangement = Arrangement.spacedBy(TOP_BAR_SPACING),
     ) {
@@ -127,6 +133,7 @@ internal fun BoxScope.RsvpTopBar(
         Modifier
             .align(Alignment.TopEnd)
             .statusBarsPadding()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
             .padding(TOP_BAR_PADDING),
         horizontalArrangement = Arrangement.spacedBy(TOP_BAR_SPACING),
     ) {
@@ -360,6 +367,7 @@ internal fun BoxScope.RsvpScrubTargetIndicator(context: RsvpUiContext) {
             modifier =
             Modifier
                 .statusBarsPadding()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
                 .padding(top = topPadding)
                 .background(
                     MaterialTheme.colorScheme.secondaryContainer.copy(alpha = INDICATOR_BACKGROUND_ALPHA),
