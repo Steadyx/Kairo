@@ -7,21 +7,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
@@ -41,6 +42,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
 import com.kairo.reader.core.model.ReaderTheme
@@ -172,9 +175,8 @@ private fun CompactSettingsNavRow(
         modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        tonalElevation = 1.dp,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -275,40 +277,39 @@ private fun ProminentSettingsNavRow(
 fun SettingsScaffold(
     title: String,
     onBack: (() -> Unit)?,
+    maxContentWidth: Dp = 720.dp,
     content: @Composable (Modifier) -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            MediumFlexibleTopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    if (onBack != null) {
-                        androidx.compose.material3.FilledTonalIconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.action_back),
-                            )
-                        }
-                    }
-                },
-                colors =
-                androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.surface,
-    ) { innerPadding ->
-        content(
-            Modifier
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(
-                        WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val compactHeight = maxHeight < 480.dp
+        val navigationIcon: @Composable () -> Unit = {
+            if (onBack != null) {
+                androidx.compose.material3.FilledTonalIconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
                     )
-                )
-                .padding(innerPadding),
-        )
+                }
+            }
+        }
+        Scaffold(
+            topBar = {
+                if (compactHeight) {
+                    TopAppBar(title = { Text(title) }, navigationIcon = navigationIcon)
+                } else {
+                    MediumFlexibleTopAppBar(title = { Text(title) }, navigationIcon = navigationIcon)
+                }
+            },
+            contentWindowInsets = WindowInsets.safeDrawing,
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier.fillMaxSize().padding(innerPadding).consumeWindowInsets(innerPadding),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                content(Modifier.widthIn(max = maxContentWidth).fillMaxSize())
+            }
+        }
     }
 }
 
@@ -330,7 +331,9 @@ fun SettingsSwitchRow(
                 role = Role.Switch,
                 onValueChange = onCheckedChange,
             )
+            .heightIn(min = 56.dp)
             .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -365,22 +368,20 @@ fun SettingsSliderRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                valueLabel,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.width(84.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Slider(
-                value = value,
-                onValueChange = onValueChange,
-                valueRange = valueRange,
-                steps = steps,
-                onValueChangeFinished = { onValueChangeFinished?.invoke() },
-                modifier = Modifier.weight(1f),
-            )
-        }
+        Text(
+            valueLabel,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps,
+            onValueChangeFinished = { onValueChangeFinished?.invoke() },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

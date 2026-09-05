@@ -650,4 +650,6 @@
     <string name="reader_extend_selection_backward_action">Ampliar selección hacia atrás</string>
     <string name="reader_extend_selection_forward_action">Ampliar selección hacia delante</string>
     <string name="reader_cancel_selection_action">Cancelar selección de texto</string>
+    <string name="settings_group_reading">Lectura</string>
+    <string name="settings_group_app">Aplicación y ayuda</string>
 </resources>

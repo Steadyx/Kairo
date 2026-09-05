@@ -644,4 +644,6 @@
     <string name="reader_extend_selection_backward_action">Auswahl nach hinten erweitern</string>
     <string name="reader_extend_selection_forward_action">Auswahl nach vorn erweitern</string>
     <string name="reader_cancel_selection_action">Textauswahl abbrechen</string>
+    <string name="settings_group_reading">Lesen</string>
+    <string name="settings_group_app">App &amp; Hilfe</string>
 </resources>

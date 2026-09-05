@@ -87,55 +87,60 @@ internal fun RsvpEssentialSettingsContent(
             },
             valueRange = RsvpSpeedControl.MIN_SPEED..RsvpSpeedControl.MAX_SPEED,
         )
-        DeferredSliderRow(
-            title = stringResource(R.string.rsvp_min_word_time_title),
-            subtitle = stringResource(R.string.rsvp_min_word_time_subtitle),
-            valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
-            rawValue = config.minWordMs.toFloat(),
-            onCommit = { newValue ->
-                updateConfig {
-                    it.copy(
-                        minWordMs =
-                        newValue.toLong().coerceIn(Constraints.MIN_WORD_MS, Constraints.MAX_WORD_MS),
-                    )
-                }
-            },
-            valueRange = Constraints.MIN_WORD_MS.toFloat()..Constraints.MAX_WORD_MS.toFloat(),
-        )
-        DeferredSliderRow(
-            title = stringResource(R.string.rsvp_long_word_min_title),
-            subtitle = stringResource(R.string.rsvp_long_word_min_subtitle),
-            valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
-            rawValue = config.longWordMinMs.toFloat(),
-            onCommit = { newValue ->
-                updateConfig {
-                    it.copy(
-                        longWordMinMs =
-                        newValue.toLong().coerceIn(
-                            Constraints.MIN_LONG_WORD_MS,
-                            Constraints.MAX_LONG_WORD_MS,
-                        ),
-                    )
-                }
-            },
-            valueRange =
-            Constraints.MIN_LONG_WORD_MS.toFloat()..Constraints.MAX_LONG_WORD_MS.toFloat(),
-        )
-        DeferredSliderRow(
-            title = stringResource(R.string.rsvp_sentence_end_pause_title),
-            subtitle = stringResource(R.string.rsvp_sentence_end_pause_subtitle),
-            valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
-            rawValue = config.sentenceEndPauseMs.toFloat(),
-            onCommit = { newValue ->
-                updateConfig {
-                    it.copy(
-                        sentenceEndPauseMs =
-                        newValue.toLong().coerceIn(0L, Constraints.MAX_SENTENCE_END_PAUSE_MS),
-                    )
-                }
-            },
-            valueRange = 0f..Constraints.MAX_SENTENCE_END_PAUSE_MS.toFloat(),
-        )
+        ExpandableSettingsSection(
+            title = stringResource(R.string.rsvp_readability_floors_title),
+            summary = stringResource(R.string.rsvp_quick_tune_subtitle),
+        ) {
+            DeferredSliderRow(
+                title = stringResource(R.string.rsvp_min_word_time_title),
+                subtitle = stringResource(R.string.rsvp_min_word_time_subtitle),
+                valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
+                rawValue = config.minWordMs.toFloat(),
+                onCommit = { newValue ->
+                    updateConfig {
+                        it.copy(
+                            minWordMs =
+                            newValue.toLong().coerceIn(Constraints.MIN_WORD_MS, Constraints.MAX_WORD_MS),
+                        )
+                    }
+                },
+                valueRange = Constraints.MIN_WORD_MS.toFloat()..Constraints.MAX_WORD_MS.toFloat(),
+            )
+            DeferredSliderRow(
+                title = stringResource(R.string.rsvp_long_word_min_title),
+                subtitle = stringResource(R.string.rsvp_long_word_min_subtitle),
+                valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
+                rawValue = config.longWordMinMs.toFloat(),
+                onCommit = { newValue ->
+                    updateConfig {
+                        it.copy(
+                            longWordMinMs =
+                            newValue.toLong().coerceIn(
+                                Constraints.MIN_LONG_WORD_MS,
+                                Constraints.MAX_LONG_WORD_MS,
+                            ),
+                        )
+                    }
+                },
+                valueRange =
+                Constraints.MIN_LONG_WORD_MS.toFloat()..Constraints.MAX_LONG_WORD_MS.toFloat(),
+            )
+            DeferredSliderRow(
+                title = stringResource(R.string.rsvp_sentence_end_pause_title),
+                subtitle = stringResource(R.string.rsvp_sentence_end_pause_subtitle),
+                valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
+                rawValue = config.sentenceEndPauseMs.toFloat(),
+                onCommit = { newValue ->
+                    updateConfig {
+                        it.copy(
+                            sentenceEndPauseMs =
+                            newValue.toLong().coerceIn(0L, Constraints.MAX_SENTENCE_END_PAUSE_MS),
+                        )
+                    }
+                },
+                valueRange = 0f..Constraints.MAX_SENTENCE_END_PAUSE_MS.toFloat(),
+            )
+        }
         SettingsSwitchRow(
             title = stringResource(R.string.rsvp_adaptive_pacing_title),
             subtitle = stringResource(R.string.rsvp_adaptive_pacing_subtitle),
@@ -148,9 +153,9 @@ internal fun RsvpEssentialSettingsContent(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    SettingsCard(
+    ExpandableSettingsSection(
         title = stringResource(R.string.rsvp_comprehension_title),
-        subtitle = stringResource(R.string.rsvp_comprehension_subtitle),
+        summary = stringResource(R.string.rsvp_comprehension_subtitle),
     ) {
         ContextAssistModeSelector(
             selected = config.contextAssistMode,
@@ -200,9 +205,9 @@ internal fun RsvpEssentialSettingsContent(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    SettingsCard(
+    ExpandableSettingsSection(
         title = stringResource(R.string.rsvp_display_title),
-        subtitle = stringResource(R.string.rsvp_display_subtitle),
+        summary = stringResource(R.string.rsvp_display_subtitle),
     ) {
         DeferredSliderRow(
             title = stringResource(R.string.reader_font_size_title),

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
@@ -197,6 +198,9 @@ internal fun ExpandableSettingsSection(
             label = "section-toggle",
         )
 
+    val disclosureState = stringResource(
+        if (expanded) R.string.accessibility_state_expanded else R.string.accessibility_state_collapsed,
+    )
     Surface(
         shape = MaterialTheme.shapes.largeIncreased,
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -213,7 +217,9 @@ internal fun ExpandableSettingsSection(
                 Modifier
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
-                    .clickable { expanded = !expanded }
+                    .semantics { stateDescription = disclosureState }
+                    .clickable(role = Role.Button) { expanded = !expanded }
+                    .heightIn(min = 48.dp)
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -223,7 +229,6 @@ internal fun ExpandableSettingsSection(
                         summary,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
                     )
                 }
                 Icon(

@@ -4,30 +4,27 @@ package com.kairo.reader.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,6 +38,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
@@ -95,29 +93,19 @@ fun SettingsHomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.displaySmallEmphasized,
-            )
-            SettingsHomeRows(actions, languageLabel, tutorialTargets, tutorialTargetRequesters)
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { showResetConfirmation = true },
-                modifier = Modifier.fillMaxWidth(),
+        SettingsScaffold(
+            title = stringResource(R.string.settings_title),
+            onBack = actions.onClose,
+            maxContentWidth = 1040.dp,
+        ) { modifier ->
+            Column(
+                modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Text(stringResource(R.string.settings_reset_defaults))
-            }
-            Button(onClick = actions.onClose, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.action_done))
+                SettingsHomeRows(actions, languageLabel, tutorialTargets, tutorialTargetRequesters)
+                TextButton(onClick = { showResetConfirmation = true }) {
+                    Text(stringResource(R.string.settings_reset_defaults))
+                }
             }
         }
         tutorialState?.let { overlayState ->
@@ -160,7 +148,8 @@ private fun SettingsHomeRows(
             SettingsHomeRow(
                 title = stringResource(R.string.rsvp_settings_title),
                 subtitle = stringResource(R.string.settings_rsvp_subtitle),
-                icon = Icons.Default.Settings,
+                icon = Icons.Default.Speed,
+                reading = true,
                 targetId = StartingTutorialTargetIds.SETTINGS_RSVP,
                 onClick = actions.onOpenRsvp,
             ),
@@ -168,19 +157,22 @@ private fun SettingsHomeRows(
                 title = stringResource(R.string.bionic_settings_title),
                 subtitle = stringResource(R.string.settings_bionic_subtitle),
                 icon = Icons.Default.AutoStories,
+                reading = true,
                 onClick = actions.onOpenBionic,
             ),
             SettingsHomeRow(
                 title = stringResource(R.string.reader_settings_title),
                 subtitle = stringResource(R.string.reader_settings_subtitle),
-                icon = Icons.Default.Settings,
+                icon = Icons.AutoMirrored.Filled.MenuBook,
+                reading = true,
                 targetId = StartingTutorialTargetIds.SETTINGS_READER,
                 onClick = actions.onOpenReader,
             ),
             SettingsHomeRow(
                 title = stringResource(R.string.focus_settings_title),
                 subtitle = stringResource(R.string.focus_settings_subtitle),
-                icon = Icons.Default.Settings,
+                icon = Icons.Default.CenterFocusStrong,
+                reading = true,
                 targetId = StartingTutorialTargetIds.SETTINGS_FOCUS,
                 onClick = actions.onOpenFocus,
             ),
@@ -204,16 +196,50 @@ private fun SettingsHomeRows(
                 onClick = actions.onOpenStartingTutorial,
             ),
         )
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val useColumns = maxWidth >= 800.dp && LocalDensity.current.fontScale <= TWO_COLUMN_MAX_FONT_SCALE
+        val readingRows = rows.filter { it.reading }
+        val appRows = rows.filterNot { it.reading }
+        if (useColumns) {
+            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                Column(modifier = Modifier.weight(1f)) {
+                    SettingsHomeGroup(R.string.settings_group_reading, readingRows, tutorialTargets, tutorialTargetRequesters)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    SettingsHomeGroup(R.string.settings_group_app, appRows, tutorialTargets, tutorialTargetRequesters)
+                }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                SettingsHomeGroup(R.string.settings_group_reading, readingRows, tutorialTargets, tutorialTargetRequesters)
+                SettingsHomeGroup(R.string.settings_group_app, appRows, tutorialTargets, tutorialTargetRequesters)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsHomeGroup(
+    titleRes: Int,
+    rows: List<SettingsHomeRow>,
+    tutorialTargets: MutableMap<String, Rect>,
+    tutorialTargetRequesters: Map<String, BringIntoViewRequester>,
+) {
+    Text(
+        stringResource(titleRes),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
+    )
     Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
         rows.forEachIndexed { index, row ->
-            val rowModifier =
-                row.targetId?.let { targetId ->
-                    Modifier.captureTutorialTarget(
-                        targetId = targetId,
-                        targets = tutorialTargets,
-                        requester = tutorialTargetRequesters.getValue(targetId),
-                    )
-                } ?: Modifier
+            val rowModifier = row.targetId?.let { targetId ->
+                Modifier.captureTutorialTarget(
+                    targetId = targetId,
+                    targets = tutorialTargets,
+                    requester = tutorialTargetRequesters.getValue(targetId),
+                )
+            } ?: Modifier
             SettingsSegmentedNavRow(
                 index = index,
                 count = rows.size,
@@ -231,6 +257,7 @@ private data class SettingsHomeRow(
     val title: String,
     val subtitle: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val reading: Boolean = false,
     val targetId: String? = null,
     val onClick: () -> Unit,
 )
@@ -266,3 +293,5 @@ private fun ResetSettingsDialog(
         },
     )
 }
+
+private const val TWO_COLUMN_MAX_FONT_SCALE = 1.3f
