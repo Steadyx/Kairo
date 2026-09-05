@@ -87,8 +87,9 @@ fun BionicSettingsContent(
         onCommit = onFontSizeChange,
     )
 
-    var showAdvanced by rememberSaveable(collapseAdvanced) {
-        mutableStateOf(!collapseAdvanced)
+    val searchTarget = LocalSettingsSearchTarget.current
+    var showAdvanced by rememberSaveable(collapseAdvanced, searchTarget?.id) {
+        mutableStateOf(!collapseAdvanced || searchTarget?.advanced == true)
     }
     if (collapseAdvanced) {
         AdvancedSettingsToggle(

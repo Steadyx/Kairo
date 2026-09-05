@@ -89,7 +89,11 @@ internal fun RsvpProfileSelector(
             else -> stringResource(R.string.rsvp_profile_unsaved_tweaks)
         }
 
-    Text(stringResource(R.string.rsvp_profile_title), style = MaterialTheme.typography.titleMedium)
+    Text(
+        stringResource(R.string.rsvp_profile_title),
+        modifier = Modifier.settingsSearchTarget(stringResource(R.string.rsvp_profile_title)),
+        style = MaterialTheme.typography.titleMedium
+    )
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = !expanded },

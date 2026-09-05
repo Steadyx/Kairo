@@ -55,6 +55,16 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
                         dependencies.container.preferencesRepository.reset()
                     }
                 },
+                onOpenSearchResult = { entry ->
+                    val route = entry.page.route()
+                    if (route != null) {
+                        dependencies.navController.navigate("$route?setting=${entry.id}")
+                    } else if (entry.page == com.kairo.reader.ui.settings.SettingsSearchPage.UPDATES) {
+                        dependencies.onCheckForUpdates()
+                    } else if (entry.page == com.kairo.reader.ui.settings.SettingsSearchPage.TUTORIAL) {
+                        dependencies.onOpenStartingTutorial()
+                    }
+                },
                 onClose = { dependencies.navController.popBackStack() },
             ),
             tutorialState = dependencies.tutorialState,
@@ -67,15 +77,15 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
         )
     }
 
-    composable(KairoRoutes.SETTINGS_LANGUAGE) {
+    settingsSearchDestination(KairoRoutes.SETTINGS_LANGUAGE) {
         LanguageSettingsScreen(onBack = { dependencies.navController.popBackStack() })
     }
 
-    composable(KairoRoutes.SETTINGS_INFO) {
+    settingsSearchDestination(KairoRoutes.SETTINGS_INFO) {
         InfoSettingsScreen(onBack = { dependencies.navController.popBackStack() })
     }
 
-    composable(KairoRoutes.SETTINGS_RSVP) {
+    settingsSearchDestination(KairoRoutes.SETTINGS_RSVP) {
         val coroutineScope = rememberCoroutineScope()
         RsvpSettingsScreen(
             preferences = dependencies.prefs,
@@ -147,7 +157,7 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
         )
     }
 
-    composable(KairoRoutes.SETTINGS_READER) {
+    settingsSearchDestination(KairoRoutes.SETTINGS_READER) {
         val coroutineScope = rememberCoroutineScope()
         ReaderSettingsScreen(
             preferences = dependencies.prefs,
@@ -177,7 +187,7 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
         )
     }
 
-    composable(KairoRoutes.SETTINGS_BIONIC) {
+    settingsSearchDestination(KairoRoutes.SETTINGS_BIONIC) {
         val coroutineScope = rememberCoroutineScope()
         BionicSettingsScreen(
             preferences = dependencies.prefs.bionicReading,
@@ -208,7 +218,7 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
         )
     }
 
-    composable(KairoRoutes.SETTINGS_FOCUS) {
+    settingsSearchDestination(KairoRoutes.SETTINGS_FOCUS) {
         val coroutineScope = rememberCoroutineScope()
         FocusSettingsScreen(
             preferences = dependencies.prefs,

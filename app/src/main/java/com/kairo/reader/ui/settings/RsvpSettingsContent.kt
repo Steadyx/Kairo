@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,11 +61,14 @@ fun RsvpSettingsContent(
 
     RsvpEssentialSettingsContent(state, actions)
 
-    var showAdvanced by rememberSaveable { mutableStateOf(false) }
+    val searchTarget = LocalSettingsSearchTarget.current
+    var showAdvanced by rememberSaveable(searchTarget?.id) { mutableStateOf(searchTarget?.advanced == true) }
     AdvancedSettingsToggle(
         expanded = showAdvanced,
         onToggle = { showAdvanced = !showAdvanced },
     )
 
-    RsvpAdvancedSettingsContent(showAdvanced, state, actions)
+    CompositionLocalProvider(LocalAdvancedSettingsScope provides true) {
+        RsvpAdvancedSettingsContent(showAdvanced, state, actions)
+    }
 }
