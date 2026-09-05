@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_search_requires">Available when %1$s is enabled.</string>
+    <string name="settings_search_hint">Search settings</string>
+    <string name="settings_search_clear">Clear search</string>
+    <string name="settings_search_empty_title">No matching settings</string>
+    <string name="settings_search_empty_description">Try a setting name, a feature, or what you want to change.</string>
+    <string name="settings_search_font_size_description">Font size of the text shown while reading.</string>
+    <string name="settings_search_theme_description">Choose colours and a reading theme, including light and dark mode.</string>
+    <string name="settings_search_long_threshold_description">Word length at which the long-word minimum time applies.</string>
+    <string name="settings_search_syllables_description">Extra reading time for words with more syllables.</string>
+    <string name="settings_search_rarity_description">Extra reading time for less common words.</string>
+    <string name="settings_search_complexity_description">Adjust how strongly word difficulty affects reading time.</string>
+    <string name="settings_search_parentheticals_description">Adjust pacing for text inside parentheses.</string>
+    <string name="settings_search_dialogue_description">Adjust reading speed for dialogue.</string>
+    <string name="settings_search_vertical_description">Move the RSVP text higher or lower on the screen.</string>
+    <string name="settings_search_horizontal_description">Move the RSVP text horizontally on the screen.</string>
+    <string name="settings_search_profiles_description">Choose a reading profile, or save and manage your own timing presets.</string>
+    <string name="settings_search_font_description">Choose the typeface used for RSVP text.</string>
+    <string name="settings_search_weight_description">Choose how light or bold the RSVP text appears.</string>
+    <string name="settings_search_blink_description">Choose whether brief blank frames appear between words.</string>
+    <string name="settings_search_context_description">Show previous words, a clause, or a sentence ticker around the RSVP word.</string>
+    <string name="settings_search_punctuation_description">Adjust the pause at this punctuation or paragraph boundary.</string>
+    <string name="settings_search_language_description">Choose the language used for app menus and settings.</string>
+</resources>

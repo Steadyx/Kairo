@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_search_requires">启用%1$s后可用。</string>
+    <string name="settings_search_hint">搜索设置</string>
+    <string name="settings_search_clear">清除搜索</string>
+    <string name="settings_search_empty_title">没有匹配的设置</string>
+    <string name="settings_search_empty_description">尝试搜索设置名称、功能或想要更改的内容。</string>
+    <string name="settings_search_font_size_description">阅读时显示的文字大小。</string>
+    <string name="settings_search_theme_description">选择颜色以及浅色或深色阅读主题。</string>
+    <string name="settings_search_long_threshold_description">开始应用长词最短显示时间的单词长度。</string>
+    <string name="settings_search_syllables_description">为音节较多的单词增加阅读时间。</string>
+    <string name="settings_search_rarity_description">为不常见的单词增加阅读时间。</string>
+    <string name="settings_search_complexity_description">调整单词难度对阅读时间的影响程度。</string>
+    <string name="settings_search_parentheticals_description">调整括号内文字的阅读节奏。</string>
+    <string name="settings_search_dialogue_description">调整对话的阅读速度。</string>
+    <string name="settings_search_vertical_description">在屏幕上向上或向下移动RSVP文字。</string>
+    <string name="settings_search_horizontal_description">在屏幕上水平移动RSVP文字。</string>
+    <string name="settings_search_profiles_description">选择阅读配置，或保存和管理自己的计时预设。</string>
+    <string name="settings_search_font_description">选择RSVP文字的字体。</string>
+    <string name="settings_search_weight_description">选择RSVP文字的粗细。</string>
+    <string name="settings_search_blink_description">选择是否在单词之间显示短暂的空白帧。</string>
+    <string name="settings_search_context_description">在RSVP单词周围显示前面的单词、分句或滚动句子。</string>
+    <string name="settings_search_punctuation_description">调整此标点符号或段落边界处的停顿。</string>
+    <string name="settings_search_language_description">选择应用菜单和设置使用的语言。</string>
+</resources>
