@@ -35,8 +35,10 @@ internal fun RsvpPositionSaveEffect(context: RsvpUiContext) {
         context.frameState.isComplete,
         frames,
     ) {
-        syncRuntimePositionFromVisibleFrame(runtime, frames, book)
+        // A replacement frame list must align to the saved source position before it can
+        // update that position. Its old numeric frame index belongs to a different list.
         if (!positionSyncGate.shouldSync(context.frameState)) return@LaunchedEffect
+        syncRuntimePositionFromVisibleFrame(runtime, frames, book)
         val now = SystemClock.elapsedRealtime()
         val shouldSave =
             now - runtime.lastPositionSaveMs >= POSITION_SAVE_INTERVAL_MS ||
@@ -84,41 +86,11 @@ internal fun RsvpFrameAlignmentEffect(context: RsvpUiContext) {
 
     LaunchedEffect(frames, context.frameState.isLoading, context.frameState.isComplete) {
         if (!shouldSyncPositionFromFrameState(context.frameState)) return@LaunchedEffect
-        val visibleFrameIndex = runtime.frameIndex.coerceIn(0, frames.lastIndex)
-        val visibleTokenIndex =
-            resolveCurrentTokenIndex(
-                frames = frames,
-                frameIndex = visibleFrameIndex,
-                fallbackIndex = runtime.currentTokenIndex,
-            )
-        val visibleResumeCursor =
-            resolveCurrentResumeCursor(
-                frames = frames,
-                frameIndex = visibleFrameIndex,
-                fallbackCursor = runtime.currentResumeCursor,
-            )
-        val launchResumeCursor = book.startResumeCursor.takeIf { it >= 0 } ?: -1
-        val positionLooksStale =
-            runtime.frameIndex > 0 &&
-                runtime.currentTokenIndex == book.startIndex &&
-                runtime.currentResumeCursor == launchResumeCursor
-        val targetTokenIndex =
-            if (positionLooksStale) {
-                visibleTokenIndex
-            } else {
-                runtime.currentTokenIndex
-            }
-        val targetResumeCursor =
-            if (positionLooksStale) {
-                visibleResumeCursor
-            } else {
-                runtime.currentResumeCursor
-            }
         runtime.frameIndex =
             alignFrameIndex(
                 frames = frames,
-                tokenIndex = targetTokenIndex,
-                resumeCursor = targetResumeCursor,
+                tokenIndex = runtime.currentTokenIndex,
+                resumeCursor = runtime.currentResumeCursor,
                 frameIndexMap = context.frameState.frameIndexMap,
             )
         syncRuntimePositionFromVisibleFrame(runtime, frames, book)
