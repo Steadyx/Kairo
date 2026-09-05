@@ -48,6 +48,14 @@ Connected instrumentation tests remain required for changes to device behavior w
 ./gradlew connectedDebugAndroidTest
 ```
 
+Connected tests leave the app and test APKs installed by default. The project sets
+`android.injected.androidTest.leaveApksInstalledAfterRun=true` in `gradle.properties`
+to prevent Gradle's post-test uninstall from deleting your debug library and
+preferences. This does not prevent a test from explicitly clearing data; keep
+destructive tests on a disposable emulator and use isolated test databases and
+preferences. Do not override this setting or uninstall/clear the debug app during
+routine testing on a personal device.
+
 ## Keep local builds incremental
 
 Gradle's daemon, build cache, and incremental task outputs make repeated local
