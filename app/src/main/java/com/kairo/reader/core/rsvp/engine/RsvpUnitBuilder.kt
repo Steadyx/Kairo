@@ -5,7 +5,6 @@ import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.rsvp.analysis.isPhraseChunkCandidate
 import com.kairo.reader.core.rsvp.segmentation.visibleCodePointCount
-import com.kairo.reader.core.rsvp.text.isHardBoundaryPunctuation
 import com.kairo.reader.core.rsvp.text.isOpeningPunctuation
 import com.kairo.reader.core.rsvp.text.isQuoteChar
 
@@ -124,19 +123,14 @@ private class UnitCursor(private val expandedTokens: List<ExpandedToken>, privat
     }
 
     fun consumeTrailingPunctuation() {
-        var hitHardBoundary = false
         var scanning = true
         while (index < expandedTokens.size && scanning) {
             val token = expandedTokens[index].token
             val nextToken = expandedTokens.getOrNull(index + 1)?.token
             val isOpening = isOpeningPunctuation(token, state, nextToken)
-            scanning = token.type == TokenType.PUNCTUATION && shouldAttach(token, nextToken, isOpening, hitHardBoundary)
+            scanning = token.type == TokenType.PUNCTUATION && shouldAttach(token, nextToken, isOpening)
             if (scanning) {
-                val previousWord = unitTokens.lastOrNull { it.type == TokenType.WORD }
                 consume(token)
-                hitHardBoundary =
-                    hitHardBoundary ||
-                    isHardBoundaryPunctuation(token, previousWord, expandedTokens.getOrNull(index)?.token)
             }
         }
     }
@@ -145,7 +139,6 @@ private class UnitCursor(private val expandedTokens: List<ExpandedToken>, privat
         token: Token,
         nextToken: Token?,
         isOpening: Boolean,
-        hitHardBoundary: Boolean,
     ): Boolean {
         val character = token.text.firstOrNull()
         val isQuote = character?.let(::isQuoteChar) == true
@@ -154,7 +147,7 @@ private class UnitCursor(private val expandedTokens: List<ExpandedToken>, privat
             isQuote &&
                 nextToken?.type == TokenType.WORD &&
                 (isExplicitOpeningQuote || (character == '"' && isOpening))
-        return !quoteFollowedByWord && !(hitHardBoundary && isOpening) && !isOpening
+        return !quoteFollowedByWord && !isOpening
     }
 
     private fun consume(token: Token) {
