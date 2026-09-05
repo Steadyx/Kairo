@@ -2,14 +2,8 @@
 
 package com.kairo.reader.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
 import com.kairo.reader.core.model.ReaderTheme
 import com.kairo.reader.core.model.UserPreferences
@@ -23,19 +17,11 @@ fun ReaderSettingsScreen(
     onInvertedScrollChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
-    val scrollState = rememberScrollState()
-
     SettingsScaffold(
         title = stringResource(R.string.reader_settings_title),
         onBack = onBack,
     ) { modifier ->
-        Column(
-            modifier =
-            modifier
-                .verticalScroll(scrollState)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        SearchableSettingsContent(page = SettingsSearchPage.READER, modifier = modifier) {
             ReaderSettingsContent(
                 fontSizeSp = preferences.readerFontSizeSp,
                 readerTheme = preferences.readerTheme,
