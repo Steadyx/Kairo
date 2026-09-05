@@ -85,14 +85,12 @@ fun LibraryScreen(
     val compactLandscape = windowMetrics.isCompactLandscape(COMPACT_LANDSCAPE_MAX_HEIGHT_DP.dp)
     val navigationSuiteType =
         when {
-            compactLandscape -> NavigationSuiteType.ShortNavigationBarMedium
             windowMetrics.widthDp >= WIDE_NAVIGATION_MIN_WIDTH_DP.dp ->
                 NavigationSuiteType.WideNavigationRailCollapsed
             else -> NavigationSuiteType.ShortNavigationBarCompact
         }
     val horizontalImportActionVisible =
-        !importState.isImporting &&
-            navigationSuiteType == NavigationSuiteType.ShortNavigationBarCompact
+        !importState.isImporting && !compactLandscape
     var selectedTabName by rememberSaveable(initialTab) { mutableStateOf(initialTab.name) }
     val selectedTab =
         remember(selectedTabName) {

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
@@ -26,6 +27,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -95,32 +97,6 @@ internal fun LibraryExpressiveScaffold(
             )
         },
         navigationItemVerticalArrangement = Arrangement.Center,
-        primaryActionContent = {
-            if (selectedTab == LibraryTab.Books && importEnabled && !compactLandscape) {
-                ExtendedFloatingActionButton(
-                    onClick = onImport,
-                    modifier =
-                    Modifier.startingTutorialTarget(StartingTutorialTargetIds.LIBRARY_IMPORT) {
-                            targetId,
-                            bounds,
-                        ->
-                        tutorialTargets[targetId] = bounds
-                    },
-                    expanded =
-                    !compactLandscape &&
-                        navigationSuiteType != NavigationSuiteType.WideNavigationRailCollapsed,
-                    icon = {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = stringResource(R.string.library_import_button),
-                        )
-                    },
-                    text = { Text(stringResource(R.string.library_import_button)) },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-        },
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         val scaffoldModifier =
@@ -134,11 +110,46 @@ internal fun LibraryExpressiveScaffold(
         Scaffold(
             modifier = scaffoldModifier,
             containerColor = MaterialTheme.colorScheme.surface,
+            floatingActionButton = {
+                if (selectedTab == LibraryTab.Books && importEnabled && !compactLandscape) {
+                    ExtendedFloatingActionButton(
+                        onClick = onImport,
+                        modifier =
+                        Modifier.startingTutorialTarget(StartingTutorialTargetIds.LIBRARY_IMPORT) {
+                                targetId,
+                                bounds,
+                            ->
+                            tutorialTargets[targetId] = bounds
+                        },
+                        expanded =
+                        !compactLandscape &&
+                            navigationSuiteType != NavigationSuiteType.WideNavigationRailCollapsed,
+                        icon = {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = stringResource(R.string.library_import_button),
+                            )
+                        },
+                        text = { Text(stringResource(R.string.library_import_button)) },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            },
             topBar = {
                 if (compactLandscape) {
                     TopAppBar(
-                        title = { Text(stringResource(R.string.library_title)) },
-                        subtitle = { Text(stringResource(R.string.library_subtitle)) },
+                        title = {
+                            Text(
+                                stringResource(
+                                    when (selectedTab) {
+                                        LibraryTab.Books -> R.string.library_tab_books
+                                        LibraryTab.Saved -> R.string.saved_title
+                                        LibraryTab.Momentum -> R.string.library_tab_momentum
+                                    }
+                                )
+                            )
+                        },
                         actions = { LibraryHeaderActions(onSearch, onSettings, tutorialTargets) },
                         colors = libraryTopAppBarColors(),
                     )
@@ -163,7 +174,11 @@ internal fun LibraryExpressiveScaffold(
                         vertical = if (compactLandscape) 8.dp else 12.dp,
                     ),
             ) {
-                content()
+                Box(
+                    modifier = Modifier.widthIn(max = 1000.dp).fillMaxSize().align(Alignment.TopCenter),
+                ) {
+                    content()
+                }
             }
         }
     }
@@ -199,7 +214,9 @@ private fun LibraryNavigationItem(
                         LibraryTab.Saved -> R.string.library_tab_saved
                         LibraryTab.Momentum -> R.string.library_tab_momentum
                     }
-                )
+                ),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
         },
         modifier = modifier,

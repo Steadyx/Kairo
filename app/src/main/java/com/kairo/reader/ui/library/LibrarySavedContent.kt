@@ -14,8 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +54,7 @@ import com.kairo.reader.core.export.NoteExportScope
 import com.kairo.reader.core.model.BookmarkItem
 import com.kairo.reader.core.model.SavedAnnotationItem
 import com.kairo.reader.core.model.SavedAnnotationKind
+import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.saved.displayColor
 
 @Composable
@@ -67,6 +70,7 @@ internal fun LibrarySavedContent(
     onRequestNoteExport: (NoteExportScope) -> Unit,
     onClearBookmarksForBook: (com.kairo.reader.core.model.Book) -> Unit,
 ) {
+    val compactLandscape = rememberWindowContainerMetrics().isCompactLandscape(480.dp)
     val visibleAnnotations =
         when (filter) {
             SavedFilter.ALL -> annotations
@@ -75,94 +79,109 @@ internal fun LibrarySavedContent(
             SavedFilter.BOOKMARKS -> emptyList()
         }
     val visibleBookmarks = if (filter == SavedFilter.ALL || filter == SavedFilter.BOOKMARKS) bookmarks else emptyList()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.saved_title),
-            style = MaterialTheme.typography.titleLargeEmphasized,
-        )
-        Text(
-            text = stringResource(R.string.saved_subtitle),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        FilledTonalButton(
-            onClick = { onRequestNoteExport(NoteExportScope.All) },
-            modifier = Modifier.align(Alignment.End),
-            enabled = annotations.any { it.annotation.kind == SavedAnnotationKind.NOTE },
-        ) {
-            Icon(Icons.Default.Download, contentDescription = null)
-            Text(
-                text = stringResource(R.string.note_export_action),
-                modifier = Modifier.padding(start = 8.dp),
-            )
-        }
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            SavedFilter.entries.forEach { option ->
-                FilterChip(
-                    selected = filter == option,
-                    onClick = { onFilterChange(option) },
-                    label = { Text(stringResource(option.labelResource())) },
+    val groupedBookmarks = visibleBookmarks.groupBy { it.book.id.value }.values
+    LazyVerticalGrid(
+        columns = libraryGridCells(),
+        modifier = Modifier.fillMaxSize().testTag(LIBRARY_SAVED_LIST_TEST_TAG),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (!compactLandscape) {
+            item(key = "saved-header", span = { GridItemSpan(maxLineSpan) }) {
+                SavedContentHeader(
+                    exportEnabled = annotations.any { it.annotation.kind == SavedAnnotationKind.NOTE },
+                    onExport = { onRequestNoteExport(NoteExportScope.All) },
                 )
             }
         }
-        if (visibleAnnotations.isEmpty() && visibleBookmarks.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text =
-                        stringResource(
-                            if (bookmarks.isNotEmpty() || annotations.isNotEmpty()) {
-                                R.string.saved_filter_empty
-                            } else {
-                                R.string.saved_empty
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        item(key = "saved-filters", span = { GridItemSpan(maxLineSpan) }) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                SavedFilter.entries.forEach { option ->
+                    FilterChip(
+                        selected = filter == option,
+                        onClick = { onFilterChange(option) },
+                        label = { Text(stringResource(option.labelResource())) },
                     )
-                    if (bookmarks.isNotEmpty() || annotations.isNotEmpty()) {
-                        TextButton(onClick = { onFilterChange(SavedFilter.ALL) }) {
-                            Text(stringResource(R.string.action_clear_filter))
-                        }
+                }
+                if (compactLandscape) {
+                    TextButton(
+                        onClick = { onRequestNoteExport(NoteExportScope.All) },
+                        enabled = annotations.any { it.annotation.kind == SavedAnnotationKind.NOTE },
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Text(stringResource(R.string.note_export_action), modifier = Modifier.padding(start = 8.dp))
                     }
                 }
             }
-        } else {
-            val groupedBookmarks = visibleBookmarks.groupBy { it.book.id.value }.values
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(visibleAnnotations, key = { "annotation:${it.annotation.id}" }) { item ->
-                    SavedAnnotationRow(
-                        item,
-                        onOpenSaved,
-                        onDeleteAnnotation,
-                        onEditAnnotation,
-                        onRequestNoteExport,
-                    )
-                }
-                groupedBookmarks.forEach { group ->
-                    val first = group.first()
-                    item(key = "bookmark-header:${first.book.id.value}") {
-                        BookmarkBookHeader(
-                            book = first.book,
-                            bookmarkCount = group.size,
-                            onClearBookmarks = { onClearBookmarksForBook(first.book) },
-                        )
-                    }
-                    items(group, key = { "bookmark:${it.bookmark.id}" }) { item ->
-                        BookmarkRow(item, onOpenSaved, onDeleteBookmark)
-                    }
-                }
+        }
+        if (visibleAnnotations.isEmpty() && visibleBookmarks.isEmpty()) {
+            item(key = "saved-empty", span = { GridItemSpan(maxLineSpan) }) {
+                SavedEmptyContent(
+                    hasSavedItems = bookmarks.isNotEmpty() || annotations.isNotEmpty(),
+                    onClearFilter = { onFilterChange(SavedFilter.ALL) },
+                )
+            }
+        }
+        items(visibleAnnotations, key = { "annotation:${it.annotation.id}" }) { item ->
+            SavedAnnotationRow(item, onOpenSaved, onDeleteAnnotation, onEditAnnotation, onRequestNoteExport)
+        }
+        groupedBookmarks.forEach { group ->
+            val first = group.first()
+            item(key = "bookmark-header:${first.book.id.value}", span = { GridItemSpan(maxLineSpan) }) {
+                BookmarkBookHeader(
+                    book = first.book,
+                    bookmarkCount = group.size,
+                    onClearBookmarks = { onClearBookmarksForBook(first.book) },
+                )
+            }
+            items(group, key = { "bookmark:${it.bookmark.id}" }) { item ->
+                BookmarkRow(item, onOpenSaved, onDeleteBookmark)
             }
         }
     }
 }
+
+@Composable
+private fun SavedContentHeader(exportEnabled: Boolean, onExport: () -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.saved_title),
+            modifier = Modifier.align(Alignment.CenterVertically),
+            style = MaterialTheme.typography.titleLargeEmphasized,
+        )
+        FilledTonalButton(onClick = onExport, enabled = exportEnabled) {
+            Icon(Icons.Default.Download, contentDescription = null)
+            Text(stringResource(R.string.note_export_action), modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun SavedEmptyContent(hasSavedItems: Boolean, onClearFilter: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = stringResource(if (hasSavedItems) R.string.saved_filter_empty else R.string.saved_empty),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (hasSavedItems) {
+            TextButton(onClick = onClearFilter) { Text(stringResource(R.string.action_clear_filter)) }
+        }
+    }
+}
+
+internal const val LIBRARY_SAVED_LIST_TEST_TAG = "library_saved_list"
 
 @Composable
 private fun SavedAnnotationRow(

@@ -19,6 +19,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
@@ -55,7 +56,7 @@ class LibraryExpressiveScaffoldTest {
                 Box(modifier = Modifier.width(640.dp).height(320.dp)) {
                     LibraryExpressiveScaffold(
                         selectedTab = LibraryTab.Books,
-                        navigationSuiteType = NavigationSuiteType.ShortNavigationBarMedium,
+                        navigationSuiteType = NavigationSuiteType.WideNavigationRailCollapsed,
                         compactLandscape = true,
                         importEnabled = true,
                         tutorialTargets = tutorialTargets,
@@ -117,6 +118,7 @@ class LibraryExpressiveScaffoldTest {
             .assertCountEquals(0)
 
         val booksList = composeRule.onNodeWithTag(LIBRARY_BOOKS_LIST_TEST_TAG)
+        booksList.performScrollToKey("book-0")
         val firstBook = composeRule.onNodeWithText("Book 0").assertIsDisplayed()
         val firstBookInitialTop = firstBook.getUnclippedBoundsInRoot().top
         booksList.performTouchInput {
@@ -127,10 +129,10 @@ class LibraryExpressiveScaffoldTest {
             )
         }
         val firstBookMovedTop =
-            composeRule.onNodeWithText("Book 0").assertIsDisplayed().getUnclippedBoundsInRoot().top
+            composeRule.onNodeWithText("Book 0").getUnclippedBoundsInRoot().top
         assertTrue(firstBookMovedTop < firstBookInitialTop)
 
-        booksList.performScrollToIndex(23)
+        booksList.performScrollToKey("book-23")
         val lastBookAction =
             composeRule
                 .onNodeWithTag(libraryBookActionsTestTag("book-23"))

@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.Book
@@ -48,66 +50,77 @@ internal fun LibraryBooksContent(
             LibraryBookFilter.COMPLETED -> books.filter { it.isCompleted }
             LibraryBookFilter.ALL -> books
         }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (compactLandscape) {
-            CompactLibraryImportActions(isImporting, actions, tutorialTargets)
-        } else {
-            LibraryImportSources(isImporting, actions)
-        }
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            LibraryBookFilter.entries.forEach { option ->
-                FilterChip(
-                    selected = filter == option,
-                    onClick = { onFilterChange(option) },
-                    label = { Text(stringResource(option.labelResource())) },
-                )
+    LazyVerticalGrid(
+        columns = libraryGridCells(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().testTag(LIBRARY_BOOKS_LIST_TEST_TAG),
+        contentPadding = PaddingValues(
+            bottom = if (horizontalImportActionVisible) HORIZONTAL_IMPORT_ACTION_CLEARANCE else 0.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item(key = "import-sources", span = { GridItemSpan(maxLineSpan) }) {
+            if (compactLandscape) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    LibraryBookFilters(filter, onFilterChange)
+                    CompactLibraryImportActions(isImporting, actions, tutorialTargets)
+                }
+            } else {
+                LibraryImportSources(isImporting, actions)
             }
         }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().testTag(LIBRARY_BOOKS_LIST_TEST_TAG),
-            contentPadding =
-            PaddingValues(
-                bottom =
-                if (horizontalImportActionVisible) {
-                    HORIZONTAL_IMPORT_ACTION_CLEARANCE
-                } else {
-                    0.dp
-                },
-            ),
-            verticalArrangement = Arrangement.spacedBy(if (compactLandscape) 6.dp else 8.dp),
-        ) {
-            if (books.isNotEmpty() && visibleBooks.isEmpty()) {
-                item(key = "filtered-empty") {
-                    Box(
-                        modifier = Modifier.fillParentMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = stringResource(R.string.library_books_filter_empty),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            TextButton(onClick = { onFilterChange(LibraryBookFilter.ALL) }) {
-                                Text(stringResource(R.string.action_clear_filter))
-                            }
+        if (!compactLandscape) {
+            item(key = "book-filters", span = { GridItemSpan(maxLineSpan) }) {
+                LibraryBookFilters(filter, onFilterChange)
+            }
+        }
+        if (books.isNotEmpty() && visibleBooks.isEmpty()) {
+            item(key = "filtered-empty", span = { GridItemSpan(maxLineSpan) }) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = stringResource(R.string.library_books_filter_empty),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = { onFilterChange(LibraryBookFilter.ALL) }) {
+                            Text(stringResource(R.string.action_clear_filter))
                         }
                     }
                 }
             }
-            items(visibleBooks, key = { it.id.value }) { book ->
-                LibraryCard(
-                    book = book,
-                    progress = bookProgress[book.id.value],
-                    onOpen = actions.onOpen,
-                    onSetCompleted = actions.onSetCompleted,
-                    onRequestDelete = actions.onRequestDelete,
-                    compactLandscape = compactLandscape,
-                )
-            }
+        }
+        items(visibleBooks, key = { it.id.value }) { book ->
+            LibraryCard(
+                book = book,
+                progress = bookProgress[book.id.value],
+                onOpen = actions.onOpen,
+                onSetCompleted = actions.onSetCompleted,
+                onRequestDelete = actions.onRequestDelete,
+                compactLandscape = compactLandscape,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LibraryBookFilters(filter: LibraryBookFilter, onFilterChange: (LibraryBookFilter) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        LibraryBookFilter.entries.forEach { option ->
+            FilterChip(
+                selected = filter == option,
+                onClick = { onFilterChange(option) },
+                label = { Text(stringResource(option.labelResource())) },
+            )
         }
     }
 }
@@ -118,39 +131,29 @@ private fun CompactLibraryImportActions(
     actions: LibraryTabContentActions,
     tutorialTargets: MutableMap<String, Rect>,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = stringResource(R.string.library_add_content_title),
-            style = MaterialTheme.typography.titleSmallEmphasized,
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        ImportBookButton(
+            onClick = actions.onLaunchBookImport,
+            enabled = !isImporting,
+            compact = true,
+            modifier =
+            Modifier.startingTutorialTarget(StartingTutorialTargetIds.LIBRARY_IMPORT) {
+                    targetId,
+                    bounds,
+                ->
+                tutorialTargets[targetId] = bounds
+            },
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            ImportBookButton(
-                onClick = actions.onLaunchBookImport,
-                enabled = !isImporting,
-                compact = true,
-                modifier =
-                Modifier.startingTutorialTarget(StartingTutorialTargetIds.LIBRARY_IMPORT) {
-                        targetId,
-                        bounds,
-                    ->
-                    tutorialTargets[targetId] = bounds
-                },
-            )
-            ReadFromLinkButton(
-                onClick = actions.onShowReadLinkDialog,
-                enabled = !isImporting,
-                compact = true,
-            )
-            AddTextButton(
-                onClick = actions.onShowAddTextDialog,
-                enabled = !isImporting,
-                compact = true,
-            )
-        }
+        ReadFromLinkButton(
+            onClick = actions.onShowReadLinkDialog,
+            enabled = !isImporting,
+            compact = true,
+        )
+        AddTextButton(
+            onClick = actions.onShowAddTextDialog,
+            enabled = !isImporting,
+            compact = true,
+        )
     }
 }
 
