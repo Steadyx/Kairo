@@ -2,6 +2,7 @@ package com.kairo.reader.core.rsvp
 
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpFrame
+import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.splitTokenForRsvp
@@ -28,8 +29,7 @@ import com.kairo.reader.core.rsvp.engine.PhraseContour
 import com.kairo.reader.core.rsvp.engine.ProseState
 import com.kairo.reader.core.rsvp.engine.RhythmState
 import com.kairo.reader.core.rsvp.engine.SKIPPABLE_BOUNDARY_PUNCTUATION
-import com.kairo.reader.core.rsvp.engine.applyBlinkSeparation
-import com.kairo.reader.core.rsvp.engine.applySessionRamps
+import com.kairo.reader.core.rsvp.engine.applyPlaybackEffects
 import com.kairo.reader.core.rsvp.engine.buildUnit
 import com.kairo.reader.core.rsvp.engine.normalizedForPlayback
 import com.kairo.reader.core.rsvp.segmentation.RsvpAtomStream
@@ -149,7 +149,7 @@ private fun generateFramesWithNormalizedConfig(
             },
             analysis = analyzeExpandedTokens(expanded, config),
             frames = mutableListOf(),
-            state = ContextState(),
+            state = createContextState(tokens, expanded[cursor].originalIndex),
             rhythm = createRhythmState(config),
             flow = createFlowState(),
             prose = createProseState(expanded, cursor, config),
@@ -160,8 +160,7 @@ private fun generateFramesWithNormalizedConfig(
         nextCursor = context.appendNextFrame(nextCursor) ?: break
     }
 
-    applySessionRamps(context.frames, config)
-    applyBlinkSeparation(context.frames, config)
+    applyPlaybackEffects(context.frames, config)
     return context.frames
 }
 
@@ -189,7 +188,13 @@ private fun buildExpandedTokens(
                     }
                 val sourceEnd =
                     (sourceStart + splitToken.text.length).coerceIn(sourceStart, token.text.length)
-                sourceCursor = sourceEnd
+                val highlightEnd = splitToken.highlightEndExclusive
+                if (!splitToken.isSubwordChunk ||
+                    highlightEnd == null ||
+                    highlightEnd >= splitToken.text.trimEnd('-').length
+                ) {
+                    sourceCursor = sourceEnd
+                }
                 ExpandedToken(
                     token = splitToken,
                     originalIndex = analysisStartIndex + index,
@@ -245,6 +250,13 @@ private fun shouldIncludePreviousOpeningPunctuation(
     val ch = prevToken.text.firstOrNull() ?: return false
     return prevToken.type == TokenType.PUNCTUATION &&
         (ch == '"' || ch in OPENING_PUNCTUATION || isCurrencyPrefix)
+}
+
+private fun createContextState(
+    tokens: List<Token>,
+    endExclusive: Int,
+): ContextState = ContextState().also { state ->
+    for (index in 0 until endExclusive) state.consume(tokens[index])
 }
 
 private fun createRhythmState(config: RsvpConfig): RhythmState =
@@ -325,7 +337,7 @@ private fun RsvpGenerationContext.appendBreakFrame(cursor: Int): Int? {
             tokens = listOf(breakMarkerToken(cursorToken.type)),
             durationMs = breakFrameDurationMs(cursorToken, config),
             originalTokenIndex = expanded[cursor].originalIndex,
-            resumeCursor = expanded[cursor].expandedIndex,
+            resumeCursor = RsvpResumeCursor.fromCharacterOffset(0),
             nextOriginalTokenIndex = expanded[nextWordCursor].originalIndex,
             displayOriginalStartIndex = expanded[cursor].originalIndex,
             displayOriginalEndExclusive = expanded[cursor].originalIndex + 1,
@@ -428,7 +440,11 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
             tokens = frameTokens,
             durationMs = durationMs,
             originalTokenIndex = frameOriginalIndex,
-            resumeCursor = expanded[frameStartCursor].expandedIndex,
+            resumeCursor =
+            RsvpResumeCursor.fromCharacterOffset(
+                expanded[wordCursor].sourceCharacterStart +
+                    (expanded[wordCursor].token.highlightStart ?: 0),
+            ),
             nextOriginalTokenIndex = nextOriginalTokenIndex(nextCursor),
             displayOriginalStartIndex = expanded[frameStartCursor].originalIndex,
             displayOriginalEndExclusive =

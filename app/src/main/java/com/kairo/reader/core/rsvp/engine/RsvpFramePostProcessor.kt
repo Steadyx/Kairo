@@ -17,10 +17,13 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToLong
 
-internal fun applySessionRamps(
+internal fun applyPlaybackEffects(
     frames: MutableList<RsvpFrame>,
     config: RsvpConfig,
-) = RsvpSessionTimingPolicy.applyInitialSessionRamps(frames = frames, config = config)
+) {
+    RsvpSessionTimingPolicy.applyInitialSessionRamps(frames = frames, config = config)
+    applyBlinkSeparation(frames, config)
+}
 
 internal fun applyBlinkSeparation(
     frames: MutableList<RsvpFrame>,
