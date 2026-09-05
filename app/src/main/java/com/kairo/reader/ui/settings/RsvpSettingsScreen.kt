@@ -2,14 +2,8 @@
 
 package com.kairo.reader.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kairo.reader.R
@@ -81,10 +75,7 @@ internal fun RsvpSettingsPage(
 ) {
     com.kairo.reader.ui.theme.KairoTheme(readerTheme = readerTheme) {
         SettingsScaffold(title = stringResource(R.string.rsvp_settings_title), onBack = onBack) { modifier ->
-            Column(
-                modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            SearchableSettingsContent(page = SettingsSearchPage.RSVP, modifier = modifier) {
                 RsvpSettingsContent(state = state, actions = actions)
             }
         }

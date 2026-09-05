@@ -2,6 +2,7 @@ package com.kairo.reader.core.rsvp
 
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpFrame
+import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.rsvp.engine.ExpandedToken
@@ -176,13 +177,13 @@ class RsvpScoredSegmentationTest {
         val resumed = engine.generateFrames(tokens, 1, stableConfig, scoredOptions)
 
         assertEquals(listOf("in", "the", ","), frames.first().tokens.map(Token::text))
-        assertEquals(0, frames.first().resumeCursor)
+        assertEquals(0, RsvpResumeCursor.characterOffset(frames.first().resumeCursor))
         assertEquals(0, frames.first().displayOriginalStartIndex)
         assertEquals(3, frames.first().displayOriginalEndExclusive)
         assertEquals(3, frames.first().nextOriginalTokenIndex)
         assertEquals(listOf("the", ","), resumed.first().tokens.map(Token::text))
         assertEquals(1, resumed.first().originalTokenIndex)
-        assertEquals(1, resumed.first().resumeCursor)
+        assertEquals(0, RsvpResumeCursor.characterOffset(resumed.first().resumeCursor))
         assertEquals(3, resumed.first().nextOriginalTokenIndex)
     }
 

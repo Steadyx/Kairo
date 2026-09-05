@@ -31,7 +31,11 @@ internal fun BlinkModeSelector(
     val options = listOf(BlinkMode.OFF, BlinkMode.SUBTLE, BlinkMode.ADAPTIVE)
     val subtitle = stringResource(blinkModeDescriptionRes(selected))
 
-    Text(stringResource(R.string.blink_mode_title), style = MaterialTheme.typography.bodyLarge)
+    Text(
+        stringResource(R.string.blink_mode_title),
+        modifier = Modifier.settingsSearchTarget(stringResource(R.string.blink_mode_title)),
+        style = MaterialTheme.typography.bodyLarge
+    )
     Text(
         subtitle,
         style = MaterialTheme.typography.bodySmall,
@@ -85,6 +89,7 @@ internal fun ContextAssistModeSelector(
 ) {
     Text(
         stringResource(R.string.rsvp_context_assist_title),
+        modifier = Modifier.settingsSearchTarget(stringResource(R.string.rsvp_context_assist_title)),
         style = MaterialTheme.typography.bodyLarge,
     )
     Text(

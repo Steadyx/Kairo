@@ -111,7 +111,7 @@ internal fun SettingsCard(
     Surface(
         shape = MaterialTheme.shapes.largeIncreased,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.settingsSearchTarget(title).fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
@@ -190,7 +190,8 @@ internal fun ExpandableSettingsSection(
     defaultExpanded: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    var expanded by rememberSaveable(title) { mutableStateOf(defaultExpanded) }
+    val searchExpanded = searchExpandsSection(title)
+    var expanded by rememberSaveable(title, searchExpanded) { mutableStateOf(defaultExpanded || searchExpanded) }
     val rotation by
         animateFloatAsState(
             targetValue = if (expanded) EXPANDED_ROTATION_DEGREES else 0f,
@@ -204,7 +205,7 @@ internal fun ExpandableSettingsSection(
     Surface(
         shape = MaterialTheme.shapes.largeIncreased,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.settingsSearchTarget(title).fillMaxWidth(),
     ) {
         Column(
             modifier =

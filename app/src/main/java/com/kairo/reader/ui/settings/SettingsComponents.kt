@@ -141,7 +141,7 @@ fun SettingsNavRow(
     when (presentation) {
         SettingsNavRowPresentation.COMPACT ->
             CompactSettingsNavRow(
-                modifier = modifier,
+                modifier = modifier.settingsSearchTarget(title),
                 title = title,
                 subtitle = subtitle,
                 icon = icon,
@@ -151,7 +151,7 @@ fun SettingsNavRow(
 
         SettingsNavRowPresentation.PROMINENT ->
             ProminentSettingsNavRow(
-                modifier = modifier,
+                modifier = modifier.settingsSearchTarget(title),
                 title = title,
                 subtitle = subtitle,
                 icon = icon,
@@ -323,7 +323,7 @@ fun SettingsSwitchRow(
 ) {
     Row(
         modifier =
-        Modifier
+        Modifier.settingsSearchTarget(title)
             .fillMaxWidth()
             .toggleable(
                 value = checked,
@@ -359,7 +359,7 @@ fun SettingsSliderRow(
     onValueChangeFinished: (() -> Unit)? = null,
     steps: Int = 0,
 ) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+    Column(modifier = Modifier.settingsSearchTarget(title).padding(vertical = 8.dp)) {
         Text(title, style = MaterialTheme.typography.bodyLarge)
         if (subtitle != null) {
             Text(
@@ -390,7 +390,7 @@ fun ThemeSelector(
     selected: ReaderTheme,
     onThemeChange: (ReaderTheme) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+    Column(modifier = Modifier.settingsSearchTarget(stringResource(R.string.reader_theme_title)).padding(vertical = 8.dp)) {
         Text(stringResource(R.string.reader_theme_title), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
 

@@ -6,8 +6,8 @@ data class RsvpFrame(
     // Index into the original (non-expanded) token list for position tracking
     // Used when syncing RSVP position back to the reader view
     val originalTokenIndex: Int = 0,
-    // Cursor into the expanded RSVP token stream for exact frame/chunk resume
-    val resumeCursor: Int = originalTokenIndex,
+    // Tagged source-character offset, paired with originalTokenIndex for stable chunk resume.
+    val resumeCursor: Int = RsvpResumeCursor.fromCharacterOffset(0),
     // First original token index after this frame's consumed reading unit.
     val nextOriginalTokenIndex: Int = originalTokenIndex + 1,
     // Original-token range represented visually by this frame. The start can precede

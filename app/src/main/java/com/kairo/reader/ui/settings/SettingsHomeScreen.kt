@@ -2,6 +2,7 @@
 
 package com.kairo.reader.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -59,6 +61,7 @@ data class SettingsHomeActions(
     val onOpenStartingTutorial: () -> Unit,
     val onReset: () -> Unit,
     val onClose: () -> Unit,
+    val onOpenSearchResult: ((SettingsSearchEntry) -> Unit)? = null,
 )
 
 data class SettingsTutorialActions(val onNext: () -> Unit = {}, val onPrevious: () -> Unit = {}, val onSkip: () -> Unit = {},)
@@ -69,6 +72,8 @@ fun SettingsHomeScreen(
     tutorialState: StartingTutorialOverlayState? = null,
     tutorialActions: SettingsTutorialActions = SettingsTutorialActions(),
 ) {
+    var query by rememberSaveable { mutableStateOf("") }
+    BackHandler(query.isNotEmpty() && tutorialState == null) { query = "" }
     val context = LocalContext.current
     val languageLabel = resolveLanguageLabel(context, getAppLanguageTag())
     val tutorialTargets = remember { mutableStateMapOf<String, Rect>() }
@@ -98,13 +103,28 @@ fun SettingsHomeScreen(
             onBack = actions.onClose,
             maxContentWidth = 1040.dp,
         ) { modifier ->
-            Column(
-                modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-            ) {
-                SettingsHomeRows(actions, languageLabel, tutorialTargets, tutorialTargetRequesters)
-                TextButton(onClick = { showResetConfirmation = true }) {
-                    Text(stringResource(R.string.settings_reset_defaults))
+            Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (tutorialState == null) {
+                    SettingsSearchField(query, onQueryChange = { query = it })
+                }
+                if (query.isNotBlank() && tutorialState == null) {
+                    SettingsSearchResults(query) { entry ->
+                        if (entry.page == SettingsSearchPage.RESET) {
+                            showResetConfirmation = true
+                        } else {
+                            actions.openSearchResult(entry)
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        SettingsHomeRows(actions, languageLabel, tutorialTargets, tutorialTargetRequesters)
+                        TextButton(onClick = { showResetConfirmation = true }) {
+                            Text(stringResource(R.string.settings_reset_defaults))
+                        }
+                    }
                 }
             }
         }

@@ -156,7 +156,12 @@ class RsvpPhaseTwoSegmentationTest {
         assertFalse(frames.any { frame -> frame.words().containsAll(listOf("York", "City")) })
         assertFalse(frames.any { frame -> frame.words().containsAll(listOf("12", "50")) })
         assertEquals(listOf("(", "New", "York", ")"), frames.first().tokens.map(Token::text))
-        assertTrue(frames.zipWithNext().all { (left, right) -> left.resumeCursor < right.resumeCursor })
+        assertTrue(
+            frames.zipWithNext().all { (left, right) ->
+                left.originalTokenIndex < right.originalTokenIndex ||
+                    (left.originalTokenIndex == right.originalTokenIndex && left.resumeCursor < right.resumeCursor)
+            }
+        )
         assertTrue(
             frames.all { frame ->
                 frame.displayOriginalStartIndex < frame.displayOriginalEndExclusive
@@ -195,7 +200,12 @@ class RsvpPhaseTwoSegmentationTest {
                 "Expected a conservative scored pair for ${fixture.languageTag}",
                 frames.any { frame -> frame.words().size == 2 },
             )
-            assertTrue(frames.zipWithNext().all { (left, right) -> left.resumeCursor < right.resumeCursor })
+            assertTrue(
+                frames.zipWithNext().all { (left, right) ->
+                    left.originalTokenIndex < right.originalTokenIndex ||
+                        (left.originalTokenIndex == right.originalTokenIndex && left.resumeCursor < right.resumeCursor)
+                }
+            )
 
             val decision =
                 RsvpDpSegmenter.selectWordCount(

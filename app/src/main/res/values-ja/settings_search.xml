@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_search_requires">%1$sを有効にすると利用できます。</string>
+    <string name="settings_search_hint">設定を検索</string>
+    <string name="settings_search_clear">検索をクリア</string>
+    <string name="settings_search_empty_title">一致する設定がありません</string>
+    <string name="settings_search_empty_description">設定名、機能、変更したい内容で検索してください。</string>
+    <string name="settings_search_font_size_description">読書中に表示する文字の大きさ。</string>
+    <string name="settings_search_theme_description">色と、明るいまたは暗い読書テーマを選びます。</string>
+    <string name="settings_search_long_threshold_description">長い単語の最小表示時間を適用する文字数。</string>
+    <string name="settings_search_syllables_description">音節の多い単語に追加する読書時間。</string>
+    <string name="settings_search_rarity_description">出現頻度の低い単語に追加する読書時間。</string>
+    <string name="settings_search_complexity_description">単語の難しさが読書時間に与える影響を調整します。</string>
+    <string name="settings_search_parentheticals_description">括弧内のテキストのペースを調整します。</string>
+    <string name="settings_search_dialogue_description">会話文の読書速度を調整します。</string>
+    <string name="settings_search_vertical_description">画面上のRSVPテキストを上下に移動します。</string>
+    <string name="settings_search_horizontal_description">画面上のRSVPテキストを左右に移動します。</string>
+    <string name="settings_search_profiles_description">読書プロファイルを選択するか、独自の表示時間設定を保存・管理します。</string>
+    <string name="settings_search_font_description">RSVPテキストの書体を選びます。</string>
+    <string name="settings_search_weight_description">RSVPテキストの太さを選びます。</string>
+    <string name="settings_search_blink_description">単語間に短い空白フレームを表示するか選びます。</string>
+    <string name="settings_search_context_description">RSVPの単語の周囲に、前の単語、節、またはスクロールする文を表示します。</string>
+    <string name="settings_search_punctuation_description">この句読点または段落の区切りでの間を調整します。</string>
+    <string name="settings_search_language_description">アプリのメニューと設定に使用する言語を選びます。</string>
+</resources>

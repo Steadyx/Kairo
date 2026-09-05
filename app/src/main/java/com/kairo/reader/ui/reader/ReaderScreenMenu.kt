@@ -43,7 +43,9 @@ import com.kairo.reader.R
 import com.kairo.reader.core.model.ReaderTheme
 import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.settings.ReaderSettingsContent
+import com.kairo.reader.ui.settings.SearchableSettingsContent
 import com.kairo.reader.ui.settings.SettingsNavRow
+import com.kairo.reader.ui.settings.SettingsSearchPage
 import com.kairo.reader.ui.settings.SettingsSwitchRow
 
 internal data class ReaderMenuState(
@@ -117,7 +119,7 @@ internal fun ReaderMenuOverlay(
                 }
                 Column(
                     modifier = Modifier.weight(1f, fill = false)
-                        .verticalScroll(scrollState)
+                        .then(if (showReaderSettings) Modifier else Modifier.verticalScroll(scrollState))
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -189,15 +191,17 @@ private fun ReaderMenuContent(
             onClick = { onShowReaderSettingsChange(false) },
         )
         Text(stringResource(R.string.reader_settings_title), style = MaterialTheme.typography.titleMedium)
-        ReaderSettingsContent(
-            fontSizeSp = state.fontSizeSp,
-            readerTheme = state.readerTheme,
-            textBrightness = state.textBrightness,
-            invertedScroll = state.invertedScroll,
-            onFontSizeChange = actions.onFontSizeChange,
-            onThemeChange = actions.onThemeChange,
-            onTextBrightnessChange = actions.onTextBrightnessChange,
-            onInvertedScrollChange = actions.onInvertedScrollChange,
-        )
+        SearchableSettingsContent(page = SettingsSearchPage.READER, contentPadding = 0.dp) {
+            ReaderSettingsContent(
+                fontSizeSp = state.fontSizeSp,
+                readerTheme = state.readerTheme,
+                textBrightness = state.textBrightness,
+                invertedScroll = state.invertedScroll,
+                onFontSizeChange = actions.onFontSizeChange,
+                onThemeChange = actions.onThemeChange,
+                onTextBrightnessChange = actions.onTextBrightnessChange,
+                onInvertedScrollChange = actions.onInvertedScrollChange,
+            )
+        }
     }
 }

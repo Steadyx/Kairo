@@ -4,6 +4,7 @@ import com.kairo.reader.core.dispatchers.DispatcherProvider
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpFrame
+import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.rsvp.ComprehensionRsvpEngine
@@ -89,7 +90,7 @@ class RsvpFrameRepositoryImplTest {
     }
 
     @Test
-    fun getFramesReusesSegmentCacheForNearbyStartIndexes() = runTest {
+    fun getFramesReusesChapterCacheForNearbyStartIndexes() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val engine = CountingEngine()
         val repository =
@@ -215,7 +216,7 @@ class RsvpFrameRepositoryImplTest {
     }
 
     @Test
-    fun getFramesFallsBackToExactGenerationWhenSegmentStartsBeforeRequestedToken() = runTest {
+    fun getFramesFallsBackToExactGenerationWhenPhraseStartsBeforeRequestedToken() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val engine = PhraseLikeEngine()
         val repository =
@@ -255,7 +256,7 @@ class RsvpFrameRepositoryImplTest {
     }
 
     @Test
-    fun getPreviewFramesUsesContextWindowAndShiftsOriginalIndexes() = runTest {
+    fun getPreviewFramesKeepsOriginalCoordinatesAndSourceCursors() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val engine = CountingEngine()
         val repository =
@@ -288,7 +289,7 @@ class RsvpFrameRepositoryImplTest {
         assertEquals(3, frames.size)
         assertEquals(4, frames.first().originalTokenIndex)
         assertEquals(7, frames.last().nextOriginalTokenIndex)
-        assertTrue(frames.all { it.resumeCursor == -1 })
+        assertTrue(frames.all { RsvpResumeCursor.characterOffset(it.resumeCursor) == 0 })
         assertEquals(listOf("w4", "w5", "w6"), frames.flatMap { it.tokens }.map(Token::text))
     }
 
@@ -427,7 +428,7 @@ class RsvpFrameRepositoryImplTest {
                 tokens = visibleTokens,
                 startIndex = 0,
                 config = config,
-            ).map { frame -> frame.copy(resumeCursor = -1) }
+            )
         var preview: RsvpFrameSet? = null
 
         val request =

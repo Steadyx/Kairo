@@ -2,7 +2,6 @@
 
 package com.kairo.reader.core.tokenization
 
-import com.kairo.reader.core.linguistics.DialogueAnalyzer
 import com.kairo.reader.core.linguistics.WordAnalyzer
 import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.Token
@@ -35,7 +34,6 @@ class Tokenizer {
 
         // Reset dialogue state for each chapter
         inDialogue = false
-        DialogueAnalyzer.reset()
 
         val paragraphs =
             withPageBreaks

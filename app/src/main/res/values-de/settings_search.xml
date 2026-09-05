@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_search_requires">Verfügbar, wenn %1$s aktiviert ist.</string>
+    <string name="settings_search_hint">Einstellungen durchsuchen</string>
+    <string name="settings_search_clear">Suche löschen</string>
+    <string name="settings_search_empty_title">Keine passenden Einstellungen</string>
+    <string name="settings_search_empty_description">Suche nach einer Einstellung, einer Funktion oder einer gewünschten Änderung.</string>
+    <string name="settings_search_font_size_description">Größe des beim Lesen angezeigten Textes.</string>
+    <string name="settings_search_theme_description">Farben und ein helles oder dunkles Lesedesign auswählen.</string>
+    <string name="settings_search_long_threshold_description">Wortlänge, ab der die Mindestzeit für lange Wörter gilt.</string>
+    <string name="settings_search_syllables_description">Zusätzliche Lesezeit für Wörter mit mehr Silben.</string>
+    <string name="settings_search_rarity_description">Zusätzliche Lesezeit für seltenere Wörter.</string>
+    <string name="settings_search_complexity_description">Festlegen, wie stark die Wortschwierigkeit die Lesezeit beeinflusst.</string>
+    <string name="settings_search_parentheticals_description">Das Tempo für Text in Klammern anpassen.</string>
+    <string name="settings_search_dialogue_description">Die Lesegeschwindigkeit für Dialoge anpassen.</string>
+    <string name="settings_search_vertical_description">Den RSVP-Text auf dem Bildschirm nach oben oder unten verschieben.</string>
+    <string name="settings_search_horizontal_description">Den RSVP-Text auf dem Bildschirm horizontal verschieben.</string>
+    <string name="settings_search_profiles_description">Ein Leseprofil auswählen oder eigene Zeitvorgaben speichern und verwalten.</string>
+    <string name="settings_search_font_description">Die Schriftart für RSVP-Text auswählen.</string>
+    <string name="settings_search_weight_description">Festlegen, wie dünn oder fett der RSVP-Text erscheint.</string>
+    <string name="settings_search_blink_description">Festlegen, ob zwischen Wörtern kurz leere Bilder erscheinen.</string>
+    <string name="settings_search_context_description">Vorherige Wörter, einen Teilsatz oder ein Satzlaufband um das RSVP-Wort anzeigen.</string>
+    <string name="settings_search_punctuation_description">Die Pause an diesem Satzzeichen oder Absatzübergang anpassen.</string>
+    <string name="settings_search_language_description">Die Sprache für App-Menüs und Einstellungen auswählen.</string>
+</resources>

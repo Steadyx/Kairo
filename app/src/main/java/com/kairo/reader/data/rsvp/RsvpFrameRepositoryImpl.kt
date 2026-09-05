@@ -1,6 +1,7 @@
 package com.kairo.reader.data.rsvp
 
 import com.kairo.reader.core.dispatchers.DispatcherProvider
+import com.kairo.reader.core.model.BlinkMode
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpFrame
@@ -8,9 +9,9 @@ import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.rsvp.RsvpEngine
 import com.kairo.reader.core.rsvp.RsvpGenerationOptions
+import com.kairo.reader.core.rsvp.engine.applyPlaybackEffects
 import com.kairo.reader.core.rsvp.engine.frameTimingKey
-import com.kairo.reader.core.rsvp.resolveAnalysisStartIndex
-import com.kairo.reader.core.rsvp.timing.RsvpSessionTimingPolicy
+import com.kairo.reader.core.rsvp.engine.normalizedForPlayback
 import com.kairo.reader.core.rsvp.usesScoredSegmentation
 import com.kairo.reader.data.token.TokenRepository
 import kotlinx.coroutines.CompletableDeferred
@@ -29,7 +30,7 @@ class RsvpFrameRepositoryImpl(
     dispatcherProvider: DispatcherProvider,
 ) : RsvpFrameRepository {
     private enum class CacheMode {
-        SEGMENT_BASE,
+        CHAPTER_BASE,
         EXACT_PLAYBACK,
     }
 
@@ -84,16 +85,16 @@ class RsvpFrameRepositoryImpl(
         options: RsvpGenerationOptions,
     ): RsvpFrameSet {
         val safeStartIndex = startIndex.coerceAtLeast(0)
-        val segmentStartIndex = safeStartIndex.segmentStartIndex()
-        val baseConfig = config.withoutSessionRamps()
+        val chapterStartIndex = 0
+        val baseConfig = config.normalizedForPlayback().withoutPlaybackEffects()
         val generation = currentGeneration(bookId)
         val baseKey =
             CacheKey(
                 bookId.value,
                 chapterIndex,
                 baseConfig.frameTimingKey(),
-                segmentStartIndex,
-                CacheMode.SEGMENT_BASE,
+                chapterStartIndex,
+                CacheMode.CHAPTER_BASE,
                 options,
                 generation,
             )
@@ -103,7 +104,7 @@ class RsvpFrameRepositoryImpl(
                 bookId = bookId,
                 chapterIndex = chapterIndex,
                 config = baseConfig,
-                startIndex = segmentStartIndex,
+                startIndex = chapterStartIndex,
                 options = options,
             ).await()
         val playbackFrameSet = baseFrameSet.asPlaybackFrameSet(safeStartIndex, config)
@@ -151,17 +152,16 @@ class RsvpFrameRepositoryImpl(
         startIndex: Int,
         options: RsvpGenerationOptions,
     ) {
-        val safeStartIndex = startIndex.coerceAtLeast(0)
-        val segmentStartIndex = safeStartIndex.segmentStartIndex()
-        val baseConfig = config.withoutSessionRamps()
+        val chapterStartIndex = 0
+        val baseConfig = config.normalizedForPlayback().withoutPlaybackEffects()
         val generation = currentGeneration(bookId)
         val key =
             CacheKey(
                 bookId.value,
                 chapterIndex,
                 baseConfig.frameTimingKey(),
-                segmentStartIndex,
-                CacheMode.SEGMENT_BASE,
+                chapterStartIndex,
+                CacheMode.CHAPTER_BASE,
                 options,
                 generation,
             )
@@ -174,7 +174,7 @@ class RsvpFrameRepositoryImpl(
                     bookId,
                     chapterIndex,
                     baseConfig,
-                    segmentStartIndex,
+                    chapterStartIndex,
                     options,
                 )
             }
@@ -222,20 +222,18 @@ class RsvpFrameRepositoryImpl(
             } else {
                 visibleEndExclusive
             }
-        val contextStartIndex = resolveAnalysisStartIndex(tokens, safeStartIndex)
-        val previewTokens = tokens.subList(contextStartIndex, endExclusive)
-        val relativeStartIndex = safeStartIndex - contextStartIndex
+        // Keep the source prefix available for bracket/quote state reconstruction.
+        val previewTokens = tokens.subList(0, endExclusive)
         val frames =
             withContext(previewDispatcher) {
                 engine.generateFrames(
                     tokens = previewTokens,
-                    startIndex = relativeStartIndex,
+                    startIndex = safeStartIndex,
                     config = config,
                     options = options,
                 )
             }.map { frame ->
                 frame.asPreviewFrame(
-                    originalIndexOffset = contextStartIndex,
                     tokenCount = tokens.size,
                     visibleEndExclusive =
                     visibleEndExclusive.takeIf { useScoredSegmentation },
@@ -289,7 +287,12 @@ class RsvpFrameRepositoryImpl(
                 }
             val frameSet = RsvpFrameSet(frames = frames, baseTempoMs = config.tempoMsPerWord)
             synchronized(cacheLock) {
-                if (generationOfLocked(bookId.value) == key.generation) cache[key] = frameSet
+                // Exact phrase starts are transient: retain only one chapter backing set.
+                if (key.mode == CacheMode.CHAPTER_BASE &&
+                    generationOfLocked(bookId.value) == key.generation
+                ) {
+                    cache[key] = frameSet
+                }
             }
             frameSet
         } finally {
@@ -311,39 +314,30 @@ class RsvpFrameRepositoryImpl(
                 frameCount = frames.size,
             )
         val playbackFrames = frames.subList(frameIndex, frames.size).toMutableList()
-        RsvpSessionTimingPolicy.applyInitialSessionRamps(playbackFrames, config)
+        applyPlaybackEffects(playbackFrames, config.normalizedForPlayback())
         return RsvpFrameSet(frames = playbackFrames, baseTempoMs = config.tempoMsPerWord)
     }
 
     private fun RsvpFrameSet.startsBefore(startIndex: Int): Boolean =
         startIndex > 0 && frames.firstOrNull()?.originalTokenIndex?.let { it < startIndex } == true
 
-    private fun RsvpConfig.withoutSessionRamps(): RsvpConfig =
+    private fun RsvpConfig.withoutPlaybackEffects(): RsvpConfig =
         copy(
             startDelayMs = 0L,
             endDelayMs = 0L,
             rampUpFrames = 0,
             rampDownFrames = 0,
+            blinkMode = BlinkMode.OFF,
         )
 
-    private fun Int.segmentStartIndex(): Int =
-        (this / FRAME_CACHE_SEGMENT_TOKENS) * FRAME_CACHE_SEGMENT_TOKENS
-
     private fun RsvpFrame.asPreviewFrame(
-        originalIndexOffset: Int,
         tokenCount: Int,
         visibleEndExclusive: Int? = null,
     ): RsvpFrame =
         copy(
-            originalTokenIndex = (originalTokenIndex + originalIndexOffset).coerceIn(0, tokenCount),
             nextOriginalTokenIndex =
-            (nextOriginalTokenIndex + originalIndexOffset)
+            nextOriginalTokenIndex
                 .coerceIn(0, minOf(tokenCount, visibleEndExclusive ?: tokenCount)),
-            displayOriginalStartIndex =
-            (displayOriginalStartIndex + originalIndexOffset).coerceIn(0, tokenCount),
-            displayOriginalEndExclusive =
-            (displayOriginalEndExclusive + originalIndexOffset).coerceIn(0, tokenCount),
-            resumeCursor = -1,
         )
 
     override fun clearCache() {
@@ -386,7 +380,6 @@ class RsvpFrameRepositoryImpl(
     private companion object {
         private const val CACHE_INITIAL_CAPACITY = 12
         private const val CACHE_LOAD_FACTOR = 0.75f
-        private const val FRAME_CACHE_SEGMENT_TOKENS = 512
         private const val MAX_CACHED_FRAME_SETS = 8
     }
 }

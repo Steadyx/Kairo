@@ -25,7 +25,11 @@ internal fun RsvpFontFamilySelector(
     onFontFamilyChange: (RsvpFontFamily) -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(stringResource(R.string.rsvp_font_title), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            stringResource(R.string.rsvp_font_title),
+            modifier = Modifier.settingsSearchTarget(stringResource(R.string.rsvp_font_title)),
+            style = MaterialTheme.typography.bodyLarge
+        )
         Spacer(modifier = Modifier.height(8.dp))
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RsvpFontFamily.entries.forEach { family ->
@@ -58,7 +62,11 @@ internal fun RsvpFontWeightSelector(
     onFontWeightChange: (RsvpFontWeight) -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(stringResource(R.string.rsvp_weight_title), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            stringResource(R.string.rsvp_weight_title),
+            modifier = Modifier.settingsSearchTarget(stringResource(R.string.rsvp_weight_title)),
+            style = MaterialTheme.typography.bodyLarge
+        )
         Spacer(modifier = Modifier.height(8.dp))
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RsvpFontWeight.entries.forEach { weight ->

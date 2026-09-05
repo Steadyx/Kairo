@@ -775,8 +775,6 @@ object ClauseDetector {
  * Dialogue detection and pacing for natural speech patterns.
  */
 object DialogueAnalyzer {
-    private var inDialogue = false
-
     private val speakerVerbs =
         setOf(
             "said",
@@ -810,22 +808,6 @@ object DialogueAnalyzer {
         )
 
     /**
-     * Tracks dialogue state and returns appropriate timing multiplier.
-     */
-    @Suppress("unused")
-    fun processToken(text: String): Double {
-        // Simple quote tracking using unicode escapes for smart quotes
-        // \u201C = " (left double quote), \u201D = " (right double quote)
-        // \u2018 = ' (left single quote), \u2019 = ' (right single quote)
-        if ('"' in text || '\u201C' in text || '\u201D' in text) {
-            inDialogue = !inDialogue
-        }
-
-        // Dialogue typically reads slightly faster (mimics speech cadence)
-        return if (inDialogue) 0.95 else 1.0
-    }
-
-    /**
      * Detects if current context appears to be a speaker tag.
      * Speaker tags should be read quickly as they're not the main content.
      */
@@ -849,8 +831,4 @@ object DialogueAnalyzer {
      * Returns timing multiplier for speaker tags (read faster).
      */
     const val SPEAKER_TAG_MULTIPLIER: Double = 0.85
-
-    fun reset() {
-        inDialogue = false
-    }
 }

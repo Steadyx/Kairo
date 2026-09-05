@@ -1,11 +1,13 @@
 package com.kairo.reader.data.rsvp
 
 import com.kairo.reader.core.model.RsvpFrame
+import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.TokenType
 
 class RsvpFrameIndexMap private constructor(
-    private val wordFrameByResumeCursor: Map<Int, Int>,
-    private val frameByResumeCursor: Map<Int, Int>,
+    private val wordFrameByResumeCursor: Map<Pair<Int, Int>, Int>,
+    private val frameByResumeCursor: Map<Pair<Int, Int>, Int>,
+    private val wordFramesByCharacterOffset: Map<Int, SortedFrameIndex>,
     private val wordFrameByTokenIndex: Map<Int, Int>,
     private val frameByTokenIndex: Map<Int, Int>,
     private val priorWordFramesByTokenIndex: SortedFrameIndex,
@@ -20,7 +22,13 @@ class RsvpFrameIndexMap private constructor(
         val resumeFrame =
             resumeCursor
                 .takeIf { it >= 0 }
-                ?.let { wordFrameByResumeCursor[it] ?: frameByResumeCursor[it] }
+                ?.let { cursor ->
+                    wordFrameByResumeCursor[tokenIndex to cursor]
+                        ?: RsvpResumeCursor.characterOffset(cursor)?.let { offset ->
+                            wordFramesByCharacterOffset[tokenIndex]?.frameIndexBefore(offset + 1)
+                        }
+                        ?: frameByResumeCursor[tokenIndex to cursor]
+                }
         val aligned =
             resumeFrame
                 ?: wordFrameByTokenIndex[tokenIndex]
@@ -36,6 +44,7 @@ class RsvpFrameIndexMap private constructor(
             RsvpFrameIndexMap(
                 wordFrameByResumeCursor = emptyMap(),
                 frameByResumeCursor = emptyMap(),
+                wordFramesByCharacterOffset = emptyMap(),
                 wordFrameByTokenIndex = emptyMap(),
                 frameByTokenIndex = emptyMap(),
                 priorWordFramesByTokenIndex = SortedFrameIndex.EMPTY,
@@ -45,8 +54,9 @@ class RsvpFrameIndexMap private constructor(
         fun from(frames: List<RsvpFrame>): RsvpFrameIndexMap {
             if (frames.isEmpty()) return EMPTY
 
-            val wordFrameByResumeCursor = mutableMapOf<Int, Int>()
-            val frameByResumeCursor = mutableMapOf<Int, Int>()
+            val wordFrameByResumeCursor = mutableMapOf<Pair<Int, Int>, Int>()
+            val frameByResumeCursor = mutableMapOf<Pair<Int, Int>, Int>()
+            val wordFramesByCharacterOffset = mutableMapOf<Int, MutableMap<Int, Int>>()
             val wordFrameByTokenIndex = mutableMapOf<Int, Int>()
             val frameByTokenIndex = mutableMapOf<Int, Int>()
 
@@ -55,14 +65,20 @@ class RsvpFrameIndexMap private constructor(
                 val resumeCursor = frame.resumeCursor
                 val hasWord = frame.tokens.any { it.type == TokenType.WORD }
 
-                frameByTokenIndex[tokenIndex] = index
+                frameByTokenIndex.putIfAbsent(tokenIndex, index)
                 if (hasWord) {
-                    wordFrameByTokenIndex[tokenIndex] = index
+                    wordFrameByTokenIndex.putIfAbsent(tokenIndex, index)
                 }
                 if (resumeCursor >= 0) {
-                    frameByResumeCursor[resumeCursor] = index
+                    frameByResumeCursor.putIfAbsent(tokenIndex to resumeCursor, index)
                     if (hasWord) {
-                        wordFrameByResumeCursor[resumeCursor] = index
+                        wordFrameByResumeCursor.putIfAbsent(tokenIndex to resumeCursor, index)
+                        RsvpResumeCursor.characterOffset(resumeCursor)?.takeIf { it > 0 }?.let { offset ->
+                            wordFramesByCharacterOffset.getOrPut(tokenIndex) {
+                                mutableMapOf(0 to wordFrameByTokenIndex.getValue(tokenIndex))
+                            }
+                                .putIfAbsent(offset, index)
+                        }
                     }
                 }
             }
@@ -70,6 +86,9 @@ class RsvpFrameIndexMap private constructor(
             return RsvpFrameIndexMap(
                 wordFrameByResumeCursor = wordFrameByResumeCursor,
                 frameByResumeCursor = frameByResumeCursor,
+                wordFramesByCharacterOffset = wordFramesByCharacterOffset.mapValues { (_, offsets) ->
+                    SortedFrameIndex.from(offsets)
+                },
                 wordFrameByTokenIndex = wordFrameByTokenIndex,
                 frameByTokenIndex = frameByTokenIndex,
                 priorWordFramesByTokenIndex = SortedFrameIndex.from(wordFrameByTokenIndex),

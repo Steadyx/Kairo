@@ -12,7 +12,7 @@ class RsvpFrameAlignmentTest {
     private val engine = ComprehensionRsvpEngine()
 
     @Test
-    fun alignFrameIndexTargetsLastSplitForToken() {
+    fun alignFrameIndexTargetsFirstSplitForFreshTokenStart() {
         val config =
             RsvpConfig(
                 maxChunkLength = 4,
@@ -37,7 +37,7 @@ class RsvpFrameAlignmentTest {
         val frames = engine.generateFrames(tokens, startIndex = 0, config = config)
         val aligned = alignFrameIndex(frames, tokenIndex = 0)
 
-        assertEquals(frames.lastIndex, aligned)
+        assertEquals(0, aligned)
     }
 
     @Test
