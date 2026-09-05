@@ -1,6 +1,7 @@
 package com.kairo.reader.data.books
 
 import com.kairo.reader.core.model.BookId
+import org.jsoup.Jsoup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -42,6 +43,34 @@ class TextFileParserEngineTest {
         assertTrue(plainText.indexOf("First paragraph.") < plainText.indexOf("Second paragraph."))
         assertFalse(book.chapters.single().htmlContent.contains("script", ignoreCase = true))
         assertFalse(book.chapters.single().htmlContent.contains("iframe", ignoreCase = true))
+    }
+
+    @Test
+    fun htmlImportPreservesParagraphsWithoutAddingTextToHtml() {
+        val chapter = parse(
+            extension = "html",
+            displayName = "paragraphs.html",
+            source = "<p>First paragraph.</p><p>Second paragraph.</p>",
+        ).chapters.single()
+
+        assertEquals("First paragraph.\n\nSecond paragraph.", chapter.plainText)
+        assertEquals("<p>First paragraph.</p>\n<p>Second paragraph.</p>", chapter.htmlContent)
+    }
+
+    @Test
+    fun htmlImportLineBreakDoesNotBecomeAWord() {
+        val chapter = parse(
+            extension = "html",
+            displayName = "lines.html",
+            source = "<p>First<br>Second</p>",
+        ).chapters.single()
+
+        assertFalse(chapter.plainText.contains("\\n"))
+        assertTrue(chapter.plainText.contains("First\n"))
+        assertFalse(chapter.htmlContent.contains("\\n"))
+        val document = Jsoup.parse(chapter.htmlContent)
+        assertEquals("First Second", document.text())
+        assertEquals(1, document.select("br").size)
     }
 
     @Test(expected = IllegalArgumentException::class)

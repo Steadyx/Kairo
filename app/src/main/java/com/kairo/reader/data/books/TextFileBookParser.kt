@@ -62,7 +62,7 @@ internal object TextFileParserEngine {
         dirty.select(REMOVABLE_ELEMENTS).remove()
         val clean = Cleaner(HTML_SAFELIST).clean(dirty)
         val body = requireNotNull(clean.body()) { "HTML file has no readable body" }
-        val plainText = body.toReadablePlainText()
+        val plainText = body.clone().toReadablePlainText()
         require(plainText.isNotBlank()) { "No readable text found in HTML file" }
         val safeHtml = body.html().trim()
 
@@ -85,10 +85,10 @@ internal object TextFileParserEngine {
     }
 
     private fun Element.toReadablePlainText(): String {
-        select("br").append("\\n")
+        select("br").append("\n")
         select(BLOCK_ELEMENTS).forEach { element ->
-            element.prepend("\\n")
-            element.append("\\n")
+            element.prepend("\n")
+            element.append("\n")
         }
         return wholeText()
             .replace(NON_BREAKING_SPACE, ' ')
