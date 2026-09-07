@@ -46,7 +46,6 @@ import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.core.model.nearestWordIndex
 import com.kairo.reader.core.rsvp.RsvpConfigResolver
 import com.kairo.reader.core.rsvp.RsvpGenerationOptions
-import com.kairo.reader.core.rsvp.RsvpSegmentationRolloutResolver
 import com.kairo.reader.ui.reader.FileReaderImageBoundsResolver
 import com.kairo.reader.ui.reader.ReaderScreen
 import com.kairo.reader.ui.reader.ReaderUiState
@@ -150,7 +149,7 @@ internal fun ReaderRoute(input: ReaderRouteInput) {
 
         val resolvedRsvpConfig = RsvpConfigResolver.resolve(prefs.rsvpConfig, book.languageTag)
         val rsvpGenerationOptions =
-            rememberReaderRsvpGenerationOptions(container, book.languageTag, resolvedRsvpConfig)
+            rememberReaderRsvpGenerationOptions(book.languageTag)
         val readerEstimatedWpm =
             rememberReaderEstimatedWpm(
                 baseConfig = resolvedRsvpConfig,
@@ -252,18 +251,8 @@ internal fun ReaderRoute(input: ReaderRouteInput) {
 }
 
 @Composable
-private fun rememberReaderRsvpGenerationOptions(
-    container: KairoApplication,
-    languageTag: String?,
-    config: RsvpConfig,
-): RsvpGenerationOptions =
-    remember(languageTag, config) {
-        RsvpSegmentationRolloutResolver.resolve(
-            languageTag = languageTag,
-            config = config,
-            isDebugBuild = container.isDebuggableBuild(),
-        )
-    }
+private fun rememberReaderRsvpGenerationOptions(languageTag: String?): RsvpGenerationOptions =
+    remember(languageTag) { RsvpGenerationOptions.fromLanguageTag(languageTag) }
 
 @Composable
 private fun rememberReaderViewModel(container: KairoApplication): ReaderViewModel {

@@ -12,7 +12,7 @@ import com.kairo.reader.core.rsvp.RsvpGenerationOptions
 import com.kairo.reader.core.rsvp.engine.applyPlaybackEffects
 import com.kairo.reader.core.rsvp.engine.frameTimingKey
 import com.kairo.reader.core.rsvp.engine.normalizedForPlayback
-import com.kairo.reader.core.rsvp.usesScoredSegmentation
+import com.kairo.reader.core.rsvp.segmentation.RsvpSegmentationWeightsV2
 import com.kairo.reader.data.token.TokenRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -74,7 +74,7 @@ class RsvpFrameRepositoryImpl(
             chapterIndex = chapterIndex,
             config = config,
             startIndex = startIndex,
-            options = RsvpGenerationOptions.LEGACY,
+            options = RsvpGenerationOptions.DEFAULT,
         )
 
     override suspend fun getFrames(
@@ -141,7 +141,7 @@ class RsvpFrameRepositoryImpl(
             chapterIndex = chapterIndex,
             config = config,
             startIndex = startIndex,
-            options = RsvpGenerationOptions.LEGACY,
+            options = RsvpGenerationOptions.DEFAULT,
         )
     }
 
@@ -192,7 +192,7 @@ class RsvpFrameRepositoryImpl(
             startIndex = startIndex,
             config = config,
             maxTokenCount = maxTokenCount,
-            options = RsvpGenerationOptions.LEGACY,
+            options = RsvpGenerationOptions.DEFAULT,
         )
 
     override suspend fun getPreviewFrames(
@@ -211,42 +211,29 @@ class RsvpFrameRepositoryImpl(
         if (safeStartIndex >= visibleEndExclusive) {
             return RsvpFrameSet(frames = emptyList(), baseTempoMs = config.tempoMsPerWord)
         }
-        val useScoredSegmentation = options.usesScoredSegmentation(config)
-        val endExclusive =
-            if (useScoredSegmentation) {
-                previewLookaheadEndExclusive(
-                    tokens = tokens,
-                    visibleEndExclusive = visibleEndExclusive,
-                    requiredWordCount = previewLookaheadWordCount(config),
-                )
-            } else {
-                visibleEndExclusive
-            }
-        // Keep the source prefix available for bracket/quote state reconstruction.
+        val endExclusive = previewLookaheadEndExclusive(
+            tokens = tokens,
+            visibleEndExclusive = visibleEndExclusive,
+            requiredWordCount = previewLookaheadWordCount(config),
+        )
+        // All previews keep source context and scorer lookahead, including unknown languages.
         val previewTokens = tokens.subList(0, endExclusive)
-        val frames =
-            withContext(previewDispatcher) {
+        val frames = withContext(previewDispatcher) {
+            val generated = engine.generateFrames(previewTokens, safeStartIndex, config, options)
+            val visible = generated.filter { it.displayOriginalEndExclusive <= visibleEndExclusive }
+            if (visible.isNotEmpty() || !config.enablePhraseChunking) {
+                visible
+            } else {
+                // A tiny preview budget can bisect the first scored group. Ask the same model
+                // for single-word units until full frames arrive; never expose lookahead text.
                 engine.generateFrames(
-                    tokens = previewTokens,
-                    startIndex = safeStartIndex,
-                    config = config,
-                    options = options,
-                )
-            }.map { frame ->
-                frame.asPreviewFrame(
-                    tokenCount = tokens.size,
-                    visibleEndExclusive =
-                    visibleEndExclusive.takeIf { useScoredSegmentation },
-                )
-            }.let { previewFrames ->
-                if (useScoredSegmentation) {
-                    previewFrames.filter { frame ->
-                        frame.displayOriginalEndExclusive <= visibleEndExclusive
-                    }
-                } else {
-                    previewFrames
-                }
+                    previewTokens,
+                    safeStartIndex,
+                    config.copy(enablePhraseChunking = false),
+                    options,
+                ).filter { it.displayOriginalEndExclusive <= visibleEndExclusive }
             }
+        }.map { it.asPreviewFrame(visibleEndExclusive) }
         return RsvpFrameSet(frames = frames, baseTempoMs = config.tempoMsPerWord)
     }
 
@@ -330,15 +317,8 @@ class RsvpFrameRepositoryImpl(
             blinkMode = BlinkMode.OFF,
         )
 
-    private fun RsvpFrame.asPreviewFrame(
-        tokenCount: Int,
-        visibleEndExclusive: Int? = null,
-    ): RsvpFrame =
-        copy(
-            nextOriginalTokenIndex =
-            nextOriginalTokenIndex
-                .coerceIn(0, minOf(tokenCount, visibleEndExclusive ?: tokenCount)),
-        )
+    private fun RsvpFrame.asPreviewFrame(visibleEndExclusive: Int): RsvpFrame =
+        copy(nextOriginalTokenIndex = nextOriginalTokenIndex.coerceIn(0, visibleEndExclusive))
 
     override fun clearCache() {
         val deferredToCancel =
@@ -385,11 +365,11 @@ class RsvpFrameRepositoryImpl(
 }
 
 private fun previewLookaheadWordCount(config: RsvpConfig): Int =
-    PREVIEW_MIN_LOOKAHEAD_WORDS +
-        (
-            config.rampDownFrames.coerceAtLeast(0) *
-                config.maxWordsPerUnit.coerceIn(1, PREVIEW_MAX_SCORED_WORDS_PER_FRAME)
-            )
+    (
+        RsvpSegmentationWeightsV2.HORIZON_WORDS - 1L +
+            config.rampDownFrames.coerceAtLeast(0).toLong() *
+            config.maxWordsPerUnit.coerceIn(1, RsvpSegmentationWeightsV2.HORIZON_WORDS)
+        ).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
 private fun previewLookaheadEndExclusive(
     tokens: List<Token>,
@@ -410,6 +390,3 @@ private fun previewLookaheadEndExclusive(
     }
     return cursor
 }
-
-private const val PREVIEW_MIN_LOOKAHEAD_WORDS = 5
-private const val PREVIEW_MAX_SCORED_WORDS_PER_FRAME = 3

@@ -72,7 +72,7 @@ class RsvpThoughtFlowTest : ComprehensionRsvpTestBase() {
     fun phraseMetadataAndSourceCoverageSurviveGroupingAndSplitWords() {
         val tokens = listOf(w("in"), w("the"), w("extraordinary"), p(","), w("but"), w("not"), w("today"), p("."))
         val config = stableConfig.copy(enablePhraseChunking = true, maxWordsPerUnit = 2, maxChunkLength = 6)
-        val options = RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH, RsvpSegmentationStrategy.SCORED_DP_V2)
+        val options = RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH)
         val frames = engine.generateFrames(tokens, 0, config, options)
         val words = frames.filter { it.tokens.any { token -> token.type == TokenType.WORD } }
         assertEquals(

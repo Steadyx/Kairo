@@ -88,7 +88,7 @@ class ComprehensionRsvpEngine : RsvpEngine {
             tokens = tokens,
             startIndex = startIndex,
             config = config,
-            options = RsvpGenerationOptions.LEGACY,
+            options = RsvpGenerationOptions.DEFAULT,
         )
 
     override fun generateFrames(
@@ -110,7 +110,7 @@ private data class RsvpGenerationContext(
     val expanded: List<ExpandedToken>,
     val config: RsvpConfig,
     val options: RsvpGenerationOptions,
-    val atomStream: RsvpAtomStream?,
+    val atomStream: RsvpAtomStream,
     val analysis: RsvpTokenAnalysis,
     val frames: MutableList<RsvpFrame>,
     val state: ContextState,
@@ -136,17 +136,12 @@ private fun generateFramesWithNormalizedConfig(
             expanded = expanded,
             config = config,
             options = options,
-            atomStream =
-            if (options.usesScoredSegmentation(config)) {
-                RsvpAtomStream.build(
-                    expandedTokens = expanded,
-                    languagePolicy = options.languagePolicy,
-                    useDialogueDetection = config.useDialogueDetection,
-                    useParentheticalAside = config.useParentheticalAside,
-                )
-            } else {
-                null
-            },
+            atomStream = RsvpAtomStream.build(
+                expandedTokens = expanded,
+                languagePolicy = options.languagePolicy,
+                useDialogueDetection = config.useDialogueDetection,
+                useParentheticalAside = config.useParentheticalAside,
+            ),
             analysis = analyzeExpandedTokens(expanded, config, options.languagePolicy),
             frames = mutableListOf(),
             state = createContextState(tokens, expanded[cursor].originalIndex),
@@ -396,7 +391,7 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
     val wordCursor = findFirstWordCursor(expanded, cursor)
     if (wordCursor >= expanded.size) return null
     val frameStartCursor = cursor
-    val scoredSelection = selectScoredFrame(cursor)
+    val selection = selectFrame(cursor)
     val contextBefore = state.snapshot()
     val (frameTokens, frameOriginalIndex, nextCursor) =
         buildUnit(
@@ -404,7 +399,7 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
             startCursor = cursor,
             config = config,
             state = state,
-            selectedWordCursors = scoredSelection?.selectedWordCursors,
+            selectedWordCursors = selection.selectedWordCursors,
             phraseEndTokenIndexExclusive = analysis.thoughtCues[wordCursor]?.endTokenIndexExclusive,
         )
 
@@ -432,9 +427,9 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
                 (frameStartCursor until nextCursor).any { it in analysis.pairedEmDashIndices },
                 afterPairedEmDash = followsPairedEmDash(wordCursor),
                 rhythmBoundaryStrengthMilli =
-                scoredSelection?.boundaryStrengthBeforeMilli ?: 0,
+                selection.boundaryStrengthBeforeMilli,
                 explicitSpeakerTag =
-                scoredSelection?.dialogueRole == RsvpDialogueRole.SPEAKER_TAG,
+                selection.dialogueRole == RsvpDialogueRole.SPEAKER_TAG,
                 thoughtCues = unitCues,
             ),
         )
@@ -468,17 +463,13 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
     return consumeContextPunctuation(nextCursor)
 }
 
-private fun RsvpGenerationContext.selectScoredFrame(cursor: Int): RsvpSegmentationDecision? {
-    if (!options.usesScoredSegmentation(config)) return null
-    val atoms = atomStream ?: return null
-    return RsvpDpSegmenter
-        .selectWordCount(
-            atomStream = atoms,
-            startCursor = cursor,
-            config = config,
-            languagePolicy = options.languagePolicy,
-        )
-}
+private fun RsvpGenerationContext.selectFrame(cursor: Int): RsvpSegmentationDecision =
+    RsvpDpSegmenter.selectWordCount(
+        atomStream = atomStream,
+        startCursor = cursor,
+        config = config,
+        languagePolicy = options.languagePolicy,
+    )
 
 /**
  * Whether the boundary punctuation directly before this word is the closing (or opening) dash of

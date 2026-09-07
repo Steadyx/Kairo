@@ -31,7 +31,7 @@ internal fun rememberReaderEstimatedWpm(
     fallbackEstimatedWpm: Int,
     dispatcherProvider: DispatcherProvider,
     languageTag: String? = null,
-    paceOptions: RsvpPaceEstimationOptions = RsvpPaceEstimationOptions.LEGACY,
+    paceOptions: RsvpPaceEstimationOptions = RsvpPaceEstimationOptions.DEFAULT,
 ): Int {
     val estimatedWpm by produceState(
         initialValue = fallbackEstimatedWpm,

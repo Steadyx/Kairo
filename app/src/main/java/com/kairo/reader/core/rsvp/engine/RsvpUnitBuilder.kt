@@ -3,7 +3,6 @@ package com.kairo.reader.core.rsvp.engine
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
-import com.kairo.reader.core.rsvp.analysis.isPhraseChunkCandidate
 import com.kairo.reader.core.rsvp.segmentation.visibleCodePointCount
 import com.kairo.reader.core.rsvp.text.isOpeningPunctuation
 import com.kairo.reader.core.rsvp.text.isQuoteChar
@@ -13,18 +12,14 @@ internal fun buildUnit(
     startCursor: Int,
     config: RsvpConfig,
     state: ContextState,
-    selectedWordCursors: List<Int>? = null,
+    selectedWordCursors: List<Int>,
     phraseEndTokenIndexExclusive: Int? = null,
 ): UnitBuildResult {
     val cursor = UnitCursor(expandedTokens, state, startCursor, phraseEndTokenIndexExclusive)
     cursor.consumeLeadingPunctuation()
     val firstWord = cursor.consumeFirstWord()
         ?: return UnitBuildResult(cursor.unitTokens, startCursor, cursor.index)
-    if (selectedWordCursors == null) {
-        cursor.consumePhraseWords(firstWord.token, config)
-    } else {
-        cursor.consumeSelectedPhraseWords(firstWord, config, selectedWordCursors)
-    }
+    cursor.consumeSelectedPhraseWords(firstWord, config, selectedWordCursors)
     cursor.consumeTrailingPunctuation()
     return UnitBuildResult(
         tokens = cursor.unitTokens,
@@ -66,34 +61,6 @@ private class UnitCursor(
         val firstWord = expandedTokens.getOrNull(index) ?: return null
         consume(firstWord.token)
         return firstWord
-    }
-
-    fun consumePhraseWords(
-        firstWord: Token,
-        config: RsvpConfig,
-    ) {
-        val maxWords = config.maxWordsPerUnit.coerceAtLeast(1)
-        if (!config.enablePhraseChunking || maxWords <= 1) return
-        val maxChars = config.maxCharsPerUnit.coerceAtLeast(1)
-        var words = 1
-        var characters = firstWord.text.length
-        var canContinue = true
-        while (words < maxWords && canContinue) {
-            if (atThoughtBoundary()) return
-            val candidate = expandedTokens.getOrNull(index)?.token
-            val previousWord = unitTokens.lastOrNull { it.type == TokenType.WORD }
-            val combinedCharacters = characters + (candidate?.text?.length ?: 0)
-            canContinue =
-                candidate?.type == TokenType.WORD &&
-                previousWord != null &&
-                combinedCharacters <= maxChars &&
-                isPhraseChunkCandidate(previousWord, candidate)
-            if (canContinue && candidate != null) {
-                consume(candidate)
-                words += 1
-                characters = combinedCharacters
-            }
-        }
     }
 
     fun consumeSelectedPhraseWords(

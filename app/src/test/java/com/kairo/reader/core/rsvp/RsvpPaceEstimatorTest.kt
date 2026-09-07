@@ -16,56 +16,33 @@ class RsvpPaceEstimatorTest {
     }
 
     @Test
-    fun paceCacheIdentitySeparatesLegacyFromEnglishScoredStrategy() {
-        val config =
-            RsvpConfig(
-                enablePhraseChunking = true,
-                maxWordsPerUnit = 3,
-                maxCharsPerUnit = 24,
-            )
-        val legacyOptions = RsvpPaceEstimationOptions.LEGACY
-        val scoredOptions =
-            RsvpPaceEstimationOptions(
-                sampleLanguagePolicy = RsvpLanguagePolicy.ENGLISH,
-                segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
-            )
-        val legacy =
-            RsvpEstimatedReadingPace.estimateWpm(
-                config = config,
-                paceOptions = legacyOptions,
-            )
-        val scored =
-            RsvpEstimatedReadingPace.estimateWpm(
-                config = config,
-                paceOptions = scoredOptions,
-            )
-
-        assertTrue(legacy > 0)
-        assertTrue(scored > 0)
-        assertNotEquals(
-            EstimatedWpmCacheKey(config, legacyOptions, targetLanguageTag = "en"),
-            EstimatedWpmCacheKey(config, scoredOptions, targetLanguageTag = "en"),
-        )
+    fun paceCacheRetainsConfigurationAndTargetLanguageIdentity() {
+        val config = RsvpConfig(enablePhraseChunking = true, maxWordsPerUnit = 3)
+        val options = RsvpPaceEstimationOptions.DEFAULT
+        assertTrue(RsvpEstimatedReadingPace.estimateWpm(config, paceOptions = options) > 0)
+        val english = EstimatedWpmCacheKey(config, options, targetLanguageTag = "en")
+        assertNotEquals(english, EstimatedWpmCacheKey(config, options, targetLanguageTag = "fr"))
+        assertNotEquals(english, EstimatedWpmCacheKey(config.copy(maxWordsPerUnit = 1), options, targetLanguageTag = "en"))
     }
 
     @Test
-    fun nonEnglishSamplePolicyDoesNotApplyEnglishScoringToEnglishSample() {
+    fun unsupportedSamplePolicyStillUsesTheActualEnglishSample() {
         val config =
             RsvpConfig(
                 enablePhraseChunking = true,
                 maxWordsPerUnit = 3,
                 maxCharsPerUnit = 24,
             )
-        val legacy = RsvpPaceEstimator.estimateWpm(config)
-        val ineligibleScored =
+        val defaultEstimate = RsvpPaceEstimator.estimateWpm(config)
+        val normalizedEstimate =
             RsvpPaceEstimator.estimateWpm(
                 config,
                 RsvpPaceEstimationOptions(
                     sampleLanguagePolicy = RsvpLanguagePolicy.DEFAULT_NON_ENGLISH,
-                    segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
                 ),
             )
 
-        assertEquals(legacy, ineligibleScored)
+        assertEquals(defaultEstimate, normalizedEstimate)
     }
 }
