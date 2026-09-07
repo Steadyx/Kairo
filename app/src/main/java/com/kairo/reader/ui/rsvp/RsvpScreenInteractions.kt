@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.nearestWordIndex
@@ -141,8 +142,8 @@ internal fun replayPreviousPhrase(context: RsvpUiContext) {
             fallbackIndex = context.state.book.startIndex,
         )
     val replayTokenIndex = findReplayPhraseStartTokenIndex(tokens, currentTokenIndex)
-    val targetFrameIndex =
-        alignFrameIndex(
+    val targetFrameIndex = findPlannedReplayFrameIndex(frames, runtime.frameIndex)
+        ?: alignFrameIndex(
             frames = frames,
             tokenIndex = replayTokenIndex,
             frameIndexMap = context.frameState.frameIndexMap,
@@ -154,11 +155,28 @@ internal fun replayPreviousPhrase(context: RsvpUiContext) {
     }
     runtime.completed = false
     runtime.rampStartFrameIndex = runtime.frameIndex
+    runtime.resumePreparationScale = 1.0
+    runtime.replayPreparationPending = !runtime.isPlaying
     runtime.scheduledFrameIndex = -1
     runtime.nextFrameAtMs = 0L
     registerRsvpRegression(runtime, context.state.profile.config.useRegressionAdaptivePacing)
     context.callbacks.playback.onPositionChanged(currentResumePoint(context))
     context.haptics.onFrameStep()
+}
+
+/** At a phrase entrance replay the preceding thought; inside it replay its first loaded word. */
+internal fun findPlannedReplayFrameIndex(frames: List<RsvpFrame>, frameIndex: Int): Int? {
+    val current = frames.getOrNull(frameIndex) ?: return null
+    val phraseStart = current.phraseStartTokenIndex ?: return null
+    var target = frameIndex
+    while (target > 0 && frames[target - 1].phraseStartTokenIndex == phraseStart) target--
+    if (target < frameIndex) return target
+    var previous = frameIndex - 1
+    while (previous >= 0 && frames[previous].phraseStartTokenIndex == null) previous--
+    if (previous < 0) return target
+    val previousStart = frames[previous].phraseStartTokenIndex
+    while (previous > 0 && frames[previous - 1].phraseStartTokenIndex == previousStart) previous--
+    return previous
 }
 
 internal fun findReplayPhraseStartTokenIndex(
@@ -212,21 +230,23 @@ internal fun registerRsvpRegression(
     runtime.comprehensionPaceScale =
         (runtime.comprehensionPaceScale + REGRESSION_PACE_STEP)
             .coerceAtMost(REGRESSION_PACE_MAX_SCALE)
-    runtime.stableFramesSinceRegression = 0
+    runtime.stablePhrasesSinceRegression = 0
 }
 
 internal fun recoverRsvpRegressionPace(
     runtime: RsvpRuntimeState,
     enabled: Boolean,
+    endsPhrase: Boolean,
 ) {
     if (!enabled) {
         runtime.comprehensionPaceScale = 1f
-        runtime.stableFramesSinceRegression = 0
+        runtime.stablePhrasesSinceRegression = 0
         return
     }
     if (runtime.comprehensionPaceScale <= 1f) return
-    runtime.stableFramesSinceRegression += 1
-    if (runtime.stableFramesSinceRegression < REGRESSION_RECOVERY_START_FRAMES) return
+    if (!endsPhrase) return
+    runtime.stablePhrasesSinceRegression += 1
+    if (runtime.stablePhrasesSinceRegression <= REGRESSION_RECOVERY_START_PHRASES) return
     runtime.comprehensionPaceScale =
         (runtime.comprehensionPaceScale - REGRESSION_RECOVERY_STEP).coerceAtLeast(1f)
 }
@@ -482,6 +502,10 @@ internal fun resumePlayback(runtime: RsvpRuntimeState) {
     runtime.scheduledFrameIndex = -1
     runtime.nextFrameAtMs = 0L
     runtime.isPlaying = true
+    if (runtime.replayPreparationPending) {
+        runtime.resumePreparationScale = 1.0
+        runtime.replayPreparationPending = false
+    }
 }
 
 private val REPLAY_BOUNDARY_PUNCTUATION =

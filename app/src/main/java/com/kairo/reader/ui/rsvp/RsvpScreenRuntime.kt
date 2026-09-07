@@ -1,6 +1,7 @@
 package com.kairo.reader.ui.rsvp
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -8,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.kairo.reader.core.model.BionicReadingPreferences
 import com.kairo.reader.core.model.RsvpFrame
+import com.kairo.reader.core.rsvp.timing.RsvpSessionTimingPolicy
 import com.kairo.reader.data.rsvp.RsvpFrameIndexMap
 
 internal data class RsvpFrameLoadState(
@@ -36,7 +38,10 @@ internal data class RsvpUiContext(
 
 internal enum class RsvpDragAxis { NONE, HORIZONTAL, VERTICAL }
 
-internal class RsvpRuntimeState(private val onPlaybackStateChanged: (isPlaying: Boolean, completed: Boolean) -> Unit = { _, _ -> },) {
+internal class RsvpRuntimeState(
+    private val onPlaybackStateChanged: (isPlaying: Boolean, completed: Boolean) -> Unit = { _, _ -> },
+    private val monotonicTimeMs: () -> Long = { System.nanoTime() / NANOS_PER_MILLISECOND },
+) {
     var currentTempoMsPerWord by mutableLongStateOf(0L)
     var showTempoIndicator by mutableStateOf(false)
     var showFontSizeIndicator by mutableStateOf(false)
@@ -52,7 +57,10 @@ internal class RsvpRuntimeState(private val onPlaybackStateChanged: (isPlaying: 
     var currentFontFamily by mutableStateOf(DEFAULT_FONT_FAMILY)
     var currentTextBrightness by mutableFloatStateOf(DEFAULT_TEXT_BRIGHTNESS)
     var comprehensionPaceScale by mutableFloatStateOf(1f)
-    var stableFramesSinceRegression by mutableIntStateOf(0)
+    var stablePhrasesSinceRegression by mutableIntStateOf(0)
+    var resumePreparationScale by mutableDoubleStateOf(1.0)
+    var replayPreparationPending = false
+    private var pausedAtMs: Long? = null
     var frameIndex by mutableIntStateOf(0)
     var currentTokenIndex by mutableIntStateOf(0)
     var currentResumeCursor by mutableIntStateOf(0)
@@ -64,6 +72,16 @@ internal class RsvpRuntimeState(private val onPlaybackStateChanged: (isPlaying: 
         get() = playbackIsPlaying
         set(value) {
             if (playbackIsPlaying == value) return
+            if (value) {
+                resumePreparationScale = pausedAtMs?.let {
+                    RsvpSessionTimingPolicy.resumePreparationScale(
+                        (monotonicTimeMs() - it).coerceAtLeast(0L),
+                    )
+                } ?: 1.0
+                pausedAtMs = null
+            } else {
+                pausedAtMs = monotonicTimeMs()
+            }
             playbackIsPlaying = value
             onPlaybackStateChanged(playbackIsPlaying, playbackCompleted)
         }
@@ -92,3 +110,5 @@ internal class RsvpRuntimeState(private val onPlaybackStateChanged: (isPlaying: 
     var wasPlayingBeforeScrub by mutableStateOf(true)
     var lastPositionSaveMs by mutableLongStateOf(0L)
 }
+
+private const val NANOS_PER_MILLISECOND = 1_000_000L

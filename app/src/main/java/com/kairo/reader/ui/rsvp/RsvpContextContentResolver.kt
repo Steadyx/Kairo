@@ -86,12 +86,16 @@ internal fun rememberRsvpContextContent(
         } else {
             0
         }
+    val stableWindow = remember(tokens, frame.phraseStartTokenIndex, frame.phraseEndTokenIndexExclusive) {
+        resolveStablePeripheralWindow(tokens, frame)
+    }
+    val peripheralWindow = stableWindow ?: window
     val previous =
-        remember(tokens, window, contextColor, previousWords) {
+        remember(tokens, peripheralWindow, contextColor, previousWords) {
             buildPeripheralContextText(
                 tokens = tokens,
-                startIndex = window.startIndex,
-                endExclusive = window.focusStartIndex,
+                startIndex = peripheralWindow.startIndex,
+                endExclusive = peripheralWindow.focusStartIndex,
                 maxWords = previousWords,
                 takeLast = true,
                 color = contextColor,
@@ -100,14 +104,14 @@ internal fun rememberRsvpContextContent(
             )
         }
     val upcoming =
-        remember(tokens, window, contextColor, upcomingWords) {
+        remember(tokens, peripheralWindow, contextColor, upcomingWords) {
             if (upcomingWords == 0) {
                 AnnotatedString("")
             } else {
                 buildPeripheralContextText(
                     tokens = tokens,
-                    startIndex = window.focusEndExclusive,
-                    endExclusive = window.endExclusive,
+                    startIndex = peripheralWindow.focusEndExclusive,
+                    endExclusive = peripheralWindow.endExclusive,
                     maxWords = upcomingWords,
                     takeLast = false,
                     color = contextColor,
@@ -120,6 +124,28 @@ internal fun rememberRsvpContextContent(
         previous = previous,
         upcoming = upcoming,
     )
+}
+
+/** Keep neighbouring thoughts fixed while the active phrase plays at the central focus. */
+internal fun resolveStablePeripheralWindow(tokens: List<Token>, frame: RsvpFrame): RsvpContextWindow? {
+    val phraseStart = frame.phraseStartTokenIndex ?: return null
+    val phraseEnd = frame.phraseEndTokenIndexExclusive ?: return null
+    if (phraseStart !in tokens.indices || phraseEnd !in (phraseStart + 1)..tokens.size) return null
+    var start = phraseStart
+    var previousWords = 0
+    while (start > 0 && previousWords < CONTEXT_CLAUSE_PREVIOUS_WORDS) {
+        if (tokens[start - 1].isParagraphBoundary()) break
+        start--
+        if (tokens[start].type == TokenType.WORD) previousWords++
+    }
+    var end = phraseEnd
+    var upcomingWords = 0
+    while (end < tokens.size && upcomingWords < CONTEXT_CLAUSE_UPCOMING_WORDS) {
+        if (tokens[end].isParagraphBoundary()) break
+        if (tokens[end].type == TokenType.WORD) upcomingWords++
+        end++
+    }
+    return RsvpContextWindow(start, end, phraseStart, phraseEnd)
 }
 
 internal fun resolveRsvpContextWindow(

@@ -197,7 +197,8 @@ internal fun RsvpSessionResetEffect(
         runtime.isScrubbing = false
         runtime.isExiting = false
         runtime.comprehensionPaceScale = 1f
-        runtime.stableFramesSinceRegression = 0
+        runtime.stablePhrasesSinceRegression = 0
+        runtime.replayPreparationPending = false
         runtime.dragAxis = RsvpDragAxis.NONE
         runtime.dragAccumulator = ZERO_FLOAT
         runtime.dragAccumulatorX = ZERO_FLOAT
@@ -246,12 +247,14 @@ internal fun RsvpPlaybackLoopEffect(
                 config,
                 runtime.frameIndex,
                 runtime.rampStartFrameIndex,
+                runtime.resumePreparationScale,
             )
         val resumeDelayMs =
             RsvpSessionTimingPolicy.resumeDelayMs(
                 config,
                 runtime.frameIndex,
                 runtime.rampStartFrameIndex,
+                runtime.resumePreparationScale,
             )
         val frameMs =
             (frame.durationMs * rampMultiplier)
@@ -266,31 +269,9 @@ internal fun RsvpPlaybackLoopEffect(
             scaledMs = floorMs
         }
         val now = SystemClock.elapsedRealtime()
-        val chained = runtime.scheduledFrameIndex == runtime.frameIndex - 1
-        val overshootMs =
-            if (chained && runtime.nextFrameAtMs > 0L) {
-                (now - runtime.nextFrameAtMs).coerceAtLeast(0L)
-            } else {
-                0L
-            }
-        val candidateTarget =
-            if (chained && runtime.nextFrameAtMs > 0L) {
-                runtime.nextFrameAtMs + scaledMs
-            } else {
-                now + scaledMs
-            }
-        val softenedCatchUp =
-            if (overshootMs > 0L) {
-                (overshootMs * (1.0 - CATCH_UP_FACTOR)).roundToLong()
-            } else {
-                0L
-            }
-        val targetMs =
-            if (candidateTarget < now) {
-                now + scaledMs
-            } else {
-                candidateTarget + softenedCatchUp
-            }
+        // A delayed UI frame must never borrow exposure time from the following thought.
+        // Schedule the full reading interval; actual effective pace includes rendering overhead.
+        val targetMs = now + scaledMs
         runtime.scheduledFrameIndex = runtime.frameIndex
         runtime.nextFrameAtMs = targetMs
         val delayMs = (targetMs - now).coerceAtLeast(MIN_FRAME_DELAY_MS)
@@ -306,6 +287,7 @@ internal fun RsvpPlaybackLoopEffect(
             recoverRsvpRegressionPace(
                 runtime = runtime,
                 enabled = config.useRegressionAdaptivePacing,
+                endsPhrase = frame.endsPhrase,
             )
             runtime.frameIndex += 1
         }
@@ -336,8 +318,6 @@ internal fun holdAtLoadingFrameBoundary(context: RsvpUiContext) {
     runtime.scheduledFrameIndex = -1
     runtime.nextFrameAtMs = 0L
 }
-
-private const val CATCH_UP_FACTOR = 0.25
 
 @Composable
 internal fun RsvpAutoHideControlsEffect(runtime: RsvpRuntimeState) {
