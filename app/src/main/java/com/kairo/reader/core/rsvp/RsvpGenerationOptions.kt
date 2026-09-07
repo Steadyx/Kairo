@@ -70,7 +70,8 @@ data class RsvpPaceEstimationOptions(
                 segmentationStrategy = segmentationStrategy,
             )
         } else {
-            RsvpGenerationOptions.LEGACY
+            // The fallback still reads the English estimator sample; only grouping is legacy.
+            RsvpGenerationOptions(languagePolicy = RsvpLanguagePolicy.ENGLISH)
         }
 
     companion object {
@@ -101,7 +102,9 @@ object RsvpSegmentationRolloutResolver {
                 segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
             )
         val strategy =
-            if (isDebugBuild && scoredOptions.usesScoredSegmentation(config)) {
+            if ((isDebugBuild || languagePolicy == RsvpLanguagePolicy.ENGLISH) &&
+                scoredOptions.usesScoredSegmentation(config)
+            ) {
                 RsvpSegmentationStrategy.SCORED_DP_V2
             } else {
                 RsvpSegmentationStrategy.LEGACY_GREEDY

@@ -47,18 +47,20 @@ internal object RsvpSessionTimingPolicy {
         config: RsvpConfig,
         frameIndex: Int,
         rampStartIndex: Int,
+        preparationScale: Double = 1.0,
     ): Double {
         val rampFrames = config.rampUpFrames
         if (rampStartIndex <= 0 || rampStartIndex < rampFrames) return 1.0
         val offset = frameIndex - rampStartIndex
         if (rampFrames <= 0 || offset < 0 || offset >= rampFrames) return 1.0
-        return rampUpMultiplier(offset, rampFrames)
+        return 1.0 + (rampUpMultiplier(offset, rampFrames) - 1.0) * preparationScale.coerceIn(0.0, 1.0)
     }
 
     fun resumeDelayMs(
         config: RsvpConfig,
         frameIndex: Int,
         rampStartIndex: Int,
+        preparationScale: Double = 1.0,
     ): Long {
         if (rampStartIndex <= 0 ||
             rampStartIndex < config.rampUpFrames ||
@@ -66,8 +68,12 @@ internal object RsvpSessionTimingPolicy {
         ) {
             return 0L
         }
-        return config.startDelayMs
+        return (config.startDelayMs * preparationScale.coerceIn(0.0, 1.0)).toLong()
     }
+
+    fun resumePreparationScale(pausedMs: Long): Double =
+        ((pausedMs - BRIEF_PAUSE_MS).coerceAtLeast(0L).toDouble() / REORIENTATION_WINDOW_MS)
+            .coerceIn(MIN_RESUME_PREPARATION, 1.0)
 
     private fun rampUpMultiplier(
         offset: Int,
@@ -100,4 +106,7 @@ internal object RsvpSessionTimingPolicy {
     private const val RAMP_UP_INITIAL_MULTIPLIER = 1.35
     private const val RAMP_UP_REDUCTION = 0.35
     private const val RAMP_DOWN_INCREASE = 0.25
+    private const val BRIEF_PAUSE_MS = 1_000L
+    private const val REORIENTATION_WINDOW_MS = 9_000.0
+    private const val MIN_RESUME_PREPARATION = 0.15
 }

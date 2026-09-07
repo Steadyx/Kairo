@@ -21,10 +21,14 @@ class RsvpGenerationOptionsTest {
     }
 
     @Test
-    fun releaseRolloutAlwaysRemainsLegacy() {
+    fun releaseRolloutUsesScoredEnglishAndKeepsOtherLanguagesConservative() {
         RsvpLanguagePolicy.entries.forEach { policy ->
             assertEquals(
-                RsvpSegmentationStrategy.LEGACY_GREEDY,
+                if (policy == RsvpLanguagePolicy.ENGLISH) {
+                    RsvpSegmentationStrategy.SCORED_DP_V2
+                } else {
+                    RsvpSegmentationStrategy.LEGACY_GREEDY
+                },
                 RsvpSegmentationRolloutResolver.resolve(
                     languagePolicy = policy,
                     config = eligibleConfig,

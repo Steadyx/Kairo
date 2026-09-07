@@ -147,7 +147,7 @@ private fun generateFramesWithNormalizedConfig(
             } else {
                 null
             },
-            analysis = analyzeExpandedTokens(expanded, config),
+            analysis = analyzeExpandedTokens(expanded, config, options.languagePolicy),
             frames = mutableListOf(),
             state = createContextState(tokens, expanded[cursor].originalIndex),
             rhythm = createRhythmState(config),
@@ -405,7 +405,10 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
             config = config,
             state = state,
             selectedWordCursors = scoredSelection?.selectedWordCursors,
+            phraseEndTokenIndexExclusive = analysis.thoughtCues[wordCursor]?.endTokenIndexExclusive,
         )
+
+    val unitCues = (wordCursor until nextCursor).mapNotNull { analysis.thoughtCues[it] }
 
     val durationMs =
         computeUnitDurationMs(
@@ -432,6 +435,7 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
                 scoredSelection?.boundaryStrengthBeforeMilli ?: 0,
                 explicitSpeakerTag =
                 scoredSelection?.dialogueRole == RsvpDialogueRole.SPEAKER_TAG,
+                thoughtCues = unitCues,
             ),
         )
 
@@ -456,6 +460,9 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
             expanded[frameStartCursor].sourceCharacterStart,
             displayOriginalEndCharacterOffset =
             expanded.getOrNull(nextCursor - 1)?.sourceCharacterEndExclusive,
+            phraseStartTokenIndex = unitCues.firstOrNull()?.startTokenIndex,
+            phraseEndTokenIndexExclusive = unitCues.lastOrNull()?.endTokenIndexExclusive,
+            endsPhrase = unitCues.lastOrNull()?.isLastWord == true,
         )
 
     return consumeContextPunctuation(nextCursor)

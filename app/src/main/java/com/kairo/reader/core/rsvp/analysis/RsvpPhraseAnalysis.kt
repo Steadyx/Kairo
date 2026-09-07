@@ -6,6 +6,7 @@ import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.isSentenceEndingPunctuation
+import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import com.kairo.reader.core.rsvp.engine.CLAUSE_ANTICIPATORY_CONTOUR
 import com.kairo.reader.core.rsvp.engine.CLAUSE_PRE_BOUNDARY_CONTOUR
 import com.kairo.reader.core.rsvp.engine.CLAUSE_RESTART_CONTOUR
@@ -26,6 +27,7 @@ internal data class RsvpTokenAnalysis(
     /** Expanded indices of em/en-dash tokens that open or close a paired aside within a sentence. */
     val pairedEmDashIndices: Set<Int>,
     val phraseContours: Map<Int, PhraseContour>,
+    val thoughtCues: Map<Int, RsvpThoughtCue> = emptyMap(),
 ) {
     companion object {
         val EMPTY =
@@ -42,6 +44,7 @@ internal data class RsvpTokenAnalysis(
 internal fun analyzeExpandedTokens(
     expanded: List<ExpandedToken>,
     config: RsvpConfig,
+    languagePolicy: RsvpLanguagePolicy = RsvpLanguagePolicy.UNKNOWN,
 ): RsvpTokenAnalysis {
     if (expanded.isEmpty()) return RsvpTokenAnalysis.EMPTY
 
@@ -50,6 +53,7 @@ internal fun analyzeExpandedTokens(
     val asides = HashSet<Int>()
     val pairedDashes = HashSet<Int>()
     val contours = HashMap<Int, PhraseContour>()
+    val thoughtCues = RsvpThoughtPlan.analyze(expanded, config, languagePolicy)
     val breathGroup = ArrayList<ExpandedToken>()
     var previousWord: Token? = null
     var emDashAsideCloseIndex = -1
@@ -92,7 +96,7 @@ internal fun analyzeExpandedTokens(
                 }
             }
         if (config.useFocalStress) {
-            addFocalWord(breathGroup, focal)
+            addFocalWord(breathGroup, focal, thoughtCues)
         }
         breathGroup.clear()
         applyRestartContour(tier = tier, afterIndex = boundaryIndex)
@@ -102,6 +106,9 @@ internal fun analyzeExpandedTokens(
         val token = entry.token
         when (token.type) {
             TokenType.WORD -> {
+                if (startsNewThought(entry, breathGroup, thoughtCues)) {
+                    applyBoundaryEffects(RsvpPunctuationTier.CLAUSE_BREAK, index - 1)
+                }
                 if (config.useParentheticalAside && emDashAsideCloseIndex > index) {
                     asides += entry.expandedIndex
                 }
@@ -110,7 +117,7 @@ internal fun analyzeExpandedTokens(
             }
             TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> {
                 if (config.useFocalStress) {
-                    addFocalWord(breathGroup, focal)
+                    addFocalWord(breathGroup, focal, thoughtCues)
                 }
                 breathGroup.clear()
                 previousWord = null
@@ -134,9 +141,7 @@ internal fun analyzeExpandedTokens(
                         prevWord = previousWord,
                         nextToken = nextTokenAfter(expanded, index),
                     )
-                if (tier == RsvpPunctuationTier.SENTENCE_END ||
-                    tier == RsvpPunctuationTier.CLAUSE_BREAK
-                ) {
+                if (tier.isThoughtBoundary()) {
                     applyBoundaryEffects(tier = tier, boundaryIndex = index)
                 }
                 if (index >= emDashAsideCloseIndex) {
@@ -146,7 +151,7 @@ internal fun analyzeExpandedTokens(
         }
     }
     if (config.useFocalStress) {
-        addFocalWord(breathGroup, focal)
+        addFocalWord(breathGroup, focal, thoughtCues)
     }
 
     return RsvpTokenAnalysis(
@@ -155,14 +160,33 @@ internal fun analyzeExpandedTokens(
         emDashAsideIndices = if (config.useParentheticalAside) asides else emptySet(),
         pairedEmDashIndices = pairedDashes,
         phraseContours = contours,
+        thoughtCues = thoughtCues,
     )
 }
+
+private fun RsvpPunctuationTier.isThoughtBoundary(): Boolean =
+    this == RsvpPunctuationTier.SENTENCE_END || this == RsvpPunctuationTier.CLAUSE_BREAK
+
+private fun startsNewThought(
+    entry: ExpandedToken,
+    group: List<ExpandedToken>,
+    cues: Map<Int, RsvpThoughtCue>,
+): Boolean =
+    group.isNotEmpty() &&
+        cues[entry.expandedIndex]?.startTokenIndex == entry.originalIndex &&
+        group.last().originalIndex != entry.originalIndex
 
 private fun addFocalWord(
     group: List<ExpandedToken>,
     focal: MutableSet<Int>,
+    thoughtCues: Map<Int, RsvpThoughtCue>,
 ) {
     if (group.isEmpty()) return
+    val protected = group.filter { thoughtCues[it.expandedIndex]?.protectedEmphasis == true }
+    if (protected.isNotEmpty()) {
+        protected.forEach { focal += it.expandedIndex }
+        return
+    }
     if (group.size == 1) {
         focal += group.first().expandedIndex
         return
