@@ -47,6 +47,9 @@ internal class EpubChapterBuilder(
         preservedNavigationPathsLower: Set<String> = emptySet(),
         htmlOverridesByPathLower: Map<String, String> = emptyMap(),
     ): FallbackChapterBuildResult {
+        require(preferredChapterPathsLower.all { path -> zipTextEntries.containsKey(path.lowercase(Locale.ROOT)) }) {
+            "EPUB contains a required chapter that could not be read or exceeds import limits"
+        }
         val normalizedHtmlOverrides =
             htmlOverridesByPathLower.mapKeys { (path, _) -> path.lowercase(Locale.ROOT) }
         val preferredCandidates =

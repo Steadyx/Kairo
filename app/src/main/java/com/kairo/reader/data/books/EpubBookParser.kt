@@ -20,9 +20,12 @@ import com.kairo.reader.data.books.epub.EpubTextDecoder
 import com.kairo.reader.data.books.epub.OpfData
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.util.Locale
 import java.util.UUID
 import java.util.zip.ZipInputStream
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
@@ -94,7 +97,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             requireNotNull(context.contentResolver.openInputStream(uri)) {
                 "Unable to read EPUB file"
             }.use { inputStream ->
-                ZipInputStream(inputStream).use { zip ->
+                openZip(inputStream).use { zip ->
                     var entry = zip.nextEntry
                     while (entry != null) {
                         if (!entry.isDirectory) {
@@ -109,12 +112,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                                     nameLower.endsWith(".ncx")
 
                             if (isTextFile) {
-                                val read = readEntryWithLimitWithStatus(zip, MAX_ENTRY_SIZE)
-                                if (read.exceededLimit) {
-                                    oversizedTextEntriesLower.add(nameLower)
-                                    logWarn("Skipping oversized EPUB text entry: ${entry.name}")
-                                }
-                                val bytes = read.bytes
+                                val bytes = readEntryWithLimit(zip, MAX_ENTRY_SIZE)
                                 if (bytes != null && !zipTextEntries.containsKey(nameLower)) {
                                     if (totalTextBytes + bytes.size <= MAX_TOTAL_TEXT_SIZE) {
                                         zipTextEntries[nameLower] = bytes
@@ -257,7 +255,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
 
             if (neededImagePathsLower.isNotEmpty()) {
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    ZipInputStream(inputStream).use { zip ->
+                    openZip(inputStream).use { zip ->
                         var entry = zip.nextEntry
                         while (entry != null) {
                             if (!entry.isDirectory) {
@@ -526,14 +524,14 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         return EpubChapterOrdering.isChapterCandidateEntry(pathLower)
     }
 
-    private fun readHtmlEntriesFromZip(
+    private suspend fun readHtmlEntriesFromZip(
         context: Context,
         uri: Uri,
         skippedEntriesLower: Set<String> = emptySet(),
     ): Map<String, ByteArray> {
         val entries = mutableMapOf<String, ByteArray>()
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            ZipInputStream(inputStream).use { zip ->
+            openZip(inputStream).use { zip ->
                 readChapterEntries(zip, skippedEntriesLower, entries)
             }
         }
@@ -560,7 +558,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         }
     }
 
-    private fun resolveCoverFallbackImage(
+    private suspend fun resolveCoverFallbackImage(
         context: Context,
         uri: Uri,
         coverPathLower: String?,
@@ -599,13 +597,13 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         right: String,
     ): Int = EpubChapterOrdering.comparePathsNaturally(left, right)
 
-    private fun readZipEntryBytes(
+    private suspend fun readZipEntryBytes(
         context: Context,
         uri: Uri,
         targetLower: String,
     ): ByteArray? {
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            ZipInputStream(inputStream).use { zip ->
+            openZip(inputStream).use { zip ->
                 return findZipEntryBytes(zip, targetLower)
             }
         }
@@ -643,42 +641,30 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
         return if (ext.isNotEmpty()) "img_$base.$ext" else "img_$base"
     }
 
-    /**
-     * Reads a ZIP entry with a size limit using buffered reading.
-     * Returns null if the entry exceeds the size limit.
-     * This prevents OOM by not loading huge entries all at once.
-     */
+    private suspend fun openZip(input: InputStream): EpubZipInputStream {
+        val parsingContext = currentCoroutineContext()
+        return EpubZipInputStream(input, checkActive = { parsingContext.ensureActive() })
+    }
+
+    /** Reject immediately instead of inflating the rest of an oversized entry. */
     private fun readEntryWithLimit(
         zip: ZipInputStream,
         maxSize: Int,
-    ): ByteArray? = readEntryWithLimitWithStatus(zip, maxSize).bytes
-
-    private class LimitedReadResult(val bytes: ByteArray?, val exceededLimit: Boolean,)
-
-    private fun readEntryWithLimitWithStatus(
-        zip: ZipInputStream,
-        maxSize: Int,
-    ): LimitedReadResult {
+    ): ByteArray? {
         val buffer = ByteArray(BUFFER_SIZE)
         val output = java.io.ByteArrayOutputStream()
-        var totalRead = 0
-
+        var totalRead = 0L
         return try {
             var bytesRead: Int
             while (zip.read(buffer).also { bytesRead = it } != -1) {
                 totalRead += bytesRead
-                if (totalRead > maxSize) {
-                    while (zip.read(buffer) != -1) {
-                        // Drain remaining bytes for this entry before moving to next entry.
-                    }
-                    return LimitedReadResult(bytes = null, exceededLimit = true)
-                }
+                require(totalRead <= maxSize) { "EPUB entry exceeds the import limit" }
                 output.write(buffer, 0, bytesRead)
             }
-            LimitedReadResult(bytes = output.toByteArray(), exceededLimit = false)
-        } catch (e: IOException) {
-            logWarn("Failed to read EPUB entry", e)
-            LimitedReadResult(bytes = null, exceededLimit = false)
+            output.toByteArray()
+        } catch (error: IOException) {
+            logWarn("Failed to read EPUB entry", error)
+            null
         }
     }
 
