@@ -9,6 +9,9 @@ import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.countWords
+import com.kairo.reader.core.tokenization.CHAPTER_WORD_COUNT_VERSION
+import com.kairo.reader.core.tokenization.countChapterWords
+import com.kairo.reader.core.tokenization.usesCjkWordSegmentation
 import com.kairo.reader.data.local.BookDao
 import com.kairo.reader.data.local.BookEntity
 import com.kairo.reader.data.local.EpubChapterCoordinate
@@ -399,13 +402,16 @@ class BookRepositoryImpl(
                 coverImage = CoverImageOptimizer.optimize(parsedBook.coverImage),
                 chapters =
                 parsedBook.chapters.map { chapter ->
-                    if (chapter.wordCount > 0) {
-                        chapter
+                    if (chapter.wordCount > 0 && !usesCjkWordSegmentation(resolvedLanguageTag)) {
+                        chapter.copy(wordCountVersion = CHAPTER_WORD_COUNT_VERSION)
                     } else if (chapter.plainText.length <= MAX_WORD_COUNT_CHARS) {
-                        chapter.copy(wordCount = countWords(chapter.plainText))
+                        chapter.copy(
+                            wordCount = countChapterWords(chapter, resolvedLanguageTag),
+                            wordCountVersion = CHAPTER_WORD_COUNT_VERSION,
+                        )
                     } else {
                         // Defer heavy word counts for very large chapters.
-                        chapter
+                        chapter.copy(wordCount = 0, wordCountVersion = 0)
                     }
                 },
             )
@@ -468,32 +474,9 @@ class BookRepositoryImpl(
         }
     }
 
-    private fun hasReadableImportText(text: String): Boolean {
-        val normalized = text.trim()
-        if (normalized in UNREADABLE_IMPORT_PLACEHOLDERS) return false
-
-        var words = 0
-        var inWord = false
-        var index = 0
-        while (index < normalized.length) {
-            val codePoint = Character.codePointAt(normalized, index)
-            if (Character.isLetterOrDigit(codePoint)) {
-                if (!inWord) {
-                    words += 1
-                    if (words >= MIN_READABLE_IMPORT_WORDS) return true
-                }
-                inWord = true
-            } else {
-                inWord = false
-            }
-            index += Character.charCount(codePoint)
-        }
-        return false
-    }
-
     override suspend fun getBook(bookId: BookId): Book {
         val bookEntity = requireNotNull(bookDao.getBook(bookId.value)) { "Book not found" }
-        val chapters = bookDao.getChaptersWithContent(bookId.value)
+        val chapters = bookDao.getChapters(bookId.value)
         val tableOfContentsEntries = bookDao.getTableOfContentsEntries(bookId.value)
         return bookEntity.toDomain(chapters, tableOfContentsEntries)
     }
@@ -512,7 +495,7 @@ class BookRepositoryImpl(
         chapterIndex: Int,
         wordCount: Int,
     ) {
-        if (wordCount <= 0) return
+        if (wordCount < 0) return
         bookDao.updateChapterWordCount(bookId.value, chapterIndex, wordCount)
     }
 
@@ -543,12 +526,6 @@ class BookRepositoryImpl(
         private const val IMPORT_CACHE_MAX_AGE_MS = 24L * 60L * 60L * 1000L
         private const val MAX_IMPORT_EXTENSION_LENGTH = 16
         private const val MAX_WORD_COUNT_CHARS = 120_000
-        private const val MIN_READABLE_IMPORT_WORDS = 5
-        private val UNREADABLE_IMPORT_PLACEHOLDERS =
-            setOf(
-                "No readable content found.",
-                "No readable content found in this EPUB.",
-            )
     }
 
     private data class PreparedImportSource(

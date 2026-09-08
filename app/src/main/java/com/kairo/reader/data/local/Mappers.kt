@@ -48,6 +48,7 @@ fun Chapter.toEntity(bookId: BookId): ChapterEntity =
         plainText = plainText,
         imagePaths = encodeImagePaths(imagePaths),
         wordCount = wordCount,
+        wordCountVersion = wordCountVersion,
     )
 
 fun BookEntity.toDomain(
@@ -113,6 +114,7 @@ fun ChapterEntity.toDomain(): Chapter =
         plainText = plainText,
         imagePaths = decodeImagePaths(imagePaths),
         wordCount = wordCount,
+        wordCountVersion = wordCountVersion,
     )
 
 fun ReadingPositionEntity.toDomain(): com.kairo.reader.core.model.ReadingPosition =

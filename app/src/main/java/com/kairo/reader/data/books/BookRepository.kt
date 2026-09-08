@@ -13,6 +13,7 @@ interface BookRepository {
 
     suspend fun importText(request: TextImportRequest): BookImportResult
 
+    /** Loads metadata, chapter summaries and navigation; use [getChapter] for chapter content. */
     suspend fun getBook(bookId: BookId): Book
 
     suspend fun getChapter(

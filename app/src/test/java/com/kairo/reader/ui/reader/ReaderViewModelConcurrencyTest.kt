@@ -45,6 +45,33 @@ class ReaderViewModelConcurrencyTest {
     }
 
     @Test
+    fun reopeningRepairedCjkBookDoesNotTokenizeEveryChapterAgain() = runTest(testDispatcher) {
+        val chapters = List(20) { index ->
+            Chapter(index, null, "", "中文段落", wordCount = 3, wordCountVersion = 1)
+        }
+        val book = Book(BookId("cjk"), "Book", emptyList(), chapters = chapters, languageTag = "zh-Hans")
+        val provider = object : DispatcherProvider {
+            override val default = testDispatcher
+            override val io = testDispatcher
+        }
+        repeat(2) {
+            val tokens = FakeTokenRepository()
+            val viewModel = ReaderViewModel(FakeBookRepository(book, chapters), tokens, provider)
+            viewModel.loadBook(book)
+            advanceUntilIdle()
+            assertEquals(60, viewModel.uiState.value.bookTotalWords)
+            assertTrue(tokens.requestedChapters.all { it in 0..1 })
+        }
+        val partlyRepaired = book.copy(chapters = chapters.map { if (it.index == 10) it.copy(wordCountVersion = 0) else it })
+        val tokens = FakeTokenRepository()
+        val viewModel = ReaderViewModel(FakeBookRepository(partlyRepaired, chapters), tokens, provider)
+        viewModel.loadBook(partlyRepaired)
+        advanceUntilIdle()
+        assertTrue(10 in tokens.requestedChapters)
+        assertTrue(tokens.requestedChapters.all { it in setOf(0, 1, 10) })
+    }
+
+    @Test
     fun loadAndPreload_doNotCrash() = runTest(testDispatcher) {
         val chapters =
             listOf(
@@ -636,9 +663,13 @@ private class FakeTokenRepository(
             Token(text = "world", type = TokenType.WORD),
         ),
 ) : TokenRepository {
+    val requestedChapters = mutableListOf<Int>()
     override suspend fun getTokens(
         bookId: BookId,
         chapterIndex: Int,
         chapter: Chapter?,
-    ): List<Token> = tokens
+    ): List<Token> {
+        requestedChapters += chapterIndex
+        return tokens
+    }
 }

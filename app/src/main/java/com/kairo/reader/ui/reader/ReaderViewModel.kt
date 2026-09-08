@@ -10,6 +10,7 @@ import com.kairo.reader.core.model.TableOfContentsTarget
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.countWords
 import com.kairo.reader.core.model.nearestWordIndex
+import com.kairo.reader.core.tokenization.needsChapterWordCountRepair
 import com.kairo.reader.data.books.BookRepository
 import com.kairo.reader.data.search.codePointOffsetToUtf16Offset
 import com.kairo.reader.data.token.TokenRepository
@@ -103,38 +104,21 @@ class ReaderViewModel(
                 bookTotalWords = initialCounts.sum(),
             )
         }
-        if (initialCounts.all { it > 0 } || book.chapters.isEmpty()) return
+        if (book.chapters.none { needsChapterWordCountRepair(it, book.languageTag) }) return
 
         viewModelScope.launch {
             val counts =
-                runCatching {
+                runCatchingPreservingCancellation {
                     withContext(dispatcherProvider.io) {
                         book.chapters.map { chapter ->
-                            if (chapter.wordCount > 0) {
+                            if (!needsChapterWordCountRepair(chapter, book.languageTag)) {
                                 chapter.wordCount
                             } else {
-                                val resolved =
-                                    runCatching {
-                                        bookRepository.getChapter(bookId, chapter.index)
-                                    }.getOrNull()
-                                val count =
-                                    if (resolved == null) {
-                                        0
-                                    } else {
-                                        countWords(resolved.plainText)
-                                    }
-                                if (count > 0) {
-                                    bookRepository.updateChapterWordCount(
-                                        bookId,
-                                        chapter.index,
-                                        count,
-                                    )
-                                }
-                                count
+                                countWords(tokenRepository.getTokens(bookId, chapter.index))
                             }
                         }
                     }
-                }.getOrNull() ?: emptyList()
+                }.getOrNull() ?: initialCounts
 
             if (activeSession.get() !== session) return@launch
             val total = counts.sum()

@@ -67,6 +67,7 @@ data class Chapter(
     val wordCount: Int = 0,
     /** Links extracted from HTML with positions relative to plainText */
     val links: List<ChapterLink> = emptyList(),
+    val wordCountVersion: Int = 0,
 )
 
 data class ReadingPosition(

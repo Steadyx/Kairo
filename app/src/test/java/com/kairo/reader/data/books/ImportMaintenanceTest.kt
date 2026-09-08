@@ -11,6 +11,15 @@ import org.junit.Test
 
 class ImportMaintenanceTest {
     @Test
+    fun readableContentDoesNotRequireSpacesOrFiveWords() {
+        assertTrue(hasReadableImportText("这是一个没有空格但完全可以阅读的中文段落"))
+        assertTrue(hasReadableImportText("こんにちは世界"))
+        assertTrue(hasReadableImportText("A short chapter"))
+        assertFalse(hasReadableImportText("… \n !!!"))
+        assertFalse(hasReadableImportText("No readable content found in this EPUB."))
+    }
+
+    @Test
     fun sourceLimitRejectsUnknownLengthStreamsBeforeWritingOverBudget() {
         val output = ByteArrayOutputStream()
         assertThrows(ImportSourceTooLargeException::class.java) {

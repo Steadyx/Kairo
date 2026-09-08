@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import com.kairo.reader.core.tokenization.CHAPTER_WORD_COUNT_VERSION
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -63,7 +64,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount
+        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount, wordCountVersion
         FROM chapters
         ORDER BY bookId, `index`
         """,
@@ -152,7 +153,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount
+        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount, wordCountVersion
         FROM chapters
         WHERE bookId = :bookId
         ORDER BY `index`
@@ -162,7 +163,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT bookId, `index`, title, htmlContent, plainText, imagePaths, wordCount
+        SELECT bookId, `index`, title, htmlContent, plainText, imagePaths, wordCount, wordCountVersion
         FROM chapters
         WHERE bookId = :bookId
         ORDER BY `index`
@@ -182,7 +183,7 @@ interface BookDao {
 
     @Query(
         """
-        SELECT bookId, `index`, title, htmlContent, plainText, imagePaths, wordCount
+        SELECT bookId, `index`, title, htmlContent, plainText, imagePaths, wordCount, wordCountVersion
         FROM chapters
         WHERE bookId = :bookId AND `index` = :index
         LIMIT 1
@@ -196,8 +197,9 @@ interface BookDao {
     @Query(
         """
         UPDATE chapters
-        SET wordCount = :wordCount
-        WHERE bookId = :bookId AND `index` = :index AND wordCount <= 0
+        SET wordCount = :wordCount, wordCountVersion = $CHAPTER_WORD_COUNT_VERSION
+        WHERE bookId = :bookId AND `index` = :index
+          AND (wordCount != :wordCount OR wordCountVersion != $CHAPTER_WORD_COUNT_VERSION)
         """,
     )
     suspend fun updateChapterWordCount(

@@ -86,7 +86,8 @@ interface EpubNavigationDao {
         UPDATE chapters
         SET htmlContent = :htmlContent,
             plainText = :plainText,
-            wordCount = :wordCount
+            wordCount = :wordCount,
+            wordCountVersion = 0
         WHERE bookId = :bookId
           AND `index` = :chapterIndex
           AND htmlContent = :expectedHtmlContent
