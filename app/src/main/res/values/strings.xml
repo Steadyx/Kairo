@@ -57,7 +57,6 @@
 
     <string name="library_title">Your Library</string>
     <string name="library_subtitle">Import files or read articles from links.</string>
-    <string name="library_bookmarks_subtitle">Open saved bookmarks</string>
     <string name="library_import_button">Import File</string>
     <string name="library_read_from_link_button">Read Link</string>
     <string name="library_read_from_link_title">Read from link</string>
@@ -154,7 +153,7 @@
     <string name="focus_hide_status_bar_title">Hide status bar</string>
     <string name="focus_hide_status_bar_subtitle">Hides the top bar (time, notifications).</string>
     <string name="focus_pause_notifications_title">Pause notifications</string>
-    <string name="focus_pause_notifications_subtitle">Uses Do Not Disturb while focus mode is active.</string>
+    <string name="focus_pause_notifications_subtitle">Pauses notifications while reading in the foreground. Music and alarms stay audible.</string>
     <string name="focus_dnd_permission_message">Grant Do Not Disturb access to pause notifications.</string>
     <string name="focus_dnd_permission_action">Open DND access settings</string>
     <string name="focus_apply_title">Apply focus mode</string>

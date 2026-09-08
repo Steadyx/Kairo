@@ -2,7 +2,7 @@ package com.kairo.reader.data.books.mobi
 
 import com.kairo.reader.core.model.Chapter
 
-internal class MobiContentProcessor {
+internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
     private companion object {
         const val INITIAL_COVER_CANDIDATE_CAPACITY = 8
         const val MAX_COVER_CANDIDATES = 6
@@ -25,7 +25,7 @@ internal class MobiContentProcessor {
         header: MobiHeader,
         firstImageIndexHint: Int,
     ): String {
-        val textBuilder = StringBuilder()
+        val textBytes = MobiTextBuffer(MobiLimits.MAX_TEXT_BYTES)
         val textRecordStart = 1
         val recordLimit =
             if (firstImageIndexHint > 0 && firstImageIndexHint <= recordOffsets.lastIndex) {
@@ -36,23 +36,35 @@ internal class MobiContentProcessor {
         val textRecordEnd = minOf(textRecordStart + textRecordCount, recordLimit)
 
         for (index in textRecordStart until textRecordEnd) {
+            checkActive()
             val start = recordOffsets[index]
             val end = if (index + 1 < recordOffsets.size) recordOffsets[index + 1] else data.size
             if (end !in 0..data.size || start !in 0 until end) continue
+            if (MobiBinary.isImageRecord(data, recordOffsets, index)) continue
+            if (end - start > MobiLimits.MAX_TEXT_RECORD_BYTES) throw MobiTextLimitException()
             val recordData = data.copyOfRange(start, end)
-            if (MobiBinary.detectImageType(recordData) != null) continue
 
             val decodedBytes =
                 when (compression) {
                     1 -> recordData
-                    2 -> MobiBinary.decompressPalmDoc(recordData)
+                    2 -> MobiBinary.decompressPalmDoc(
+                        recordData,
+                        minOf(MobiLimits.MAX_TEXT_RECORD_BYTES, MobiLimits.MAX_TEXT_BYTES - textBytes.size()),
+                        checkActive,
+                    )
                     // Some producers mark unsupported compression but still ship readable text chunks.
                     else -> recordData
                 }
-            if (MobiBinary.looksMostlyBinary(decodedBytes)) continue
-            textBuilder.append(MobiBinary.decodeText(decodedBytes, header.textCharset))
+            textBytes.append(decodedBytes)
         }
 
+        checkActive()
+        // Decode once: UTF-8 characters can straddle Palm database records.
+        val combined = textBytes.toByteArray()
+        val textBuilder = StringBuilder()
+        if (!MobiBinary.looksMostlyBinary(combined, header.textCharset)) {
+            textBuilder.append(MobiBinary.decodeText(combined, header.textCharset))
+        }
         if (textBuilder.isBlank()) {
             appendHtmlFromAllRecords(data, recordOffsets, header, textBuilder)
         }
@@ -304,13 +316,16 @@ internal class MobiContentProcessor {
         textBuilder: StringBuilder,
     ) {
         for (index in recordOffsets.indices) {
+            checkActive()
             val start = recordOffsets[index]
             val end = if (index + 1 < recordOffsets.size) recordOffsets[index + 1] else data.size
             if (start < 0 || end > data.size || end <= start) continue
+            if (MobiBinary.isImageRecord(data, recordOffsets, index)) continue
+            if (end - start > MobiLimits.MAX_TEXT_RECORD_BYTES) throw MobiTextLimitException()
             val bytes = data.copyOfRange(start, end)
-            if (MobiBinary.detectImageType(bytes) != null) continue
             val text = MobiBinary.decodeText(bytes, header.textCharset)
             if (looksLikeHtml(text)) {
+                if (text.length > MobiLimits.MAX_TEXT_BYTES - textBuilder.length) throw MobiTextLimitException()
                 textBuilder.append(text)
             }
         }

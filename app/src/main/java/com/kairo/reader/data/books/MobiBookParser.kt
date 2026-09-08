@@ -6,18 +6,21 @@ import android.provider.OpenableColumns
 import com.kairo.reader.core.dispatchers.DispatcherProvider
 import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookId
+import com.kairo.reader.data.books.mobi.MobiContentProcessor
 import com.kairo.reader.data.books.mobi.MobiFallbackParser
 import com.kairo.reader.data.books.mobi.MobiFormatValidator
 import com.kairo.reader.data.books.mobi.MobiLimits
 import com.kairo.reader.data.books.mobi.MobiParserEngine
+import com.kairo.reader.data.books.mobi.MobiTextLimitException
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.util.Locale
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : BookParser {
-    private val parserEngine = MobiParserEngine()
     private val fallbackParser = MobiFallbackParser()
 
     override suspend fun parse(
@@ -42,23 +45,29 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
                 "MOBI file too large (max ${MobiLimits.MAX_FILE_SIZE_BYTES / BYTES_PER_KIB / BYTES_PER_KIB}MB)"
             }
 
+            val importContext = coroutineContext
+            val checkActive = { importContext.ensureActive() }
             val data =
                 requireNotNull(context.contentResolver.openInputStream(uri)) {
                     "Unable to read MOBI file"
                 }.use { input ->
-                    readInputBytesWithLimit(BufferedInputStream(input), MobiLimits.MAX_FILE_SIZE_BYTES)
+                    readInputBytesWithLimit(BufferedInputStream(input), MobiLimits.MAX_FILE_SIZE_BYTES, checkActive)
                 }
 
             MobiFormatValidator.validate(data)
 
-            runCatching {
+            val parserEngine = MobiParserEngine(contentProcessor = MobiContentProcessor(checkActive))
+            try {
                 parserEngine.parse(
                     context = context,
                     bookId = bookId,
                     data = data,
                     fallbackFileName = fileName,
                 )
-            }.getOrElse {
+            } catch (failure: MobiTextLimitException) {
+                throw failure
+            } catch (_: IllegalArgumentException) {
+                checkActive()
                 fallbackParser.parse(
                     bookId = bookId,
                     data = data,
@@ -102,12 +111,14 @@ class MobiBookParser(private val dispatcherProvider: DispatcherProvider,) : Book
     private fun readInputBytesWithLimit(
         input: InputStream,
         maxBytes: Long,
+        checkActive: () -> Unit,
     ): ByteArray {
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
         var total = 0L
 
         while (true) {
+            checkActive()
             val read = input.read(buffer)
             if (read == -1) break
             if (read == 0) continue

@@ -1,5 +1,6 @@
 package com.kairo.reader.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -61,6 +62,7 @@ data class ChapterEntity(
     val plainText: String,
     val imagePaths: String = "",
     val wordCount: Int = 0,
+    @ColumnInfo(defaultValue = "0") val wordCountVersion: Int = 0,
 )
 
 @Entity(

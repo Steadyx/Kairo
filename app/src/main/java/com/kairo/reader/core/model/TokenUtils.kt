@@ -3,54 +3,6 @@
 package com.kairo.reader.core.model
 
 import com.kairo.reader.core.linguistics.WordAnalyzer
-import kotlin.math.max
-
-/**
- * Calculates the Optimal Recognition Point (ORP) index for a word.
- *
- * The ORP is the character position where the eye naturally focuses for
- * fastest word recognition. Research shows this is typically:
- * - 25-35% into the word for common words (eyes recognize them faster)
- * - Slightly earlier (20-25%) for rare/complex words (need more processing)
- *
- * This implementation uses word frequency to fine-tune the pivot position.
- */
-fun calculateOrpIndex(word: String): Int {
-    return WordAnalyzer.analyze(word).orpIndex
-}
-
-/**
- * Alternative ORP calculation that considers syllable structure.
- * Places pivot at the vowel of the most stressed syllable (approximated).
- */
-@Suppress("unused")
-fun calculateOrpIndexAdvanced(word: String): Int {
-    val length = word.length
-    if (length <= 2) return 0
-
-    val lower = word.lowercase()
-    val vowels = setOf('a', 'e', 'i', 'o', 'u')
-
-    // Find vowel positions
-    val vowelPositions = lower.indices.filter { lower[it] in vowels }
-
-    // For most English words, stress is often on first or second syllable
-    // Use the first vowel in the optimal recognition zone (20-35% into word)
-    val optimalStart = (length * 0.2).toInt()
-    val optimalEnd = (length * 0.35).toInt()
-
-    // Find first vowel in or near optimal zone
-    val optimalVowel =
-        if (vowelPositions.isEmpty()) {
-            length / 3 // No vowels, use 1/3 position
-        } else {
-            vowelPositions.firstOrNull { it in optimalStart..optimalEnd }
-                ?: vowelPositions.firstOrNull { it <= optimalEnd }
-                ?: vowelPositions.first()
-        }
-
-    return optimalVowel.coerceIn(0, length - 1)
-}
 
 fun isSentenceEndingPunctuation(char: Char): Boolean =
     char == '.' ||
@@ -142,29 +94,6 @@ fun normalizeWhitespace(input: String): String =
         .joinToString("\n") { line ->
             line.trim().replace(Regex("\\s+"), " ")
         }.trim()
-
-@Suppress("unused")
-fun calculatePause(
-    type: TokenType,
-    config: RsvpConfig,
-): Long =
-    when (type) {
-        TokenType.PARAGRAPH_BREAK ->
-            max(
-                (config.paragraphPauseMs * config.paragraphPauseMultiplier).toLong(),
-                (config.sentenceEndPauseMs * 0.8).toLong(),
-            )
-        TokenType.PAGE_BREAK -> max(
-            (config.paragraphPauseMs * config.pageBreakPauseMultiplier).toLong(),
-            (
-                max(config.sentenceEndPauseMs, config.periodPauseMs) *
-                    config.pageBreakPauseMultiplier *
-                    0.85
-                ).toLong(),
-        )
-        TokenType.PUNCTUATION -> max(60L, (config.paragraphPauseMs * 0.4).toLong())
-        TokenType.WORD -> 0L
-    }
 
 /**
  * Resolves a focus/position index to the nearest WORD token.

@@ -1,10 +1,13 @@
 package com.kairo.reader.data.preferences
 
+import androidx.datastore.preferences.core.doublePreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import com.kairo.reader.core.model.BlinkMode
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpContextAssistMode
 import com.kairo.reader.core.model.RsvpCustomProfile
+import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -47,6 +50,21 @@ class RsvpPreferenceCodecsTest {
         val actual = preferenceCodec.readRsvpConfig(preferences, RsvpConfig())
 
         assertEquals(expected.copy(baseWpm = (60_000.0 / expected.tempoMsPerWord).toInt()), actual)
+    }
+
+    @Test
+    fun obsoleteFieldsInExistingPreferencesAndProfilesAreIgnored() {
+        val config = distinctiveConfig()
+        val preferences = mutablePreferencesOf()
+        preferenceCodec.writeRsvpConfig(preferences, config)
+        val expected = preferenceCodec.readRsvpConfig(preferences, RsvpConfig())
+        preferences[intPreferencesKey("words_per_frame")] = 99
+        preferences[doublePreferencesKey("long_word_multiplier")] = 99.0
+        assertEquals(expected, preferenceCodec.readRsvpConfig(preferences, RsvpConfig()))
+        val profile = RsvpCustomProfile("user:legacy", "Legacy", config, 1L)
+        val json = JSONArray(profileCodec.encodeCustomProfiles(listOf(profile)))
+        json.getJSONObject(0).getJSONObject("config").put("wordsPerFrame", 99).put("longWordMultiplier", 99.0)
+        assertEquals(listOf(profile), profileCodec.parseCustomProfiles(json.toString()))
     }
 
     private fun distinctiveConfig(): RsvpConfig =
@@ -100,10 +118,8 @@ class RsvpPreferenceCodecsTest {
             adaptiveDifficultyMaxHoldMs = 101L,
             complexWordHoldMs = 109L,
             complexWordThreshold = 1.33,
-            wordsPerFrame = 2,
             maxChunkLength = 23,
             punctuationPauseFactor = 1.21,
-            longWordMultiplier = 1.19,
             useClausePausing = false,
             clausePauseFactor = 1.27,
             useFocalStress = false,

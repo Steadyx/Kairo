@@ -79,6 +79,7 @@ class LibraryRepositoryImpl(
                 bookDao.deleteTableOfContentsForBook(bookId)
                 bookDao.deleteBook(bookId)
             }
+            invalidateBookCaches(BookId(bookId))
             deleteBookAssets(bookId)
         }
     }

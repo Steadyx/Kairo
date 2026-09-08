@@ -91,6 +91,17 @@ class PdfParserEngineTest {
         assertTrue(error?.message.orEmpty().contains("Scanned PDFs require OCR"))
     }
 
+    @Test
+    fun parseAcceptsShortAndUnspacedSelectableText() {
+        listOf("Hello", "这是一个没有空格但完全可以阅读的中文段落", "日本語の文章も読むことができます").forEach { text ->
+            val book = PdfParserEngine.buildBook(
+                request = request(),
+                extracted = ExtractedPdfDocument(title = null, author = null, pages = listOf(text)),
+            )
+            assertEquals(text, book.chapters.single().plainText)
+        }
+    }
+
     private fun request() =
         PdfBookParseRequest(
             bookId = BookId("pdf-test"),

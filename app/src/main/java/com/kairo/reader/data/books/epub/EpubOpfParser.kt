@@ -1,5 +1,6 @@
 package com.kairo.reader.data.books.epub
 
+import com.kairo.reader.core.text.HtmlEntities
 import java.io.StringReader
 import java.util.Locale
 import org.w3c.dom.Document
@@ -379,7 +380,7 @@ internal class EpubOpfParser {
             val raw = match.groupValues.getOrNull(1).orEmpty()
             val withoutTags = allTagsRegex.replace(raw, " ")
             val normalized =
-                EpubHtmlEntities
+                HtmlEntities
                     .decode(withoutTags)
                     .replace(whitespaceRegex, " ")
                     .trim()
@@ -395,7 +396,7 @@ internal class EpubOpfParser {
         val attrRegex = Regex("([A-Za-z_][A-Za-z0-9_:.\\-]*)\\s*=\\s*(['\"])(.*?)\\2")
         attrRegex.findAll(tag).forEach { match ->
             val name = match.groupValues[1].lowercase(Locale.ROOT)
-            val value = EpubHtmlEntities.decode(match.groupValues[ATTRIBUTE_VALUE_GROUP]).trim()
+            val value = HtmlEntities.decode(match.groupValues[ATTRIBUTE_VALUE_GROUP]).trim()
             if (value.isNotBlank()) {
                 attrs[name] = value
             }

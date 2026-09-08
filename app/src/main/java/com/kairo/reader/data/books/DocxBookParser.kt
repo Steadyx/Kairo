@@ -287,8 +287,9 @@ private class DocxMarkupRenderer(private val resolveImage: (relationshipId: Stri
             val child = nodes.item(index)
             if (child !is Element) continue
             when (child.localNameValue().lowercase(Locale.ROOT)) {
-                "ppr", "rpr", "bookmarkstart", "bookmarkend", "prooferr" -> Unit
-                "t", "deltext", "instrtext" -> output.append(child.textContent.orEmpty().escapeBookHtml())
+                "ppr", "rpr", "bookmarkstart", "bookmarkend", "prooferr",
+                "del", "movefrom", "deltext", "delinstrtext", "instrtext" -> Unit
+                "t" -> output.append(child.textContent.orEmpty().escapeBookHtml())
                 "tab" -> output.append(' ')
                 "br", "cr" -> output.append("<br>")
                 "blip" -> appendImage(child, imagePaths, output)

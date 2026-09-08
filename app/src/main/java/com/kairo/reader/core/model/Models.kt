@@ -67,6 +67,7 @@ data class Chapter(
     val wordCount: Int = 0,
     /** Links extracted from HTML with positions relative to plainText */
     val links: List<ChapterLink> = emptyList(),
+    val wordCountVersion: Int = 0,
 )
 
 data class ReadingPosition(
@@ -229,11 +230,9 @@ data class RsvpConfig(
      * but they remain optional/compat-focused.
      */
     val baseWpm: Int = 500,
-    val wordsPerFrame: Int = 1,
     val maxChunkLength: Int = 10,
     /** Global punctuation breathing multiplier. 1.0 is neutral. */
     val punctuationPauseFactor: Double = 1.08,
-    val longWordMultiplier: Double = 1.2,
     val useAdaptiveTiming: Boolean = true,
     val adaptiveDifficultyMaxHoldMs: Long = 70L,
     val complexWordHoldMs: Long = 45L,

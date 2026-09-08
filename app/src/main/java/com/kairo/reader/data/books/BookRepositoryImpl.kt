@@ -1,8 +1,6 @@
 package com.kairo.reader.data.books
 
 import android.content.ContentResolver
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
 import com.kairo.reader.core.dispatchers.DispatcherProvider
@@ -11,15 +9,20 @@ import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.countWords
+import com.kairo.reader.core.tokenization.CHAPTER_WORD_COUNT_VERSION
+import com.kairo.reader.core.tokenization.countChapterWords
+import com.kairo.reader.core.tokenization.usesCjkWordSegmentation
 import com.kairo.reader.data.local.BookDao
 import com.kairo.reader.data.local.BookEntity
 import com.kairo.reader.data.local.EpubChapterCoordinate
 import com.kairo.reader.data.local.EpubNavigationDao
 import com.kairo.reader.data.local.toDomain
 import com.kairo.reader.data.local.toEntity
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
@@ -256,7 +259,7 @@ class BookRepositoryImpl(
             persistImportedBook(parsedText.toBook(bookId), sourceFingerprint)
         }
 
-    private fun prepareImportSource(
+    private suspend fun prepareImportSource(
         uri: Uri,
         extension: String,
     ): PreparedImportSource {
@@ -273,7 +276,7 @@ class BookRepositoryImpl(
         )
     }
 
-    private fun stageImportSource(
+    private suspend fun stageImportSource(
         uri: Uri,
         extension: String,
         sourceDisplayName: String?,
@@ -284,6 +287,7 @@ class BookRepositoryImpl(
         }
 
         var tempFile: File? = null
+        val importContext = currentCoroutineContext()
         return runCatching {
             pruneStaleImportCache(importDir)
 
@@ -303,7 +307,7 @@ class BookRepositoryImpl(
                 val sourceFingerprint =
                     sourceInput.use { input ->
                         stagedFile.outputStream().use { output ->
-                            ImportFingerprint.sourceFingerprint(extension, input, output)
+                            ImportFingerprint.sourceFingerprint(extension, input, output, checkActive = { importContext.ensureActive() })
                         }
                     }
                 PreparedImportSource(
@@ -315,19 +319,25 @@ class BookRepositoryImpl(
             }
         }.getOrElse {
             tempFile?.delete()
+            if (it is ImportSourceTooLargeException || it is CancellationException) throw it
             null
         }
     }
 
-    private fun resolveSourceFingerprint(
+    private suspend fun resolveSourceFingerprint(
         uri: Uri,
         extension: String,
-    ): String? =
-        runCatching {
+    ): String? {
+        val importContext = currentCoroutineContext()
+        return runCatching {
             appContext.contentResolver.openInputStream(uri)?.use { input ->
-                ImportFingerprint.sourceFingerprint(extension, input)
+                ImportFingerprint.sourceFingerprint(extension, input, checkActive = { importContext.ensureActive() })
             }
-        }.getOrNull()
+        }.getOrElse {
+            if (it is ImportSourceTooLargeException || it is CancellationException) throw it
+            null
+        }
+    }
 
     private fun resolveDisplayName(uri: Uri): String? =
         runCatching {
@@ -389,16 +399,19 @@ class BookRepositoryImpl(
         val book =
             parsedBook.copy(
                 languageTag = resolvedLanguageTag,
-                coverImage = optimizeCoverForDb(parsedBook.coverImage),
+                coverImage = CoverImageOptimizer.optimize(parsedBook.coverImage),
                 chapters =
                 parsedBook.chapters.map { chapter ->
-                    if (chapter.wordCount > 0) {
-                        chapter
+                    if (chapter.wordCount > 0 && !usesCjkWordSegmentation(resolvedLanguageTag)) {
+                        chapter.copy(wordCountVersion = CHAPTER_WORD_COUNT_VERSION)
                     } else if (chapter.plainText.length <= MAX_WORD_COUNT_CHARS) {
-                        chapter.copy(wordCount = countWords(chapter.plainText))
+                        chapter.copy(
+                            wordCount = countChapterWords(chapter, resolvedLanguageTag),
+                            wordCountVersion = CHAPTER_WORD_COUNT_VERSION,
+                        )
                     } else {
                         // Defer heavy word counts for very large chapters.
-                        chapter
+                        chapter.copy(wordCount = 0, wordCountVersion = 0)
                     }
                 },
             )
@@ -461,32 +474,9 @@ class BookRepositoryImpl(
         }
     }
 
-    private fun hasReadableImportText(text: String): Boolean {
-        val normalized = text.trim()
-        if (normalized in UNREADABLE_IMPORT_PLACEHOLDERS) return false
-
-        var words = 0
-        var inWord = false
-        var index = 0
-        while (index < normalized.length) {
-            val codePoint = Character.codePointAt(normalized, index)
-            if (Character.isLetterOrDigit(codePoint)) {
-                if (!inWord) {
-                    words += 1
-                    if (words >= MIN_READABLE_IMPORT_WORDS) return true
-                }
-                inWord = true
-            } else {
-                inWord = false
-            }
-            index += Character.charCount(codePoint)
-        }
-        return false
-    }
-
     override suspend fun getBook(bookId: BookId): Book {
         val bookEntity = requireNotNull(bookDao.getBook(bookId.value)) { "Book not found" }
-        val chapters = bookDao.getChaptersWithContent(bookId.value)
+        val chapters = bookDao.getChapters(bookId.value)
         val tableOfContentsEntries = bookDao.getTableOfContentsEntries(bookId.value)
         return bookEntity.toDomain(chapters, tableOfContentsEntries)
     }
@@ -505,7 +495,7 @@ class BookRepositoryImpl(
         chapterIndex: Int,
         wordCount: Int,
     ) {
-        if (wordCount <= 0) return
+        if (wordCount < 0) return
         bookDao.updateChapterWordCount(bookId.value, chapterIndex, wordCount)
     }
 
@@ -527,72 +517,6 @@ class BookRepositoryImpl(
             }
         }.flowOn(dispatcherProvider.default)
 
-    private fun optimizeCoverForDb(coverImage: ByteArray?): ByteArray? {
-        if (coverImage == null || coverImage.isEmpty()) return coverImage
-        if (coverImage.size <= MAX_COVER_DB_BYTES) return coverImage
-
-        val safeFallback =
-            coverImage.takeIf { it.size <= MAX_COVER_DB_BYTES }
-
-        return runCatching {
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size, bounds)
-
-            val width = bounds.outWidth
-            val height = bounds.outHeight
-            if (width <= 0 || height <= 0) return@runCatching safeFallback
-
-            // CursorWindow on many devices is ~2MB; keep cover comfortably under that, and also
-            // cap pixel dimensions so first-time decode/render is fast.
-            val shouldOptimize =
-                coverImage.size > MAX_COVER_DB_BYTES ||
-                    width > COVER_MAX_DIM_PX ||
-                    height > COVER_MAX_DIM_PX
-            if (!shouldOptimize) return@runCatching coverImage
-
-            val sampleSize = calculateInSampleSize(width, height, COVER_MAX_DIM_PX)
-            val decode =
-                BitmapFactory.Options().apply {
-                    inSampleSize = sampleSize
-                    inPreferredConfig = Bitmap.Config.ARGB_8888
-                }
-            val bitmap =
-                BitmapFactory.decodeByteArray(coverImage, 0, coverImage.size, decode)
-                    ?: return@runCatching safeFallback
-
-            try {
-                val out = ByteArrayOutputStream()
-                var quality = INITIAL_COVER_JPEG_QUALITY
-                var encoded: ByteArray
-                do {
-                    out.reset()
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
-                    encoded = out.toByteArray()
-                    quality -= JPEG_QUALITY_STEP
-                } while (encoded.size > MAX_COVER_DB_BYTES && quality >= MIN_COVER_JPEG_QUALITY)
-                encoded
-            } finally {
-                bitmap.recycle()
-            }
-        }.getOrNull() ?: safeFallback
-    }
-
-    private fun calculateInSampleSize(
-        width: Int,
-        height: Int,
-        maxDimPx: Int,
-    ): Int {
-        var sampleSize = 1
-        var w = width
-        var h = height
-        while (w > maxDimPx || h > maxDimPx) {
-            w /= 2
-            h /= 2
-            sampleSize *= 2
-        }
-        return sampleSize.coerceAtLeast(1)
-    }
-
     private companion object {
         const val MAX_LEGACY_NAVIGATION_CANDIDATES = 16
         const val MAX_PERSISTED_NAVIGATION_HTML_CHARACTERS = 5 * 1024 * 1024
@@ -601,18 +525,7 @@ class BookRepositoryImpl(
         private const val IMPORT_CACHE_FILE_PREFIX = "kairo-import-"
         private const val IMPORT_CACHE_MAX_AGE_MS = 24L * 60L * 60L * 1000L
         private const val MAX_IMPORT_EXTENSION_LENGTH = 16
-        private const val MAX_COVER_DB_BYTES = 256 * 1024
-        private const val COVER_MAX_DIM_PX = 1080
-        private const val INITIAL_COVER_JPEG_QUALITY = 90
-        private const val JPEG_QUALITY_STEP = 10
-        private const val MIN_COVER_JPEG_QUALITY = 60
         private const val MAX_WORD_COUNT_CHARS = 120_000
-        private const val MIN_READABLE_IMPORT_WORDS = 5
-        private val UNREADABLE_IMPORT_PLACEHOLDERS =
-            setOf(
-                "No readable content found.",
-                "No readable content found in this EPUB.",
-            )
     }
 
     private data class PreparedImportSource(

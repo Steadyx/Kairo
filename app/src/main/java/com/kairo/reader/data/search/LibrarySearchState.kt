@@ -15,7 +15,7 @@ sealed interface LibrarySearchState {
 
     data class Loading(val query: String) : LibrarySearchState
 
-    data class Success(val query: String, val results: List<LibrarySearchResult>,) : LibrarySearchState
+    data class Success(val query: String, val results: List<LibrarySearchResult>, val isSearching: Boolean = false,) : LibrarySearchState
 
     data class Error(val query: String) : LibrarySearchState
 }
@@ -45,11 +45,13 @@ class LibrarySearchController(
             scope.launch {
                 try {
                     delay(debounceMs)
-                    mutableState.value =
-                        LibrarySearchState.Success(
+                    repository.searchUpdates(query, bookId).collect { update ->
+                        mutableState.value = LibrarySearchState.Success(
                             query,
-                            repository.search(query, bookId).take(LibrarySearchConstraints.MAX_RESULTS),
+                            update.results.take(LibrarySearchConstraints.MAX_RESULTS),
+                            isSearching = !update.isComplete,
                         )
+                    }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {

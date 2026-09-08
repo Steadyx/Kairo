@@ -47,7 +47,6 @@
 
     <string name="library_title">ライブラリ</string>
     <string name="library_subtitle">対応ファイルをインポートして開始します。</string>
-    <string name="library_bookmarks_subtitle">保存したブックマークを開く</string>
     <string name="library_import_button">本をインポート</string>
     <string name="library_time_left">残り ~%1$s</string>
     <string name="library_percent_complete">%1$d％ 完了</string>

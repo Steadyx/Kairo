@@ -75,15 +75,3 @@ fun estimateMinutesForWords(
     if (wordsRemaining <= 0 || wpm <= 0) return 0
     return ceil(wordsRemaining / wpm.toDouble()).toInt().coerceAtLeast(1)
 }
-
-@Deprecated("Use ui.format.formatShortDurationMinutes for localized UI strings.")
-fun formatDurationMinutes(minutes: Int): String {
-    if (minutes <= 0) return "<1m"
-    val hours = minutes / 60
-    val mins = minutes % 60
-    return when {
-        hours <= 0 -> "${mins}m"
-        mins == 0 -> "${hours}h"
-        else -> "${hours}h ${mins}m"
-    }
-}

@@ -24,6 +24,15 @@ class LibrarySearchOverlayTest {
 
     @Test
     fun selectingResultDoesNotClearSuccessfulResultSet() {
+        assertResultCanBeOpened(isSearching = false)
+    }
+
+    @Test
+    fun partialResultsRemainVisibleAndClickableWhileSearchContinues() {
+        assertResultCanBeOpened(isSearching = true)
+    }
+
+    private fun assertResultCanBeOpened(isSearching: Boolean) {
         val result = passageResult()
         val submittedQueries = mutableListOf<String>()
         var openedResult: LibrarySearchResult? = null
@@ -32,7 +41,7 @@ class LibrarySearchOverlayTest {
                 LibrarySearchOverlay(
                     title = "Search this book",
                     hint = "Find text",
-                    state = LibrarySearchState.Success("needle", listOf(result)),
+                    state = LibrarySearchState.Success("needle", listOf(result), isSearching = isSearching),
                     initialQuery = "needle",
                     onQuery = submittedQueries::add,
                     onRetry = {},

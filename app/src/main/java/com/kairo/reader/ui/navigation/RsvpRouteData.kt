@@ -19,8 +19,9 @@ internal data class RsvpRouteData(
     val languageTag: String?,
     val tokensResolved: Boolean,
     val languageResolved: Boolean,
+    val metadataResolved: Boolean = false,
 ) {
-    val isReady: Boolean get() = tokensResolved && languageResolved
+    val isReady: Boolean get() = tokensResolved && languageResolved && metadataResolved
 }
 
 @Composable
@@ -101,6 +102,7 @@ internal fun rememberRsvpRouteData(
                 value.copy(
                     chapterCount = chapterCountDeferred.await(),
                     savedResumePosition = savedResumePositionDeferred.await(),
+                    metadataResolved = true,
                 )
         }
     }

@@ -37,36 +37,6 @@ import com.kairo.reader.core.model.BookmarkItem
 import kotlin.math.roundToInt
 
 @Composable
-internal fun BookmarksSummaryRow(
-    bookmarkCount: Int,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column {
-            Text(
-                text =
-                pluralStringResource(
-                    R.plurals.library_bookmark_count,
-                    bookmarkCount,
-                    bookmarkCount,
-                ),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = stringResource(R.string.library_bookmarks_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
 internal fun BookmarkBookHeader(
     book: Book,
     bookmarkCount: Int,

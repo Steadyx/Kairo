@@ -42,9 +42,8 @@ internal object BoundedZipReader {
             state.entryCount += 1
             require(state.entryCount <= policy.maxEntries) { "ZIP archive contains too many entries" }
             val normalizedName = entry.safeNormalizedName()
-            if (!entry.isDirectory) {
-                readEntry(zip, normalizedName, policy, state)?.let(entries::add)
-            }
+            // Directory entries can contain compressed payloads too. Drain every entry through the limits.
+            readEntry(zip, normalizedName, policy, state)?.let(entries::add)
             zip.closeEntry()
         }
         return entries
@@ -56,7 +55,7 @@ internal object BoundedZipReader {
         policy: ZipReadPolicy,
         state: ZipReadState,
     ): ImportedZipEntry? {
-        val output = if (policy.includeEntry(normalizedName)) ByteArrayOutputStream() else null
+        val output = if (!normalizedName.endsWith('/') && policy.includeEntry(normalizedName)) ByteArrayOutputStream() else null
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
         var entryBytes = 0L
         while (true) {

@@ -1,6 +1,6 @@
 package com.kairo.reader.data.books
 
-import com.kairo.reader.data.books.epub.EpubHtmlEntities
+import com.kairo.reader.core.text.HtmlEntities
 import com.kairo.reader.data.books.epub.EpubNavigationReference
 
 internal data class EpubNavigationParseResult(
@@ -84,7 +84,7 @@ internal object EpubReaderNavigationContent {
                     append("</span>")
                 } else {
                     append("<a href=\"")
-                    append(escapeHtml(EpubHtmlEntities.decode(href)))
+                    append(escapeHtml(HtmlEntities.decode(href)))
                     append("\">")
                     append(escapeHtml(reference.label))
                     append("</a>")

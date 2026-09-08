@@ -27,6 +27,7 @@ import com.kairo.reader.data.local.KairoDatabase
 import com.kairo.reader.data.local.MIGRATION_10_11
 import com.kairo.reader.data.local.MIGRATION_11_12
 import com.kairo.reader.data.local.MIGRATION_12_13
+import com.kairo.reader.data.local.MIGRATION_13_14
 import com.kairo.reader.data.local.MIGRATION_1_2
 import com.kairo.reader.data.local.MIGRATION_2_3
 import com.kairo.reader.data.local.MIGRATION_3_4
@@ -51,11 +52,16 @@ import com.kairo.reader.data.sessions.ReadingSessionRepositoryImpl
 import com.kairo.reader.data.sessions.SystemReadingSessionClock
 import com.kairo.reader.data.token.TokenRepository
 import com.kairo.reader.data.token.TokenRepositoryImpl
+import com.kairo.reader.ui.focus.AndroidFocusDndBackend
+import com.kairo.reader.ui.focus.FocusDndController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class KairoApplication : Application() {
+    internal lateinit var focusDndController: FocusDndController
+        private set
+
     val dispatcherProvider = DefaultDispatcherProvider()
     private val applicationScope = CoroutineScope(SupervisorJob() + dispatcherProvider.default)
 
@@ -90,6 +96,8 @@ class KairoApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        focusDndController = FocusDndController(AndroidFocusDndBackend(this))
+        focusDndController.recover()
         database =
             Room
                 .databaseBuilder(
@@ -109,6 +117,7 @@ class KairoApplication : Application() {
                     MIGRATION_10_11,
                     MIGRATION_11_12,
                     MIGRATION_12_13,
+                    MIGRATION_13_14,
                 )
                 .build()
 

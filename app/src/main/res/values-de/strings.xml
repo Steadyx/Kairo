@@ -47,7 +47,6 @@
 
     <string name="library_title">Deine Bibliothek</string>
     <string name="library_subtitle">Importiere unterstützte Dateien, um zu starten.</string>
-    <string name="library_bookmarks_subtitle">Gespeicherte Lesezeichen öffnen</string>
     <string name="library_import_button">Buch importieren</string>
     <string name="library_time_left">~%1$s übrig</string>
     <string name="library_percent_complete">%1$d %% abgeschlossen</string>

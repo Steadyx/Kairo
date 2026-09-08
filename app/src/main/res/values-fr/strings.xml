@@ -47,7 +47,6 @@
 
     <string name="library_title">Votre bibliothèque</string>
     <string name="library_subtitle">Importez des fichiers compatibles pour commencer.</string>
-    <string name="library_bookmarks_subtitle">Ouvrir les marque-pages enregistrés</string>
     <string name="library_import_button">Importer un livre</string>
     <string name="library_time_left">~%1$s restant</string>
     <string name="library_percent_complete">%1$d %% terminé</string>

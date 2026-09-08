@@ -47,7 +47,6 @@
 
     <string name="library_title">你的书库</string>
     <string name="library_subtitle">导入支持的文件以开始。</string>
-    <string name="library_bookmarks_subtitle">打开已保存的书签</string>
     <string name="library_import_button">导入图书</string>
     <string name="library_time_left">剩余 ~%1$s</string>
     <string name="library_percent_complete">已完成 %1$d％</string>

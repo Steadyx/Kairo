@@ -1,5 +1,6 @@
 package com.kairo.reader.data.books.mobi
 
+import com.kairo.reader.core.text.HtmlEntities
 import java.net.URLDecoder
 
 internal object MobiHtmlUtils {
@@ -17,20 +18,7 @@ internal object MobiHtmlUtils {
             ?: match.groupValues.getOrNull(2)?.ifBlank { null }
     }
 
-    fun decodeHtmlEntities(text: String): String =
-        text
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&apos;", "'")
-            .replace("&#39;", "'")
-            .replace("&nbsp;", " ")
-            .replace(Regex("&#(\\d+);")) { match ->
-                match.groupValues[1].toIntOrNull()?.toChar()?.toString().orEmpty()
-            }.replace(Regex("&#x([0-9a-fA-F]+);")) { match ->
-                match.groupValues[1].toIntOrNull(HEX_RADIX)?.toChar()?.toString().orEmpty()
-            }
+    fun decodeHtmlEntities(text: String): String = HtmlEntities.decode(text)
 
     fun decodeFragment(fragment: String): String {
         if (!fragment.contains('%')) return fragment
@@ -40,5 +28,3 @@ internal object MobiHtmlUtils {
     fun decodePath(path: String): String =
         runCatching { URLDecoder.decode(path, "UTF-8") }.getOrDefault(path)
 }
-
-private const val HEX_RADIX = 16

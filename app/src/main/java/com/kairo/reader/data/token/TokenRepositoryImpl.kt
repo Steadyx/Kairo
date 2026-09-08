@@ -7,10 +7,13 @@ import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.countWords
 import com.kairo.reader.core.tokenization.TokenizerRegistry
 import com.kairo.reader.data.books.BookRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -30,12 +33,15 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
             ): Boolean = size > MAX_CACHED_CHAPTERS
         }
     private val cacheLock = Any()
+    private data class LoadKey(val chapter: CacheKey, val generation: Long)
+
+    private val inFlight = mutableMapOf<LoadKey, Deferred<List<Token>>>()
     private val languageTagCache = mutableMapOf<String, String?>()
     private val bookGenerations = mutableMapOf<String, Long>()
     private var globalGeneration = 0L
     private var generationCounter = 0L
     private val tokenizationDispatcher = dispatcherProvider.default.limitedParallelism(1)
-    private val prefetchScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
+    private val loadScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
 
     override suspend fun getTokens(
         bookId: BookId,
@@ -45,60 +51,38 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
         val generation = currentGeneration(bookId)
         val languageTag = resolveLanguageTag(bookId, generation)
         val key = CacheKey(bookId.value, chapterIndex, languageTag)
-        val cached = synchronized(cacheLock) { cache[key] }
-        if (cached != null) {
-            prefetchNextChapter(bookId, chapterIndex + 1, languageTag, generation)
-            return cached
-        }
-
-        val resolvedChapter =
-            chapter
-                ?: withContext(dispatcherProvider.io) {
-                    bookRepository.getChapter(bookId, chapterIndex)
-                }
-        val tokens =
-            withContext(tokenizationDispatcher) {
-                TokenizerRegistry.resolve(languageTag).tokenize(resolvedChapter)
-            }
-        if (isCurrentGeneration(bookId, generation)) {
-            updateChapterWordCount(bookId, chapterIndex, tokens)
-            synchronized(cacheLock) {
-                if (generationOfLocked(bookId.value) == generation) cache[key] = tokens
-            }
-            prefetchNextChapter(bookId, chapterIndex + 1, languageTag, generation)
-        }
-        return tokens
+        return loadTokens(key, generation, chapter).await()
     }
 
-    private fun prefetchNextChapter(
-        bookId: BookId,
-        nextIndex: Int,
-        languageTag: String?,
+    private fun loadTokens(
+        key: CacheKey,
         generation: Long,
-    ) {
-        val key = CacheKey(bookId.value, nextIndex, languageTag)
-        prefetchScope.launch {
-            runCatching {
-                val shouldLoad =
-                    synchronized(cacheLock) {
-                        generationOfLocked(bookId.value) == generation && !cache.containsKey(key)
+        chapter: Chapter? = null,
+    ): Deferred<List<Token>> = synchronized(cacheLock) {
+        val loadKey = LoadKey(key, generation)
+        cache[key]?.takeIf { generationOfLocked(key.bookId) == generation }?.let { CompletableDeferred(it) }
+            ?: inFlight[loadKey]
+            ?: loadScope.async(start = CoroutineStart.LAZY) {
+                try {
+                    val bookId = BookId(key.bookId)
+                    val source = chapter ?: bookRepository.getChapter(bookId, key.chapterIndex)
+                    val tokens = withContext(tokenizationDispatcher) {
+                        TokenizerRegistry.resolve(key.languageTag).tokenize(source)
                     }
-                if (!shouldLoad) return@runCatching
-                val chapter =
-                    withContext(dispatcherProvider.io) {
-                        bookRepository.getChapter(bookId, nextIndex)
+                    if (isCurrentGeneration(bookId, generation)) {
+                        updateChapterWordCount(bookId, key.chapterIndex, tokens)
+                        synchronized(cacheLock) {
+                            if (generationOfLocked(key.bookId) == generation) cache[key] = tokens
+                        }
                     }
-                val tokens =
-                    withContext(tokenizationDispatcher) {
-                        TokenizerRegistry.resolve(languageTag).tokenize(chapter)
-                    }
-                if (!isCurrentGeneration(bookId, generation)) return@runCatching
-                updateChapterWordCount(bookId, nextIndex, tokens)
-                synchronized(cacheLock) {
-                    if (generationOfLocked(bookId.value) == generation) cache[key] = tokens
+                    tokens
+                } finally {
+                    synchronized(cacheLock) { inFlight.remove(loadKey) }
                 }
+            }.also { pending ->
+                inFlight[loadKey] = pending
+                pending.start()
             }
-        }
     }
 
     private suspend fun updateChapterWordCount(
@@ -106,9 +90,7 @@ class TokenRepositoryImpl(private val bookRepository: BookRepository, private va
         chapterIndex: Int,
         tokens: List<Token>,
     ) {
-        if (tokens.isEmpty()) return
         val wordCount = countWords(tokens)
-        if (wordCount <= 0) return
         bookRepository.updateChapterWordCount(bookId, chapterIndex, wordCount)
     }
 

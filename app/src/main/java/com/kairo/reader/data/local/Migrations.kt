@@ -314,3 +314,10 @@ private fun createReadingSessionCheckpoints(db: SupportSQLiteDatabase) {
             "ON reading_session_checkpoints(sessionKey)",
     )
 }
+
+val MIGRATION_13_14: Migration =
+    object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE chapters ADD COLUMN wordCountVersion INTEGER NOT NULL DEFAULT 0")
+        }
+    }
