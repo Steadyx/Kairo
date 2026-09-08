@@ -141,6 +141,7 @@ class MobiBookParserTest {
             "readInputBytesWithLimit",
             ByteArrayInputStream(data),
             3L,
+            {},
         )
 
         assertEquals(data.toList(), result.toList())
@@ -153,6 +154,7 @@ class MobiBookParserTest {
                 "readInputBytesWithLimit",
                 ByteArrayInputStream(byteArrayOf(1, 2, 3, 4)),
                 3L,
+                {},
             )
             fail("Expected oversized stream to be rejected")
         } catch (error: java.lang.reflect.InvocationTargetException) {

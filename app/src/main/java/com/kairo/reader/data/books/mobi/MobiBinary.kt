@@ -77,36 +77,41 @@ internal object MobiBinary {
         return null
     }
 
-    fun looksMostlyBinary(data: ByteArray): Boolean {
-        if (data.isEmpty()) return true
-        var printable = 0
-        data.forEach { byte ->
-            val value = byte.toInt() and BYTE_MASK
-            if (isTextByte(value)) {
-                printable++
-            }
-        }
-        return printable.toDouble() / data.size.toDouble() < MIN_PRINTABLE_TEXT_RATIO
+    fun looksMostlyBinary(data: ByteArray, charset: Charset = Charsets.UTF_8): Boolean {
+        val text = decodeText(data, charset)
+        if (text.isEmpty()) return true
+        val printable = text.count { it != '\uFFFD' && (!it.isISOControl() || it.isWhitespace()) }
+        return printable.toDouble() / text.length < MIN_PRINTABLE_TEXT_RATIO
     }
 
-    fun decompressPalmDoc(data: ByteArray): ByteArray {
-        val output = ArrayList<Byte>(data.size * PALMDOC_OUTPUT_CAPACITY_FACTOR)
+    fun decompressPalmDoc(
+        data: ByteArray,
+        maxOutputBytes: Int = MobiLimits.MAX_TEXT_RECORD_BYTES,
+        checkActive: () -> Unit = {},
+    ): ByteArray {
+        checkActive()
+        val output = MobiTextBuffer(maxOutputBytes)
+        var lastCancellationCheck = 0
         var i = 0
 
         while (i < data.size) {
+            if (i - lastCancellationCheck >= CANCELLATION_CHECK_INTERVAL) {
+                checkActive()
+                lastCancellationCheck = i
+            }
             val byte = data[i].toInt() and BYTE_MASK
             i++
             when (byte) {
-                0 -> output.add(0)
+                0 -> output.append(0)
                 in PALMDOC_LITERAL_RUN_RANGE -> {
                     repeat(byte) {
                         if (i < data.size) {
-                            output.add(data[i])
+                            output.append(data[i])
                             i++
                         }
                     }
                 }
-                in PALMDOC_DIRECT_BYTE_RANGE -> output.add(byte.toByte())
+                in PALMDOC_DIRECT_BYTE_RANGE -> output.append(byte.toByte())
                 in PALMDOC_BACK_REFERENCE_RANGE -> {
                     if (i < data.size) {
                         val next = data[i].toInt() and BYTE_MASK
@@ -115,30 +120,31 @@ internal object MobiBinary {
                             ((byte shl THIRD_BYTE_SHIFT) or next) shr PALMDOC_LENGTH_BITS and
                                 PALMDOC_DISTANCE_MASK
                         val length = (next and PALMDOC_LENGTH_MASK) + PALMDOC_MIN_MATCH_LENGTH
-                        val position = output.size - distance
+                        val position = output.size() - distance
                         if (position >= 0) {
                             repeat(length) { offset ->
                                 val source = position + offset
-                                if (source in output.indices) {
-                                    output.add(output[source])
+                                if (source in 0 until output.size()) {
+                                    output.append(output[source])
                                 }
                             }
                         }
                     }
                 }
                 else -> {
-                    output.add(' '.code.toByte())
-                    output.add((byte xor PALMDOC_SPACE_XOR_MASK).toByte())
+                    output.append(' '.code.toByte())
+                    output.append((byte xor PALMDOC_SPACE_XOR_MASK).toByte())
                 }
             }
         }
+        checkActive()
         return output.toByteArray()
     }
 
     fun decodeText(
         bytes: ByteArray,
         charset: Charset,
-    ): String = runCatching { String(bytes, charset) }.getOrDefault(String(bytes))
+    ): String = String(bytes, charset)
 
     fun resolveCharset(encoding: Int): Charset =
         when (encoding) {
@@ -146,14 +152,6 @@ internal object MobiBinary {
             MOBI_ENCODING_WINDOWS_1252 ->
                 runCatching { Charset.forName("windows-1252") }.getOrDefault(Charsets.UTF_8)
             else -> Charsets.UTF_8
-        }
-
-    private fun isTextByte(value: Int): Boolean =
-        when (value) {
-            ASCII_TAB, ASCII_LINE_FEED, ASCII_CARRIAGE_RETURN -> true
-            in ASCII_PRINTABLE_RANGE -> true
-            in EXTENDED_TEXT_BYTE_MIN..BYTE_MASK -> true
-            else -> false
         }
 
     private fun ByteArray.hasSignature(signature: ByteArray, offset: Int = 0): Boolean =
@@ -179,14 +177,9 @@ internal object MobiBinary {
     private const val IMAGE_PROBE_BYTES = 32
     private const val WEBP_SIGNATURE_OFFSET = 8
 
-    private const val ASCII_TAB = 0x09
-    private const val ASCII_LINE_FEED = 0x0A
-    private const val ASCII_CARRIAGE_RETURN = 0x0D
-    private val ASCII_PRINTABLE_RANGE = 0x20..0x7E
-    private const val EXTENDED_TEXT_BYTE_MIN = 0xC0
     private const val MIN_PRINTABLE_TEXT_RATIO = 0.6
 
-    private const val PALMDOC_OUTPUT_CAPACITY_FACTOR = 2
+    private const val CANCELLATION_CHECK_INTERVAL = 1024
     private val PALMDOC_LITERAL_RUN_RANGE = 1..8
     private val PALMDOC_DIRECT_BYTE_RANGE = 9..0x7F
     private val PALMDOC_BACK_REFERENCE_RANGE = 0x80..0xBF

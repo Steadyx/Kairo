@@ -4,6 +4,8 @@ import java.nio.charset.Charset
 
 internal object MobiLimits {
     const val MAX_FILE_SIZE_BYTES: Long = 50L * 1024L * 1024L
+    const val MAX_TEXT_RECORD_BYTES = 1024 * 1024
+    const val MAX_TEXT_BYTES = 8 * 1024 * 1024
     const val MIN_FILE_SIZE_BYTES = 78
     const val MIN_RECORD_COUNT = 2
     const val MAX_IMAGE_ENTRY_SIZE = 2 * 1024 * 1024
