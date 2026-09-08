@@ -13,11 +13,12 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.io.MemoryUsageSetting
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException
-import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.IOException
 import java.util.Locale
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 internal class PdfBookParser(private val dispatcherProvider: DispatcherProvider,) : BookParser {
@@ -53,7 +54,8 @@ internal class PdfBookParser(private val dispatcherProvider: DispatcherProvider,
                 )
             try {
                 loadDocument(context, uri, fileSize).use { document ->
-                    PdfParserEngine.parse(document, request)
+                    val parsingContext = currentCoroutineContext()
+                    PdfParserEngine.parse(document, request) { parsingContext.ensureActive() }
                 }
             } catch (error: InvalidPasswordException) {
                 throw IllegalArgumentException("Password-protected or encrypted PDFs are not supported", error)
@@ -155,6 +157,7 @@ internal object PdfParserEngine {
     fun parse(
         document: PDDocument,
         request: PdfBookParseRequest,
+        checkActive: () -> Unit = {},
     ): Book {
         require(!document.isEncrypted) { "Password-protected or encrypted PDFs are not supported" }
         val pageCount = document.numberOfPages
@@ -165,7 +168,7 @@ internal object PdfParserEngine {
             ExtractedPdfDocument(
                 title = document.documentInformation?.title,
                 author = document.documentInformation?.author,
-                pages = extractPages(document, request.sourceSizeBytes),
+                pages = extractPages(document, request.sourceSizeBytes, checkActive),
             ),
         )
     }
@@ -178,7 +181,7 @@ internal object PdfParserEngine {
             "PDF contains too much extracted text"
         }
         val chapters = buildChapters(extracted.pages)
-        require(chapters.sumOf(Chapter::wordCount) >= MIN_READABLE_WORDS) {
+        require(chapters.any { hasReadableImportText(it.plainText) }) {
             "No selectable text was found. Scanned PDFs require OCR and are not supported yet."
         }
         val title =
@@ -202,20 +205,19 @@ internal object PdfParserEngine {
     private fun extractPages(
         document: PDDocument,
         sourceSizeBytes: Long,
+        checkActive: () -> Unit,
     ): List<String> {
-        val stripper =
-            PDFTextStripper().apply {
-                sortByPosition =
-                    PdfImportPerformancePolicy.shouldSortByPosition(
-                        sourceSizeBytes = sourceSizeBytes,
-                        pageCount = document.numberOfPages,
-                    )
-                lineSeparator = "\n"
-                pageStart = ""
-                pageEnd = EXTRACTION_PAGE_SEPARATOR
-            }
         return splitExtractedPages(
-            extractedText = stripper.getText(document),
+            extractedText = extractBoundedPdfText(
+                document = document,
+                sortByPosition = PdfImportPerformancePolicy.shouldSortByPosition(
+                    sourceSizeBytes = sourceSizeBytes,
+                    pageCount = document.numberOfPages,
+                ),
+                pageSeparator = EXTRACTION_PAGE_SEPARATOR,
+                maxChars = MAX_EXTRACTED_TEXT_CHARS,
+                checkActive = checkActive,
+            ),
             pageCount = document.numberOfPages,
         )
     }
@@ -303,7 +305,6 @@ internal object PdfParserEngine {
     private const val DEFAULT_TITLE = "PDF import"
     private const val MAX_PAGES = 5000
     private const val PAGES_PER_CHAPTER = 10
-    private const val MIN_READABLE_WORDS = 5
     private const val MAX_EXTRACTED_TEXT_CHARS = 16L * 1024L * 1024L
     private const val PAGE_BREAK_MARKER = '\u000C'
     private const val EXTRACTION_PAGE_SEPARATOR = "\u0000KAIRO_PDF_PAGE\u0000"
