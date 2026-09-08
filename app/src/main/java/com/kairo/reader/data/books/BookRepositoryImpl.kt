@@ -17,6 +17,9 @@ import com.kairo.reader.data.local.toDomain
 import com.kairo.reader.data.local.toEntity
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
@@ -253,7 +256,7 @@ class BookRepositoryImpl(
             persistImportedBook(parsedText.toBook(bookId), sourceFingerprint)
         }
 
-    private fun prepareImportSource(
+    private suspend fun prepareImportSource(
         uri: Uri,
         extension: String,
     ): PreparedImportSource {
@@ -270,7 +273,7 @@ class BookRepositoryImpl(
         )
     }
 
-    private fun stageImportSource(
+    private suspend fun stageImportSource(
         uri: Uri,
         extension: String,
         sourceDisplayName: String?,
@@ -281,6 +284,7 @@ class BookRepositoryImpl(
         }
 
         var tempFile: File? = null
+        val importContext = currentCoroutineContext()
         return runCatching {
             pruneStaleImportCache(importDir)
 
@@ -300,7 +304,7 @@ class BookRepositoryImpl(
                 val sourceFingerprint =
                     sourceInput.use { input ->
                         stagedFile.outputStream().use { output ->
-                            ImportFingerprint.sourceFingerprint(extension, input, output)
+                            ImportFingerprint.sourceFingerprint(extension, input, output, checkActive = { importContext.ensureActive() })
                         }
                     }
                 PreparedImportSource(
@@ -312,19 +316,25 @@ class BookRepositoryImpl(
             }
         }.getOrElse {
             tempFile?.delete()
+            if (it is ImportSourceTooLargeException || it is CancellationException) throw it
             null
         }
     }
 
-    private fun resolveSourceFingerprint(
+    private suspend fun resolveSourceFingerprint(
         uri: Uri,
         extension: String,
-    ): String? =
-        runCatching {
+    ): String? {
+        val importContext = currentCoroutineContext()
+        return runCatching {
             appContext.contentResolver.openInputStream(uri)?.use { input ->
-                ImportFingerprint.sourceFingerprint(extension, input)
+                ImportFingerprint.sourceFingerprint(extension, input, checkActive = { importContext.ensureActive() })
             }
-        }.getOrNull()
+        }.getOrElse {
+            if (it is ImportSourceTooLargeException || it is CancellationException) throw it
+            null
+        }
+    }
 
     private fun resolveDisplayName(uri: Uri): String? =
         runCatching {

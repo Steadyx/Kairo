@@ -11,18 +11,22 @@ internal object ImportFingerprint {
     fun sourceFingerprint(
         extension: String,
         input: InputStream,
+        maxBytes: Long = MAX_SOURCE_BYTES,
+        checkActive: () -> Unit = {},
     ): String {
         val normalizedExtension = extension.lowercase(Locale.ROOT)
-        return "source:$normalizedExtension:${input.sha256Hex()}"
+        return "source:$normalizedExtension:${input.sha256Hex(maxBytes = maxBytes, checkActive = checkActive)}"
     }
 
     fun sourceFingerprint(
         extension: String,
         input: InputStream,
         copyTo: OutputStream,
+        maxBytes: Long = MAX_SOURCE_BYTES,
+        checkActive: () -> Unit = {},
     ): String {
         val normalizedExtension = extension.lowercase(Locale.ROOT)
-        return "source:$normalizedExtension:${input.sha256Hex(copyTo)}"
+        return "source:$normalizedExtension:${input.sha256Hex(copyTo, maxBytes, checkActive)}"
     }
 
     fun withSourceExtension(
@@ -84,13 +88,22 @@ internal object ImportFingerprint {
             .replace('\r', '\n')
             .trim()
 
-    private fun InputStream.sha256Hex(copyTo: OutputStream? = null): String {
+    private fun InputStream.sha256Hex(
+        copyTo: OutputStream? = null,
+        maxBytes: Long,
+        checkActive: () -> Unit,
+    ): String {
+        require(maxBytes >= 0L)
+        var totalBytes = 0L
         val digest = MessageDigest.getInstance("SHA-256")
         val buffer = ByteArray(BUFFER_SIZE)
         while (true) {
+            checkActive()
             val read = read(buffer)
             if (read == -1) break
             if (read > 0) {
+                totalBytes += read
+                if (totalBytes > maxBytes) throw ImportSourceTooLargeException(maxBytes)
                 digest.update(buffer, 0, read)
                 copyTo?.write(buffer, 0, read)
             }
@@ -118,6 +131,14 @@ internal object ImportFingerprint {
     private val WHITESPACE = Regex("\\s+")
     private const val SOURCE_PREFIX = "source:"
     private const val SHA_256_HEX_LENGTH = 64
+    private const val MAX_SOURCE_BYTES = 256L * 1024L * 1024L
     private const val BUFFER_SIZE = 64 * 1024
     private const val BYTE_MASK = 0xFF
 }
+
+internal class ImportSourceTooLargeException(maxBytes: Long) :
+    IllegalArgumentException(
+        "File is too large to import (maximum ${maxBytes / SOURCE_BYTES_PER_MEBIBYTE} MB)",
+    )
+
+private const val SOURCE_BYTES_PER_MEBIBYTE = 1024L * 1024L
