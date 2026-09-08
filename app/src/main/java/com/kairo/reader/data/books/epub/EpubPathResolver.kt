@@ -1,5 +1,6 @@
 package com.kairo.reader.data.books.epub
 
+import com.kairo.reader.core.text.HtmlEntities
 import java.util.Locale
 
 internal object EpubPathResolver {
@@ -55,7 +56,7 @@ internal object EpubPathResolver {
     fun normalizeHrefValue(href: String): String {
         val withoutFragments = href.substringBefore('#').substringBefore('?').trim()
         if (withoutFragments.isBlank()) return ""
-        return decodeUrlPath(EpubHtmlEntities.decode(withoutFragments)).trim()
+        return decodeUrlPath(HtmlEntities.decode(withoutFragments)).trim()
     }
 
     fun resolveZipEntryKey(
@@ -99,7 +100,7 @@ internal object EpubPathResolver {
         addVariant(base)
         addVariant(base.replace('\\', '/'))
 
-        val htmlDecoded = EpubHtmlEntities.decode(base)
+        val htmlDecoded = HtmlEntities.decode(base)
         addVariant(htmlDecoded)
         addVariant(htmlDecoded.replace('\\', '/'))
 
@@ -186,7 +187,7 @@ internal object EpubPathResolver {
     fun normalizeIdRef(idref: String): String = idref.trim().removePrefix("#").trim()
 
     fun normalizeContainerPath(path: String): String {
-        var cleaned = decodeUrlPath(EpubHtmlEntities.decode(path)).trim()
+        var cleaned = decodeUrlPath(HtmlEntities.decode(path)).trim()
         cleaned = cleaned.replace('\\', '/')
         cleaned = cleaned.removePrefix("./")
         cleaned = cleaned.trimStart('/')

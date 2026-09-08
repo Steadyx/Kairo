@@ -1,8 +1,8 @@
-package com.kairo.reader.data.books.epub
+package com.kairo.reader.core.text
 
 import java.util.Locale
 
-internal object EpubHtmlEntities {
+internal object HtmlEntities {
     private val namedEntities =
         mapOf(
             "nbsp" to " ",
@@ -151,10 +151,14 @@ internal object EpubHtmlEntities {
                 break
             }
             sb.append(input, index, ampIndex)
-            val semiIndex = input.indexOf(';', ampIndex + 1)
-            if (semiIndex == -1) {
-                sb.append(input, ampIndex, input.length)
-                break
+            var semiIndex = ampIndex + 1
+            while (semiIndex < input.length && input[semiIndex] != ';' && input[semiIndex] != '&') {
+                semiIndex++
+            }
+            if (semiIndex == input.length || input[semiIndex] != ';') {
+                sb.append(input, ampIndex, semiIndex)
+                index = semiIndex
+                continue
             }
             val entity = input.substring(ampIndex + 1, semiIndex)
             val decoded = decodeEntity(entity)
@@ -185,7 +189,7 @@ internal object EpubHtmlEntities {
     }
 
     private fun toCodePointString(codePoint: Int): String? {
-        if (codePoint !in 0..0x10FFFF) return null
+        if (codePoint !in 1..0x10FFFF || codePoint in 0xD800..0xDFFF) return null
         return if (codePoint <= Char.MAX_VALUE.code) {
             codePoint.toChar().toString()
         } else {

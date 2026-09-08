@@ -1,5 +1,6 @@
 package com.kairo.reader.data.books.epub
 
+import com.kairo.reader.core.text.HtmlEntities
 import java.io.StringReader
 import java.util.Locale
 import org.xml.sax.InputSource
@@ -97,7 +98,7 @@ internal class EpubContainerParser {
         val attrRegex = Regex("([A-Za-z_][A-Za-z0-9_:.\\-]*)\\s*=\\s*(['\"])(.*?)\\2")
         attrRegex.findAll(tag).forEach { match ->
             val name = match.groupValues[1].lowercase(Locale.ROOT)
-            val value = EpubHtmlEntities.decode(match.groupValues[ATTRIBUTE_VALUE_GROUP]).trim()
+            val value = HtmlEntities.decode(match.groupValues[ATTRIBUTE_VALUE_GROUP]).trim()
             if (value.isNotBlank()) {
                 attrs[name] = value
             }

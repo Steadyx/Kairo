@@ -1,6 +1,6 @@
 package com.kairo.reader.data.books
 
-import com.kairo.reader.data.books.epub.EpubHtmlEntities
+import com.kairo.reader.core.text.HtmlEntities
 import com.kairo.reader.data.books.epub.EpubNavigationReference
 import java.util.Locale
 
@@ -291,7 +291,7 @@ internal class EpubNavigationParser(private val markupParser: EpubMarkupParser =
         if (raw == null) return null
         if (raw.length > MAX_EXTRACTED_TEXT_CHARACTERS) extractionStatus.markIncomplete()
         val normalized =
-            EpubHtmlEntities
+            HtmlEntities
                 .decode(raw.take(MAX_EXTRACTED_TEXT_CHARACTERS))
                 .replace(WHITESPACE_REGEX, " ")
                 .trim()

@@ -1,5 +1,6 @@
 package com.kairo.reader.data.books.epub
 
+import com.kairo.reader.core.text.HtmlEntities
 import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Document
 import org.w3c.dom.Element
@@ -105,7 +106,7 @@ internal object EpubXmlUtils {
                 nodes
                     .item(i)
                     ?.textContent
-                    ?.let(EpubHtmlEntities::decode)
+                    ?.let(HtmlEntities::decode)
                     ?.trim()
                     ?.takeIf { it.isNotBlank() }
             if (text != null) {

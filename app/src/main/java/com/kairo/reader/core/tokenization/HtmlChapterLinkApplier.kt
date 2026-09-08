@@ -2,6 +2,7 @@ package com.kairo.reader.core.tokenization
 
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.text.HtmlEntities
 
 internal object HtmlChapterLinkApplier {
     fun apply(
@@ -112,18 +113,8 @@ internal object HtmlChapterLinkApplier {
     private fun extractLinkText(html: String): String =
         html
             .replace(HTML_TAG_REGEX, " ")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&apos;", "'")
-            .replace("&#39;", "'")
-            .replace(DECIMAL_ENTITY_REGEX) { match ->
-                match.groupValues[1].toIntOrNull()?.toChar()?.toString().orEmpty()
-            }.replace(HEX_ENTITY_REGEX) { match ->
-                match.groupValues[1].toIntOrNull(HEX_RADIX)?.toChar()?.toString().orEmpty()
-            }.replace(WHITESPACE_REGEX, " ")
+            .let(HtmlEntities::decode)
+            .replace(WHITESPACE_REGEX, " ")
             .trim()
 
     private fun isPageNumberText(
@@ -150,15 +141,12 @@ internal object HtmlChapterLinkApplier {
     private const val ANCHOR_CLOSE_TAG = "</a>"
     private const val MAX_LINKS_PER_CHAPTER = 1000
     private const val MAX_LINK_TEXT_HTML_CHARS = 1200
-    private const val HEX_RADIX = 16
     private val ANCHOR_OPEN_REGEX =
         Regex(
             "<a\\b[^>]*href\\s*=\\s*['\"]kairo://chapter/(\\d+)(?:#[^'\"]*)?['\"][^>]*>",
             RegexOption.IGNORE_CASE,
         )
     private val HTML_TAG_REGEX = Regex("<[^>]+>")
-    private val DECIMAL_ENTITY_REGEX = Regex("&#(\\d+);")
-    private val HEX_ENTITY_REGEX = Regex("&#x([0-9a-fA-F]+);")
     private val WHITESPACE_REGEX = Regex("\\s+")
     private val ROMAN_NUMERAL_REGEX = Regex("^[ivxlcdm]+$", RegexOption.IGNORE_CASE)
 }

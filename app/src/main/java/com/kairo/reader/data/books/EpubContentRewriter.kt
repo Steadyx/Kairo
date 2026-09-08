@@ -1,6 +1,6 @@
 package com.kairo.reader.data.books
 
-import com.kairo.reader.data.books.epub.EpubHtmlEntities
+import com.kairo.reader.core.text.HtmlEntities
 import com.kairo.reader.data.books.epub.EpubPathResolver
 import java.util.Locale
 
@@ -456,7 +456,7 @@ internal class EpubContentRewriter {
         return markupParser.parse(sanitized)
     }
 
-    fun decodeHtmlEntities(input: String): String = EpubHtmlEntities.decode(input)
+    fun decodeHtmlEntities(input: String): String = HtmlEntities.decode(input)
 
     fun decodeUrlPath(input: String): String = EpubPathResolver.decodeUrlPath(input)
 
