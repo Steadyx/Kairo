@@ -9,6 +9,7 @@ import com.kairo.reader.KairoApplication
 import com.kairo.reader.R
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.Bookmark
+import com.kairo.reader.core.model.ReadingPosition
 import com.kairo.reader.core.model.ReadingSessionMode
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.UserPreferences
@@ -43,12 +44,7 @@ internal data class RsvpRouteCallbackDependencies(
     val onShowUserMessage: (String) -> Unit,
     val onSessionFinished: (endTokenIndex: Int) -> Unit,
     val onSessionActiveChanged: (Boolean) -> Unit,
-    val saveRsvpPosition: (
-        targetChapterIndex: Int,
-        targetTokenIndex: Int,
-        targetWordIndex: Int,
-        targetResumeCursor: Int,
-    ) -> Unit,
+    val positionSaver: RsvpPositionSaver,
 )
 
 internal fun buildRsvpRouteCallbacks(
@@ -115,12 +111,15 @@ private fun buildRsvpBookmarkCallbacks(
             }
         },
         onOpenBookmarks = {
-            dependencies.container.readingSessionCoordinator.finalizeTimed(
-                dependencies.bookIdValue,
-                dependencies.sessionMode,
-            )
-            dependencies.navController.navigate(KairoRoutes.libraryBookmarks()) {
-                popUpTo(KairoRoutes.LIBRARY) { inclusive = false }
+            dependencies.coroutineScope.launch {
+                dependencies.positionSaver.flush()
+                dependencies.container.readingSessionCoordinator.finalizeTimed(
+                    dependencies.bookIdValue,
+                    dependencies.sessionMode,
+                )
+                dependencies.navController.navigate(KairoRoutes.libraryBookmarks()) {
+                    popUpTo(KairoRoutes.LIBRARY) { inclusive = false }
+                }
             }
         },
     )
@@ -130,52 +129,54 @@ private fun buildRsvpPlaybackCallbacks(
 ): RsvpPlaybackCallbacks =
     RsvpPlaybackCallbacks(
         onFinished = { resumePoint ->
-            dependencies.onSessionFinished(resumePoint.tokenIndex)
-            val returnTarget =
-                resolveRsvpReturnTarget(
-                    resumePoint = resumePoint,
-                    currentChapterIndex = dependencies.chapterIndex,
-                    chapterCount = dependencies.chapterCount,
-                    currentChapterTokens = dependencies.tokens,
-                )
-            val wordIndex =
-                if (returnTarget.chapterIndex == dependencies.chapterIndex) {
-                    resolveWordIndex(dependencies.wordCountByToken, returnTarget.tokenIndex)
-                } else {
-                    0
-                }
-            dependencies.saveRsvpPosition(
-                returnTarget.chapterIndex,
-                returnTarget.tokenIndex,
-                wordIndex,
-                returnTarget.resumeCursor,
-            )
-            dependencies.persistLiveTempo(resumePoint.tempoMsPerWord)
-            dependencies.navController.previousBackStackEntry
-                ?.savedStateHandle
-                ?.set(
-                    KairoSavedStateKeys.RSVP_RESULT_CHAPTER_INDEX,
+            dependencies.coroutineScope.launch {
+                dependencies.onSessionFinished(resumePoint.tokenIndex)
+                val returnTarget =
+                    resolveRsvpReturnTarget(
+                        resumePoint = resumePoint,
+                        currentChapterIndex = dependencies.chapterIndex,
+                        chapterCount = dependencies.chapterCount,
+                        currentChapterTokens = dependencies.tokens,
+                    )
+                val wordIndex =
+                    if (returnTarget.chapterIndex == dependencies.chapterIndex) {
+                        resolveWordIndex(dependencies.wordCountByToken, returnTarget.tokenIndex)
+                    } else {
+                        0
+                    }
+                dependencies.saveRsvpPosition(
                     returnTarget.chapterIndex,
-                )
-            dependencies.navController.previousBackStackEntry
-                ?.savedStateHandle
-                ?.set(
-                    KairoSavedStateKeys.RSVP_RESULT_TOKEN_INDEX,
                     returnTarget.tokenIndex,
-                )
-            dependencies.navController.previousBackStackEntry
-                ?.savedStateHandle
-                ?.set(
-                    KairoSavedStateKeys.RSVP_RESULT_RESUME_CURSOR,
+                    wordIndex,
                     returnTarget.resumeCursor,
-                )
-            dependencies.navController.previousBackStackEntry
-                ?.savedStateHandle
-                ?.set(
-                    KairoSavedStateKeys.RSVP_RESULT_TEMPO_MS,
-                    resumePoint.tempoMsPerWord,
-                )
-            dependencies.navController.popBackStack()
+                ).join()
+                dependencies.persistLiveTempo(resumePoint.tempoMsPerWord)
+                dependencies.navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(
+                        KairoSavedStateKeys.RSVP_RESULT_CHAPTER_INDEX,
+                        returnTarget.chapterIndex,
+                    )
+                dependencies.navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(
+                        KairoSavedStateKeys.RSVP_RESULT_TOKEN_INDEX,
+                        returnTarget.tokenIndex,
+                    )
+                dependencies.navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(
+                        KairoSavedStateKeys.RSVP_RESULT_RESUME_CURSOR,
+                        returnTarget.resumeCursor,
+                    )
+                dependencies.navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(
+                        KairoSavedStateKeys.RSVP_RESULT_TEMPO_MS,
+                        resumePoint.tempoMsPerWord,
+                    )
+                dependencies.navController.popBackStack()
+            }
         },
         onPositionChanged = { resumePoint ->
             val safeIndex =
@@ -211,49 +212,53 @@ private fun buildRsvpPlaybackCallbacks(
             }
         },
         onExit = { resumePoint ->
-            dependencies.onSessionFinished(resumePoint.tokenIndex)
-            val resumeIndex = dependencies.safeResumeIndex(resumePoint.tokenIndex)
-            val wordIndex = resolveWordIndex(dependencies.wordCountByToken, resumeIndex)
-            dependencies.saveRsvpPosition(
-                dependencies.chapterIndex,
-                resumeIndex,
-                wordIndex,
-                resumePoint.resumeCursor,
-            )
-            dependencies.persistLiveTempo(resumePoint.tempoMsPerWord)
-            dependencies.navController.previousBackStackEntry
-                ?.savedStateHandle
-                ?.set(KairoSavedStateKeys.RSVP_RESULT_CHAPTER_INDEX, dependencies.chapterIndex)
-            dependencies.navController.previousBackStackEntry
-                ?.savedStateHandle
-                ?.set(KairoSavedStateKeys.RSVP_RESULT_TOKEN_INDEX, resumeIndex)
-            dependencies.navController.previousBackStackEntry
-                ?.savedStateHandle
-                ?.set(
-                    KairoSavedStateKeys.RSVP_RESULT_RESUME_CURSOR,
+            dependencies.coroutineScope.launch {
+                dependencies.onSessionFinished(resumePoint.tokenIndex)
+                val resumeIndex = dependencies.safeResumeIndex(resumePoint.tokenIndex)
+                val wordIndex = resolveWordIndex(dependencies.wordCountByToken, resumeIndex)
+                dependencies.saveRsvpPosition(
+                    dependencies.chapterIndex,
+                    resumeIndex,
+                    wordIndex,
                     resumePoint.resumeCursor,
-                )
-            dependencies.navController.previousBackStackEntry
-                ?.savedStateHandle
-                ?.set(
-                    KairoSavedStateKeys.RSVP_RESULT_TEMPO_MS,
-                    resumePoint.tempoMsPerWord,
-                )
-            dependencies.navController.popBackStack()
+                ).join()
+                dependencies.persistLiveTempo(resumePoint.tempoMsPerWord)
+                dependencies.navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(KairoSavedStateKeys.RSVP_RESULT_CHAPTER_INDEX, dependencies.chapterIndex)
+                dependencies.navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(KairoSavedStateKeys.RSVP_RESULT_TOKEN_INDEX, resumeIndex)
+                dependencies.navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(
+                        KairoSavedStateKeys.RSVP_RESULT_RESUME_CURSOR,
+                        resumePoint.resumeCursor,
+                    )
+                dependencies.navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set(
+                        KairoSavedStateKeys.RSVP_RESULT_TEMPO_MS,
+                        resumePoint.tempoMsPerWord,
+                    )
+                dependencies.navController.popBackStack()
+            }
         },
         onOpenLibrary = { resumePoint ->
-            dependencies.onSessionFinished(resumePoint.tokenIndex)
-            val resumeIndex = dependencies.safeResumeIndex(resumePoint.tokenIndex)
-            val wordIndex = resolveWordIndex(dependencies.wordCountByToken, resumeIndex)
-            dependencies.saveRsvpPosition(
-                dependencies.chapterIndex,
-                resumeIndex,
-                wordIndex,
-                resumePoint.resumeCursor,
-            )
-            dependencies.navController.navigate(KairoRoutes.LIBRARY) {
-                popUpTo(KairoRoutes.LIBRARY) { inclusive = false }
-                launchSingleTop = true
+            dependencies.coroutineScope.launch {
+                dependencies.onSessionFinished(resumePoint.tokenIndex)
+                val resumeIndex = dependencies.safeResumeIndex(resumePoint.tokenIndex)
+                val wordIndex = resolveWordIndex(dependencies.wordCountByToken, resumeIndex)
+                dependencies.saveRsvpPosition(
+                    dependencies.chapterIndex,
+                    resumeIndex,
+                    wordIndex,
+                    resumePoint.resumeCursor,
+                ).join()
+                dependencies.navController.navigate(KairoRoutes.LIBRARY) {
+                    popUpTo(KairoRoutes.LIBRARY) { inclusive = false }
+                    launchSingleTop = true
+                }
             }
         },
         onPlaybackStateChanged = { isPlaying ->
@@ -287,16 +292,14 @@ private fun buildRsvpPlaybackCallbacks(
         },
     )
 
-private fun RsvpRouteCallbackDependencies.persistLiveTempo(tempoMsPerWord: Long) {
+private suspend fun RsvpRouteCallbackDependencies.persistLiveTempo(tempoMsPerWord: Long) {
     if (tempoMsPerWord <= 0L) return
     val baseTempoMs =
         RsvpConfigResolver.toBaseTempoMs(
             tempoMsPerWord,
             languageTag,
         )
-    coroutineScope.launch {
-        container.preferencesRepository.updateRsvpTempoMsPerWord(baseTempoMs)
-    }
+    container.preferencesRepository.updateRsvpTempoMsPerWord(baseTempoMs)
 }
 
 private fun buildRsvpPreferenceCallbacks(
@@ -406,3 +409,18 @@ private fun RsvpRouteCallbackDependencies.safeResumeIndex(tokenIndex: Int): Int 
     } else {
         tokenIndex.coerceAtLeast(0)
     }
+
+private fun RsvpRouteCallbackDependencies.saveRsvpPosition(
+    targetChapterIndex: Int,
+    targetTokenIndex: Int,
+    targetWordIndex: Int,
+    targetResumeCursor: Int,
+) = positionSaver.save(
+    ReadingPosition(
+        bookIdValue,
+        targetChapterIndex,
+        targetTokenIndex,
+        targetWordIndex,
+        rsvpResumeCursor = targetResumeCursor,
+    ),
+)

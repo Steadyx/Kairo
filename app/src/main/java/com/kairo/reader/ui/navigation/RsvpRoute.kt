@@ -7,12 +7,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalResources
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import com.kairo.reader.KairoApplication
 import com.kairo.reader.core.model.BookId
-import com.kairo.reader.core.model.ReadingPosition
 import com.kairo.reader.core.model.ReadingSessionMode
 import com.kairo.reader.core.model.RsvpFontWeight
 import com.kairo.reader.core.model.UserPreferences
@@ -31,7 +29,7 @@ import com.kairo.reader.ui.rsvp.RsvpScreenState
 import com.kairo.reader.ui.rsvp.RsvpTextStyle
 import com.kairo.reader.ui.rsvp.RsvpUiPreferences
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun RsvpRoute(
@@ -130,22 +128,11 @@ internal fun RsvpRoute(
         remember(routeData.languageTag) {
             RsvpGenerationOptions.fromLanguageTag(routeData.languageTag)
         }
-    fun saveRsvpPosition(
-        targetChapterIndex: Int,
-        targetTokenIndex: Int,
-        targetWordIndex: Int,
-        targetResumeCursor: Int,
-    ) {
-        rsvpLifecycleOwner.lifecycleScope.launch(dispatcherProvider.io) {
-            container.readingPositionRepository.savePosition(
-                ReadingPosition(
-                    bookIdValue,
-                    targetChapterIndex,
-                    targetTokenIndex,
-                    targetWordIndex,
-                    rsvpResumeCursor = targetResumeCursor,
-                ),
-            )
+    val positionSaver = remember(bookId, coroutineScope) {
+        RsvpPositionSaver(coroutineScope) { position ->
+            withContext(dispatcherProvider.io) {
+                container.readingPositionRepository.savePosition(position)
+            }
         }
     }
     val rsvpState =
@@ -211,7 +198,7 @@ internal fun RsvpRoute(
                             ),
                     )
                 },
-                saveRsvpPosition = ::saveRsvpPosition,
+                positionSaver = positionSaver,
             )
         )
     val rsvpDependencies =

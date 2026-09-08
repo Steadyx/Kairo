@@ -1,5 +1,7 @@
 package com.kairo.reader.ui.navigation
 
+import com.kairo.reader.core.model.BookId
+import com.kairo.reader.core.model.ReadingPosition
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import org.junit.Assert.assertEquals
@@ -58,7 +60,7 @@ class RsvpLaunchSnapshotStoreTest {
     }
 
     @Test
-    fun resolvedContentPublishesTokensAndLanguageReadinessTogether() {
+    fun resolvedContentWaitsForResumePositionAndChapterCount() {
         val snapshotTokens = listOf(word("Snapshot"))
         val loadedTokens = listOf(word("Loaded"))
         val unresolved =
@@ -75,12 +77,31 @@ class RsvpLaunchSnapshotStoreTest {
         val resolvedEnglish = unresolved.withResolvedContent(loadedTokens, "en-GB")
         val resolvedNull = unresolved.withResolvedContent(emptyList(), null)
 
-        assertTrue(resolvedEnglish.isReady)
+        assertFalse(resolvedEnglish.isReady)
         assertEquals(loadedTokens, resolvedEnglish.tokens)
         assertEquals("en-GB", resolvedEnglish.languageTag)
-        assertTrue(resolvedNull.isReady)
+        assertFalse(resolvedNull.isReady)
         assertEquals(snapshotTokens, resolvedNull.tokens)
         assertNull(resolvedNull.languageTag)
+    }
+
+    @Test
+    fun cachedLaunchWaitsForMetadataBeforePlaybackCanCaptureItsCursor() {
+        val initial = RsvpRouteData(
+            tokens = listOf(word("Snapshot")),
+            chapterCount = 1,
+            savedResumePosition = null,
+            languageTag = "en",
+            tokensResolved = true,
+            languageResolved = true,
+        )
+        assertFalse(initial.isReady)
+        val position = ReadingPosition(BookId("book"), 0, 3, rsvpResumeCursor = 99)
+        val ready = initial.copy(chapterCount = 4, savedResumePosition = position, metadataResolved = true)
+        assertTrue(ready.isReady)
+        assertEquals(position, ready.savedResumePosition)
+        assertEquals(4, ready.chapterCount)
+        assertTrue(ready.copy(savedResumePosition = null).isReady)
     }
 
     private fun word(text: String): Token = Token(text = text, type = TokenType.WORD)
