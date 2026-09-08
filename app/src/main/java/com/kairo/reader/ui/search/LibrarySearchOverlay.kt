@@ -22,6 +22,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -128,7 +129,8 @@ private fun SearchResults(
     when {
         normalizedQuery.length < LibrarySearchConstraints.MIN_QUERY_LENGTH ->
             SearchMessage(stringResource(R.string.search_minimum_hint))
-        state is LibrarySearchState.Loading && state.query == normalizedQuery ->
+        (state is LibrarySearchState.Loading && state.query == normalizedQuery) ||
+            (state is LibrarySearchState.Success && state.query == normalizedQuery && state.isSearching && state.results.isEmpty()) ->
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
@@ -137,7 +139,10 @@ private fun SearchResults(
         state is LibrarySearchState.Success && state.query == normalizedQuery && state.results.isEmpty() ->
             SearchMessage(stringResource(R.string.search_no_results))
         state is LibrarySearchState.Success && state.query == normalizedQuery ->
-            SearchResultList(state.results, onOpenResult)
+            Column {
+                if (state.isSearching) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                SearchResultList(state.results, onOpenResult)
+            }
         else -> SearchMessage(stringResource(R.string.search_minimum_hint))
     }
 }

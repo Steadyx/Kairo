@@ -8,40 +8,61 @@ import com.kairo.reader.data.local.SavedAnnotationDao
 import com.kairo.reader.data.local.SearchDao
 import com.kairo.reader.data.local.SearchPassageBookEntity
 import com.kairo.reader.data.local.SearchPassageChapterPageEntity
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class LibrarySearchRepositoryImpl(
     private val searchDao: SearchDao,
     private val annotationDao: SavedAnnotationDao,
     private val dispatcherProvider: DispatcherProvider,
 ) : LibrarySearchRepository {
-    override suspend fun search(
-        query: String,
-        bookId: String?,
-    ): List<LibrarySearchResult> =
-        withContext(dispatcherProvider.io) {
-            val normalized = normalizeLibrarySearchQuery(query)
-            if (normalized.length < LibrarySearchConstraints.MIN_QUERY_LENGTH) return@withContext emptyList()
-            currentCoroutineContext().ensureActive()
-            if (bookId != null) {
-                return@withContext searchPassages(normalized, bookId)
-                    .take(LibrarySearchConstraints.MAX_RESULTS)
+    override suspend fun search(query: String, bookId: String?): List<LibrarySearchResult> =
+        searchUpdates(query, bookId).last().results
+
+    override fun searchUpdates(query: String, bookId: String?): Flow<LibrarySearchUpdate> = channelFlow {
+        val normalized = normalizeLibrarySearchQuery(query)
+        if (normalized.length < LibrarySearchConstraints.MIN_QUERY_LENGTH) {
+            send(LibrarySearchUpdate(emptyList(), isComplete = true))
+            return@channelFlow
+        }
+        if (bookId != null) {
+            val results = searchPassages(normalized, bookId) { partial ->
+                send(LibrarySearchUpdate(partial, isComplete = false))
             }
-            coroutineScope {
-                // Start the cheap result groups before the complete-text passage query.
-                val books = async { searchBookTitles(normalized.toSqlLikePattern()) }
-                val saved = async { searchSaved(normalized.toSqlLikePattern()) }
-                val passages = async { searchPassages(normalized, bookId = null) }
-                fairMergeSearchResults(
-                    groups = listOf(books.await(), passages.await(), saved.await()),
-                    limit = LibrarySearchConstraints.MAX_RESULTS,
+            send(LibrarySearchUpdate(results, isComplete = true))
+            return@channelFlow
+        }
+        val groups = MutableList(SEARCH_GROUP_COUNT) { emptyList<LibrarySearchResult>() }
+        val completed = mutableSetOf<Int>()
+        val publicationMutex = Mutex()
+        suspend fun publish(index: Int, results: List<LibrarySearchResult>, complete: Boolean) {
+            publicationMutex.withLock {
+                groups[index] = results
+                if (complete) completed += index
+                send(
+                    LibrarySearchUpdate(
+                        fairMergeSearchResults(groups, LibrarySearchConstraints.MAX_RESULTS),
+                        isComplete = completed.size == SEARCH_GROUP_COUNT,
+                    )
                 )
             }
         }
+        launch { publish(BOOK_GROUP, searchBookTitles(normalized.toSqlLikePattern()), complete = true) }
+        launch { publish(SAVED_GROUP, searchSaved(normalized.toSqlLikePattern()), complete = true) }
+        launch {
+            val results = searchPassages(normalized, bookId = null) { partial ->
+                publish(PASSAGE_GROUP, partial, complete = false)
+            }
+            publish(PASSAGE_GROUP, results, complete = true)
+        }
+    }.flowOn(dispatcherProvider.io)
 
     private suspend fun searchBookTitles(pattern: String): List<LibrarySearchResult> =
         searchDao.searchBooks(pattern, BOOK_RESULT_LIMIT).map { book ->
@@ -62,6 +83,7 @@ class LibrarySearchRepositoryImpl(
     private suspend fun searchPassages(
         query: String,
         bookId: String?,
+        onResults: suspend (List<LibrarySearchResult>) -> Unit,
     ): List<LibrarySearchResult> {
         val results = mutableListOf<LibrarySearchResult>()
         var matchingChapterCount = 0
@@ -79,6 +101,7 @@ class LibrarySearchRepositoryImpl(
                     )
                 if (page.isEmpty()) break
                 currentCoroutineContext().ensureActive()
+                val previousResultCount = results.size
                 for (chapter in page) {
                     currentCoroutineContext().ensureActive()
                     if (appendChapterMatches(results, book, chapter, query)) matchingChapterCount += 1
@@ -89,6 +112,7 @@ class LibrarySearchRepositoryImpl(
                         return results
                     }
                 }
+                if (results.size != previousResultCount) onResults(results.toList())
                 if (page.size < PASSAGE_PAGE_SIZE) break
                 afterChapterIndex = page.last().chapterIndex
             }
@@ -165,6 +189,10 @@ class LibrarySearchRepositoryImpl(
         }
 
     private companion object {
+        const val SEARCH_GROUP_COUNT = 3
+        const val BOOK_GROUP = 0
+        const val PASSAGE_GROUP = 1
+        const val SAVED_GROUP = 2
         const val BOOK_RESULT_LIMIT = 20
         const val PASSAGE_RESULT_LIMIT = 60
         const val PASSAGE_MATCHING_CHAPTER_LIMIT = 32

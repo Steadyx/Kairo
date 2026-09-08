@@ -17,6 +17,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -26,6 +27,25 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibrarySearchRepositoryImplTest {
+    @Test
+    fun titleResultsArriveWhilePassageSearchIsStillBlocked() = runTest {
+        val repository = repository(
+            FakeSearchDao(
+                bookSearch = { listOf(book()) },
+                passageBooks = listOf(passageBook()),
+                passagesByBook = mapOf("book" to listOf(passageChapter())),
+                beforePassageChapterPage = { awaitCancellation() },
+            ),
+            FakeSavedAnnotationDao(),
+        )
+        val updates = mutableListOf<LibrarySearchUpdate>()
+        val job = launch { repository.searchUpdates("needle").toList(updates) }
+        runCurrent()
+        assertTrue(updates.any { update -> update.results.any { it.kind == LibrarySearchResultKind.BOOK } })
+        assertTrue(updates.none { it.isComplete })
+        job.cancelAndJoin()
+    }
+
     @Test
     fun searchStartsCheapGroupsFirstAndFairlyMergesPassages() =
         runTest {
