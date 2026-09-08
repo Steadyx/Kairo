@@ -56,6 +56,34 @@ class DocxParserEngineTest {
         )
     }
 
+    @Test
+    fun parseKeepsVisibleRevisionAndFieldResultsWithoutDeletedTextOrInstructions() {
+        val document = """
+            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+              <w:body><w:p>
+                <w:r><w:t>Current </w:t></w:r>
+                <w:del><w:r><w:delText>DELETED </w:delText></w:r></w:del>
+                <w:moveFrom><w:r><w:t>OLD LOCATION </w:t></w:r></w:moveFrom>
+                <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+                <w:r><w:instrText>HYPERLINK "https://example.com" </w:instrText></w:r>
+                <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+                <w:r><w:t>Visible link label. </w:t></w:r>
+                <w:r><w:fldChar w:fldCharType="end"/></w:r>
+                <w:ins><w:r><w:t>Inserted text. </w:t></w:r></w:ins>
+                <w:moveTo><w:r><w:t>New location.</w:t></w:r></w:moveTo>
+              </w:p></w:body>
+            </w:document>
+        """.trimIndent()
+        val archive = zip(
+            mapOf(
+                "[Content_Types].xml" to "<Types/>".toByteArray(),
+                "word/document.xml" to document.toByteArray(),
+            )
+        )
+        val chapter = DocxParserEngine.parse(request(archive)).chapters.single()
+        assertEquals("Current Visible link label. Inserted text. New location.", chapter.plainText)
+    }
+
     private fun request(bytes: ByteArray) =
         BinaryBookParseRequest(
             bookId = BookId("docx-test"),
