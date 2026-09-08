@@ -95,6 +95,28 @@ class TokenRepositoryImplTest {
         assertEquals(listOf("fresh", "words"), cachedRequest.await().map { it.text })
     }
 
+    @Test
+    fun overlappingRequestsShareOneChapterReadAndWordCountUpdate() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val source = MutableBookRepository()
+        val repository = TokenRepositoryImpl(source, dispatchers(dispatcher))
+        val first = async { repository.getTokens(BookId("book"), 0) }
+        val second = async { repository.getTokens(BookId("book"), 0) }
+        advanceUntilIdle()
+        assertEquals(first.await(), second.await())
+        assertEquals(1, source.chapterReads)
+        assertEquals(1, source.wordCountUpdates)
+    }
+
+    @Test
+    fun emptyChapterStillPersistsItsCompletedWordCount() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val source = MutableBookRepository()
+        val repository = TokenRepositoryImpl(source, dispatchers(dispatcher))
+        repository.getTokens(BookId("empty"), 0, chapter(0, ""))
+        assertEquals(1, source.wordCountUpdates)
+    }
+
     private fun dispatchers(dispatcher: CoroutineDispatcher): DispatcherProvider =
         object : DispatcherProvider {
             override val default: CoroutineDispatcher = dispatcher
@@ -116,6 +138,8 @@ class TokenRepositoryImplTest {
         val languageLookupStarted = CompletableDeferred<Unit>()
         val releaseLanguageLookup = CompletableDeferred<Unit>()
         private var blocked = false
+        var chapterReads = 0
+        var wordCountUpdates = 0
 
         override suspend fun importBook(uri: Uri): BookImportResult = error("Not used")
 
@@ -128,13 +152,19 @@ class TokenRepositoryImplTest {
         override suspend fun getChapter(
             bookId: BookId,
             chapterIndex: Int,
-        ): Chapter = error("No prefetched chapter")
+        ): Chapter {
+            if (chapterIndex != 0) error("No prefetched chapter")
+            chapterReads++
+            return Chapter(0, null, "<p>Shared chapter text</p>", "Shared chapter text")
+        }
 
         override suspend fun updateChapterWordCount(
             bookId: BookId,
             chapterIndex: Int,
             wordCount: Int,
-        ) = Unit
+        ) {
+            wordCountUpdates++
+        }
 
         override suspend fun getBookLanguageTag(bookId: BookId): String? {
             if (blockFirstLanguageLookup && !blocked) {
