@@ -32,18 +32,18 @@ class RsvpScoredSegmentationTest {
     private val scoredOptions =
         RsvpGenerationOptions(
             languagePolicy = RsvpLanguagePolicy.ENGLISH,
-            segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
         )
 
     @Test
-    fun defaultOverloadMatchesExplicitLegacyFrames() {
+    fun defaultOverloadMatchesExplicitUnknownLanguageScoring() {
         val tokens = listOf(word("in"), word("the"), word("quiet"), word("house"))
 
         val defaultFrames = engine.generateFrames(tokens, 0, stableConfig)
-        val explicitLegacy =
-            engine.generateFrames(tokens, 0, stableConfig, RsvpGenerationOptions.LEGACY)
+        val explicitDefault =
+            engine.generateFrames(tokens, 0, stableConfig, RsvpGenerationOptions.DEFAULT)
 
-        assertEquals(defaultFrames, explicitLegacy)
+        assertEquals(defaultFrames, explicitDefault)
     }
 
     @Test
@@ -55,10 +55,8 @@ class RsvpScoredSegmentationTest {
                 word("puzzle", frequency = 0.0, complexity = 1.8, syllables = 3),
             )
 
-        val legacy = engine.generateFrames(tokens, 0, stableConfig)
         val scored = engine.generateFrames(tokens, 0, stableConfig, scoredOptions)
 
-        assertEquals(listOf("in", "the", "puzzle"), legacy.first().words())
         assertEquals(listOf("in", "the"), scored.first().words())
         assertEquals(listOf("puzzle"), scored[1].words())
     }
@@ -117,14 +115,14 @@ class RsvpScoredSegmentationTest {
     }
 
     @Test
-    fun persistedWidthsAboveThreeStayOnLegacyPath() {
-        val config = stableConfig.copy(maxWordsPerUnit = 4, maxCharsPerUnit = 40)
-        val tokens = listOf(word("in"), word("the"), word("quiet"), word("old"), word("house"))
-
-        val legacy = engine.generateFrames(tokens, 0, config, RsvpGenerationOptions.LEGACY)
-        val explicitScored = engine.generateFrames(tokens, 0, config, scoredOptions)
-
-        assertEquals(legacy, explicitScored)
+    fun persistedWidthsAboveThreeRetainDifficultyAwareScoring() {
+        val tokens = listOf(word("in"), word("the"), word("puzzle", frequency = 0.0, complexity = 1.8, syllables = 3))
+        listOf(4, 6, Int.MAX_VALUE).forEach { width ->
+            val config = stableConfig.copy(maxWordsPerUnit = width, maxCharsPerUnit = 40)
+            val frames = engine.generateFrames(tokens, 0, config, scoredOptions)
+            assertEquals(listOf("in", "the"), frames.first().words())
+            assertEquals(listOf("puzzle"), frames[1].words())
+        }
     }
 
     @Test

@@ -14,7 +14,6 @@ import com.kairo.reader.core.rsvp.segmentation.RsvpSegmentationReason
 import com.kairo.reader.core.tokenization.TokenizerRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,10 +39,8 @@ class RsvpPhaseTwoSegmentationTest {
     fun namedEntitiesCreateObservableGroupingWithoutOverridingHardLimits() {
         val entity = listOf(word("New"), word("York"), word("City"), word("expanded"))
 
-        val legacy = engine.generateFrames(entity, 0, config, RsvpGenerationOptions.LEGACY)
         val scored = engine.generateFrames(entity, 0, config, englishOptions)
 
-        assertNotEquals(listOf("New", "York", "City"), legacy.first().words())
         assertEquals(listOf("New", "York", "City"), scored.first().words())
 
         val connector =
@@ -248,13 +245,6 @@ class RsvpPhaseTwoSegmentationTest {
             assertTrue(wordRoles.all { it == RsvpDialogueRole.DIALOGUE_CONTENT })
 
             val playbackConfig = config.copy(maxWordsPerUnit = 2, useDialogueDetection = true)
-            val legacyFrames =
-                engine.generateFrames(
-                    tokens = tokens,
-                    startIndex = 0,
-                    config = playbackConfig,
-                    options = RsvpGenerationOptions.LEGACY,
-                )
             val frames =
                 engine.generateFrames(
                     tokens = tokens,
@@ -262,35 +252,15 @@ class RsvpPhaseTwoSegmentationTest {
                     config = playbackConfig,
                     options = options(fixture.policy),
                 )
-            // Native quote scanning annotates roles only. Visibility and exact-start punctuation
-            // ownership remain the legacy builder's contract (for example, leading « is
-            // context-only today).
-            assertEquals(
-                legacyFrames.map { frame -> frame.tokens.map(Token::text) },
-                frames.map { frame -> frame.tokens.map(Token::text) },
-            )
-            assertEquals(
-                legacyFrames.map { frame ->
-                    listOf(
-                        frame.resumeCursor,
-                        frame.nextOriginalTokenIndex,
-                        frame.displayOriginalStartIndex,
-                        frame.displayOriginalEndExclusive,
-                        frame.displayOriginalStartCharacterOffset,
-                        frame.displayOriginalEndCharacterOffset,
-                    )
-                },
-                frames.map { frame ->
-                    listOf(
-                        frame.resumeCursor,
-                        frame.nextOriginalTokenIndex,
-                        frame.displayOriginalStartIndex,
-                        frame.displayOriginalEndExclusive,
-                        frame.displayOriginalStartCharacterOffset,
-                        frame.displayOriginalEndCharacterOffset,
-                    )
-                },
-            )
+            // Re-generating from each visual source start must preserve opening punctuation
+            // as well as the logical word cursor, regardless of native quote forms.
+            frames.forEach { frame ->
+                val resumed = engine.generateFrames(tokens, frame.displayOriginalStartIndex, playbackConfig, options(fixture.policy))
+                assertEquals(frame.tokens.map(Token::text), resumed.first().tokens.map(Token::text))
+                assertEquals(frame.resumeCursor, resumed.first().resumeCursor)
+                assertEquals(frame.displayOriginalStartIndex, resumed.first().displayOriginalStartIndex)
+                assertEquals(frame.displayOriginalEndExclusive, resumed.first().displayOriginalEndExclusive)
+            }
             assertTrue(frames.any { it.words().size == 2 })
         }
     }
@@ -327,7 +297,7 @@ class RsvpPhaseTwoSegmentationTest {
     private fun options(policy: RsvpLanguagePolicy): RsvpGenerationOptions =
         RsvpGenerationOptions(
             languagePolicy = policy,
-            segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
         )
 
     private fun tokenize(

@@ -7,6 +7,7 @@ import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpConfigConstraints
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.rsvp.analysis.RsvpThoughtCue
 import com.kairo.reader.core.rsvp.analysis.contextShapingMultiplier
 import com.kairo.reader.core.rsvp.analysis.emphasisMultiplier
 import com.kairo.reader.core.rsvp.analysis.frameDifficulty
@@ -63,6 +64,7 @@ internal data class RsvpUnitTimingInput(
     val afterPairedEmDash: Boolean = false,
     val rhythmBoundaryStrengthMilli: Int = 0,
     val explicitSpeakerTag: Boolean = false,
+    val thoughtCues: List<RsvpThoughtCue> = emptyList(),
 )
 
 private class RsvpUnitTimingContext(input: RsvpUnitTimingInput) {
@@ -85,6 +87,7 @@ private class RsvpUnitTimingContext(input: RsvpUnitTimingInput) {
     val afterPairedEmDash = input.afterPairedEmDash
     val rhythmBoundaryStrengthMilli = input.rhythmBoundaryStrengthMilli
     val explicitSpeakerTag = input.explicitSpeakerTag
+    val thoughtCues = input.thoughtCues
     val msPerWord = config.tempoMsPerWord.toDouble()
     val pauseScale = pauseScale(msPerWord, config)
     val clausePauseScale =
@@ -185,6 +188,7 @@ private class RsvpUnitTimingContext(input: RsvpUnitTimingInput) {
 
 private data class FrameWordTiming(
     val duration: Double,
+    val expressionMs: Double,
     val enteredDialogue: Boolean,
     val exitedDialogue: Boolean,
     val sawParentheticalWord: Boolean,
@@ -196,6 +200,8 @@ private class FrameWordContext(contextBefore: ContextSnapshot) {
     var enteredDialogue = false
     var exitedDialogue = false
     var sawParentheticalWord = false
+    var wordOrdinal = 0
+    var expressionMs = 0.0
 }
 
 private fun computeFrameWordTiming(context: RsvpUnitTimingContext): FrameWordTiming {
@@ -214,6 +220,7 @@ private fun computeFrameWordTiming(context: RsvpUnitTimingContext): FrameWordTim
     }
     return FrameWordTiming(
         duration = duration,
+        expressionMs = state.expressionMs,
         enteredDialogue = state.enteredDialogue,
         exitedDialogue = state.exitedDialogue,
         sawParentheticalWord = state.sawParentheticalWord,
@@ -246,6 +253,8 @@ private fun wordDurationContribution(
     token: Token,
 ): Double {
     val config = context.config
+    val thoughtCue = context.thoughtCues.getOrNull(state.wordOrdinal++)
+    val protectedEmphasis = config.useProsodyPacing && thoughtCue?.protectedEmphasis == true
     val inAside = config.useParentheticalAside && (state.parentheticalDepth > 0 || context.emDashAside)
     val dialogueMultiplier =
         if (config.useDialogueDetection && state.inDialogue) {
@@ -324,20 +333,33 @@ private fun wordDurationContribution(
         wordDurationMs(token, context.msPerWord, config) *
             parentheticalMultiplier *
             dialogueMultiplier *
-            (if (index == context.firstWordIndex) context.startBoost else 1.0) *
-            clauseMultiplier *
-            terminalMultiplier *
-            emphasis *
-            prosody *
-            dialogueEntry *
-            context.speakerTagMultiplier *
-            context.focalSuppression *
-            context.anticipatoryLanding *
-            phraseContourMultiplier(context.phraseContour, context.speedStrength) *
-            context.phraseShapeMultiplier *
-            givenness
-    return max(duration, wordFloorMs(token, config).toDouble())
+            context.speakerTagMultiplier
+    val expression = coordinateRsvpExpression(
+        if (index == context.firstWordIndex) context.startBoost else 1.0,
+        clauseMultiplier,
+        terminalMultiplier,
+        emphasis,
+        if (protectedEmphasis) max(1.0, prosody) else prosody,
+        dialogueEntry,
+        if (protectedEmphasis) 1.0 else context.focalSuppression,
+        context.anticipatoryLanding,
+        phraseContourMultiplier(context.phraseContour, context.speedStrength),
+        context.phraseShapeMultiplier,
+        if (protectedEmphasis) 1.0 else givenness,
+        if (protectedEmphasis) 1.0 + (THOUGHT_EMPHASIS * context.prosodyStrength) else 1.0,
+    )
+    val baseline = max(duration, wordFloorMs(token, config).toDouble())
+    state.expressionMs += baseline * (expression - 1.0)
+    return baseline
 }
+
+/** Bound overlapping automatic cues while leaving explicit difficulty and pause settings intact. */
+internal fun coordinateRsvpExpression(vararg multipliers: Double): Double =
+    (1.0 + multipliers.sumOf { it - 1.0 }).coerceIn(MIN_EXPRESSION, MAX_EXPRESSION)
+
+private const val MIN_EXPRESSION = 0.82
+private const val MAX_EXPRESSION = 1.4
+private const val THOUGHT_EMPHASIS = 0.08
 
 private class FramePunctuationContext(contextBefore: ContextSnapshot) {
     var parentheticalDepth = contextBefore.parentheticalDepth
@@ -468,7 +490,15 @@ internal fun computeUnitDurationMs(input: RsvpUnitTimingInput): Long =
 
         // Now add punctuation pauses on top of the smoothed word duration.
         // These pauses are intentionally NOT smoothed so they remain prominent.
-        var totalDuration = smoothedWordDuration
+        // Smooth the underlying beat, then restore the planned expression so the EMA cannot
+        // flatten a contrast or drag its emphasis onto the following word.
+        val expression =
+            if (wordTiming.duration > 0.0) 1.0 + wordTiming.expressionMs / wordTiming.duration else 1.0
+        var totalDuration = max(
+            smoothedWordDuration * expression,
+            words.sumOf { wordFloorMs(it, config).toDouble() },
+        )
+        totalDuration += thoughtCues.sumOf { it.integrationHoldMs }
         if (words.isNotEmpty()) {
             when (boundaryForBoost) {
                 BoundaryBefore.SENTENCE -> {

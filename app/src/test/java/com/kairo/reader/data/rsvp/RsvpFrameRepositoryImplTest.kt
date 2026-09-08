@@ -11,7 +11,6 @@ import com.kairo.reader.core.rsvp.ComprehensionRsvpEngine
 import com.kairo.reader.core.rsvp.RsvpEngine
 import com.kairo.reader.core.rsvp.RsvpGenerationOptions
 import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
-import com.kairo.reader.core.rsvp.RsvpSegmentationStrategy
 import com.kairo.reader.data.token.TokenRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -233,7 +232,7 @@ class RsvpFrameRepositoryImplTest {
         val scored =
             RsvpGenerationOptions(
                 languagePolicy = RsvpLanguagePolicy.ENGLISH,
-                segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
             )
         var frameSet: RsvpFrameSet? = null
 
@@ -285,7 +284,8 @@ class RsvpFrameRepositoryImplTest {
 
         val frames = requireNotNull(preview).frames
         assertEquals(listOf(4), engine.startIndexes)
-        assertEquals(listOf(7), engine.tokenCounts)
+        // The engine receives lookahead, but displayed frames keep the requested range.
+        assertEquals(listOf(10), engine.tokenCounts)
         assertEquals(3, frames.size)
         assertEquals(4, frames.first().originalTokenIndex)
         assertEquals(7, frames.last().nextOriginalTokenIndex)
@@ -302,21 +302,21 @@ class RsvpFrameRepositoryImplTest {
         val scored =
             RsvpGenerationOptions(
                 languagePolicy = RsvpLanguagePolicy.ENGLISH,
-                segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
             )
 
-        val legacyRequest = backgroundScope.launch {
-            repository.getFrames(bookId, 0, RsvpConfig(), options = RsvpGenerationOptions.LEGACY)
+        val unknownRequest = backgroundScope.launch {
+            repository.getFrames(bookId, 0, RsvpConfig(), options = RsvpGenerationOptions.DEFAULT)
         }
         advanceUntilIdle()
-        legacyRequest.join()
+        unknownRequest.join()
         val scoredRequest = backgroundScope.launch {
             repository.getFrames(bookId, 0, RsvpConfig(), options = scored)
         }
         advanceUntilIdle()
         scoredRequest.join()
 
-        assertEquals(listOf(RsvpGenerationOptions.LEGACY, scored), engine.generationOptions)
+        assertEquals(listOf(RsvpGenerationOptions.DEFAULT, scored), engine.generationOptions)
         assertEquals(listOf(0, 0), engine.startIndexes)
         assertEquals(2, repository.cacheSize())
     }
@@ -329,7 +329,7 @@ class RsvpFrameRepositoryImplTest {
         val scored =
             RsvpGenerationOptions(
                 languagePolicy = RsvpLanguagePolicy.ENGLISH,
-                segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
             )
         val tokens = (0 until 12).map { index -> Token(text = "w$index", type = TokenType.WORD) }
         var preview: RsvpFrameSet? = null
@@ -362,7 +362,7 @@ class RsvpFrameRepositoryImplTest {
     }
 
     @Test
-    fun previewFallbacksUseOnlyThePriorVisibleSlice() = runTest {
+    fun everyLanguageAndWidthReceivesScoredPreviewLookahead() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val engine = CountingEngine()
         val repository = repository(dispatcher, engine)
@@ -375,19 +375,19 @@ class RsvpFrameRepositoryImplTest {
         val scoredEnglish =
             RsvpGenerationOptions(
                 languagePolicy = RsvpLanguagePolicy.ENGLISH,
-                segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
             )
-        val fallbackCases =
+        val policyCases =
             listOf(
                 RsvpGenerationOptions(
                     languagePolicy = RsvpLanguagePolicy.ENGLISH,
-                    segmentationStrategy = RsvpSegmentationStrategy.LEGACY_GREEDY,
+
                 ) to eligibleConfig,
                 scoredEnglish.copy(languagePolicy = RsvpLanguagePolicy.UNKNOWN) to eligibleConfig,
                 scoredEnglish to eligibleConfig.copy(maxWordsPerUnit = 4),
             )
 
-        fallbackCases.forEach { (options, config) ->
+        policyCases.forEach { (options, config) ->
             val request =
                 backgroundScope.launch {
                     repository.getPreviewFrames(
@@ -402,11 +402,11 @@ class RsvpFrameRepositoryImplTest {
             request.join()
         }
 
-        assertEquals(List(fallbackCases.size) { 4 }, engine.tokenCounts)
+        assertEquals(List(policyCases.size) { 12 }, engine.tokenCounts)
     }
 
     @Test
-    fun legacyPreviewFramesAndDurationsMatchDirectVisibleSliceGeneration() = runTest {
+    fun defaultPreviewMatchesFullLookaheadWithoutExposingTailText() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val engine = ComprehensionRsvpEngine()
         val repository = repository(dispatcher, engine)
@@ -425,7 +425,7 @@ class RsvpFrameRepositoryImplTest {
         val visibleTokens = tokens.take(4)
         val expected =
             engine.generateFrames(
-                tokens = visibleTokens,
+                tokens = tokens,
                 startIndex = 0,
                 config = config,
             )
@@ -444,11 +444,38 @@ class RsvpFrameRepositoryImplTest {
         advanceUntilIdle()
         request.join()
 
-        assertEquals(expected, requireNotNull(preview).frames)
+        assertEquals(
+            expected.filter { it.displayOriginalEndExclusive <= visibleTokens.size }
+                .map { it.copy(nextOriginalTokenIndex = it.nextOriginalTokenIndex.coerceAtMost(visibleTokens.size)) },
+            requireNotNull(preview).frames,
+        )
     }
 
     @Test
-    fun concurrentStrategiesDoNotShareInFlightGeneration() = runTest {
+    fun singleTokenPreviewDoesNotDisappearOrExposeScoredLookahead() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val engine = ComprehensionRsvpEngine()
+        val repository = repository(dispatcher, engine)
+        val tokens = listOf("in", "the", "quiet", "library")
+            .map { Token(text = it, type = TokenType.WORD) }
+        val config = RsvpConfig(enablePhraseChunking = true, maxWordsPerUnit = 3)
+
+        for (policy in listOf(RsvpLanguagePolicy.UNKNOWN, RsvpLanguagePolicy.ENGLISH)) {
+            val options = RsvpGenerationOptions(languagePolicy = policy)
+            assertTrue(engine.generateFrames(tokens, 0, config, options).first().tokens.count { it.type == TokenType.WORD } > 1)
+            val request = backgroundScope.async {
+                repository.getPreviewFrames(tokens, 0, config, maxTokenCount = 1, options = options)
+            }
+            advanceUntilIdle()
+            val frames = request.await().frames
+            assertEquals(listOf("in"), frames.flatMap(RsvpFrame::tokens).map(Token::text))
+            assertTrue(frames.all { it.displayOriginalEndExclusive <= 1 })
+            assertEquals(1, frames.last().nextOriginalTokenIndex)
+        }
+    }
+
+    @Test
+    fun concurrentLanguagePoliciesDoNotShareInFlightGeneration() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val engine = CountingEngine()
         val repository = repository(dispatcher, engine)
@@ -456,20 +483,20 @@ class RsvpFrameRepositoryImplTest {
         val scored =
             RsvpGenerationOptions(
                 languagePolicy = RsvpLanguagePolicy.ENGLISH,
-                segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
             )
 
-        val legacy = backgroundScope.async {
-            repository.getFrames(bookId, 0, RsvpConfig(), options = RsvpGenerationOptions.LEGACY)
+        val unknown = backgroundScope.async {
+            repository.getFrames(bookId, 0, RsvpConfig(), options = RsvpGenerationOptions.DEFAULT)
         }
         val scoredRequest = backgroundScope.async {
             repository.getFrames(bookId, 0, RsvpConfig(), options = scored)
         }
         advanceUntilIdle()
 
-        legacy.await()
+        unknown.await()
         scoredRequest.await()
-        assertEquals(setOf(RsvpGenerationOptions.LEGACY, scored), engine.generationOptions.toSet())
+        assertEquals(setOf(RsvpGenerationOptions.DEFAULT, scored), engine.generationOptions.toSet())
         assertEquals(2, engine.startIndexes.size)
     }
 
@@ -481,7 +508,7 @@ class RsvpFrameRepositoryImplTest {
         val scored =
             RsvpGenerationOptions(
                 languagePolicy = RsvpLanguagePolicy.ENGLISH,
-                segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
             )
 
         repository.prefetchFrames(

@@ -81,7 +81,7 @@ class RsvpRhythmSmoothingTest {
     }
 
     @Test
-    fun scoredClauseTransitionChangesTheNextCadenceWithoutChangingFrameOwnership() {
+    fun scoredSingleWordReadingPreservesFrameOwnershipAcrossSmoothingSettings() {
         val config =
             RsvpConfig(
                 tempoMsPerWord = 150L,
@@ -109,7 +109,12 @@ class RsvpRhythmSmoothingTest {
                 Token(text = "it", type = TokenType.WORD, frequencyScore = 1.0),
             )
         val engine = ComprehensionRsvpEngine()
-        val legacy = engine.generateFrames(tokens, 0, config, RsvpGenerationOptions.LEGACY)
+        val unsmoothed = engine.generateFrames(
+            tokens,
+            0,
+            config.copy(smoothingAlpha = 1.0),
+            RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH)
+        )
         val scored =
             engine.generateFrames(
                 tokens,
@@ -117,14 +122,14 @@ class RsvpRhythmSmoothingTest {
                 config,
                 RsvpGenerationOptions(
                     languagePolicy = RsvpLanguagePolicy.ENGLISH,
-                    segmentationStrategy = RsvpSegmentationStrategy.SCORED_DP_V2,
+
                 ),
             )
 
-        assertEquals(legacy.map(RsvpFrame::tokens), scored.map(RsvpFrame::tokens))
-        assertEquals(legacy.first().durationMs, scored.first().durationMs)
-        assertNotEquals(legacy[1].durationMs, scored[1].durationMs)
-        assertTrue(scored[1].durationMs < legacy[1].durationMs)
+        assertEquals(unsmoothed.map(RsvpFrame::tokens), scored.map(RsvpFrame::tokens))
+        assertEquals(unsmoothed.first().durationMs, scored.first().durationMs)
+        assertNotEquals(unsmoothed[1].durationMs, scored[1].durationMs)
+        assertTrue(scored[1].durationMs > unsmoothed[1].durationMs)
     }
 
     private fun rhythm(alpha: Double): RhythmState =

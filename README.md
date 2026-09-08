@@ -89,7 +89,7 @@ The reader, tokenizer, persistence layer, and RSVP engine all work toward the sa
 
 ## Built With
 
-- Kotlin 2.4.10
+- Kotlin 2.4.20
 - Jetpack Compose
 - AndroidX Navigation
 - Room

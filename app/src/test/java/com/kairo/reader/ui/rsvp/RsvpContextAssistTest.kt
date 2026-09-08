@@ -517,8 +517,8 @@ class RsvpContextAssistTest {
         registerRsvpRegression(runtime, enabled = true)
         assertEquals(1f + REGRESSION_PACE_STEP, runtime.comprehensionPaceScale, 0.0001f)
 
-        repeat(REGRESSION_RECOVERY_START_FRAMES + 1) {
-            recoverRsvpRegressionPace(runtime, enabled = true)
+        repeat(REGRESSION_RECOVERY_START_PHRASES + 1) {
+            recoverRsvpRegressionPace(runtime, enabled = true, endsPhrase = true)
         }
         assertTrue(runtime.comprehensionPaceScale < 1f + REGRESSION_PACE_STEP)
         assertTrue(runtime.comprehensionPaceScale >= 1f)

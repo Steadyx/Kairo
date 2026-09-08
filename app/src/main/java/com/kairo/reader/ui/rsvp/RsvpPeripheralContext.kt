@@ -126,8 +126,8 @@ internal fun rememberContextFocusEnvelope(
     val textMeasurer = rememberTextMeasurer()
     val focusStyle = rememberRsvpContextTextStyle(fontSizeSp, fontFamily, fontWeight)
     val frameRange =
-        remember(frameIndex, frames.size) {
-            resolveContextEnvelopeFrameRange(
+        remember(frameIndex, frames) {
+            resolveThoughtEnvelopeFrameRange(frames, frameIndex) ?: resolveContextEnvelopeFrameRange(
                 frameIndex = frameIndex,
                 frameCount = frames.size,
                 blockSize = CONTEXT_ENVELOPE_BLOCK_FRAMES,
@@ -166,6 +166,15 @@ internal fun rememberContextFocusEnvelope(
         (with(density) { extentsPx.second.toDp() } + CONTEXT_FOCUS_SIDE_PADDING)
             .coerceAtLeast(CONTEXT_MIN_FOCUS_SIDE_RESERVE)
     return ContextFocusEnvelope(leftReserve = leftReserve, rightReserve = rightReserve)
+}
+
+internal fun resolveThoughtEnvelopeFrameRange(frames: List<RsvpFrame>, frameIndex: Int): IntRange? {
+    val phraseStart = frames.getOrNull(frameIndex)?.phraseStartTokenIndex ?: return null
+    var start = frameIndex
+    var end = frameIndex + 1
+    while (start > 0 && frames[start - 1].phraseStartTokenIndex == phraseStart) start--
+    while (end < frames.size && frames[end].phraseStartTokenIndex == phraseStart) end++
+    return start until end
 }
 
 @Composable

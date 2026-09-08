@@ -31,7 +31,7 @@ data class RsvpBookContext(
     val startIndex: Int,
     val startResumeCursor: Int = -1,
     val sessionStartIndex: Int = startIndex,
-    val generationOptions: RsvpGenerationOptions = RsvpGenerationOptions.LEGACY,
+    val generationOptions: RsvpGenerationOptions = RsvpGenerationOptions.DEFAULT,
 )
 
 data class RsvpProfileContext(val config: RsvpConfig, val selectedProfileId: String, val customProfiles: List<RsvpCustomProfile>,)

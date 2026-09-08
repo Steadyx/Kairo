@@ -19,4 +19,8 @@ data class RsvpFrame(
     // fragments such as "ha-ha-ha". A null end means the complete final token.
     val displayOriginalStartCharacterOffset: Int = 0,
     val displayOriginalEndCharacterOffset: Int? = null,
+    // Shared thought boundaries stay in source coordinates across grouping and split words.
+    val phraseStartTokenIndex: Int? = null,
+    val phraseEndTokenIndexExclusive: Int? = null,
+    val endsPhrase: Boolean = false,
 )

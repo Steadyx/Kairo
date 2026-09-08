@@ -114,7 +114,7 @@ class ComprehensionRsvpChunkingTest : ComprehensionRsvpTestBase() {
             )
         val tokens = listOf(w("in"), w("the"), w("house"), w("today"))
 
-        val frames = engine.generateFrames(tokens, 0, config)
+        val frames = engine.generateFrames(tokens, 0, config, RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH))
         val firstWords = frames.first().tokens.filter { it.type == TokenType.WORD }.map { it.text }
 
         assertEquals(listOf("in", "the", "house"), firstWords)
@@ -130,7 +130,7 @@ class ComprehensionRsvpChunkingTest : ComprehensionRsvpTestBase() {
             )
         val tokens = listOf(w("I"), w("was"), w("reading"), w("slowly"))
 
-        val frames = engine.generateFrames(tokens, 0, config)
+        val frames = engine.generateFrames(tokens, 0, config, RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH))
         val firstWords =
             frames.first().tokens.filter { it.type == TokenType.WORD }.map { it.text }
 
@@ -146,8 +146,18 @@ class ComprehensionRsvpChunkingTest : ComprehensionRsvpTestBase() {
                 maxCharsPerUnit = 14,
             )
 
-        val unhinted = engine.generateFrames(listOf(w("go"), w("not"), w("there")), 0, config)
-        val hinted = engine.generateFrames(listOf(w("not"), w("yet"), w("ready")), 0, config)
+        val unhinted = engine.generateFrames(
+            listOf(w("go"), w("not"), w("there")),
+            0,
+            config,
+            RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH)
+        )
+        val hinted = engine.generateFrames(
+            listOf(w("not"), w("yet"), w("ready")),
+            0,
+            config,
+            RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH)
+        )
 
         assertEquals(
             listOf("go"),

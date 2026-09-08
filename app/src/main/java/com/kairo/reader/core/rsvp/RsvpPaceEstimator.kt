@@ -21,7 +21,7 @@ object RsvpPaceEstimator {
 
     fun estimateWpm(
         config: RsvpConfig,
-        options: RsvpPaceEstimationOptions = RsvpPaceEstimationOptions.LEGACY,
+        options: RsvpPaceEstimationOptions = RsvpPaceEstimationOptions.DEFAULT,
     ): Int {
         val steadyConfig =
             config.copy(

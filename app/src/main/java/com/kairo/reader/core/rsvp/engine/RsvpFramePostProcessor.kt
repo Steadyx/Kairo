@@ -103,6 +103,8 @@ private fun splitFrameForBlink(
                 displayOriginalEndExclusive = frame.displayOriginalEndExclusive,
                 displayOriginalStartCharacterOffset = frame.displayOriginalStartCharacterOffset,
                 displayOriginalEndCharacterOffset = frame.displayOriginalEndCharacterOffset,
+                phraseStartTokenIndex = frame.phraseStartTokenIndex,
+                phraseEndTokenIndexExclusive = frame.phraseEndTokenIndexExclusive,
             ),
         )
     }

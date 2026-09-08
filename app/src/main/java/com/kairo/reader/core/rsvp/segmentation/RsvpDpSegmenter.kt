@@ -28,13 +28,8 @@ internal object RsvpDpSegmenter {
         val window = buildWindow(atomStream, firstWordCursor, languagePolicy)
         if (window.words.size <= 1) return singleWordDecision(atomStream, firstWordCursor)
 
-        val policyLimit =
-            if (languagePolicy == RsvpLanguagePolicy.ENGLISH) {
-                MAX_ENGLISH_SCORED_WORDS_PER_UNIT
-            } else {
-                MAX_NON_ENGLISH_SCORED_WORDS_PER_UNIT
-            }
-        val candidateLimit = config.maxWordsPerUnit.coerceIn(1, policyLimit)
+        // The rolling horizon bounds even stale or oversized persisted width settings.
+        val candidateLimit = config.maxWordsPerUnit.coerceIn(1, RsvpSegmentationWeightsV2.HORIZON_WORDS)
         val bestScores = IntArray(window.words.size + 1)
         val bestWidths = IntArray(window.words.size) { 1 }
         val bestComponents = arrayOfNulls<List<RsvpScoreComponent>>(window.words.size)
@@ -514,7 +509,4 @@ internal object RsvpDpSegmenter {
         val pairs: List<RsvpSegmentationPairFeatures>,
         val artificialHorizon: Boolean,
     )
-
-    private const val MAX_ENGLISH_SCORED_WORDS_PER_UNIT = 3
-    private const val MAX_NON_ENGLISH_SCORED_WORDS_PER_UNIT = 2
 }

@@ -75,7 +75,7 @@ class ComprehensionRsvpResumeCursorTest : ComprehensionRsvpTestBase() {
             )
         val tokens = listOf(w("in"), w("the"), w("house"), w("today"))
 
-        val firstFrame = engine.generateFrames(tokens, 0, config).first()
+        val firstFrame = engine.generateFrames(tokens, 0, config, RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH)).first()
 
         assertEquals(0, firstFrame.originalTokenIndex)
         assertEquals(3, firstFrame.nextOriginalTokenIndex)

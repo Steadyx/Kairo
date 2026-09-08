@@ -23,7 +23,7 @@ object RsvpEstimatedReadingPace {
         sessionTempoMsPerWord: Long? = null,
         fallbackEstimatedWpm: Int = 0,
         languageTag: String? = null,
-        paceOptions: RsvpPaceEstimationOptions = RsvpPaceEstimationOptions.LEGACY,
+        paceOptions: RsvpPaceEstimationOptions = RsvpPaceEstimationOptions.DEFAULT,
     ): Int {
         val effectiveConfig =
             sessionTempoMsPerWord
@@ -96,7 +96,7 @@ object RsvpEstimatedReadingPace {
         sessionTempoMsPerWord: Long?,
         fallbackEstimatedWpm: Int = 0,
         languageTag: String? = null,
-        paceOptions: RsvpPaceEstimationOptions = RsvpPaceEstimationOptions.LEGACY,
+        paceOptions: RsvpPaceEstimationOptions = RsvpPaceEstimationOptions.DEFAULT,
     ): Int {
         val effectiveTempoMsPerWord =
             sessionTempoMsPerWord

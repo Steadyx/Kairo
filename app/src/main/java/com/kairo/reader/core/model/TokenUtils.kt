@@ -303,7 +303,7 @@ private fun splitLongWordToken(
         token.copy(
             text = text,
             // Phrase chunking across subword splits is blocked via isSubwordChunk in
-            // isPhraseChunkCandidate; isClauseBoundary must stay truthful because the timing
+            // the scored segmenter; isClauseBoundary must stay truthful because the timing
             // model reads it (clause holds would otherwise fire on every chunk of a long word).
             isClauseBoundary = if (isLast) token.isClauseBoundary else false,
             isDialogue = token.isDialogue,

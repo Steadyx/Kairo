@@ -456,22 +456,7 @@ internal fun multiWordPenalty(wordCount: Int): Double =
         else -> MULTI_WORD_FRAME_PENALTY
     }
 
-internal enum class PhraseChunkReason {
-    TIGHT_PAIR,
-    PRONOUN_AUXILIARY,
-    AUXILIARY_CONTENT,
-    COHERENT_SHORT_PAIR,
-    GENERAL_SHORT_PAIR,
-    SUBWORD,
-    TRAILING_HYPHEN,
-    CLAUSE_BOUNDARY,
-    COORDINATING_CONJUNCTION,
-    SEMANTIC_ANCHOR,
-    NO_AFFINITY,
-}
-
 internal data class PhraseChunkPairFeatures(
-    val legacyCompatible: Boolean,
     val tightPair: Boolean,
     val pronounAuxiliaryBridge: Boolean,
     val auxiliaryContentBridge: Boolean,
@@ -480,20 +465,6 @@ internal data class PhraseChunkPairFeatures(
     val gluePair: Boolean,
     val bothCommon: Boolean,
     val coherenceScoreMilli: Int,
-    val reasons: List<PhraseChunkReason>,
-)
-
-private data class PhraseChunkDecisionEvidence(
-    val tightPair: Boolean,
-    val pronounAuxiliaryBridge: Boolean,
-    val auxiliaryContentBridge: Boolean,
-    val coherentShortPair: Boolean,
-    val generalShortPair: Boolean,
-    val hasSubword: Boolean,
-    val trailingHyphen: Boolean,
-    val clauseBoundary: Boolean,
-    val coordinatingConjunction: Boolean,
-    val semanticAnchor: Boolean,
 )
 
 internal fun analyzePhraseChunkPair(
@@ -530,26 +501,7 @@ internal fun analyzePhraseChunkPair(
 
     val generalShortPair = (glue && bothShort) || (bothShort && bothCommon)
     val tightPair = pairKey in TIGHT_PAIR_HINTS
-    val hasSubword = prev.isSubwordChunk || next.isSubwordChunk
-    val trailingHyphen = prev.text.endsWith("-")
-    val clauseBoundary = prev.isClauseBoundary || next.isClauseBoundary
-    val coordinatingConjunction = ClauseDetector.isCoordinatingConjunction(prevLower)
-    val semanticAnchor = nextLower in SEMANTIC_ANCHOR_WORDS
-    val decisionEvidence =
-        PhraseChunkDecisionEvidence(
-            tightPair = tightPair,
-            pronounAuxiliaryBridge = pronounAuxiliaryBridge,
-            auxiliaryContentBridge = auxiliaryContentBridge,
-            coherentShortPair = coherentShortPair,
-            generalShortPair = generalShortPair,
-            hasSubword = hasSubword,
-            trailingHyphen = trailingHyphen,
-            clauseBoundary = clauseBoundary,
-            coordinatingConjunction = coordinatingConjunction,
-            semanticAnchor = semanticAnchor,
-        )
     return PhraseChunkPairFeatures(
-        legacyCompatible = decisionEvidence.isLegacyCompatible(),
         tightPair = tightPair,
         pronounAuxiliaryBridge = pronounAuxiliaryBridge,
         auxiliaryContentBridge = auxiliaryContentBridge,
@@ -558,40 +510,8 @@ internal fun analyzePhraseChunkPair(
         gluePair = glue,
         bothCommon = bothCommon,
         coherenceScoreMilli = (coherenceScore.coerceIn(0.0, 1.0) * FIXED_POINT_SCALE).toInt(),
-        reasons = decisionEvidence.reasons(),
     )
 }
-
-private fun PhraseChunkDecisionEvidence.isLegacyCompatible(): Boolean {
-    val disqualified = hasSubword || trailingHyphen || clauseBoundary || coordinatingConjunction
-    return when {
-        disqualified -> false
-        tightPair -> true
-        semanticAnchor -> false
-        pronounAuxiliaryBridge || auxiliaryContentBridge -> true
-        else -> coherentShortPair || generalShortPair
-    }
-}
-
-private fun PhraseChunkDecisionEvidence.reasons(): List<PhraseChunkReason> =
-    buildList {
-        if (tightPair) add(PhraseChunkReason.TIGHT_PAIR)
-        if (pronounAuxiliaryBridge) add(PhraseChunkReason.PRONOUN_AUXILIARY)
-        if (auxiliaryContentBridge) add(PhraseChunkReason.AUXILIARY_CONTENT)
-        if (coherentShortPair) add(PhraseChunkReason.COHERENT_SHORT_PAIR)
-        if (generalShortPair) add(PhraseChunkReason.GENERAL_SHORT_PAIR)
-        if (hasSubword) add(PhraseChunkReason.SUBWORD)
-        if (trailingHyphen) add(PhraseChunkReason.TRAILING_HYPHEN)
-        if (clauseBoundary) add(PhraseChunkReason.CLAUSE_BOUNDARY)
-        if (coordinatingConjunction) add(PhraseChunkReason.COORDINATING_CONJUNCTION)
-        if (semanticAnchor) add(PhraseChunkReason.SEMANTIC_ANCHOR)
-        if (isEmpty()) add(PhraseChunkReason.NO_AFFINITY)
-    }
-
-internal fun isPhraseChunkCandidate(
-    prev: Token,
-    next: Token,
-): Boolean = analyzePhraseChunkPair(prev, next).legacyCompatible
 
 internal fun terminalWordMultiplier(
     wordIndex: Int,
