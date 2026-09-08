@@ -141,10 +141,8 @@ internal class RsvpConfigPreferenceCodec(private val keys: PrefKeys, private val
         config: RsvpConfig,
         defaults: RsvpConfig,
     ) {
-        prefs[keys.wordsPerFrame] = config.wordsPerFrame
         prefs[keys.maxChunkLength] = config.maxChunkLength
         prefs[keys.punctuationPause] = config.punctuationPauseFactor
-        prefs[keys.longWordMultiplier] = config.longWordMultiplier
         prefs[keys.useClausePausing] = config.useClausePausing
         prefs[keys.clausePauseFactor] =
             normalizeClausePauseFactor(config.clausePauseFactor, defaults.clausePauseFactor)
@@ -436,12 +434,9 @@ internal class RsvpConfigPreferenceCodec(private val keys: PrefKeys, private val
         defaults: RsvpConfig,
     ): RsvpConfig =
         copy(
-            wordsPerFrame = prefs.readOrDefault(keys.wordsPerFrame, defaults.wordsPerFrame),
             maxChunkLength = prefs.readOrDefault(keys.maxChunkLength, defaults.maxChunkLength),
             punctuationPauseFactor =
             prefs.readOrDefault(keys.punctuationPause, defaults.punctuationPauseFactor),
-            longWordMultiplier =
-            prefs.readOrDefault(keys.longWordMultiplier, defaults.longWordMultiplier),
             useClausePausing =
             prefs.readOrDefault(keys.useClausePausing, defaults.useClausePausing),
             clausePauseFactor =

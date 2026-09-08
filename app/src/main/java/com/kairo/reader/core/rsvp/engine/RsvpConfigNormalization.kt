@@ -46,7 +46,6 @@ internal fun RsvpConfig.normalizedForPlayback(): RsvpConfig {
         rampDownFrames = rampDownFrames.coerceAtLeast(0),
         maxChunkLength = maxChunkLength.coerceAtLeast(0),
         punctuationPauseFactor = punctuationPauseFactor.coerceAtLeast(0.0),
-        longWordMultiplier = longWordMultiplier.coerceAtLeast(0.0),
         adaptiveDifficultyMaxHoldMs = adaptiveDifficultyMaxHoldMs.coerceAtLeast(0L),
         complexWordHoldMs = complexWordHoldMs.coerceAtLeast(0L),
         complexWordThreshold = complexWordThreshold.coerceAtLeast(0.0),

@@ -159,10 +159,8 @@ internal class RsvpProfileJsonCodec(private val onMalformed: (Throwable) -> Unit
     }
 
     private fun JSONObject.putLegacyFields(config: RsvpConfig) {
-        put("wordsPerFrame", config.wordsPerFrame)
         put("maxChunkLength", config.maxChunkLength)
         put("punctuationPauseFactor", config.punctuationPauseFactor)
-        put("longWordMultiplier", config.longWordMultiplier)
         put("useClausePausing", config.useClausePausing)
         put("clausePauseFactor", config.clausePauseFactor)
     }
@@ -384,11 +382,9 @@ internal class RsvpProfileJsonCodec(private val onMalformed: (Throwable) -> Unit
         defaults: RsvpConfig,
     ): RsvpConfig =
         copy(
-            wordsPerFrame = obj.optInt("wordsPerFrame", defaults.wordsPerFrame),
             maxChunkLength = obj.optInt("maxChunkLength", defaults.maxChunkLength),
             punctuationPauseFactor =
             obj.optDouble("punctuationPauseFactor", defaults.punctuationPauseFactor),
-            longWordMultiplier = obj.optDouble("longWordMultiplier", defaults.longWordMultiplier),
             useClausePausing = obj.optBoolean("useClausePausing", defaults.useClausePausing),
             clausePauseFactor =
             normalizeClausePauseFactor(
