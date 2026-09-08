@@ -3,11 +3,8 @@
 package com.kairo.reader.ui.focus
 
 import android.app.Activity
-import android.app.NotificationManager
 import android.content.Context
 import android.content.ContextWrapper
-import android.os.Handler
-import android.os.Looper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -15,6 +12,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.kairo.reader.KairoApplication
 import com.kairo.reader.core.model.ReaderTheme
 import com.kairo.reader.ui.theme.readerThemePalette
 
@@ -67,84 +68,28 @@ fun SystemBarsStyleSideEffect(readerTheme: ReaderTheme) {
 }
 
 @Composable
-private fun FocusDndSideEffect(enabled: Boolean) {
+internal fun FocusDndSideEffect(enabled: Boolean) {
     val context = LocalContext.current
     val owner = remember { Any() }
-    val notificationManager =
-        remember(context) {
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        }
+    val controller = (context.applicationContext as KairoApplication).focusDndController
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    DisposableEffect(enabled, notificationManager, owner) {
-        if (enabled) {
-            FocusDndSessionController.acquire(owner, notificationManager)
-        } else {
-            FocusDndSessionController.release(owner, notificationManager)
-        }
-
-        onDispose {
-            FocusDndSessionController.release(owner, notificationManager)
-        }
-    }
-}
-
-private object FocusDndSessionController {
-    private val handler = Handler(Looper.getMainLooper())
-    private val activeOwners = linkedSetOf<Any>()
-    private var previousFilter: Int? = null
-    private var didChange = false
-    private var pendingRestore: Runnable? = null
-
-    fun acquire(
-        owner: Any,
-        notificationManager: NotificationManager,
-    ) {
-        cancelPendingRestore()
-        val added = activeOwners.add(owner)
-        if (!added || !notificationManager.isNotificationPolicyAccessGranted) return
-        if (didChange) return
-
-        val currentFilter = notificationManager.currentInterruptionFilter
-        previousFilter = currentFilter
-        if (currentFilter != NotificationManager.INTERRUPTION_FILTER_NONE) {
-            notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
-            didChange = true
-        }
-    }
-
-    fun release(
-        owner: Any,
-        notificationManager: NotificationManager,
-    ) {
-        val removed = activeOwners.remove(owner)
-        if (!removed || activeOwners.isNotEmpty()) return
-
-        scheduleRestore(notificationManager)
-    }
-
-    private fun scheduleRestore(notificationManager: NotificationManager) {
-        cancelPendingRestore()
-        val restoreRunnable =
-            Runnable {
-                pendingRestore = null
-                if (activeOwners.isNotEmpty()) return@Runnable
-
-                if (didChange &&
-                    previousFilter != null &&
-                    notificationManager.isNotificationPolicyAccessGranted
-                ) {
-                    notificationManager.setInterruptionFilter(previousFilter!!)
-                }
-                previousFilter = null
-                didChange = false
+    DisposableEffect(enabled, lifecycle, owner, controller) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> if (enabled) controller.acquire(owner)
+                Lifecycle.Event.ON_STOP -> controller.release(owner)
+                else -> Unit
             }
-        pendingRestore = restoreRunnable
-        handler.postDelayed(restoreRunnable, DND_RESTORE_GRACE_MS)
-    }
-
-    private fun cancelPendingRestore() {
-        pendingRestore?.let(handler::removeCallbacks)
-        pendingRestore = null
+        }
+        lifecycle.addObserver(observer)
+        if (enabled && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            controller.acquire(owner)
+        }
+        onDispose {
+            lifecycle.removeObserver(observer)
+            controller.release(owner)
+        }
     }
 }
 
@@ -154,5 +99,3 @@ private tailrec fun Context.findActivity(): Activity? =
         is ContextWrapper -> baseContext.findActivity()
         else -> null
     }
-
-private const val DND_RESTORE_GRACE_MS = 1_500L

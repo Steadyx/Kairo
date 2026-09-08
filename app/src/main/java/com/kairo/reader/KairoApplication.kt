@@ -52,11 +52,16 @@ import com.kairo.reader.data.sessions.ReadingSessionRepositoryImpl
 import com.kairo.reader.data.sessions.SystemReadingSessionClock
 import com.kairo.reader.data.token.TokenRepository
 import com.kairo.reader.data.token.TokenRepositoryImpl
+import com.kairo.reader.ui.focus.AndroidFocusDndBackend
+import com.kairo.reader.ui.focus.FocusDndController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class KairoApplication : Application() {
+    internal lateinit var focusDndController: FocusDndController
+        private set
+
     val dispatcherProvider = DefaultDispatcherProvider()
     private val applicationScope = CoroutineScope(SupervisorJob() + dispatcherProvider.default)
 
@@ -91,6 +96,8 @@ class KairoApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        focusDndController = FocusDndController(AndroidFocusDndBackend(this))
+        focusDndController.recover()
         database =
             Room
                 .databaseBuilder(
