@@ -220,15 +220,10 @@
     <string name="rsvp_comprehension_subtitle">Peripheral context, natural phrase units and easier rereading.</string>
     <string name="rsvp_context_assist_title">Context assist</string>
     <string name="rsvp_context_assist_off">Off</string>
-    <string name="rsvp_context_assist_previous">Previous cue</string>
-    <string name="rsvp_context_assist_clause">Clause cues</string>
-    <string name="rsvp_context_assist_ticker">Continuous ticker</string>
-    <string name="rsvp_context_assist_off_description">Keeps the classic single-focus RSVP display.</string>
-    <string name="rsvp_context_assist_previous_description">Keeps a faint cue from the previous phrase steady beside the focus.</string>
-    <string name="rsvp_context_assist_clause_description">Keeps faint previous and upcoming cues steady while each phrase plays.</string>
-    <string name="rsvp_context_assist_ticker_description">Keeps previous and upcoming text moving through the ORP line without resetting at sentence breaks.</string>
-    <string name="rsvp_context_assist_quick_title">Context assist</string>
-    <string name="rsvp_context_assist_quick_subtitle">Show quiet context beside the focus.</string>
+    <string name="rsvp_context_assist_previous">Previous words</string>
+    <string name="rsvp_context_assist_clause">Clause</string>
+    <string name="rsvp_context_assist_ticker">Continuous</string>
+    <string name="rsvp_context_assist_previous_description">Shows up to two preceding words from the current phrase on the reading line. Pause for the full phrase.</string>
     <string name="rsvp_regression_pacing_title">Ease after rereading</string>
     <string name="rsvp_regression_pacing_subtitle">Eases replayed text, then gently returns to your pace over the following phrases.</string>
     <string name="rsvp_display_title">Display</string>
@@ -289,7 +284,7 @@
     <string name="rsvp_complex_word_threshold_title">Complex word threshold</string>
     <string name="rsvp_complex_word_threshold_subtitle">Lower = more words considered complex.</string>
     <string name="rsvp_rhythm_title">Rhythm</string>
-    <string name="rsvp_rhythm_summary">Stability %1$s | Clause %2$s | Blink %3$s</string>
+    <string name="rsvp_rhythm_summary">Stability %1$s | Clause %2$s | Separation %3$s</string>
     <string name="rsvp_stability_title">Stability</string>
     <string name="rsvp_stability_subtitle">Higher = more responsive; lower = steadier cadence.</string>
     <string name="rsvp_focal_stress_title">Focal stress</string>
@@ -356,13 +351,11 @@
     <string name="rsvp_estimated_pace">Estimated pace: %1$d WPM</string>
     <string name="rsvp_estimating_pace">Estimating pace…</string>
 
-    <string name="blink_mode_title">Blink mode</string>
+    <string name="blink_mode_title">Word separation</string>
     <string name="blink_mode_off">Off</string>
-    <string name="blink_mode_subtle">Subtle</string>
-    <string name="blink_mode_adaptive">Adaptive</string>
-    <string name="blink_mode_off_description">No blink between words.</string>
-    <string name="blink_mode_subtle_description">Small, steady blink at higher speeds.</string>
-    <string name="blink_mode_adaptive_description">Blink adapts to easier words and clean stretches.</string>
+    <string name="blink_mode_subtle">On</string>
+    <string name="blink_mode_adaptive">On</string>
+    <string name="blink_mode_subtle_description">Briefly dims the word between transitions. Repeated words get a short blank; context stays steady.</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_language_title">Language</string>
@@ -663,4 +656,7 @@
     <string name="reader_cancel_selection_action">Cancel text selection</string>
     <string name="settings_group_reading">Reading</string>
     <string name="settings_group_app">App &amp; support</string>
+    <string name="rsvp_context_assist_ticker_description">Shows preceding and upcoming words across clause and sentence boundaries on the reading line. Resets at a new paragraph.</string>
+    <string name="rsvp_context_assist_clause_description">Shows surrounding words from the current clause where space allows, keeping the main word fixed. Pause to review the clause.</string>
+    <string name="rsvp_context_assist_off_description">Shows only the main reading text.</string>
 </resources>

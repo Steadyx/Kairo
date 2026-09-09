@@ -18,8 +18,8 @@
     <string name="settings_search_profiles_description">Ein Leseprofil auswählen oder eigene Zeitvorgaben speichern und verwalten.</string>
     <string name="settings_search_font_description">Die Schriftart für RSVP-Text auswählen.</string>
     <string name="settings_search_weight_description">Festlegen, wie dünn oder fett der RSVP-Text erscheint.</string>
-    <string name="settings_search_blink_description">Festlegen, ob zwischen Wörtern kurz leere Bilder erscheinen.</string>
-    <string name="settings_search_context_description">Vorherige Wörter, einen Teilsatz oder ein Satzlaufband um das RSVP-Wort anzeigen.</string>
+    <string name="settings_search_blink_description">Dimmt das Wort kurz beim Wechsel. Wiederholte Wörter erhalten eine kurze Leerphase; der Kontext bleibt stabil.</string>
+    <string name="settings_search_context_description">Wähle vorherige Wörter, fortlaufenden Kontext oder Teilsatzkontext in der Lesezeile.</string>
     <string name="settings_search_punctuation_description">Die Pause an diesem Satzzeichen oder Absatzübergang anpassen.</string>
     <string name="settings_search_language_description">Die Sprache für App-Menüs und Einstellungen auswählen.</string>
 </resources>

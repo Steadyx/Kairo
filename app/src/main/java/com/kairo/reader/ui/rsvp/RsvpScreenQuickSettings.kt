@@ -43,10 +43,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
-import com.kairo.reader.core.model.RsvpContextAssistMode
 import com.kairo.reader.core.rsvp.RsvpSpeedControl
 import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.settings.BionicSettingsContent
+import com.kairo.reader.ui.settings.ContextAssistModeSelector
 import com.kairo.reader.ui.settings.RsvpSettingsActions
 import com.kairo.reader.ui.settings.RsvpSettingsDialog
 import com.kairo.reader.ui.settings.RsvpSettingsState
@@ -150,22 +150,10 @@ private fun RsvpQuickSettingsMain(
 
 @Composable
 private fun RsvpQuickSettingsContextAssist(context: RsvpUiContext) {
-    val enabled = context.state.profile.config.contextAssistMode != RsvpContextAssistMode.OFF
-    SettingsSwitchRow(
-        title = stringResource(R.string.rsvp_context_assist_quick_title),
-        subtitle = stringResource(R.string.rsvp_context_assist_quick_subtitle),
-        checked = enabled,
-        onCheckedChange = { shouldEnable ->
-            context.callbacks.preferences.onRsvpConfigChange { config ->
-                config.copy(
-                    contextAssistMode =
-                    if (shouldEnable) {
-                        RsvpContextAssistMode.PREVIOUS_WORDS
-                    } else {
-                        RsvpContextAssistMode.OFF
-                    },
-                )
-            }
+    ContextAssistModeSelector(
+        selected = context.state.profile.config.contextAssistMode,
+        onSelect = { mode ->
+            context.callbacks.preferences.onRsvpConfigChange { config -> config.copy(contextAssistMode = mode) }
         },
     )
 }

@@ -18,8 +18,8 @@
     <string name="settings_search_profiles_description">选择阅读配置，或保存和管理自己的计时预设。</string>
     <string name="settings_search_font_description">选择RSVP文字的字体。</string>
     <string name="settings_search_weight_description">选择RSVP文字的粗细。</string>
-    <string name="settings_search_blink_description">选择是否在单词之间显示短暂的空白帧。</string>
-    <string name="settings_search_context_description">在RSVP单词周围显示前面的单词、分句或滚动句子。</string>
+    <string name="settings_search_blink_description">切换时短暂调暗单词。重复词之间显示短暂空白，上下文保持稳定。</string>
+    <string name="settings_search_context_description">选择在阅读行显示前面的词、连续上下文或分句上下文。</string>
     <string name="settings_search_punctuation_description">调整此标点符号或段落边界处的停顿。</string>
     <string name="settings_search_language_description">选择应用菜单和设置使用的语言。</string>
 </resources>
