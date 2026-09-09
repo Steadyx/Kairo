@@ -63,6 +63,7 @@ internal fun RsvpPlaybackSurface(
             frames = frames,
             frameIndex = runtime.frameIndex,
             contextAssistMode = context.state.profile.config.contextAssistMode,
+            isPlaying = runtime.isPlaying,
         )
     val windowMetrics = rememberWindowContainerMetrics()
     val compactLandscape = windowMetrics.isCompactLandscape(COMPACT_LANDSCAPE_MAX_HEIGHT_DP.dp)
@@ -124,7 +125,6 @@ internal fun RsvpPlaybackSurface(
             ReadingPresentationMode.RSVP -> {
                 RsvpPositioningGrid(context, bottomChromeInset)
                 RsvpFocusWord(context, rsvpDisplayFrame, typography, colors, bottomChromeInset)
-                RsvpContextAssist(context, rsvpDisplayFrame, bottomChromeInset)
                 RsvpPositionGuide(context, bottomChromeInset)
             }
             ReadingPresentationMode.BIONIC -> {
@@ -275,27 +275,30 @@ private fun RsvpFocusWord(
     val profile = context.state.profile
     if (frame == null) return
 
-    Box(
-        modifier =
-        Modifier
-            .fillMaxSize()
-            .padding(bottom = bottomChromeInset),
-        contentAlignment =
-        BiasAlignment(
-            horizontalBias = CENTER_BIAS,
-            verticalBias =
-            runtime.currentVerticalBias.coerceIn(
-                VERTICAL_BIAS_MIN,
-                VERTICAL_BIAS_MAX,
-            ),
-        ),
+    val content = rememberRsvpReadingContext(context, frame)
+    val contextVisible = !runtime.showQuickSettings && !runtime.isPositioningMode && !runtime.isExiting
+    RsvpContextStage(
+        verticalBias = runtime.currentVerticalBias,
+        modifier = Modifier.padding(bottom = bottomChromeInset),
+        pausedContext = {
+            if (contextVisible && !runtime.isPlaying && content != null) {
+                RsvpPausedPhrase(content.pausedPhrase, runtime.currentFontSizeSp, runtime.currentFontFamily, runtime.currentFontWeight)
+            }
+        },
     ) {
         OrpAlignedText(
             tokens = frame.tokens,
+            contextCues = if (contextVisible && runtime.isPlaying) content?.precedingCues.orEmpty() else emptyList(),
+            followingContextCues = if (contextVisible && runtime.isPlaying) content?.followingCues.orEmpty() else emptyList(),
             typography = typography,
             colors = colors,
             layout =
             OrpTextLayout(
+                wordAlpha = wordSeparationAlpha(
+                    context.frameState.frames.getOrNull(runtime.frameIndex),
+                    runtime.isPlaying,
+                    profile.config,
+                ),
                 horizontalBias = runtime.currentHorizontalBias,
                 lockPivot =
                 profile.config.enablePhraseChunking &&

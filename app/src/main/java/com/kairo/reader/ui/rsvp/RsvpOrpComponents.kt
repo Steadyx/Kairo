@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -65,6 +66,7 @@ internal fun OrpTextLine(
     textStyle: TextStyle,
     textColor: Color,
     translationX: Float,
+    alpha: Float = 1f,
 ) {
     val renderedTranslationX = snapTranslationToRenderPixel(translationX)
     Box(
@@ -90,8 +92,10 @@ internal fun OrpTextLine(
                             ORP_TRANSFORM_ORIGIN_X,
                             ORP_TRANSFORM_ORIGIN_Y,
                         )
+                    this.alpha = alpha.coerceIn(0f, 1f)
                     this.translationX = renderedTranslationX
-                },
+                }
+                .testTag("rsvp-focus-word"),
         )
     }
 }

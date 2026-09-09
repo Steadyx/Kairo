@@ -17,6 +17,7 @@ internal data class OrpTextLayout(
     val guideVisible: Boolean,
     val pivotHighlightVisible: Boolean,
     val guideThickness: Float,
+    val wordAlpha: Float = 1f,
 )
 
 internal data class OrpTextContent(

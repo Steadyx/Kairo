@@ -36,6 +36,8 @@ internal fun OrpAlignedTextLayout(
     layout: OrpTextLayout,
     colors: OrpColors,
     typography: OrpTypography,
+    contextCues: List<AnnotatedString> = emptyList(),
+    followingContextCues: List<AnnotatedString> = emptyList(),
 ) {
     val density = LocalDensity.current
     val effectiveBias = layout.horizontalBias.safeCoerceIn(HORIZONTAL_BIAS_MIN, HORIZONTAL_BIAS_MAX)
@@ -171,12 +173,10 @@ internal fun OrpAlignedTextLayout(
                     .fillMaxWidth()
                     .height(orpGuideBandHeight(measuredTextHeight, layout.guideThickness))
             } else {
-                Modifier.fillMaxWidth()
+                Modifier.fillMaxWidth().height(measuredTextHeight)
             }
 
-        // Keep the text line independently centered inside an explicit guide band. The context
-        // layer reserves this same height, so a non-zero BiasAlignment positions both layers from
-        // identical geometry instead of shifting the taller guide assembly away from bare cues.
+        // The focus and inline cue share the exact rendered baseline and guide geometry.
         Box(
             modifier = containerModifier,
             contentAlignment = Alignment.Center,
@@ -192,11 +192,23 @@ internal fun OrpAlignedTextLayout(
                     OrpStaticLine(colors.pivotLineColor, guideThickness)
                 }
             }
-            OrpTextLine(
-                annotatedText,
-                display.textStyle,
-                colors.textColor,
-                translationX,
+            if (layout.wordAlpha > 0f) {
+                OrpTextLine(
+                    annotatedText,
+                    display.textStyle,
+                    colors.textColor,
+                    translationX,
+                    alpha = layout.wordAlpha,
+                )
+            }
+            RsvpInlineContext(
+                preceding = contextCues,
+                following = followingContextCues,
+                focusOffsetPx = snapTranslationToRenderPixel(translationX),
+                focusMeasurement = display.measured,
+                focusStyle = display.textStyle,
+                focusHeight = measuredTextHeight,
+                lineWidthPx = maxWidthPx,
             )
         }
     }

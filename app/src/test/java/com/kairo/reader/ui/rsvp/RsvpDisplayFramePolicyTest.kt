@@ -9,7 +9,7 @@ import org.junit.Test
 
 class RsvpDisplayFramePolicyTest {
     @Test
-    fun continuousTickerHoldsPreviousWordDuringParagraphPause() {
+    fun pausingDuringParagraphBreakRestoresTheWordForContextReview() {
         val previous = frame(word("previous"), durationMs = 120L)
         // Break frames reach the UI as whitespace-only punctuation markers.
         val paragraphPause = frame(Token(" ", TokenType.PUNCTUATION), durationMs = 420L)
@@ -19,7 +19,8 @@ class RsvpDisplayFramePolicyTest {
             resolveRsvpDisplayFrame(
                 frames = listOf(previous, paragraphPause, next),
                 frameIndex = 1,
-                contextAssistMode = RsvpContextAssistMode.SENTENCE_TICKER,
+                contextAssistMode = RsvpContextAssistMode.PREVIOUS_WORDS,
+                isPlaying = false,
             )
 
         assertEquals(previous, displayed)
@@ -49,10 +50,20 @@ class RsvpDisplayFramePolicyTest {
             resolveRsvpDisplayFrame(
                 frames = listOf(pagePause, next),
                 frameIndex = 0,
-                contextAssistMode = RsvpContextAssistMode.SENTENCE_TICKER,
+                contextAssistMode = RsvpContextAssistMode.PREVIOUS_WORDS,
+                isPlaying = false,
             )
 
         assertEquals(next, displayed)
+    }
+
+    @Test
+    fun separationKeepsTheSameContextSourceInEveryMode() {
+        val previous = frame(word("had"))
+        val gap = frame(Token(" ", TokenType.PUNCTUATION), 20L).copy(isWordSeparation = true)
+        for (mode in RsvpContextAssistMode.entries) {
+            assertEquals(previous, resolveRsvpDisplayFrame(listOf(previous, gap), 1, mode))
+        }
     }
 
     private fun frame(

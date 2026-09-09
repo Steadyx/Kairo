@@ -6,7 +6,6 @@ import com.kairo.reader.core.model.RsvpContextAssistMode
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,64 +20,10 @@ class RsvpContextAssistTest {
     }
 
     @Test
-    fun focusEnvelopeRangeStaysStableWithinEachFrameBlock() {
-        assertEquals(0 until 12, resolveContextEnvelopeFrameRange(0, 30, blockSize = 6))
-        assertEquals(0 until 12, resolveContextEnvelopeFrameRange(5, 30, blockSize = 6))
-        assertEquals(6 until 18, resolveContextEnvelopeFrameRange(6, 30, blockSize = 6))
-        assertEquals(6 until 18, resolveContextEnvelopeFrameRange(11, 30, blockSize = 6))
-    }
-
-    @Test
     fun peripheralCueFontSizeDoesNotDependOnTheDisplayedWord() {
-        assertEquals(48f, stableContextCueFontSizeSp(48f), 0.0001f)
-    }
-
-    @Test
-    fun cueSlotsStayOutsideTheFocusGapAtExtremeHorizontalPositions() {
-        val left =
-            resolveContextCueSlots(
-                availableWidth = 400.dp,
-                focusLeftReserve = 80.dp,
-                focusRightReserve = 80.dp,
-                horizontalBias = HORIZONTAL_BIAS_MIN,
-                minimumCueWidth = 48.dp,
-                cueInnerPadding = 8.dp,
-            )
-        val right =
-            resolveContextCueSlots(
-                availableWidth = 400.dp,
-                focusLeftReserve = 80.dp,
-                focusRightReserve = 80.dp,
-                horizontalBias = HORIZONTAL_BIAS_MAX,
-                minimumCueWidth = 48.dp,
-                cueInnerPadding = 8.dp,
-            )
-
-        assertEquals(0.dp, left.previousWidth)
-        assertFalse(left.hasPreviousRoom)
-        assertTrue(left.hasUpcomingRoom)
-        assertEquals(0.dp, right.upcomingWidth)
-        assertTrue(right.hasPreviousRoom)
-        assertFalse(right.hasUpcomingRoom)
-        assertEquals(400.dp, left.previousWidth + left.focusGap + left.upcomingWidth)
-        assertEquals(400.dp, right.previousWidth + right.focusGap + right.upcomingWidth)
-    }
-
-    @Test
-    fun cueSlotsIncludeAStableInnerSafetyBuffer() {
-        val slots =
-            resolveContextCueSlots(
-                availableWidth = 400.dp,
-                focusLeftReserve = 80.dp,
-                focusRightReserve = 80.dp,
-                horizontalBias = CENTER_BIAS,
-                minimumCueWidth = 48.dp,
-                cueInnerPadding = 8.dp,
-            )
-
-        assertEquals(112.dp, slots.previousWidth)
-        assertEquals(176.dp, slots.focusGap)
-        assertEquals(112.dp, slots.upcomingWidth)
+        assertEquals(21.6f, stableContextCueFontSizeSp(48f), 0.0001f)
+        assertEquals(22f, stableContextCueFontSizeSp(100f), 0.0001f)
+        assertEquals(14f, stableContextCueFontSizeSp(12f), 0.0001f)
     }
 
     @Test
@@ -107,23 +52,6 @@ class RsvpContextAssistTest {
         assertEquals(0, alignment.startOffset)
         assertEquals("original".length, alignment.endExclusiveOffset)
         assertTrue(alignment.pivotOffset in "original".indices)
-    }
-
-    @Test
-    fun asymmetricFocusEnvelopeKeepsEachCueCloseToItsOwnTextEdge() {
-        val slots =
-            resolveContextCueSlots(
-                availableWidth = 400.dp,
-                focusLeftReserve = 60.dp,
-                focusRightReserve = 100.dp,
-                horizontalBias = CENTER_BIAS,
-                minimumCueWidth = 48.dp,
-                cueInnerPadding = 8.dp,
-            )
-
-        assertEquals(132.dp, slots.previousWidth)
-        assertEquals(176.dp, slots.focusGap)
-        assertEquals(92.dp, slots.upcomingWidth)
     }
 
     @Test
@@ -217,7 +145,7 @@ class RsvpContextAssistTest {
     }
 
     @Test
-    fun sentenceTickerStaysPopulatedAcrossParagraphFrames() {
+    fun continuousContextRestartsAtTheNextParagraph() {
         val tokens =
             listOf(
                 word("Before"),
@@ -239,13 +167,13 @@ class RsvpContextAssistTest {
         val ticker = buildSentenceTickerContent(tokens, window, color = Color.White)
 
         assertEquals(3, window.focusStartIndex)
-        assertEquals("Before.   After continues.", ticker.text.text)
-        assertTrue(ticker.text.text.substring(0, ticker.focusStart).contains("Before."))
+        assertEquals("After continues.", ticker.text.text)
+        assertEquals(0, ticker.focusStart)
         assertTrue(ticker.text.text.substring(ticker.focusEndExclusive).contains("continues"))
     }
 
     @Test
-    fun sentenceTickerMakesTheFixedOrpFrameTransparent() {
+    fun sentenceTickerHighlightsFocusInItsOwnRow() {
         val tokens =
             listOf(
                 word("A"),
@@ -273,7 +201,7 @@ class RsvpContextAssistTest {
             ticker.text.text.substring(ticker.focusStart, ticker.focusEndExclusive),
         )
         assertTrue(ticker.pivotPosition in ticker.focusStart until ticker.focusEndExclusive)
-        assertEquals(Color.Transparent, ticker.text.spanStyles.last().item.color)
+        assertEquals(CONTEXT_TICKER_FOCUS_ALPHA, ticker.text.spanStyles.last().item.color.alpha, 0.01f)
     }
 
     @Test
@@ -318,7 +246,7 @@ class RsvpContextAssistTest {
                 ticker.displayedFocusEndExclusive,
             ),
         )
-        assertEquals(Color.Transparent, ticker.text.spanStyles.last().item.color)
+        assertEquals(CONTEXT_TICKER_FOCUS_ALPHA, ticker.text.spanStyles.last().item.color.alpha, 0.01f)
     }
 
     @Test
@@ -420,7 +348,7 @@ class RsvpContextAssistTest {
                 ticker.displayedFocusEndExclusive,
             ),
         )
-        assertEquals(Color.Transparent, ticker.text.spanStyles.last().item.color)
+        assertEquals(CONTEXT_TICKER_FOCUS_ALPHA, ticker.text.spanStyles.last().item.color.alpha, 0.01f)
     }
 
     @Test
