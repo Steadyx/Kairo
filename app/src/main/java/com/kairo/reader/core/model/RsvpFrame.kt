@@ -23,4 +23,7 @@ data class RsvpFrame(
     val phraseStartTokenIndex: Int? = null,
     val phraseEndTokenIndexExclusive: Int? = null,
     val endsPhrase: Boolean = false,
+    // A presentation gap, distinct from a structural pause or a source token.
+    val isWordSeparation: Boolean = false,
+    val isRepeatedWordSeparation: Boolean = false,
 )

@@ -279,7 +279,8 @@ internal fun shouldSkipBlinkFrame(
     effectiveTempoMs: Long,
     tempoScale: Double,
 ): Boolean {
-    if (config.effectiveBlinkMode(effectiveTempoMs) != BlinkMode.OFF) return false
+    if (frame.isWordSeparation) return config.effectiveBlinkMode() == BlinkMode.OFF
+    if (config.effectiveBlinkMode() != BlinkMode.OFF) return false
     if (effectiveTempoMs >= BLINK_SKIP_TEMPO_MS) return false
     if (frame.tokens.any { it.type == TokenType.WORD }) return false
     if (frame.tokens.size != 1) return false

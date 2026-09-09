@@ -8,10 +8,8 @@ import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.effectiveBlinkMode
 import com.kairo.reader.core.model.isMidSentencePunctuation
 import com.kairo.reader.core.rsvp.analysis.shouldPreferHold
-import com.kairo.reader.core.rsvp.analysis.wordEase
 import com.kairo.reader.core.rsvp.text.isHardBoundary
 import com.kairo.reader.core.rsvp.timing.RsvpSessionTimingPolicy
-import com.kairo.reader.core.rsvp.timing.speedStrength
 import com.kairo.reader.core.rsvp.timing.wordFloorMs
 import kotlin.math.max
 import kotlin.math.min
@@ -34,24 +32,13 @@ internal fun applyBlinkSeparation(
     if (blinkMode == BlinkMode.OFF) return
     if (frames.size < 2) return
 
-    val strength = speedStrength(config.tempoMsPerWord.toDouble())
-    if (strength < BLINK_START_STRENGTH) return
-    val normalizedStrength =
-        ((strength - BLINK_START_STRENGTH) / (1.0 - BLINK_START_STRENGTH))
-            .coerceIn(0.0, 1.0)
-    val easedStrength = normalizedStrength * normalizedStrength
-    val targetBlinkMs =
-        (MIN_BLINK_MS.toDouble() + (BLINK_EXTRA_MS * easedStrength))
-            .roundToLong()
-            .coerceIn(MIN_BLINK_MS, MAX_BLINK_MS)
-
     val blinkToken = Token(text = " ", type = TokenType.PUNCTUATION)
     val output = ArrayList<RsvpFrame>(frames.size * 2)
 
     for (i in frames.indices) {
         val frame = frames[i]
         val next = frames.getOrNull(i + 1)
-        output += splitFrameForBlink(frame, next, config, blinkMode, targetBlinkMs, blinkToken)
+        output += splitFrameForBlink(frame, next, config, blinkToken)
     }
 
     frames.clear()
@@ -62,8 +49,6 @@ private fun splitFrameForBlink(
     frame: RsvpFrame,
     next: RsvpFrame?,
     config: RsvpConfig,
-    blinkMode: BlinkMode,
-    targetBlinkMs: Long,
     blinkToken: Token,
 ): List<RsvpFrame> {
     val nextTokens = next?.tokens.orEmpty()
@@ -73,21 +58,13 @@ private fun splitFrameForBlink(
     val shouldHold =
         frame.tokens.none { it.type == TokenType.PUNCTUATION } &&
             shouldPreferHold(firstWord, nextWord)
-    if (shouldHold || isHardBoundary(frame.tokens, nextWord)) return listOf(frame)
+    val repeatedWord = firstWord.text.equals(nextWord.text, ignoreCase = true)
+    if ((!repeatedWord && shouldHold) || isHardBoundary(frame.tokens, nextWord)) return listOf(frame)
 
     val floorMs = max(wordFloorMs(firstWord, config), MIN_FRAME_MS)
     val maxBlink = (frame.durationMs - floorMs).coerceAtLeast(0L)
     val punctuationFactor = blinkPunctuationFactor(frame.tokens)
-    val weight =
-        when (blinkMode) {
-            BlinkMode.SUBTLE -> punctuationFactor
-            BlinkMode.ADAPTIVE -> {
-                val ease = (wordEase(firstWord) + wordEase(nextWord)) * BLINK_EASE_AVERAGE_FACTOR
-                if (ease >= ADAPTIVE_EASE_THRESHOLD) punctuationFactor else 0.0
-            }
-            BlinkMode.OFF -> 0.0
-        }
-    val blinkMs = min((targetBlinkMs * weight).roundToLong(), maxBlink)
+    val blinkMs = min((WORD_SEPARATION_MS * punctuationFactor).roundToLong(), maxBlink)
     return if (blinkMs < MIN_BLINK_MS) {
         listOf(frame)
     } else {
@@ -95,6 +72,8 @@ private fun splitFrameForBlink(
             frame.copy(durationMs = (frame.durationMs - blinkMs).coerceAtLeast(MIN_FRAME_MS)),
             RsvpFrame(
                 tokens = listOf(blinkToken),
+                isWordSeparation = true,
+                isRepeatedWordSeparation = repeatedWord,
                 durationMs = blinkMs,
                 originalTokenIndex = frame.originalTokenIndex,
                 resumeCursor = frame.resumeCursor,
@@ -122,5 +101,5 @@ internal fun blinkPunctuationFactor(tokens: List<Token>): Double {
     return if (hasMidPause) MID_SENTENCE_BLINK_FACTOR else 1.0
 }
 
-private const val BLINK_EASE_AVERAGE_FACTOR = 0.5
+private const val WORD_SEPARATION_MS = 20L
 private const val MID_SENTENCE_BLINK_FACTOR = 0.55

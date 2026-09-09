@@ -277,6 +277,7 @@ data class RsvpConfig(
 
 enum class BlinkMode { OFF, SUBTLE, ADAPTIVE }
 
+// SENTENCE_TICKER remains the persisted key for the Continuous inline mode.
 enum class RsvpContextAssistMode { OFF, PREVIOUS_WORDS, FULL_CLAUSE, SENTENCE_TICKER }
 
 enum class RsvpProfile {
@@ -452,7 +453,7 @@ fun RsvpProfile.defaultConfig(): RsvpConfig =
                 prosodyStrength = 0.88,
                 useFocalStress = true,
                 focalSupportCompression = 0.90,
-                blinkMode = BlinkMode.ADAPTIVE,
+                blinkMode = BlinkMode.OFF,
             )
         RsvpProfile.FLOW ->
             RsvpConfig().copy(
@@ -488,7 +489,7 @@ fun RsvpProfile.defaultConfig(): RsvpConfig =
                 prosodyStrength = 1.12,
                 useFocalStress = true,
                 focalSupportCompression = 0.91,
-                blinkMode = BlinkMode.SUBTLE,
+                blinkMode = BlinkMode.OFF,
             )
         RsvpProfile.SPRINT ->
             RsvpConfig().copy(
@@ -524,7 +525,7 @@ fun RsvpProfile.defaultConfig(): RsvpConfig =
                 prosodyStrength = 0.80,
                 useFocalStress = true,
                 focalSupportCompression = 0.88,
-                blinkMode = BlinkMode.ADAPTIVE,
+                blinkMode = BlinkMode.OFF,
             )
         RsvpProfile.STUDY ->
             RsvpConfig().copy(
