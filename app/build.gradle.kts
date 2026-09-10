@@ -146,6 +146,9 @@ android {
     lint {
         // AGP stays within the installed Android Studio support range; keep updates visible in lint.
         informational += "AndroidGradlePluginVersion"
+        // New library releases are maintenance advice, not a defect in the pinned build.
+        // Keep them visible without forcing unplanned runtime upgrades to pass CI.
+        informational += "GradleDependency"
         warningsAsErrors = true
         error += "AutoboxingStateCreation"
         abortOnError = true
