@@ -34,6 +34,7 @@ import com.kairo.reader.core.model.RsvpCustomProfile
 import com.kairo.reader.core.model.RsvpProfile
 import com.kairo.reader.core.model.RsvpProfileIds
 import com.kairo.reader.core.model.defaultConfig
+import com.kairo.reader.core.model.profileCadenceIdentity
 import com.kairo.reader.core.rsvp.MILLISECONDS_PER_MINUTE
 import com.kairo.reader.core.rsvp.RsvpSpeedControl.EXTREME_MIN_TEMPO_MS_PER_WORD
 import kotlin.math.roundToInt
@@ -326,13 +327,7 @@ internal fun RsvpConfig.withLiveTempo(tempoMsPerWord: Long): RsvpConfig {
     )
 }
 
-internal fun RsvpConfig.asProfileIdentityConfig(): RsvpConfig {
-    val defaults = RsvpConfig()
-    return copy(
-        tempoMsPerWord = defaults.tempoMsPerWord,
-        baseWpm = defaults.baseWpm,
-    )
-}
+internal fun RsvpConfig.asProfileIdentityConfig(): RsvpConfig = profileCadenceIdentity()
 
 internal fun coercePhraseChunkWordLimit(value: Int): Int =
     value.coerceIn(PHRASE_CHUNK_MIN_WORDS, PHRASE_CHUNK_MAX_WORDS)

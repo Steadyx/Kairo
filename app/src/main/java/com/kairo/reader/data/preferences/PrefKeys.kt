@@ -10,7 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 internal object PrefKeys {
     val tempoMsPerWord = longPreferencesKey("tempo_ms_per_word")
     val rsvpSpeedCurveVersion = intPreferencesKey("rsvp_speed_curve_version")
-    val rsvpPunctuationTuningVersion = intPreferencesKey("rsvp_punctuation_tuning_version")
+    val rsvpPresetVersion = intPreferencesKey("rsvp_preset_version")
     val rsvpProfile = stringPreferencesKey("rsvp_profile")
     val customRsvpProfilesJson = stringPreferencesKey("custom_rsvp_profiles_json")
     val hasSeenStartingTutorial = booleanPreferencesKey("has_seen_starting_tutorial")
