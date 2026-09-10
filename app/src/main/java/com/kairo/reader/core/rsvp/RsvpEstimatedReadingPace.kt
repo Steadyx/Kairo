@@ -131,12 +131,7 @@ object RsvpEstimatedReadingPace {
             if (shouldSkipBlinkFrame(frame, config, effectiveTempoMsPerWord, tempoScale)) {
                 return@forEach
             }
-            val scaledMs =
-                (frame.durationMs * tempoScale)
-                    .roundToLong()
-                    .coerceAtLeast(MIN_FRAME_DELAY_MS)
-            val floorMs = frameFloorMs(frame, config, effectiveTempoMsPerWord)
-            totalMs += max(scaledMs, floorMs)
+            totalMs += scaledFrameDurationMs(frame, config, effectiveTempoMsPerWord, tempoScale)
         }
 
         if (wordCount <= 0 || totalMs <= 0L) {
@@ -219,6 +214,19 @@ private fun nextSingleWordOriginalIndex(
     }
 }
 
+/** Keep the punctuation hold on its source frame when changing live speed. */
+internal fun scaledFrameDurationMs(
+    frame: RsvpFrame,
+    config: RsvpConfig,
+    effectiveTempoMs: Long,
+    tempoScale: Double,
+): Long {
+    val hold = (frame.punctuationHoldMs ?: 0L).coerceIn(0L, frame.durationMs.coerceAtLeast(0L))
+    val readingMs = (frame.durationMs - hold).coerceAtLeast(0L)
+    val scaled = (readingMs * tempoScale + hold).roundToLong().coerceAtLeast(MIN_FRAME_DELAY_MS)
+    return max(scaled, frameFloorMs(frame, config, effectiveTempoMs))
+}
+
 internal fun frameFloorMs(
     frame: RsvpFrame,
     config: RsvpConfig,
@@ -231,12 +239,17 @@ internal fun frameFloorMs(
     if (firstWordIndex == -1) return frame.durationMs
 
     val effectiveConfig = config.copy(tempoMsPerWord = effectiveTempoMs)
-    var total = 0L
+    // Generated frames already know whether a dot is an abbreviation or a sentence ending.
+    // Reclassifying without their lookahead could turn "Dr." into a full stop at playback time.
+    var total = frame.punctuationHoldMs?.coerceAtLeast(0L) ?: 0L
     tokens.forEachIndexed { index, token ->
         when (token.type) {
             TokenType.WORD -> total += config.wordFloorMsForReadability(token, effectiveTempoMs)
-            TokenType.PUNCTUATION ->
-                total += punctuationFloorMs(tokens, token, index, firstWordIndex, effectiveConfig)
+            TokenType.PUNCTUATION -> {
+                if (frame.punctuationHoldMs == null) {
+                    total += punctuationFloorMs(tokens, token, index, firstWordIndex, effectiveConfig)
+                }
+            }
             TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> Unit
         }
     }

@@ -12,7 +12,6 @@ import com.kairo.reader.core.rsvp.engine.ADAPTIVE_HOLD_MAX_MS
 import com.kairo.reader.core.rsvp.engine.BASE_MS_PER_WORD_AT_300
 import com.kairo.reader.core.rsvp.engine.BoundaryBefore
 import com.kairo.reader.core.rsvp.engine.CLAUSE_BOUNDARY_HOLD_MS
-import com.kairo.reader.core.rsvp.engine.CLAUSE_CONTOUR_PAUSE_RETAINED
 import com.kairo.reader.core.rsvp.engine.CLAUSE_LEAD_BOOST_MS
 import com.kairo.reader.core.rsvp.engine.CLAUSE_START_HOLD_FRACTION
 import com.kairo.reader.core.rsvp.engine.CLAUSE_START_MIN_HOLD_MS
@@ -27,7 +26,6 @@ import com.kairo.reader.core.rsvp.engine.PAGE_BREAK_SENTENCE_MULTIPLIER_RATIO
 import com.kairo.reader.core.rsvp.engine.PARAGRAPH_SENTENCE_MULTIPLIER
 import com.kairo.reader.core.rsvp.engine.PARENTHETICAL_HOLD_FRACTION
 import com.kairo.reader.core.rsvp.engine.PHRASE_BREAK_HOLD_MS
-import com.kairo.reader.core.rsvp.engine.SENTENCE_CONTOUR_PAUSE_RETAINED
 import com.kairo.reader.core.rsvp.engine.SENTENCE_END_BREAK_BOOST_MS
 import com.kairo.reader.core.rsvp.engine.SENTENCE_START_MIN_HOLD_MS
 import com.kairo.reader.core.rsvp.engine.SENTENCE_WRAP_UP_LONG_WORDS
@@ -175,16 +173,6 @@ internal fun punctuationPauseMs(
     val timing = RsvpPunctuationTimingPolicy.resolvePauseTiming(token, prevWord, nextToken, config)
     var base = timing.baseMs
     var floor = timing.floorMs
-    val tier =
-        RsvpPunctuationTimingPolicy.resolveTier(
-            token = token,
-            prevWord = prevWord,
-            nextToken = nextToken,
-        )
-    if (prevWord != null && nextToken?.type == TokenType.WORD) {
-        base *= phraseContourPauseRedistributionFactor(tier)
-    }
-
     val speedStrength = speedStrength(msPerWord)
     if (isClauseLeadPunctuation(ch, nextToken)) {
         base += CLAUSE_LEAD_BOOST_MS * speedStrength
@@ -230,13 +218,6 @@ internal fun punctuationPauseMs(
     val scaled = base * punctuationScale * dialogueScale * asideScale
     return max(scaled, floor)
 }
-
-internal fun phraseContourPauseRedistributionFactor(tier: RsvpPunctuationTier): Double =
-    when (tier) {
-        RsvpPunctuationTier.SENTENCE_END -> SENTENCE_CONTOUR_PAUSE_RETAINED
-        RsvpPunctuationTier.CLAUSE_BREAK -> CLAUSE_CONTOUR_PAUSE_RETAINED
-        RsvpPunctuationTier.SOFT_SEPARATOR, RsvpPunctuationTier.NONE -> 1.0
-    }
 
 internal fun punctuationLandingHoldMs(
     frameTokens: List<Token>,
@@ -380,7 +361,7 @@ internal fun startBoostMultiplier(
 
 /**
  * Sentence wrap-up: scales the sentence-end pause by how many words the sentence held.
- * Short sentences turn over briskly; long sentences earn a fuller integration stop.
+ * Every sentence keeps its full stop; longer sentences earn additional integration time.
  */
 internal fun sentenceWrapUpFactor(wordsInSentence: Int): Double {
     val t =
@@ -398,6 +379,12 @@ internal fun speedStrength(msPerWord: Double): Double {
         (BASE_MS_PER_WORD_AT_300 / msPerWord).coerceIn(1.0, MAX_SPEED_STRENGTH_FACTOR)
     return ((speedFactor - 1.0) / SPEED_STRENGTH_FACTOR_RANGE).coerceIn(0.0, 1.0)
 }
+
+// Expression remains audible at comfortable tempos; speed-only compensation still starts at 300 WPM.
+internal fun expressionStrength(msPerWord: Double): Double =
+    BASE_EXPRESSION_STRENGTH + (1.0 - BASE_EXPRESSION_STRENGTH) * speedStrength(msPerWord)
+
+private const val BASE_EXPRESSION_STRENGTH = 0.30
 
 private const val PHRASE_END_HOLD_FACTOR = 0.6
 private const val COHERENCE_GROUP_THRESHOLD = 0.5

@@ -26,4 +26,8 @@ data class RsvpFrame(
     // A presentation gap, distinct from a structural pause or a source token.
     val isWordSeparation: Boolean = false,
     val isRepeatedWordSeparation: Boolean = false,
+    // Part of durationMs reserved for settling on the visible word at punctuation.
+    // Live tempo changes scale the reading portion independently of this hold.
+    // Null allows callers without generated timing to fall back to the punctuation policy.
+    val punctuationHoldMs: Long? = null,
 )

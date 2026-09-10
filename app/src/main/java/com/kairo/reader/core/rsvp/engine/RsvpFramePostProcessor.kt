@@ -62,7 +62,7 @@ private fun splitFrameForBlink(
     if ((!repeatedWord && shouldHold) || isHardBoundary(frame.tokens, nextWord)) return listOf(frame)
 
     val floorMs = max(wordFloorMs(firstWord, config), MIN_FRAME_MS)
-    val maxBlink = (frame.durationMs - floorMs).coerceAtLeast(0L)
+    val maxBlink = (frame.durationMs - floorMs - (frame.punctuationHoldMs ?: 0L)).coerceAtLeast(0L)
     val punctuationFactor = blinkPunctuationFactor(frame.tokens)
     val blinkMs = min((WORD_SEPARATION_MS * punctuationFactor).roundToLong(), maxBlink)
     return if (blinkMs < MIN_BLINK_MS) {
@@ -73,6 +73,7 @@ private fun splitFrameForBlink(
             RsvpFrame(
                 tokens = listOf(blinkToken),
                 isWordSeparation = true,
+                punctuationHoldMs = 0L,
                 isRepeatedWordSeparation = repeatedWord,
                 durationMs = blinkMs,
                 originalTokenIndex = frame.originalTokenIndex,

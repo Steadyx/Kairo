@@ -6,11 +6,9 @@ import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.isMidSentencePunctuation
 import com.kairo.reader.core.model.isSentenceEndingPunctuation
-import com.kairo.reader.core.model.speedNarrowingFactor
 import com.kairo.reader.core.rsvp.text.isAbbreviationDot
 import com.kairo.reader.core.rsvp.text.isClauseLeadPunctuation
 import com.kairo.reader.core.rsvp.text.isDecimalPoint
-import com.kairo.reader.core.rsvp.text.isLikelySentenceContinuation
 import com.kairo.reader.core.rsvp.text.isThousandSeparator
 import kotlin.math.max
 import kotlin.math.min
@@ -63,13 +61,10 @@ internal object RsvpPunctuationTimingPolicy {
             scaleRetentionBoost(ch = ch, tier = tier, nextToken = nextToken)
 
         val breathingScale = punctuationBreathingScale(config)
-        val rawSpeedScale = config.speedNarrowingFactor(config.tempoMsPerWord)
-        val speedScale =
-            1.0 - ((1.0 - rawSpeedScale) * PUNCTUATION_NARROWING_STRENGTH)
 
         return RsvpPunctuationPauseTiming(
-            baseMs = base * breathingScale * speedScale,
-            floorMs = floor * breathingScale * speedScale,
+            baseMs = base * breathingScale,
+            floorMs = floor * breathingScale,
             scaleRetentionBoost = scaleRetentionBoost,
         )
     }
@@ -176,7 +171,6 @@ internal object RsvpPunctuationTimingPolicy {
         when {
             character == '.' &&
                 (isDecimalPoint(previousText, nextToken) || isAbbreviationDot(previousText, nextToken)) -> 0.0
-            isLikelySentenceContinuation(nextToken) -> PERIOD_CONTINUATION_TAIL_LIFT
             else -> PERIOD_TAIL_LIFT
         }
 
@@ -195,7 +189,6 @@ internal object RsvpPunctuationTimingPolicy {
                         when {
                             ch == '.' &&
                                 (isDecimalPoint(prevText, nextToken) || isAbbreviationDot(prevText, nextToken)) -> 0.0
-                            isLikelySentenceContinuation(nextToken) -> PERIOD_CONTINUATION_CONTOUR
                             else -> PERIOD_CONTOUR
                         }
                     }
@@ -344,7 +337,6 @@ internal object RsvpPunctuationTimingPolicy {
                 when {
                     ch == '.' &&
                         (isDecimalPoint(prevText, nextToken) || isAbbreviationDot(prevText, nextToken)) -> null
-                    isLikelySentenceContinuation(nextToken) -> sentenceContinuationPauseMs(config)
                     ch == '.' -> config.periodPauseMs.toDouble()
                     else -> max(config.periodPauseMs, config.sentenceEndPauseMs).toDouble()
                 }
@@ -469,12 +461,6 @@ internal object RsvpPunctuationTimingPolicy {
 
     private fun isExclamationPunctuation(ch: Char): Boolean = ch in EXCLAMATION_PUNCTUATION
 
-    private fun sentenceContinuationPauseMs(config: RsvpConfig): Double =
-        max(
-            config.commaPauseMs * SENTENCE_CONTINUATION_COMMA_FACTOR,
-            config.periodPauseMs * SENTENCE_CONTINUATION_PERIOD_FACTOR,
-        ).coerceAtMost(config.periodPauseMs.toDouble())
-
     internal fun resolveTier(
         token: Token,
         prevWord: Token?,
@@ -510,12 +496,9 @@ internal object RsvpPunctuationTimingPolicy {
     private const val PARENTHESIS_RETENTION_BOOST = 0.08
     private const val SEMICOLON_RETENTION_BOOST = 0.18
     private const val ELLIPSIS_RETENTION_BOOST = 0.26
-    private const val PUNCTUATION_NARROWING_STRENGTH = 0.35
     private const val COMMA_BREATH_FACTOR = 1.10
     private const val CLAUSE_LEADING_COMMA_FACTOR = 1.16
     private const val SOFT_SEPARATOR_COMMA_FACTOR = 0.35
-    private const val SENTENCE_CONTINUATION_COMMA_FACTOR = 1.25
-    private const val SENTENCE_CONTINUATION_PERIOD_FACTOR = 0.64
     private const val QUESTION_PAUSE_FACTOR = 1.08
     private const val EXCLAMATION_PAUSE_FACTOR = 0.96
     private const val CLAUSE_LANDING_HOLD_WEIGHT = 0.18
@@ -523,7 +506,6 @@ internal object RsvpPunctuationTimingPolicy {
     private const val STRONG_LANDING_HOLD_WEIGHT = 0.22
     private const val ELLIPSIS_LANDING_HOLD_WEIGHT = 0.24
 
-    private const val PERIOD_CONTINUATION_TAIL_LIFT = 1.18
     private const val PERIOD_TAIL_LIFT = 1.34
     private const val ELLIPSIS_TAIL_LIFT = 1.40
     private const val QUESTION_TAIL_LIFT = 1.34
@@ -535,7 +517,6 @@ internal object RsvpPunctuationTimingPolicy {
     private const val CLAUSE_LEAD_COMMA_TAIL_LIFT = 0.36
     private const val COMMA_TAIL_LIFT = 0.24
 
-    private const val PERIOD_CONTINUATION_CONTOUR = 0.55
     private const val PERIOD_CONTOUR = 0.92
     private const val QUESTION_CONTOUR = 0.94
     private const val EXCLAMATION_CONTOUR = 0.84

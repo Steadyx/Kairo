@@ -98,7 +98,7 @@ class RsvpPunctuationTimingPolicyTest {
     }
 
     @Test
-    fun punctuationTimingNarrowsAtHigherSpeed() {
+    fun punctuationBudgetAndFloorAreIndependentOfWordSpeed() {
         val slow =
             RsvpPunctuationTimingPolicy.resolvePauseTiming(
                 token = punctuation(","),
@@ -122,8 +122,8 @@ class RsvpPunctuationTimingPolicyTest {
                 ),
             )
 
-        assertTrue(fast.baseMs < slow.baseMs)
-        assertTrue(fast.floorMs < slow.floorMs)
+        assertEquals(slow.baseMs, fast.baseMs, 0.0)
+        assertEquals(slow.floorMs, fast.floorMs, 0.0)
     }
 
     @Test

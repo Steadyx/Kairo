@@ -33,12 +33,6 @@ internal fun isClauseLeadPunctuation(
 
 private val CLAUSE_LEAD_PUNCTUATION = setOf(',', ';', ':', '\u2014', '\u2013', '-')
 
-internal fun isLikelySentenceContinuation(nextToken: Token?): Boolean {
-    val nextWord = nextToken?.takeIf { it.type == TokenType.WORD } ?: return false
-    val firstChar = nextWord.text.firstOrNull() ?: return false
-    return firstChar.isLowerCase()
-}
-
 internal fun isEmbeddedQuote(
     ch: Char,
     prevWord: Token?,
@@ -307,23 +301,16 @@ internal fun isAbbreviationDot(
     val isSentenceStarter = nextWord.lowercase() in SENTENCE_STARTERS
     val nextIsInitial = nextLetters.length == 1 && nextLetters.all { it.isUpperCase() }
 
+    // "No." is an abbreviation before a number, but a complete answer before prose.
+    if (normalized == "no") return nextWord.firstOrNull()?.isDigit() == true
     val prevLetters = rawPrev.filter { it.isLetter() }
-    val canContinueAbbreviation = nextStartsLower || (nextStartsUpper && !isSentenceStarter) || nextIsInitial
-    val abbreviationShape =
-        prevLetters.isNotEmpty() &&
-            (
-                prevLetters.length == 1 ||
-                    (
-                        prevLetters.length <= MAX_UPPERCASE_ABBREVIATION_LENGTH &&
-                            prevLetters.all(Char::isUpperCase)
-                        )
-                )
+    val canContinueAbbreviation = !isSentenceStarter && (nextStartsLower || nextStartsUpper || nextIsInitial)
+    val personalInitial = prevLetters.length == 1 && prevLetters.all(Char::isUpperCase) && nextStartsUpper
     return normalized in TITLE_ABBREVIATIONS ||
-        (canContinueAbbreviation && (normalized in KNOWN_ABBREVIATIONS || abbreviationShape))
+        (canContinueAbbreviation && (normalized in KNOWN_ABBREVIATIONS || personalInitial))
 }
 
 private const val THOUSANDS_GROUP_DIGITS = 3
-private const val MAX_UPPERCASE_ABBREVIATION_LENGTH = 3
 
 internal fun isRhythmBoundaryPunctuation(
     token: Token,

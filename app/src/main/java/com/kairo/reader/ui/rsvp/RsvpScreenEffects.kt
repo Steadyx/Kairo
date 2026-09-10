@@ -18,6 +18,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.rsvp.frameFloorMs
+import com.kairo.reader.core.rsvp.scaledFrameDurationMs
 import com.kairo.reader.core.rsvp.shouldSkipBlinkFrame
 import com.kairo.reader.core.rsvp.timing.RsvpSessionTimingPolicy
 import kotlin.math.roundToLong
@@ -259,12 +260,9 @@ internal fun RsvpPlaybackLoopEffect(
                 runtime.rampStartFrameIndex,
                 runtime.resumePreparationScale,
             )
-        val frameMs =
-            (frame.durationMs * rampMultiplier)
-                .roundToLong()
-                .coerceAtLeast(MIN_FRAME_DELAY_MS)
+        val frameMs = scaledFrameDurationMs(frame, config, effectiveTempoMs, tempoScale)
         var scaledMs =
-            ((frameMs + resumeDelayMs) * tempoScale * runtime.comprehensionPaceScale)
+            ((frameMs * rampMultiplier + resumeDelayMs * tempoScale) * runtime.comprehensionPaceScale)
                 .roundToLong()
                 .coerceAtLeast(MIN_FRAME_DELAY_MS)
         val floorMs = frameFloorMs(frame, config, effectiveTempoMs)
