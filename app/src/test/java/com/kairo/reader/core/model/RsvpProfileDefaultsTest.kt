@@ -26,7 +26,7 @@ class RsvpProfileDefaultsTest {
 
     @Test
     fun comprehensionProfilesUseConservativePhraseChunking() {
-        val chunkedProfiles = setOf(RsvpProfile.NARRATIVE, RsvpProfile.FLOW, RsvpProfile.STUDY)
+        val chunkedProfiles = setOf(RsvpProfile.BALANCED, RsvpProfile.CHILL, RsvpProfile.NARRATIVE, RsvpProfile.FLOW, RsvpProfile.SPRINT)
         RsvpProfile.entries.forEach { profile ->
             val config = profile.defaultConfig()
             assertEquals(
@@ -69,7 +69,7 @@ class RsvpProfileDefaultsTest {
         assertTrue("Expected full stops to settle", config.periodPauseMs >= 330L)
         assertTrue("Expected expressive sentence marks to settle", config.sentenceEndPauseMs >= 350L)
         assertTrue("Expected paragraphs to create a real reset", config.paragraphPauseMs >= 430L)
-        assertTrue("Expected global punctuation breathing above neutral", config.punctuationPauseFactor >= 1.08)
+        assertTrue("Explicit punctuation should not receive a second global boost", config.punctuationPauseFactor == 1.0)
         assertTrue("Expected dialogue punctuation to stay readable", config.dialoguePunctuationScale >= 0.94)
         assertFalse("Expected first-run parentheticals to stay readable", config.useParentheticalAside)
     }
@@ -78,7 +78,7 @@ class RsvpProfileDefaultsTest {
     fun builtInProfilesLeanIntoPunctuationWithoutLosingTheirSpeedShape() {
         RsvpProfile.entries.forEach { profile ->
             val config = profile.defaultConfig()
-            assertTrue("Expected readable comma breath for ${profile.name}", config.commaPauseMs >= 120L)
+            assertTrue("Expected readable comma breath for ${profile.name}", config.commaPauseMs >= 110L)
             assertTrue(
                 "Expected semicolon to be closer to a stop than a comma for ${profile.name}",
                 config.semicolonPauseMs >= (config.commaPauseMs * 1.45).toLong(),
@@ -88,8 +88,8 @@ class RsvpProfileDefaultsTest {
                 config.minPauseScale >= 0.82,
             )
             assertTrue(
-                "Expected punctuation breathing to be above neutral for ${profile.name}",
-                config.punctuationPauseFactor >= 1.04,
+                "Expected explicit punctuation timing for ${profile.name}",
+                config.punctuationPauseFactor == 1.0,
             )
             assertTrue(
                 "Expected dialogue punctuation not to collapse for ${profile.name}",
@@ -147,72 +147,55 @@ class RsvpProfileDefaultsTest {
     }
 
     @Test
-    fun builtInProfilesTuneNaturalReadingControls() {
-        RsvpProfile.entries.forEach { profile ->
-            val config = profile.defaultConfig()
-            assertTrue("Expected focal stress on for ${profile.name}", config.useFocalStress)
-            assertTrue(
-                "Expected supporting words to compress gently for ${profile.name}",
-                config.focalSupportCompression in 0.86..0.98,
-            )
-            assertTrue(
-                "Expected anticipatory landing on for ${profile.name}",
-                config.useAnticipatoryLanding,
-            )
-            assertTrue(
-                "Expected landing boost to stay subtle for ${profile.name}",
-                config.anticipatoryLandingBoost in 1.03..1.12,
-            )
-            assertTrue(
-                "Expected dialogue punctuation to stay readable for ${profile.name}",
-                config.dialoguePunctuationScale in 0.90..1.0,
-            )
-            assertTrue(
-                "Expected paragraph strength to hold natural breaks for ${profile.name}",
-                config.paragraphPauseMultiplier in 1.10..1.75,
-            )
-            assertTrue(
-                "Expected page breaks to remain stronger than paragraph breaks for ${profile.name}",
-                config.pageBreakPauseMultiplier > config.paragraphPauseMultiplier + 1.5,
-            )
-            assertTrue(
-                "Expected ORP highlight on by default for ${profile.name}",
-                config.orpHighlightEnabled,
-            )
-            assertTrue(
-                "Expected punctuation breathing to be intentionally profiled for ${profile.name}",
-                config.punctuationPauseFactor in 1.0..1.25,
-            )
-            assertTrue(
-                "Expected phrase chunks to stay short for ${profile.name}",
-                config.maxWordsPerUnit == 2,
-            )
-            assertTrue(
-                "Expected opt-in phrase chunk character budget to stay compact for ${profile.name}",
-                config.maxCharsPerUnit in 12..15,
-            )
-        }
+    fun profilesHaveDistinctReadingRoles() {
+        val balanced = RsvpProfile.BALANCED.defaultConfig()
+        val narrative = RsvpProfile.NARRATIVE.defaultConfig()
+        val focus = RsvpProfile.FOCUS.defaultConfig()
+        val flow = RsvpProfile.FLOW.defaultConfig()
+        val skim = RsvpProfile.SPRINT.defaultConfig()
+        val study = RsvpProfile.STUDY.defaultConfig()
+        val chill = RsvpProfile.CHILL.defaultConfig()
 
-        val naturalProfiles =
-            RsvpProfile.entries
-                .map { profile ->
-                    val config = profile.defaultConfig()
-                    listOf(
-                        config.punctuationPauseFactor,
-                        config.focalSupportCompression,
-                        config.anticipatoryLandingBoost,
-                        config.dialoguePunctuationScale,
-                        config.parentheticalAsideMultiplier,
-                        config.paragraphPauseMultiplier,
-                        config.pageBreakPauseMultiplier,
-                    )
-                }.toSet()
+        assertTrue(narrative.prosodyStrength > balanced.prosodyStrength)
+        assertTrue(chill.paragraphPauseMs > narrative.paragraphPauseMs)
+        assertTrue(chill.smoothingAlpha < balanced.smoothingAlpha)
+        assertFalse(focus.enablePhraseChunking)
+        assertFalse(focus.useProsodyPacing)
+        assertFalse(focus.useFocalStress)
+        assertFalse(focus.useAnticipatoryLanding)
+        assertTrue(focus.maxSlowdownFactor < balanced.maxSlowdownFactor)
+        assertEquals(3, flow.maxWordsPerUnit)
+        assertTrue(flow.maxCharsPerUnit > narrative.maxCharsPerUnit)
+        assertTrue(skim.enablePhraseChunking)
+        assertFalse(skim.useProsodyPacing)
+        assertTrue(skim.complexWordHoldMs < focus.complexWordHoldMs)
+        assertFalse(study.enablePhraseChunking)
+        assertFalse(study.useFocalStress)
+        assertTrue(study.longWordMinMs > balanced.longWordMinMs)
+        assertTrue(study.maxChunkLength >= 32)
+        assertTrue(study.adaptiveDifficultyMaxHoldMs > balanced.adaptiveDifficultyMaxHoldMs)
+        assertEquals(7, RsvpProfile.entries.map { it.defaultConfig().profileCadenceIdentity() }.toSet().size)
+    }
 
-        assertEquals(
-            "Expected every built-in profile to carry its own natural-reading shape",
-            RsvpProfile.entries.size,
-            naturalProfiles.size,
+    @Test
+    fun selectingCadencePreservesSpeedAndVisualPreferences() {
+        val current = RsvpConfig().copy(
+            tempoMsPerWord = 230L,
+            baseWpm = 260,
+            contextAssistMode = RsvpContextAssistMode.SENTENCE_TICKER,
+            blinkMode = BlinkMode.ADAPTIVE,
+            orpEnabled = false,
+            orpHighlightEnabled = false,
+            orpGuideEnabled = true,
+            orpGuideBrightness = 0.65,
+            orpGuideThickness = 2.0,
         )
+        RsvpProfile.entries.forEach { profile ->
+            val preset = profile.defaultConfig()
+            val selected = preset.withReaderPreferencesFrom(current)
+            assertEquals(preset.profileCadenceIdentity(), selected.profileCadenceIdentity())
+            assertEquals(current, current.profileCadenceIdentity().withReaderPreferencesFrom(selected))
+        }
     }
 
     @Test

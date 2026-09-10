@@ -20,9 +20,12 @@ import com.kairo.reader.TestActivity
 import com.kairo.reader.core.model.BlinkMode
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpContextAssistMode
+import com.kairo.reader.core.model.RsvpProfile
 import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.model.defaultConfig
+import com.kairo.reader.core.model.withReaderPreferencesFrom
 import com.kairo.reader.ui.theme.KairoTheme
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -159,6 +162,40 @@ class RsvpDeviceSmokeTest {
         )
         assertTrue(words.first().durationMs > words[words.size / 2].durationMs)
         capture("playback-completed")
+    }
+
+    @Test
+    fun changingPresetWhilePausedKeepsContextAndSourcePosition() {
+        val current = RsvpProfile.FOCUS.defaultConfig().copy(
+            contextAssistMode = RsvpContextAssistMode.FULL_CLAUSE,
+            blinkMode = BlinkMode.ADAPTIVE,
+            tempoMsPerWord = 250L,
+        )
+        val fixture = RsvpDeviceFixture(
+            listOf(word("Earlier"), word("measurements"), word("contain"), word("uncertainty")),
+            current,
+            startIndex = 1,
+        )
+        fixture.state = fixture.state.copy(initialIsPlaying = false)
+        show(fixture)
+        awaitLoaded(fixture)
+        for ((index, preset) in listOf(RsvpProfile.FLOW, RsvpProfile.STUDY, RsvpProfile.NARRATIVE).withIndex()) {
+            composeRule.runOnIdle {
+                fixture.state = fixture.state.copy(
+                    profile = fixture.state.profile.copy(
+                        config = preset.defaultConfig().withReaderPreferencesFrom(current),
+                    )
+                )
+            }
+            awaitLoaded(fixture, minimumLoads = index + 2)
+            composeRule.onNodeWithText("measurements", useUnmergedTree = true).assertIsDisplayed()
+            capture("preset-${preset.name.lowercase()}")
+        }
+        click(R.string.content_desc_close)
+        composeRule.runOnIdle {
+            assertEquals(1, requireNotNull(fixture.saved).tokenIndex)
+            assertEquals(RsvpContextAssistMode.FULL_CLAUSE, fixture.state.profile.config.contextAssistMode)
+        }
     }
 
     private fun show(fixture: RsvpDeviceFixture) {

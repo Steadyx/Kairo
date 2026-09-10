@@ -46,11 +46,11 @@ import com.kairo.reader.core.rsvp.text.isOpeningPunctuation
 import com.kairo.reader.core.rsvp.timing.RsvpPunctuationTier
 import com.kairo.reader.core.rsvp.timing.RsvpPunctuationTimingPolicy
 import com.kairo.reader.core.rsvp.timing.RsvpUnitTimingInput
-import com.kairo.reader.core.rsvp.timing.computeUnitDurationMs
+import com.kairo.reader.core.rsvp.timing.computeUnitTiming
+import com.kairo.reader.core.rsvp.timing.expressionStrength
 import com.kairo.reader.core.rsvp.timing.pageBreakBasePauseMs
 import com.kairo.reader.core.rsvp.timing.paragraphBreakBasePauseMs
 import com.kairo.reader.core.rsvp.timing.pauseScale
-import com.kairo.reader.core.rsvp.timing.speedStrength
 import kotlin.math.max
 
 interface RsvpEngine {
@@ -405,8 +405,8 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
 
     val unitCues = (wordCursor until nextCursor).mapNotNull { analysis.thoughtCues[it] }
 
-    val durationMs =
-        computeUnitDurationMs(
+    val timing =
+        computeUnitTiming(
             RsvpUnitTimingInput(
                 frameTokens = frameTokens,
                 config = config,
@@ -437,7 +437,8 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
     frames +=
         RsvpFrame(
             tokens = frameTokens,
-            durationMs = durationMs,
+            durationMs = timing.durationMs,
+            punctuationHoldMs = timing.punctuationHoldMs,
             originalTokenIndex = frameOriginalIndex,
             resumeCursor =
             RsvpResumeCursor.fromCharacterOffset(
@@ -495,7 +496,7 @@ private fun RsvpGenerationContext.focalSuppression(wordCursor: Int): Double {
         !shouldKeepFullFocalDuration(word)
     ) {
         val target = config.focalSupportCompression.coerceIn(MIN_FOCAL_SUPPORT_COMPRESSION, 1.0)
-        val compressionStrength = speedStrength(config.tempoMsPerWord.toDouble())
+        val compressionStrength = expressionStrength(config.tempoMsPerWord.toDouble())
         1.0 + ((target - 1.0) * compressionStrength)
     } else {
         1.0

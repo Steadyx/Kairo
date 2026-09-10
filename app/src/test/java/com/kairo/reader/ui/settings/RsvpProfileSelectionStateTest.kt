@@ -1,6 +1,8 @@
 package com.kairo.reader.ui.settings
 
+import com.kairo.reader.core.model.BlinkMode
 import com.kairo.reader.core.model.RsvpConfig
+import com.kairo.reader.core.model.RsvpContextAssistMode
 import com.kairo.reader.core.model.RsvpCustomProfile
 import com.kairo.reader.core.model.RsvpProfile
 import com.kairo.reader.core.model.RsvpProfileIds
@@ -56,6 +58,9 @@ class RsvpProfileSelectionStateTest {
                 RsvpProfile.NARRATIVE.defaultConfig().copy(
                     tempoMsPerWord = 88L,
                     baseWpm = 681,
+                    contextAssistMode = RsvpContextAssistMode.SENTENCE_TICKER,
+                    blinkMode = BlinkMode.ADAPTIVE,
+                    orpGuideEnabled = true,
                 ),
             )
 

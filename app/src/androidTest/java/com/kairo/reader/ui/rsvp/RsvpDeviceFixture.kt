@@ -1,5 +1,6 @@
 package com.kairo.reader.ui.rsvp
 
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +35,7 @@ internal class RsvpDeviceFixture(tokens: List<Token>, config: RsvpConfig, startI
         ),
     )
     val consumed = CopyOnWriteArrayList<RsvpFrame>()
+    val consumedAtMs = CopyOnWriteArrayList<Long>()
 
     @Volatile var saved: RsvpResumePoint? = null
 
@@ -64,7 +66,10 @@ internal class RsvpDeviceFixture(tokens: List<Token>, config: RsvpConfig, startI
             onPositionChanged = {},
             onTempoChange = {},
             onExit = { saved = it },
-            onFrameConsumed = { consumed += it },
+            onFrameConsumed = {
+                consumedAtMs += SystemClock.elapsedRealtime()
+                consumed += it
+            },
         ),
         preferences = RsvpPreferenceCallbacks(
             onExtremeSpeedUnlockedChange = {},

@@ -18,6 +18,8 @@ import com.kairo.reader.core.model.RsvpProfileIds
 import com.kairo.reader.core.model.TimedReadingMode
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.core.model.defaultConfig
+import com.kairo.reader.core.model.profileCadenceIdentity
+import com.kairo.reader.core.model.withReaderPreferencesFrom
 import com.kairo.reader.core.rsvp.RsvpSpeedControl
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
@@ -126,7 +128,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
             if (migrationsComplete) return
             migrateLegacyBaseWpmIfNeeded(context.dataStore.data.first())
             migrateRsvpSpeedCurveIfNeeded(context.dataStore.data.first())
-            migrateRsvpPunctuationTuningIfNeeded(context.dataStore.data.first())
+            context.dataStore.edit { migrateRsvpPresets(it, configCodec) }
             migrationsComplete = true
         }
     }
@@ -172,46 +174,23 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         }
     }
 
-    private suspend fun migrateRsvpPunctuationTuningIfNeeded(prefs: Preferences) {
-        val storedVersion = prefs[keys.rsvpPunctuationTuningVersion] ?: 1
-        if (storedVersion >= CURRENT_RSVP_PUNCTUATION_TUNING_VERSION) return
-
-        val selectedProfileId =
-            prefs[keys.rsvpProfile]
-                ?.let(::normalizeRsvpProfileId)
-                ?: RsvpProfileIds.builtIn(RsvpProfile.BALANCED)
-        val builtInProfile = RsvpProfileIds.parseBuiltIn(selectedProfileId)
-
-        context.dataStore.edit { mutable ->
-            if (builtInProfile != null) {
-                val config = builtInProfile.defaultConfig()
-                configCodec.writePunctuationPauses(mutable, config)
-                configCodec.writePauseScaling(mutable, config)
-                mutable[keys.parentheticalMultiplier] = config.parentheticalMultiplier
-                mutable[keys.dialoguePunctuationScale] = config.dialoguePunctuationScale
-                mutable[keys.clausePauseFactor] = config.clausePauseFactor
-                mutable[keys.punctuationPause] = config.punctuationPauseFactor
-                mutable[keys.anticipatoryLandingBoost] = config.anticipatoryLandingBoost
-                mutable[keys.parentheticalAsideMultiplier] = config.parentheticalAsideMultiplier
-            }
-            mutable[keys.rsvpPunctuationTuningVersion] =
-                CURRENT_RSVP_PUNCTUATION_TUNING_VERSION
-        }
-    }
-
     override suspend fun updateRsvpConfig(updater: (RsvpConfig) -> RsvpConfig) {
+        ensureMigrations()
         context.dataStore.edit { prefs ->
             val current = configCodec.readRsvpConfig(prefs)
             val timingInfo = configCodec.readTimingInfo(prefs, current)
             val updated =
                 updater(current)
                     .withTiming(timingInfo)
-            prefs[keys.rsvpProfile] = RsvpProfileIds.CUSTOM_UNSAVED
+            if (updated.profileCadenceIdentity() != current.profileCadenceIdentity()) {
+                prefs[keys.rsvpProfile] = RsvpProfileIds.CUSTOM_UNSAVED
+            }
             configCodec.writeRsvpConfig(prefs, updated, includeTiming = false)
         }
     }
 
     override suspend fun updateRsvpTempoMsPerWord(tempoMsPerWord: Long) {
+        ensureMigrations()
         context.dataStore.edit { prefs ->
             prefs[keys.tempoMsPerWord] =
                 tempoMsPerWord.coerceAtLeast(RsvpSpeedControl.EXTREME_MIN_TEMPO_MS_PER_WORD)
@@ -225,7 +204,9 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
     }
 
     override suspend fun selectRsvpProfile(profileId: String) {
+        ensureMigrations()
         context.dataStore.edit { prefs ->
+            val current = configCodec.readRsvpConfig(prefs)
             val normalized = normalizeRsvpProfileId(profileId)
             when {
                 normalized == RsvpProfileIds.CUSTOM_UNSAVED -> {
@@ -234,25 +215,21 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
 
                 RsvpProfileIds.isBuiltIn(normalized) -> {
                     val builtIn = RsvpProfileIds.parseBuiltIn(normalized) ?: RsvpProfile.BALANCED
-                    val currentTiming = configCodec.readTimingInfo(prefs, builtIn.defaultConfig())
                     prefs[keys.rsvpProfile] = RsvpProfileIds.builtIn(builtIn)
                     configCodec.writeRsvpConfig(
                         prefs,
-                        builtIn.defaultConfig().withTiming(currentTiming),
-                        includeTiming = false,
+                        builtIn.defaultConfig().withReaderPreferencesFrom(current),
                     )
                 }
 
                 RsvpProfileIds.isCustom(normalized) -> {
-                    val currentTiming = configCodec.readTimingInfo(prefs, RsvpConfig())
                     val profiles = profileJsonCodec.parseCustomProfiles(prefs[keys.customRsvpProfilesJson])
                     val match = profiles.firstOrNull { it.id == normalized }
                     prefs[keys.rsvpProfile] = normalized
                     if (match != null) {
                         configCodec.writeRsvpConfig(
                             prefs,
-                            match.config.withTiming(currentTiming),
-                            includeTiming = false,
+                            match.config.withReaderPreferencesFrom(current),
                         )
                     } else {
                         prefs[keys.rsvpProfile] = RsvpProfileIds.CUSTOM_UNSAVED
@@ -272,6 +249,7 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
     ) {
         val trimmedName = name.trim().take(MAX_CUSTOM_PROFILE_NAME_LENGTH)
         if (trimmedName.isBlank()) return
+        ensureMigrations()
 
         context.dataStore.edit { prefs ->
             val existing = profileJsonCodec.parseCustomProfiles(prefs[keys.customRsvpProfilesJson]).toMutableList()
@@ -451,5 +429,4 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
 
 private const val MAX_CUSTOM_PROFILE_NAME_LENGTH = 32
 
-private const val CURRENT_RSVP_PUNCTUATION_TUNING_VERSION = 2
 private const val TAG = "PreferencesRepository"
