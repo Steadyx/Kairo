@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -218,6 +219,8 @@ internal fun RsvpPlaybackLoopEffect(
     val latestBaseTempoMs by rememberUpdatedState(context.frameState.baseTempoMs)
     val latestConfig by rememberUpdatedState(context.state.profile.config)
 
+    val refreshRate = LocalView.current.display?.refreshRate ?: DEFAULT_SEPARATION_REFRESH_RATE
+
     LaunchedEffect(enabled, runtime.isPlaying, runtime.frameIndex, runtime.completed, frames) {
         if (!enabled) return@LaunchedEffect
         if (!runtime.isPlaying || runtime.completed) return@LaunchedEffect
@@ -275,7 +278,11 @@ internal fun RsvpPlaybackLoopEffect(
         runtime.scheduledFrameIndex = runtime.frameIndex
         runtime.nextFrameAtMs = targetMs
         val delayMs = (targetMs - now).coerceAtLeast(MIN_FRAME_DELAY_MS)
-        delay(delayMs)
+        if (frame.isWordSeparation) {
+            awaitWordSeparationPulse(scaledMs, refreshRate)
+        } else {
+            delay(delayMs)
+        }
         context.callbacks.playback.onFrameConsumed(frame)
         if (runtime.frameIndex == frames.lastIndex) {
             if (shouldCompleteAtLoadedFrameBoundary(context)) {

@@ -7,8 +7,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.kairo.reader.core.model.RsvpContextAssistMode
 import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.Token
@@ -16,137 +14,73 @@ import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.shouldInsertSpaceBeforeToken
 
 @Composable
-internal fun rememberRsvpContextContent(
-    context: RsvpUiContext,
-    frame: RsvpFrame?,
-): RsvpContextContent? {
-    if (frame == null) return null
+internal fun rememberRsvpReadingContext(context: RsvpUiContext, frame: RsvpFrame): RsvpReadingContext? {
     val tokens = context.state.book.tokens
     val mode = context.state.profile.config.contextAssistMode
-    val simplifyPunctuation = false
-    if (tokens.isEmpty() || mode == RsvpContextAssistMode.OFF) return null
-
-    val currentTokenIndex = frame.originalTokenIndex.coerceIn(0, tokens.lastIndex)
-    val currentToken = tokens[currentTokenIndex]
-    val isBoundaryFrame =
-        currentToken.type == TokenType.PARAGRAPH_BREAK ||
-            currentToken.type == TokenType.PAGE_BREAK
-    if (isBoundaryFrame && mode != RsvpContextAssistMode.SENTENCE_TICKER) return null
-
-    val window =
-        remember(
-            tokens,
-            currentTokenIndex,
-            frame.displayOriginalStartIndex,
-            frame.displayOriginalEndExclusive,
-            mode,
-        ) {
-            resolveRsvpContextWindow(
-                tokens = tokens,
-                frameStartIndex = frame.displayOriginalStartIndex,
-                frameEndExclusive = frame.displayOriginalEndExclusive,
-                mode = mode,
-            )
-        } ?: return null
-    val contextColor = MaterialTheme.colorScheme.onBackground
-    if (mode == RsvpContextAssistMode.SENTENCE_TICKER) {
-        val ticker =
-            remember(
-                tokens,
-                window,
-                frame.tokens,
-                frame.displayOriginalStartCharacterOffset,
-                frame.displayOriginalEndCharacterOffset,
-                simplifyPunctuation,
-                contextColor,
-            ) {
-                buildSentenceTickerContent(
-                    tokens = tokens,
-                    window = window,
-                    displayedTokens = frame.tokens,
-                    displayedSourceStartCharacterOffset =
-                    frame.displayOriginalStartCharacterOffset,
-                    displayedSourceEndCharacterOffset =
-                    frame.displayOriginalEndCharacterOffset,
-                    simplifyPunctuation = simplifyPunctuation,
-                    color = contextColor,
-                )
-            }
-        return RsvpContextContent.Ticker(ticker)
+    val color = MaterialTheme.colorScheme.onBackground
+    return remember(tokens, frame, mode, color) {
+        if (mode == RsvpContextAssistMode.OFF) null else buildRsvpReadingContext(tokens, frame, color, mode)
     }
-    val previousWords =
-        if (mode == RsvpContextAssistMode.FULL_CLAUSE) {
-            CONTEXT_CLAUSE_PREVIOUS_WORDS
-        } else {
-            CONTEXT_MINIMAL_PREVIOUS_WORDS
-        }
-    val upcomingWords =
-        if (mode == RsvpContextAssistMode.FULL_CLAUSE) {
-            CONTEXT_CLAUSE_UPCOMING_WORDS
-        } else {
-            0
-        }
-    val stableWindow = remember(tokens, frame.phraseStartTokenIndex, frame.phraseEndTokenIndexExclusive) {
-        resolveStablePeripheralWindow(tokens, frame)
-    }
-    val peripheralWindow = stableWindow ?: window
-    val previous =
-        remember(tokens, peripheralWindow, contextColor, previousWords) {
-            buildPeripheralContextText(
-                tokens = tokens,
-                startIndex = peripheralWindow.startIndex,
-                endExclusive = peripheralWindow.focusStartIndex,
-                maxWords = previousWords,
-                takeLast = true,
-                color = contextColor,
-                nearestAlpha = CONTEXT_PREVIOUS_NEAREST_ALPHA,
-                farthestAlpha = CONTEXT_PREVIOUS_FARTHEST_ALPHA,
-            )
-        }
-    val upcoming =
-        remember(tokens, peripheralWindow, contextColor, upcomingWords) {
-            if (upcomingWords == 0) {
-                AnnotatedString("")
-            } else {
-                buildPeripheralContextText(
-                    tokens = tokens,
-                    startIndex = peripheralWindow.focusEndExclusive,
-                    endExclusive = peripheralWindow.endExclusive,
-                    maxWords = upcomingWords,
-                    takeLast = false,
-                    color = contextColor,
-                    nearestAlpha = CONTEXT_UPCOMING_NEAREST_ALPHA,
-                    farthestAlpha = CONTEXT_UPCOMING_FARTHEST_ALPHA,
-                )
-            }
-        }
-    return RsvpContextContent.Peripheral(
-        previous = previous,
-        upcoming = upcoming,
-    )
 }
 
-/** Keep neighbouring thoughts fixed while the active phrase plays at the central focus. */
-internal fun resolveStablePeripheralWindow(tokens: List<Token>, frame: RsvpFrame): RsvpContextWindow? {
-    val phraseStart = frame.phraseStartTokenIndex ?: return null
-    val phraseEnd = frame.phraseEndTokenIndexExclusive ?: return null
-    if (phraseStart !in tokens.indices || phraseEnd !in (phraseStart + 1)..tokens.size) return null
-    var start = phraseStart
-    var previousWords = 0
-    while (start > 0 && previousWords < CONTEXT_CLAUSE_PREVIOUS_WORDS) {
-        if (tokens[start - 1].isParagraphBoundary()) break
-        start--
-        if (tokens[start].type == TokenType.WORD) previousWords++
+/** Inline context uses source positions so split words cannot expose their unread remainder. */
+internal fun buildRsvpReadingContext(
+    tokens: List<Token>,
+    frame: RsvpFrame,
+    color: Color,
+    mode: RsvpContextAssistMode = RsvpContextAssistMode.PREVIOUS_WORDS,
+): RsvpReadingContext? {
+    if (mode == RsvpContextAssistMode.OFF || tokens.isEmpty() || frame.tokens.none { it.type == TokenType.WORD }) return null
+    val fallback = resolveRsvpContextWindow(
+        tokens,
+        frame.displayOriginalStartIndex,
+        frame.displayOriginalEndExclusive,
+        if (mode == RsvpContextAssistMode.SENTENCE_TICKER) mode else RsvpContextAssistMode.FULL_CLAUSE,
+    ) ?: return null
+    val phraseStart = if (mode != RsvpContextAssistMode.PREVIOUS_WORDS) {
+        fallback.startIndex
+    } else {
+        frame.phraseStartTokenIndex?.takeIf { it in 0..fallback.focusStartIndex } ?: fallback.startIndex
     }
-    var end = phraseEnd
-    var upcomingWords = 0
-    while (end < tokens.size && upcomingWords < CONTEXT_CLAUSE_UPCOMING_WORDS) {
-        if (tokens[end].isParagraphBoundary()) break
-        if (tokens[end].type == TokenType.WORD) upcomingWords++
-        end++
+    val phraseEnd = if (mode != RsvpContextAssistMode.PREVIOUS_WORDS) {
+        fallback.endExclusive
+    } else {
+        frame.phraseEndTokenIndexExclusive?.takeIf { it in fallback.focusEndExclusive..tokens.size } ?: fallback.endExclusive
     }
-    return RsvpContextWindow(start, end, phraseStart, phraseEnd)
+    val previousEnd = frame.displayOriginalStartIndex.coerceIn(phraseStart, phraseEnd)
+    val maxWords = if (mode == RsvpContextAssistMode.PREVIOUS_WORDS) INLINE_CONTEXT_WORDS else INLINE_SURROUNDING_WORDS
+    val cues = inlineCueCandidates(tokens, phraseStart, previousEnd, maxWords, true, color)
+    val following = if (mode != RsvpContextAssistMode.PREVIOUS_WORDS) {
+        inlineCueCandidates(tokens, frame.displayOriginalEndExclusive.coerceIn(phraseStart, phraseEnd), phraseEnd, maxWords, false, color)
+    } else {
+        emptyList()
+    }
+    val phrase = buildSentenceTickerContent(
+        tokens = tokens,
+        window = RsvpContextWindow(phraseStart, phraseEnd, fallback.focusStartIndex, fallback.focusEndExclusive),
+        color = color,
+        displayedTokens = frame.tokens,
+        displayedSourceStartCharacterOffset = frame.displayOriginalStartCharacterOffset,
+        displayedSourceEndCharacterOffset = frame.displayOriginalEndCharacterOffset,
+    ).text
+    return RsvpReadingContext(cues, phrase, following)
 }
+
+private fun inlineCueCandidates(
+    tokens: List<Token>,
+    start: Int,
+    end: Int,
+    maxWords: Int,
+    preceding: Boolean,
+    color: Color,
+): List<AnnotatedString> = (maxWords downTo 1).map { count ->
+    buildPeripheralContextText(tokens, start, end, count, preceding, color, INLINE_CONTEXT_NEAREST_ALPHA, INLINE_CONTEXT_FARTHEST_ALPHA)
+}.filter { it.isNotBlank() }.distinct()
+
+private const val INLINE_CONTEXT_WORDS = 2
+private const val INLINE_SURROUNDING_WORDS = 8
+private const val INLINE_CONTEXT_NEAREST_ALPHA = 0.28f
+private const val INLINE_CONTEXT_FARTHEST_ALPHA = 0.18f
 
 internal fun resolveRsvpContextWindow(
     tokens: List<Token>,
@@ -235,7 +169,7 @@ private fun resolveClauseRange(
     focusIndex: Int,
 ): IntRange {
     var start = focusIndex
-    while (start > 0) {
+    while (start > 0 && !tokens[start].isClauseBoundary) {
         val candidate = tokens[start - 1]
         if (candidate.isParagraphBoundary() || candidate.isClausePunctuation()) break
         start -= 1
@@ -272,6 +206,7 @@ private fun resolveTickerRange(
     var previousWords = 0
     while (start > 0) {
         val candidate = tokens[start - 1]
+        if (candidate.isParagraphBoundary()) break
         if (candidate.type == TokenType.WORD && previousWords >= CONTEXT_TICKER_PREVIOUS_WORDS) {
             break
         }
@@ -283,6 +218,7 @@ private fun resolveTickerRange(
     var upcomingWords = 0
     while (endExclusive < tokens.size) {
         val candidate = tokens[endExclusive]
+        if (candidate.isParagraphBoundary()) break
         if (candidate.type == TokenType.WORD && upcomingWords >= CONTEXT_TICKER_UPCOMING_WORDS) {
             break
         }
@@ -380,7 +316,7 @@ internal fun buildSentenceTickerContent(
             )
             if (focusEndChar > focusStartChar) {
                 addStyle(
-                    SpanStyle(color = Color.Transparent),
+                    SpanStyle(color = color.copy(alpha = CONTEXT_TICKER_FOCUS_ALPHA)),
                     focusStartChar,
                     focusEndChar,
                 )
@@ -488,7 +424,7 @@ private fun Token.isClausePunctuation(): Boolean =
     type == TokenType.PUNCTUATION && text.any { it in CONTEXT_BOUNDARY_PUNCTUATION }
 
 internal fun stableContextCueFontSizeSp(fontSizeSp: Float): Float =
-    fontSizeSp.coerceAtLeast(0f) * CONTEXT_CUE_FONT_SCALE
+    (fontSizeSp * CONTEXT_CUE_FONT_SCALE).coerceIn(CONTEXT_CUE_MIN_SP, CONTEXT_CUE_MAX_SP)
 
 internal fun resolveContextTickerFocusAlignment(
     sourceText: String,
@@ -543,80 +479,18 @@ internal fun resolveContextTickerFocusAlignment(
     )
 }
 
-internal fun resolveContextEnvelopeFrameRange(
-    frameIndex: Int,
-    frameCount: Int,
-    blockSize: Int,
-): IntRange {
-    if (frameCount <= 0) return IntRange.EMPTY
-    val safeBlockSize = blockSize.coerceAtLeast(1)
-    val safeFrameIndex = frameIndex.coerceIn(0, frameCount - 1)
-    val blockStart = (safeFrameIndex / safeBlockSize) * safeBlockSize
-    val endExclusive = (blockStart + (safeBlockSize * 2)).coerceAtMost(frameCount)
-    return blockStart until endExclusive
-}
-
-internal fun resolveContextCueSlots(
-    availableWidth: Dp,
-    focusLeftReserve: Dp,
-    focusRightReserve: Dp,
-    horizontalBias: Float,
-    minimumCueWidth: Dp,
-    cueInnerPadding: Dp,
-): ContextCueSlots {
-    val safeWidth = availableWidth.coerceAtLeast(0.dp)
-    val safeBias = horizontalBias.coerceIn(HORIZONTAL_BIAS_MIN, HORIZONTAL_BIAS_MAX)
-    val safeCuePadding = cueInnerPadding.coerceAtLeast(0.dp)
-    val guideFraction =
-        ((safeBias + ONE_FLOAT) / BIAS_SCALE_FACTOR)
-            .coerceIn(ORP_BIAS_FRACTION_MIN, ORP_BIAS_FRACTION_MAX)
-    val guidePosition = safeWidth * guideFraction
-    val safeLeftReserve = focusLeftReserve.coerceAtLeast(0.dp)
-    val safeRightReserve = focusRightReserve.coerceAtLeast(0.dp)
-    val previousWidth =
-        (guidePosition - safeLeftReserve - safeCuePadding).coerceIn(0.dp, safeWidth)
-    val upcomingStart =
-        (guidePosition + safeRightReserve + safeCuePadding).coerceIn(0.dp, safeWidth)
-    val upcomingWidth = (safeWidth - upcomingStart).coerceAtLeast(0.dp)
-    val visibleFocusGap = (safeWidth - previousWidth - upcomingWidth).coerceAtLeast(0.dp)
-
-    return ContextCueSlots(
-        previousWidth = previousWidth,
-        focusGap = visibleFocusGap,
-        upcomingWidth = upcomingWidth,
-        hasPreviousRoom = previousWidth >= minimumCueWidth,
-        hasUpcomingRoom = upcomingWidth >= minimumCueWidth,
-    )
-}
-
 internal const val CONTEXT_PREVIOUS_WORDS = 6
 internal const val CONTEXT_UPCOMING_WORDS = 3
 internal const val CONTEXT_MAX_CLAUSE_WORDS = 18
 internal const val CONTEXT_LONG_CLAUSE_PREVIOUS_WORDS = 10
 internal const val CONTEXT_LONG_CLAUSE_UPCOMING_WORDS = 7
-internal const val CONTEXT_MINIMAL_PREVIOUS_WORDS = 1
-internal const val CONTEXT_CLAUSE_PREVIOUS_WORDS = 1
-internal const val CONTEXT_CLAUSE_UPCOMING_WORDS = 1
-internal const val CONTEXT_ENVELOPE_BLOCK_FRAMES = 6
-internal const val CONTEXT_ENVELOPE_ANIMATION_MS = 180
-internal const val CONTEXT_PREVIOUS_NEAREST_ALPHA = 0.34f
-internal const val CONTEXT_PREVIOUS_FARTHEST_ALPHA = 0.34f
-internal const val CONTEXT_UPCOMING_NEAREST_ALPHA = 0.34f
-internal const val CONTEXT_UPCOMING_FARTHEST_ALPHA = 0.34f
-internal const val CONTEXT_CUE_FONT_SCALE = 1f
-internal const val CONTEXT_TICKER_ALPHA = 0.30f
-internal const val CONTEXT_TICKER_EDGE_FADE_FRACTION = 0.08f
-internal const val CONTEXT_TICKER_MOTION_DURATION_FRACTION = 0.38
-internal const val CONTEXT_TICKER_MOTION_MIN_MS = 24
-internal const val CONTEXT_TICKER_MOTION_MAX_MS = 72
-internal const val CONTEXT_TICKER_FALLBACK_FRAME_MS = 150L
+internal const val CONTEXT_CUE_FONT_SCALE = 0.45f
+internal const val CONTEXT_CUE_MIN_SP = 14f
+internal const val CONTEXT_CUE_MAX_SP = 22f
+internal const val CONTEXT_TICKER_FOCUS_ALPHA = 1f
+internal const val CONTEXT_TICKER_ALPHA = 0.65f
 internal const val CONTEXT_TICKER_PREVIOUS_WORDS = 24
 internal const val CONTEXT_TICKER_UPCOMING_WORDS = 24
 internal const val CONTEXT_TICKER_BOUNDARY_GAP = "   "
-internal const val CONTEXT_BASELINE_SAMPLE = "Ag"
-internal val CONTEXT_FOCUS_SIDE_PADDING = 18.dp
-internal val CONTEXT_MIN_FOCUS_SIDE_RESERVE = 48.dp
-internal val CONTEXT_MIN_CUE_WIDTH = 48.dp
-internal val CONTEXT_CUE_INNER_PADDING = 8.dp
 internal val CONTEXT_BOUNDARY_PUNCTUATION =
     setOf('.', ',', ';', ':', '!', '?', '\u2026', '\u2014', '\u2013')

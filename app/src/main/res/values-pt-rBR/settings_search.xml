@@ -18,8 +18,8 @@
     <string name="settings_search_profiles_description">Escolha um perfil de leitura ou salve e gerencie suas próprias configurações de tempo.</string>
     <string name="settings_search_font_description">Escolha a fonte do texto RSVP.</string>
     <string name="settings_search_weight_description">Escolha a espessura do texto RSVP.</string>
-    <string name="settings_search_blink_description">Escolha se quadros vazios breves aparecem entre as palavras.</string>
-    <string name="settings_search_context_description">Mostre palavras anteriores, uma oração ou uma frase deslizante ao redor da palavra RSVP.</string>
+    <string name="settings_search_blink_description">Atenua brevemente a palavra nas transições. Palavras repetidas recebem um breve espaço em branco; o contexto fica estável.</string>
+    <string name="settings_search_context_description">Escolha palavras anteriores, contexto contínuo ou contexto da oração na linha de leitura.</string>
     <string name="settings_search_punctuation_description">Ajuste a pausa neste sinal de pontuação ou limite de parágrafo.</string>
     <string name="settings_search_language_description">Escolha o idioma dos menus e das configurações do aplicativo.</string>
 </resources>

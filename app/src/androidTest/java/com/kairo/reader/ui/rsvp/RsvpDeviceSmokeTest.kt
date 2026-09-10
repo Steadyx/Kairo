@@ -9,6 +9,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -18,6 +19,7 @@ import com.kairo.reader.R
 import com.kairo.reader.TestActivity
 import com.kairo.reader.core.model.BlinkMode
 import com.kairo.reader.core.model.RsvpConfig
+import com.kairo.reader.core.model.RsvpContextAssistMode
 import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
@@ -87,6 +89,51 @@ class RsvpDeviceSmokeTest {
             assertEquals(1, requireNotNull(fixture.saved).tokenIndex)
             assertEquals(4, RsvpResumeCursor.characterOffset(requireNotNull(fixture.saved).resumeCursor))
         }
+    }
+
+    @Test
+    fun inlineContextStaysOnTheReadingLineAndExpandsWhenPaused() {
+        val tokens = listOf(
+            word("Before"), word("dawn"), Token(".", TokenType.PUNCTUATION),
+            word("They"), word("waited"), word("beside"), word("the"), word("station"), Token(".", TokenType.PUNCTUATION),
+            word("The"), word("morning"), word("train"), word("arrived"), Token(".", TokenType.PUNCTUATION),
+        )
+        val fixture = RsvpDeviceFixture(
+            tokens,
+            config().copy(contextAssistMode = RsvpContextAssistMode.FULL_CLAUSE, startDelayMs = 10_000L),
+            startIndex = 6,
+        )
+        show(fixture)
+        awaitLoaded(fixture)
+        composeRule.onNodeWithTag("rsvp-inline-cue", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithText("morning train", substring = true, useUnmergedTree = true).assertDoesNotExist()
+        capture("inline-context-playback")
+        pause()
+        composeRule.onNodeWithTag("rsvp-inline-cue", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithText("They waited beside the station.", useUnmergedTree = true).assertIsDisplayed()
+        capture("inline-context-paused")
+    }
+
+    @Test
+    fun continuousContextShowsUpcomingWordsBeyondTheCurrentSentence() {
+        val tokens = listOf(
+            word("we"),
+            word("go"),
+            Token(".", TokenType.PUNCTUATION),
+            word("you"),
+            word("stay"),
+            Token(".", TokenType.PUNCTUATION)
+        )
+        val fixture = RsvpDeviceFixture(
+            tokens,
+            config().copy(contextAssistMode = RsvpContextAssistMode.SENTENCE_TICKER, startDelayMs = 10_000L),
+            startIndex = 1,
+        )
+        show(fixture)
+        awaitLoaded(fixture)
+        composeRule.onNodeWithTag("rsvp-following-cue", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithText("you", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        capture("continuous-context-playback")
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.kairo.reader.core.rsvp.engine
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpConfigConstraints as Constraints
 import com.kairo.reader.core.model.RsvpContextAssistMode
+import com.kairo.reader.core.model.effectiveBlinkMode
 
 internal fun RsvpConfig.normalizedForPlayback(): RsvpConfig {
     val safeMinWordMs = minWordMs.coerceAtLeast(1L)
@@ -73,6 +74,7 @@ internal fun RsvpConfig.normalizedForPlayback(): RsvpConfig {
 internal fun RsvpConfig.frameTimingKey(): RsvpConfig =
     copy(
         baseWpm = 0,
+        blinkMode = effectiveBlinkMode(),
         orpEnabled = false,
         orpHighlightEnabled = false,
         orpGuideEnabled = false,

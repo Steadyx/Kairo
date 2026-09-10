@@ -780,7 +780,7 @@ internal fun RsvpAdvancedSettingsContent(
                 )
 
                 BlinkModeSelector(
-                    selected = config.blinkMode,
+                    config = config,
                     onSelect = { mode -> updateConfig { it.copy(blinkMode = mode) } },
                 )
             }

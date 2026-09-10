@@ -18,8 +18,8 @@
     <string name="settings_search_profiles_description">Choose a reading profile, or save and manage your own timing presets.</string>
     <string name="settings_search_font_description">Choose the typeface used for RSVP text.</string>
     <string name="settings_search_weight_description">Choose how light or bold the RSVP text appears.</string>
-    <string name="settings_search_blink_description">Choose whether brief blank frames appear between words.</string>
-    <string name="settings_search_context_description">Show previous words, a clause, or a sentence ticker around the RSVP word.</string>
+    <string name="settings_search_blink_description">Briefly dims the word between transitions. Repeated words get a short blank; context stays steady.</string>
+    <string name="settings_search_context_description">Choose previous words, continuous context or clause context on the reading line.</string>
     <string name="settings_search_punctuation_description">Adjust the pause at this punctuation or paragraph boundary.</string>
     <string name="settings_search_language_description">Choose the language used for app menus and settings.</string>
 </resources>

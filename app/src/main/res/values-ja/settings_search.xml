@@ -18,8 +18,8 @@
     <string name="settings_search_profiles_description">読書プロファイルを選択するか、独自の表示時間設定を保存・管理します。</string>
     <string name="settings_search_font_description">RSVPテキストの書体を選びます。</string>
     <string name="settings_search_weight_description">RSVPテキストの太さを選びます。</string>
-    <string name="settings_search_blink_description">単語間に短い空白フレームを表示するか選びます。</string>
-    <string name="settings_search_context_description">RSVPの単語の周囲に、前の単語、節、またはスクロールする文を表示します。</string>
+    <string name="settings_search_blink_description">切り替え時に単語を一瞬暗くします。同じ単語の繰り返しには短い空白を入れ、文脈は固定表示します。</string>
+    <string name="settings_search_context_description">読書行に表示するコンテキストを、直前の単語・連続・節から選択します。</string>
     <string name="settings_search_punctuation_description">この句読点または段落の区切りでの間を調整します。</string>
     <string name="settings_search_language_description">アプリのメニューと設定に使用する言語を選びます。</string>
 </resources>

@@ -12,14 +12,11 @@ internal fun resolveRsvpDisplayFrame(
     frames: List<RsvpFrame>,
     frameIndex: Int,
     contextAssistMode: RsvpContextAssistMode,
+    isPlaying: Boolean = true,
 ): RsvpFrame? {
     val currentFrame = frames.getOrNull(frameIndex) ?: return null
-    if (
-        contextAssistMode != RsvpContextAssistMode.SENTENCE_TICKER ||
-        !currentFrame.rendersEmptyOrpFrame()
-    ) {
-        return currentFrame
-    }
+    val pausedContext = !isPlaying && contextAssistMode != RsvpContextAssistMode.OFF
+    if (!currentFrame.isWordSeparation && !(pausedContext && currentFrame.rendersEmptyOrpFrame())) return currentFrame
 
     return frames.findReadableFrameBefore(frameIndex)
         ?: frames.findReadableFrameAfter(frameIndex)

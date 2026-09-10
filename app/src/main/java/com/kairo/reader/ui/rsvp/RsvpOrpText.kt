@@ -18,6 +18,8 @@ internal fun OrpAlignedText(
     typography: OrpTypography,
     colors: OrpColors,
     layout: OrpTextLayout,
+    contextCues: List<AnnotatedString> = emptyList(),
+    followingContextCues: List<AnnotatedString> = emptyList(),
 ) {
     val content = remember(tokens, layout.simplifyPunctuation) {
         buildOrpTextContent(tokens, simplifyPunctuation = layout.simplifyPunctuation)
@@ -27,6 +29,8 @@ internal fun OrpAlignedText(
         layout = layout,
         colors = colors,
         typography = typography,
+        contextCues = contextCues,
+        followingContextCues = followingContextCues,
     )
 }
 

@@ -14,11 +14,12 @@ fun readabilityModeForTempoMs(tempoMs: Long): RsvpReadabilityMode =
 fun RsvpConfig.readabilityMode(tempoMs: Long = this.tempoMsPerWord): RsvpReadabilityMode =
     readabilityModeForTempoMs(tempoMs)
 
-fun RsvpConfig.effectiveBlinkMode(tempoMs: Long = this.tempoMsPerWord): BlinkMode =
+// SUBTLE and ADAPTIVE are retained as stored values for existing profiles. Both now
+// mean the same explicit word-separation preference, independent of reading speed.
+fun RsvpConfig.effectiveBlinkMode(): BlinkMode =
     when {
         blinkMode == BlinkMode.OFF -> BlinkMode.OFF
-        readabilityMode(tempoMs) == RsvpReadabilityMode.EXTREME -> BlinkMode.ADAPTIVE
-        else -> blinkMode
+        else -> BlinkMode.SUBTLE
     }
 
 fun RsvpConfig.speedNarrowingFactor(tempoMs: Long = this.tempoMsPerWord): Double {

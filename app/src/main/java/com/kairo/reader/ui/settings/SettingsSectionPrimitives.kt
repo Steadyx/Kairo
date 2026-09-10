@@ -268,14 +268,7 @@ internal fun blinkModeLabelRes(mode: BlinkMode): Int =
     when (mode) {
         BlinkMode.OFF -> R.string.blink_mode_off
         BlinkMode.SUBTLE -> R.string.blink_mode_subtle
-        BlinkMode.ADAPTIVE -> R.string.blink_mode_adaptive
-    }
-
-internal fun blinkModeDescriptionRes(mode: BlinkMode): Int =
-    when (mode) {
-        BlinkMode.OFF -> R.string.blink_mode_off_description
-        BlinkMode.SUBTLE -> R.string.blink_mode_subtle_description
-        BlinkMode.ADAPTIVE -> R.string.blink_mode_adaptive_description
+        BlinkMode.ADAPTIVE -> R.string.blink_mode_subtle
     }
 
 internal fun rsvpFontFamilyLabelRes(family: RsvpFontFamily): Int =

@@ -18,8 +18,8 @@
     <string name="settings_search_profiles_description">Choisissez un profil de lecture ou enregistrez et gérez vos propres réglages de durée.</string>
     <string name="settings_search_font_description">Choisissez la police du texte RSVP.</string>
     <string name="settings_search_weight_description">Choisissez la graisse du texte RSVP.</string>
-    <string name="settings_search_blink_description">Choisissez si de brèves images vides apparaissent entre les mots.</string>
-    <string name="settings_search_context_description">Affichez les mots précédents, une proposition ou une phrase défilante autour du mot RSVP.</string>
+    <string name="settings_search_blink_description">Atténue brièvement le mot lors des transitions. Les mots répétés sont séparés par un court blanc ; le contexte reste stable.</string>
+    <string name="settings_search_context_description">Choisissez les mots précédents, le contexte continu ou la proposition sur la ligne de lecture.</string>
     <string name="settings_search_punctuation_description">Ajustez la pause à ce signe de ponctuation ou à cette limite de paragraphe.</string>
     <string name="settings_search_language_description">Choisissez la langue des menus et des réglages de l’application.</string>
 </resources>

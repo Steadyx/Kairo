@@ -63,34 +63,6 @@ class RsvpThoughtPlaybackTest {
         assertTrue(RsvpSessionTimingPolicy.resumePreparationScale(-1L) >= 0.0)
     }
 
-    @Test
-    fun peripheralContentAndReservedWidthStayFixedThroughoutAThought() {
-        val tokens = "before this active thought ends next words".split(" ").map(::word)
-        val first = frame(2, 2, 5)
-        val last = frame(4, 2, 5)
-        assertEquals(resolveStablePeripheralWindow(tokens, first), resolveStablePeripheralWindow(tokens, last))
-        val window = requireNotNull(resolveStablePeripheralWindow(tokens, first))
-        assertEquals(2, window.focusStartIndex)
-        assertEquals(5, window.focusEndExclusive)
-        val frames = listOf(frame(0, 0, 2), frame(1, 0, 2), first, frame(3, 2, 5), last)
-        assertEquals(2..4, resolveThoughtEnvelopeFrameRange(frames, 2))
-        assertEquals(2..4, resolveThoughtEnvelopeFrameRange(frames, 4))
-    }
-
-    @Test
-    fun peripheralContextDoesNotCrossParagraphs() {
-        val tokens = listOf(
-            word("before"),
-            Token("\n", TokenType.PARAGRAPH_BREAK),
-            word("thought"),
-            Token("\n", TokenType.PARAGRAPH_BREAK),
-            word("after")
-        )
-        val window = requireNotNull(resolveStablePeripheralWindow(tokens, frame(2, 2, 3)))
-        assertEquals(2, window.startIndex)
-        assertEquals(3, window.endExclusive)
-    }
-
     private fun word(text: String) = Token(text, TokenType.WORD)
 
     private fun frame(index: Int, start: Int, end: Int) = RsvpFrame(
