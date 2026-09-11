@@ -6,7 +6,7 @@
 
 <p align="center"><strong>An Android ebook reader built for momentum, focus, and high-speed reading.</strong></p>
 
-Kairo is an RSVP-first ebook reader for Android. It imports DRM-free ebooks and text-bearing documents, presents them in a comfortable scrollable reader, and jumps into tuned RSVP playback the moment you want to accelerate.
+Kairo is an ebook reader for Android built around rapid serial visual presentation (RSVP). It imports DRM-free ebooks and text-bearing documents, presents them in a comfortable scrollable reader, and lets you switch to RSVP playback whenever you want to pick up the pace.
 
 This project is for readers who want less friction between opening a book and actually moving through it. It is also for people who enjoy experimenting with reading speed, pacing, typography, and focus-friendly interfaces.
 
@@ -24,7 +24,7 @@ The result is an Android reader that sits somewhere between an ebook app, a spee
 - Builds a local library with covers, progress, and resume state
 - Opens books in a scrollable reader with chapter and page-aware navigation
 - Launches RSVP reading from your current reading position
-- Persists reading position, bookmarks, highlights, notes, and reader preferences
+- Saves your reading position, bookmarks, highlights, notes, and reader preferences
 - Searches book titles, full-text passages, highlights, and notes entirely on-device
 - Builds a local Momentum profile from reading sessions without requiring an account
 - Gives fine-grained control over RSVP timing, display, rhythm, and readability
@@ -56,7 +56,7 @@ The result is an Android reader that sits somewhere between an ebook app, a spee
 
 ### RSVP
 
-- Clean full-screen RSVP playback with minimal chrome
+- Clean full-screen RSVP playback with minimal interface clutter
 - ORP highlighting support
 - Adaptive pacing based on word length, syllables, punctuation, clause boundaries, and difficulty
 - Optional peripheral context cues that stay inside the ORP focal band
@@ -101,7 +101,7 @@ The reader, tokenizer, persistence layer, and RSVP engine all work toward the sa
 
 ## Requirements
 
-To build and run Kairo locally you will need:
+To build and run Kairo locally, you will need:
 
 - Android Studio with Android SDK 37 installed
 - JDK 17
