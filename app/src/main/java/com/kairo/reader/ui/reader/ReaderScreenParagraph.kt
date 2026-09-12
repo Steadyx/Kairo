@@ -43,7 +43,9 @@ import com.kairo.reader.core.model.TimedReadingMode
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.shouldInsertSpaceBeforeToken
 import com.kairo.reader.ui.saved.displayColor
-import com.kairo.reader.ui.theme.MerriweatherFontFamily
+import com.kairo.reader.ui.theme.LocalReaderFont
+import com.kairo.reader.ui.theme.composeFontFamily
+import com.kairo.reader.ui.theme.readingColor
 
 // Rich text spans, focus semantics, and tap geometry must be built in one AnnotatedString layout pass.
 @Suppress("LongMethod")
@@ -58,16 +60,19 @@ internal fun ParagraphText(
     val textBrightness = state.textBrightness
     val baseStyle =
         TextStyle(
-            fontFamily = MerriweatherFontFamily,
+            fontFamily = LocalReaderFont.current.composeFontFamily(),
             fontSize = fontSizeSp.sp,
             lineHeight = (fontSizeSp * 1.5f).sp,
-            color = MaterialTheme.colorScheme.onBackground.copy(
-                alpha =
-                textBrightness.coerceIn(
-                    RsvpConfigConstraints.MIN_TEXT_BRIGHTNESS.toFloat(),
-                    RsvpConfigConstraints.MAX_TEXT_BRIGHTNESS.toFloat(),
-                ),
+            color = readingColor(
+                MaterialTheme.colorScheme.onBackground.copy(
+                    alpha =
+                    textBrightness.coerceIn(
+                        RsvpConfigConstraints.MIN_TEXT_BRIGHTNESS.toFloat(),
+                        RsvpConfigConstraints.MAX_TEXT_BRIGHTNESS.toFloat(),
+                    ),
+                )
             ),
+
         )
     val paragraphIndent =
         remember(fontSizeSp) {

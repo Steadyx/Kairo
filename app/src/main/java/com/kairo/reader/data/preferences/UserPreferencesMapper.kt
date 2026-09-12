@@ -73,6 +73,11 @@ internal class UserPreferencesMapper(
         return copy(
             readerFontSizeSp = prefs.readOrDefault(keys.readerFontSize, defaults.readerFontSizeSp),
             readerTheme = readerTheme,
+            customTheme = com.kairo.reader.core.model.decodeCustomTheme(prefs[keys.customTheme]),
+            readerFontFamily = RsvpFontFamily.entries.find { it.name == prefs[keys.readerFontFamily] } ?: defaults.readerFontFamily,
+            interfaceFontFamily = RsvpFontFamily.entries.find {
+                it.name == prefs[keys.interfaceFontFamily]
+            } ?: defaults.interfaceFontFamily,
             readerTextBrightness = readerTextBrightness,
             invertedScroll = prefs.readOrDefault(keys.invertedScroll, defaults.invertedScroll),
         )

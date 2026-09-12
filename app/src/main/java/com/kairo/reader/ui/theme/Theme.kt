@@ -9,23 +9,45 @@ import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import com.kairo.reader.core.model.CustomTheme
 import com.kairo.reader.core.model.ReaderTheme
+import com.kairo.reader.core.model.RsvpFontFamily
+
+internal val LocalCustomTheme = staticCompositionLocalOf { CustomTheme() }
+internal val LocalReaderFont = staticCompositionLocalOf { RsvpFontFamily.MERRIWEATHER }
+internal val LocalInterfaceFont = staticCompositionLocalOf { RsvpFontFamily.SYSTEM_SANS }
 
 @Composable
 fun KairoTheme(
     readerTheme: ReaderTheme = ReaderTheme.SEPIA,
+    customTheme: CustomTheme = LocalCustomTheme.current,
+    readerFont: RsvpFontFamily = LocalReaderFont.current,
+    interfaceFont: RsvpFontFamily = LocalInterfaceFont.current,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = readerTheme.materialColorScheme()
+    val colorScheme = remember(readerTheme, customTheme) {
+        if (readerTheme == ReaderTheme.CUSTOM) customTheme.materialColorScheme() else readerTheme.materialColorScheme()
+    }
+    val type = remember(interfaceFont) { Typography.withFont(interfaceFont.composeFontFamily()) }
 
-    MaterialExpressiveTheme(
-        colorScheme = colorScheme,
-        motionScheme = MotionScheme.expressive(),
-        shapes = KairoExpressiveShapes,
-        typography = Typography,
-        content = content,
-    )
+    CompositionLocalProvider(
+        LocalCustomTheme provides customTheme,
+        LocalProtectReadingContrast provides (readerTheme == ReaderTheme.CUSTOM),
+        LocalReaderFont provides readerFont,
+        LocalInterfaceFont provides interfaceFont,
+    ) {
+        MaterialExpressiveTheme(
+            colorScheme = colorScheme,
+            motionScheme = MotionScheme.expressive(),
+            shapes = KairoExpressiveShapes,
+            typography = type,
+            content = content,
+        )
+    }
 }
 
 @Composable
@@ -39,8 +61,8 @@ internal fun KairoFocusedReadingTheme(content: @Composable () -> Unit) {
     )
 }
 
-internal fun ReaderTheme.materialColorScheme(): ColorScheme =
-    readerThemePalette().materialColorScheme()
+internal fun ReaderTheme.materialColorScheme(customTheme: CustomTheme = CustomTheme()): ColorScheme =
+    if (this == ReaderTheme.CUSTOM) customTheme.materialColorScheme() else readerThemePalette().materialColorScheme()
 
 private fun ReaderThemePalette.materialColorScheme(): ColorScheme =
     if (isDark) {

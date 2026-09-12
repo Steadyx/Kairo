@@ -186,6 +186,7 @@ private val DarkOnErrorContainer = Color(0xFFFFDAD4)
 @Suppress("LongMethod")
 internal fun ReaderTheme.readerThemePalette(): ReaderThemePalette =
     when (this) {
+        ReaderTheme.CUSTOM -> error("Custom themes resolve through CustomTheme.materialColorScheme")
         ReaderTheme.LIGHT ->
             ReaderThemePalette(
                 isDark = false,

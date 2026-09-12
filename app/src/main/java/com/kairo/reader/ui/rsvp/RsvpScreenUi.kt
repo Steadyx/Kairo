@@ -40,8 +40,8 @@ import com.kairo.reader.core.rsvp.RsvpSpeedControl
 import com.kairo.reader.ui.WindowContainerMetrics
 import com.kairo.reader.ui.bionic.BionicReadingText
 import com.kairo.reader.ui.rememberWindowContainerMetrics
-import com.kairo.reader.ui.theme.InterFontFamily
-import com.kairo.reader.ui.theme.RobotoFontFamily
+import com.kairo.reader.ui.theme.composeFontFamily
+import com.kairo.reader.ui.theme.readingColor
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
 import com.kairo.reader.ui.tutorial.StartingTutorialTargetIds
@@ -258,7 +258,7 @@ private fun rememberRsvpTextColors(
     return OrpColors(
         pivotColor = MaterialTheme.colorScheme.primary,
         pivotLineColor = MaterialTheme.colorScheme.onBackground.copy(alpha = pivotLineAlpha),
-        textColor = MaterialTheme.colorScheme.onBackground.copy(alpha = clampedBrightness),
+        textColor = readingColor(MaterialTheme.colorScheme.onBackground.copy(alpha = clampedBrightness)),
         highlightColor = MaterialTheme.colorScheme.primary,
     )
 }
@@ -519,10 +519,7 @@ private fun rememberControlsChromeInset(compactLandscape: Boolean): Dp {
 }
 
 internal fun resolveFontFamily(fontFamily: RsvpFontFamily): FontFamily =
-    when (fontFamily) {
-        RsvpFontFamily.INTER -> InterFontFamily
-        RsvpFontFamily.ROBOTO -> RobotoFontFamily
-    }
+    fontFamily.composeFontFamily()
 
 internal fun resolveFontWeight(fontWeight: RsvpFontWeight): FontWeight =
     when (fontWeight) {

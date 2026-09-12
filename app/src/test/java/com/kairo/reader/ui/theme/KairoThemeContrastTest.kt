@@ -12,9 +12,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KairoThemeContrastTest {
+    private val builtInThemes = ReaderTheme.entries.filter { it != ReaderTheme.CUSTOM }
+
     @Test
     fun readingTextColorsPassEnhancedContrastAgainstBackground() {
-        ReaderTheme.values().forEach { theme ->
+        builtInThemes.forEach { theme ->
             val palette = theme.readerThemePalette()
 
             assertContrast(
@@ -29,7 +31,7 @@ class KairoThemeContrastTest {
 
     @Test
     fun rsvpFocusLetterPassesContrastAgainstBackground() {
-        ReaderTheme.values().forEach { theme ->
+        builtInThemes.forEach { theme ->
             val palette = theme.readerThemePalette()
 
             assertContrast(
@@ -44,7 +46,7 @@ class KairoThemeContrastTest {
 
     @Test
     fun themeAccentRolesPassContrastAgainstBackground() {
-        ReaderTheme.values().forEach { theme ->
+        builtInThemes.forEach { theme ->
             val palette = theme.readerThemePalette()
 
             listOf(
@@ -64,7 +66,7 @@ class KairoThemeContrastTest {
 
     @Test
     fun surfacesAndFilledControlsPassContrast() {
-        ReaderTheme.values().forEach { theme ->
+        builtInThemes.forEach { theme ->
             val palette = theme.readerThemePalette()
 
             assertContrast(
@@ -121,7 +123,7 @@ class KairoThemeContrastTest {
 
     @Test
     fun materialColorSchemeUsesReaderPaletteForComponentRoles() {
-        ReaderTheme.values().forEach { theme ->
+        builtInThemes.forEach { theme ->
             val palette = theme.readerThemePalette()
             val scheme = theme.materialColorScheme()
 
@@ -187,7 +189,7 @@ class KairoThemeContrastTest {
 
     @Test
     fun corePaletteRolesAreOpaque() {
-        ReaderTheme.values().forEach { theme ->
+        builtInThemes.forEach { theme ->
             val palette = theme.readerThemePalette()
 
             listOf(

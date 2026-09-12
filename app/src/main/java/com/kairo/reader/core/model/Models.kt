@@ -324,6 +324,9 @@ data class UserPreferences(
     val hasSeenStartingTutorial: Boolean = false,
     val readerFontSizeSp: Float = 18f,
     val readerTheme: ReaderTheme = ReaderTheme.LIGHT,
+    val customTheme: CustomTheme = CustomTheme(),
+    val readerFontFamily: RsvpFontFamily = RsvpFontFamily.MERRIWEATHER,
+    val interfaceFontFamily: RsvpFontFamily = RsvpFontFamily.SYSTEM_SANS,
     val readerTextBrightness: Float = 0.88f,
     val invertedScroll: Boolean = false,
     // RSVP-specific font settings (decoupled from reader)
@@ -365,6 +368,7 @@ data class UserPreferences(
 )
 
 enum class ReaderTheme {
+    CUSTOM,
     LIGHT,
     LINEN,
     MIST,
@@ -379,7 +383,7 @@ enum class ReaderTheme {
     FOREST,
 }
 
-enum class RsvpFontFamily { INTER, ROBOTO }
+enum class RsvpFontFamily { INTER, ROBOTO, MERRIWEATHER, LORA, LEXEND, SYSTEM_SANS, SYSTEM_SERIF, MONOSPACE }
 
 enum class RsvpFontWeight { LIGHT, NORMAL, MEDIUM }
 

@@ -86,7 +86,12 @@ class MainActivity : AppCompatActivity() {
             CompositionLocalProvider(
                 LocalDispatcherProvider provides container.dispatcherProvider
             ) {
-                KairoTheme(readerTheme = effectivePrefs.readerTheme) {
+                KairoTheme(
+                    readerTheme = effectivePrefs.readerTheme,
+                    customTheme = effectivePrefs.customTheme,
+                    readerFont = effectivePrefs.readerFontFamily,
+                    interfaceFont = effectivePrefs.interfaceFontFamily,
+                ) {
                     SystemBarsStyleSideEffect(readerTheme = effectivePrefs.readerTheme)
                     Surface(
                         modifier = Modifier.fillMaxSize(),

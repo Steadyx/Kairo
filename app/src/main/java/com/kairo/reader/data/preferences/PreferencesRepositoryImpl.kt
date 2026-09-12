@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.kairo.reader.core.model.CustomTheme
 import com.kairo.reader.core.model.ReaderTheme
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpCustomProfile
@@ -18,6 +19,7 @@ import com.kairo.reader.core.model.RsvpProfileIds
 import com.kairo.reader.core.model.TimedReadingMode
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.core.model.defaultConfig
+import com.kairo.reader.core.model.encode
 import com.kairo.reader.core.model.profileCadenceIdentity
 import com.kairo.reader.core.model.withReaderPreferencesFrom
 import com.kairo.reader.core.rsvp.RsvpSpeedControl
@@ -295,6 +297,22 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
                 MIN_TEXT_BRIGHTNESS,
                 MAX_TEXT_BRIGHTNESS,
             )
+        }
+    }
+
+    override suspend fun updateAppearance(
+        customTheme: CustomTheme,
+        readerFont: RsvpFontFamily,
+        interfaceFont: RsvpFontFamily,
+        timedFont: RsvpFontFamily,
+        theme: ReaderTheme,
+    ) {
+        context.dataStore.edit { prefs ->
+            prefs[keys.customTheme] = customTheme.encode()
+            prefs[keys.readerFontFamily] = readerFont.name
+            prefs[keys.interfaceFontFamily] = interfaceFont.name
+            prefs[keys.rsvpFontFamily] = timedFont.name
+            prefs[keys.readerTheme] = theme.name
         }
     }
 
