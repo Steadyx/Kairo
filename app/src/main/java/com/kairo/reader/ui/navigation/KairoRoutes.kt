@@ -10,6 +10,7 @@ internal object KairoRoutes {
     const val SETTINGS_INFO = "settings/info"
     const val SETTINGS_RSVP = "settings/rsvp"
     const val SETTINGS_BIONIC = "settings/bionic"
+    const val SETTINGS_THEME = "settings/theme"
     const val SETTINGS_READER = "settings/reader"
     const val SETTINGS_FOCUS = "settings/focus"
     const val READER = "reader/{bookId}"

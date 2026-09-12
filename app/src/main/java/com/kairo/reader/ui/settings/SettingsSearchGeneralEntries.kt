@@ -11,8 +11,8 @@ internal val readerSearchEntries = listOf(
     ),
     SettingsSearchEntry(
         id = "reader.reader_theme_title",
-        page = SettingsSearchPage.READER,
-        titleRes = R.string.reader_theme_title,
+        page = SettingsSearchPage.THEME,
+        titleRes = R.string.theme_palette,
         descriptionRes = R.string.settings_search_theme_description,
         aliases = listOf(
             R.string.reader_theme_light,

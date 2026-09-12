@@ -26,6 +26,7 @@ internal fun NavGraphBuilder.settingsSearchDestination(route: String, content: @
 
 internal fun SettingsSearchPage.route(): String? = when (this) {
     SettingsSearchPage.RSVP -> KairoRoutes.SETTINGS_RSVP
+    SettingsSearchPage.THEME -> KairoRoutes.SETTINGS_THEME
     SettingsSearchPage.READER -> KairoRoutes.SETTINGS_READER
     SettingsSearchPage.BIONIC -> KairoRoutes.SETTINGS_BIONIC
     SettingsSearchPage.FOCUS -> KairoRoutes.SETTINGS_FOCUS
