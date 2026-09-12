@@ -21,6 +21,7 @@ data class SettingsSearchEntry(
 enum class SettingsSearchPage(@StringRes val titleRes: Int) {
     RSVP(R.string.rsvp_settings_title),
     READER(R.string.reader_settings_title),
+    THEME(R.string.theme_settings_title),
     BIONIC(R.string.bionic_settings_title),
     FOCUS(R.string.focus_settings_title),
     LANGUAGE(R.string.settings_language_title),
@@ -30,7 +31,7 @@ enum class SettingsSearchPage(@StringRes val titleRes: Int) {
     RESET(R.string.settings_title),
 }
 
-internal val settingsSearchEntries = rsvpSearchEntries + readerSearchEntries + bionicSearchEntries +
+internal val settingsSearchEntries = themeSearchEntries + rsvpSearchEntries + readerSearchEntries + bionicSearchEntries +
     focusSearchEntries + infoSearchEntries + languageSearchEntries + updatesSearchEntries + tutorialSearchEntries + resetSearchEntries
 
 internal data class SettingsSearchDocument(

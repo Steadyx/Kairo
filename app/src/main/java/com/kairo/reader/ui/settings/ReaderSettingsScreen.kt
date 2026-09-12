@@ -27,6 +27,7 @@ fun ReaderSettingsScreen(
                 readerTheme = preferences.readerTheme,
                 textBrightness = preferences.readerTextBrightness,
                 invertedScroll = preferences.invertedScroll,
+                showThemeSelector = false,
                 onFontSizeChange = onFontSizeChange,
                 onThemeChange = onThemeChange,
                 onTextBrightnessChange = onTextBrightnessChange,

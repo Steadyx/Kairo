@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
@@ -42,6 +43,8 @@ import com.kairo.reader.core.model.shouldInsertSpaceBeforeToken
 import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.rsvp.RsvpRuntimeState
 import com.kairo.reader.ui.rsvp.resolveFontFamily
+import com.kairo.reader.ui.theme.LocalProtectReadingContrast
+import com.kairo.reader.ui.theme.contrastingColor
 import kotlin.math.ceil
 
 internal const val BIONIC_MIN_FIXATION_STRENGTH = 0.30f
@@ -128,20 +131,20 @@ internal fun BionicReadingText(
     val colorScheme = MaterialTheme.colorScheme
     val isDarkTheme = colorScheme.background.luminance() < 0.5f
     val textBrightness = runtime.currentTextBrightness.coerceIn(0.55f, 1f)
-    val textColor =
+    val requestedTextColor =
         bionicBodyColor(
             onBackgroundColor = colorScheme.onBackground,
             onSurfaceVariantColor = colorScheme.onSurfaceVariant,
             backgroundColor = colorScheme.background,
             textBrightness = textBrightness,
         )
-    val fixationColor =
+    val requestedFixationColor =
         bionicFixationColor(
             onBackgroundColor = colorScheme.onBackground,
             backgroundColor = colorScheme.background,
             textBrightness = textBrightness,
         )
-    val activeBackground =
+    val requestedActiveBackground =
         colorScheme.primary.copy(
             alpha = bionicHighlightAlpha(preferences.highlightStrength, colorScheme.background),
         )
@@ -151,6 +154,23 @@ internal fun BionicReadingText(
         } else {
             colorScheme.surface.copy(alpha = 0.78f)
         }
+    val protectContrast = LocalProtectReadingContrast.current
+    val renderedSurface = chunkSurfaceColor.compositeOver(colorScheme.background)
+    val activeBackground = if (protectContrast) {
+        contrastingColor(requestedActiveBackground.compositeOver(renderedSurface), listOf(colorScheme.onBackground))
+    } else {
+        requestedActiveBackground
+    }
+    val textColor = if (protectContrast) {
+        contrastingColor(requestedTextColor.compositeOver(renderedSurface), listOf(renderedSurface, activeBackground))
+    } else {
+        requestedTextColor
+    }
+    val fixationColor = if (protectContrast) {
+        contrastingColor(requestedFixationColor.compositeOver(renderedSurface), listOf(renderedSurface, activeBackground))
+    } else {
+        requestedFixationColor
+    }
     val safeFontSize =
         runtime.currentFontSizeSp.coerceIn(BIONIC_MIN_FONT_SIZE_SP, BIONIC_MAX_FONT_SIZE_SP)
     val lineHeightSp = safeFontSize * 1.48f

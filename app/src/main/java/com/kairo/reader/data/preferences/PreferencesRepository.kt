@@ -34,6 +34,14 @@ interface PreferencesRepository {
 
     suspend fun updateTheme(theme: String)
 
+    suspend fun updateAppearance(
+        customTheme: com.kairo.reader.core.model.CustomTheme,
+        readerFont: RsvpFontFamily,
+        interfaceFont: RsvpFontFamily,
+        timedFont: RsvpFontFamily,
+        theme: com.kairo.reader.core.model.ReaderTheme,
+    )
+
     suspend fun updateInvertedScroll(enabled: Boolean)
 
     suspend fun updateRsvpFontSize(size: Float)

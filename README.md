@@ -68,7 +68,8 @@ The result is an Android reader that sits somewhere between an ebook app, a spee
 ### Personalization
 
 - Reader font size and text brightness controls
-- Multiple reader themes including Light, Sepia, Dark, Nord, Cyberpunk, and Forest
+- App-wide themes including Light, Sepia, Dark, Nord, Cyberpunk, and Forest
+- A visual theme studio with coordinated colour harmonies, optional colour overrides, and eight offline font choices for the interface and reading modes
 - RSVP font family, font weight, brightness, and positioning controls
 - Focus mode settings, including optional status bar hiding and Do Not Disturb integration
 - Persistent preferences powered by DataStore

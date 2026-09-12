@@ -40,6 +40,17 @@ class SettingsHomeScreenTest {
     val composeRule = createAndroidComposeRule<TestActivity>()
 
     @Test
+    fun themeRowOpensDedicatedStudio() {
+        var opened = false
+        composeRule.setContent {
+            KairoTheme { SettingsHomeScreen(actions = settingsHomeActions().copy(onOpenTheme = { opened = true })) }
+        }
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.theme_settings_title))
+            .performScrollTo().assertHasClickAction().performClick()
+        composeRule.runOnIdle { assertTrue(opened) }
+    }
+
+    @Test
     fun checkForUpdatesRow_requestsUpdateCheck() {
         var updateCheckRequested = false
 
