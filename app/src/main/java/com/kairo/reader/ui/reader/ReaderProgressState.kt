@@ -2,15 +2,13 @@ package com.kairo.reader.ui.reader
 
 import android.content.res.Resources
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import com.kairo.reader.R
+import com.kairo.reader.core.model.chapterReadingProgress
 import com.kairo.reader.core.model.estimateMinutesForWords
 import com.kairo.reader.ui.format.formatShortDurationMinutes
-import kotlin.math.roundToInt
 
 internal data class ReaderProgressState(
     val progressPercent: Int,
@@ -33,8 +31,6 @@ internal data class ReaderProgressInput(
     val chapterCount: Int,
 )
 
-private data class ChapterWordProgress(val currentWordIndex: Int, val progressPercent: Int,)
-
 @Composable
 internal fun rememberReaderProgressState(
     input: ReaderProgressInput,
@@ -43,13 +39,12 @@ internal fun rememberReaderProgressState(
     val metaSeparator = stringResource(R.string.meta_separator)
     val chapterProgress =
         remember(input.safeFocusIndex, input.totalChapterWords, input.wordCountByToken) {
-            calculateChapterWordProgress(input)
+            chapterReadingProgress(
+                wordCountByToken = input.wordCountByToken,
+                tokenIndex = input.safeFocusIndex,
+                totalWords = input.totalChapterWords,
+            )
         }
-    val progressFraction by remember(chapterProgress.progressPercent) {
-        derivedStateOf {
-            (chapterProgress.progressPercent / PERCENT_SCALE_FLOAT).coerceIn(0f, 1f)
-        }
-    }
     val pageLabel =
         if (input.resolvedPageIndex >= 0 && input.pages.isNotEmpty()) {
             resources.getString(
@@ -61,16 +56,16 @@ internal fun rememberReaderProgressState(
             null
         }
     val wordsReadInPage =
-        remember(input.currentPage, input.wordCountByToken, chapterProgress.currentWordIndex) {
-            calculateWordsReadInPage(input, chapterProgress.currentWordIndex)
+        remember(input.currentPage, input.wordCountByToken, chapterProgress.currentWord) {
+            calculateWordsReadInPage(input, chapterProgress.currentWord)
         }
     val remainingPageWords =
         remember(input.currentPage, wordsReadInPage) {
             (input.currentPage?.wordCount ?: 0).minus(wordsReadInPage).coerceAtLeast(0)
         }
     val remainingChapterWords =
-        remember(input.totalChapterWords, chapterProgress.currentWordIndex) {
-            (input.totalChapterWords - chapterProgress.currentWordIndex).coerceAtLeast(0)
+        remember(input.totalChapterWords, chapterProgress.currentWord) {
+            (input.totalChapterWords - chapterProgress.currentWord).coerceAtLeast(0)
         }
     val adjustedBookWordCounts =
         remember(input.bookWordCounts, input.chapterIndex, input.totalChapterWords, input.chapterCount) {
@@ -85,8 +80,8 @@ internal fun rememberReaderProgressState(
             adjustedBookWordCounts.sum()
         }
     val wordsReadOverall =
-        remember(wordsBeforeChapter, chapterProgress.currentWordIndex) {
-            wordsBeforeChapter + chapterProgress.currentWordIndex
+        remember(wordsBeforeChapter, chapterProgress.currentWord) {
+            wordsBeforeChapter + chapterProgress.currentWord
         }
     val remainingBookWords =
         remember(totalBookWords, wordsReadOverall) {
@@ -104,25 +99,12 @@ internal fun rememberReaderProgressState(
     val hasProgressMeta = pageLabel != null || etaLabel != null
 
     return ReaderProgressState(
-        progressPercent = chapterProgress.progressPercent,
-        progressFraction = progressFraction,
+        progressPercent = chapterProgress.percent,
+        progressFraction = chapterProgress.fraction,
         pageLabel = pageLabel,
         etaLabel = etaLabel,
         hasProgressMeta = hasProgressMeta,
     )
-}
-
-private fun calculateChapterWordProgress(input: ReaderProgressInput): ChapterWordProgress {
-    val wordCounts = input.wordCountByToken
-    if (input.totalChapterWords <= 0 || wordCounts == null || wordCounts.isEmpty()) {
-        return ChapterWordProgress(currentWordIndex = 0, progressPercent = 0)
-    }
-    val currentWordIndex = wordCounts.getOrNull(input.safeFocusIndex)?.coerceAtLeast(0) ?: 0
-    val progressPercent =
-        ((currentWordIndex.toFloat() / input.totalChapterWords.toFloat()) * PERCENT_SCALE_FLOAT)
-            .roundToInt()
-            .coerceIn(0, PERCENT_SCALE_INT)
-    return ChapterWordProgress(currentWordIndex, progressPercent)
 }
 
 private fun calculateWordsReadInPage(
@@ -185,6 +167,3 @@ private fun etaPart(
     val minutes = estimateMinutesForWords(remainingWords, estimatedWpm)
     return resources.getString(labelRes, formatShortDurationMinutes(resources, minutes))
 }
-
-private const val PERCENT_SCALE_INT = 100
-private const val PERCENT_SCALE_FLOAT = 100f
