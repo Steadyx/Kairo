@@ -69,7 +69,10 @@ The result is an Android reader that sits somewhere between an ebook app, a spee
 
 - Reader font size and text brightness controls
 - App-wide themes including Light, Sepia, Dark, Nord, Cyberpunk, and Forest
-- A visual theme studio with coordinated colour harmonies, optional colour overrides, and eight offline font choices for the interface and reading modes
+- A visual theme studio with coordinated colour harmonies, gradient colour controls, and eight offline font choices
+- Reader, RSVP, and interface previews using your reading settings, with visible feedback when colours are adjusted for readability
+- Up to 24 named themes with colours and fonts, duplication, renaming, deletion, and undo; collection edits are saved with **Apply theme**
+- Editable copies of built-in palettes, separate colour/font resets, and **Revert to applied**; custom reading contrast also accounts for highlights, selection, and focused words
 - RSVP font family, font weight, brightness, and positioning controls
 - Focus mode settings, including optional status bar hiding and Do Not Disturb integration
 - Persistent preferences powered by DataStore
