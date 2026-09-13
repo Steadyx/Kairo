@@ -31,7 +31,6 @@ import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextIndent
@@ -40,9 +39,7 @@ import com.kairo.reader.R
 import com.kairo.reader.core.model.RsvpConfigConstraints
 import com.kairo.reader.core.model.SavedAnnotation
 import com.kairo.reader.core.model.TimedReadingMode
-import com.kairo.reader.core.model.TokenType
-import com.kairo.reader.core.model.shouldInsertSpaceBeforeToken
-import com.kairo.reader.ui.saved.displayColor
+import com.kairo.reader.ui.theme.LocalProtectReadingContrast
 import com.kairo.reader.ui.theme.LocalReaderFont
 import com.kairo.reader.ui.theme.composeFontFamily
 import com.kairo.reader.ui.theme.readingColor
@@ -80,6 +77,9 @@ internal fun ParagraphText(
                 textIndent = TextIndent(firstLine = (fontSizeSp * PARAGRAPH_INDENT_FACTOR).sp),
             )
         }
+    val protectContrast = LocalProtectReadingContrast.current
+    val pageBackground = MaterialTheme.colorScheme.background
+    val spanContrast = remember(pageBackground) { ReaderSpanContrast(pageBackground) }
     val primary = MaterialTheme.colorScheme.primary
     val tertiary = MaterialTheme.colorScheme.tertiary
     val focusStyle =
@@ -99,11 +99,10 @@ internal fun ParagraphText(
         }
     val localFocusIndex =
         remember(paragraph.startIndex, paragraph.tokens.size, focusIndex) {
-            (focusIndex - paragraph.startIndex)
-                .takeIf { localIndex -> localIndex in paragraph.tokens.indices }
-                ?: NO_PARAGRAPH_FOCUS
+            resolveParagraphFocusIndex(paragraph, focusIndex)
         }
 
+    val spanStyles = ReaderSpanStyles(baseStyle.color, focusStyle, linkStyle)
     val visualContent =
         remember(
             paragraph.tokens,
@@ -116,83 +115,17 @@ internal fun ParagraphText(
             state.savedAnnotations,
             state.selectionRange,
             state.searchMatchRange,
+            protectContrast,
+            spanContrast,
+            baseStyle.color,
         ) {
-            val inlineHighlights = mutableListOf<ReaderInlineHighlightRange>()
-            val text = buildAnnotatedString {
-                paragraph.tokens.forEachIndexed { localIndex, token ->
-                    if (token.type == TokenType.PARAGRAPH_BREAK ||
-                        token.type == TokenType.PAGE_BREAK
-                    ) {
-                        return@forEachIndexed
-                    }
-                    val globalIndex = paragraph.startIndex + localIndex
-
-                    val prevToken = if (localIndex > 0) paragraph.tokens[localIndex - 1] else null
-                    val needsSpaceBefore =
-                        shouldInsertSpaceBeforeToken(token, prevToken, localIndex)
-
-                    if (needsSpaceBefore) append(" ")
-
-                    val start = length
-                    val highlightStart = if (needsSpaceBefore) start - 1 else start
-                    append(token.text)
-                    val end = length
-
-                    addStringAnnotation(
-                        tag = "tokenIndex",
-                        annotation = globalIndex.toString(),
-                        start = start,
-                        end = end
-                    )
-
-                    // Add link annotation if token has a link
-                    val interactiveChapterLinkTarget =
-                        resolveInteractiveChapterLinkTarget(
-                            token = token,
-                            nonInteractiveTargets = state.nonInteractiveChapterLinkTargets,
-                        )
-                    if (interactiveChapterLinkTarget != null) {
-                        addStringAnnotation(
-                            tag = "chapterLink",
-                            annotation = interactiveChapterLinkTarget.toString(),
-                            start = start,
-                            end = end
-                        )
-                        addStyle(linkStyle, start, end)
-                    }
-
-                    state.savedAnnotations
-                        .firstOrNull { globalIndex in it.tokenRange }
-                        ?.let { annotation ->
-                            inlineHighlights.addOrExtendInlineHighlight(
-                                key = "saved:${annotation.id}",
-                                start = highlightStart,
-                                endExclusive = end,
-                                color = annotation.color.displayColor().copy(alpha = SAVED_HIGHLIGHT_ALPHA),
-                            )
-                        }
-
-                    if (localIndex == localFocusIndex) addStyle(focusStyle, start, end)
-                    if (state.searchMatchRange?.contains(globalIndex) == true) {
-                        inlineHighlights.addOrExtendInlineHighlight(
-                            key = SEARCH_HIGHLIGHT_KEY,
-                            start = highlightStart,
-                            endExclusive = end,
-                            color = tertiary.copy(alpha = SEARCH_HIGHLIGHT_ALPHA),
-                        )
-                    }
-                    if (state.selectionRange?.contains(globalIndex) == true) {
-                        inlineHighlights.addOrExtendInlineHighlight(
-                            key = SELECTION_HIGHLIGHT_KEY,
-                            start = highlightStart,
-                            endExclusive = end,
-                            color = primary.copy(alpha = SELECTION_HIGHLIGHT_ALPHA),
-                        )
-                    }
-                }
-                addStyle(paragraphIndent, start = 0, end = length)
-            }
-            ReaderParagraphVisualContent(text, inlineHighlights)
+            buildReaderParagraphVisualContent(
+                state,
+                localFocusIndex,
+                spanStyles,
+                paragraphIndent,
+                if (protectContrast) spanContrast else null
+            )
         }
 
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -350,6 +283,9 @@ internal fun ParagraphText(
     )
 }
 
+private fun resolveParagraphFocusIndex(paragraph: Paragraph, focusIndex: Int): Int =
+    (focusIndex - paragraph.startIndex).takeIf { it in paragraph.tokens.indices } ?: NO_PARAGRAPH_FOCUS
+
 private fun handleParagraphActivationKey(
     event: KeyEvent,
     focusIndex: Int,
@@ -389,8 +325,3 @@ internal data class ParagraphTextActions(
 private const val PARAGRAPH_INDENT_FACTOR = 0.55f
 
 private const val NO_PARAGRAPH_FOCUS = -1
-private const val SAVED_HIGHLIGHT_ALPHA = 0.18f
-private const val SEARCH_HIGHLIGHT_ALPHA = 0.18f
-private const val SELECTION_HIGHLIGHT_ALPHA = 0.22f
-private const val SEARCH_HIGHLIGHT_KEY = "search"
-private const val SELECTION_HIGHLIGHT_KEY = "selection"
