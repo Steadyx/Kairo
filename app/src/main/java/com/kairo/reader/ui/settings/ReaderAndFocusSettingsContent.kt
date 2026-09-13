@@ -40,6 +40,7 @@ fun ReaderSettingsContent(
     onThemeChange: (ReaderTheme) -> Unit,
     onTextBrightnessChange: (Float) -> Unit,
     onInvertedScrollChange: (Boolean) -> Unit,
+    showThemeSelector: Boolean = true,
 ) {
     val resources = LocalResources.current
 
@@ -51,7 +52,7 @@ fun ReaderSettingsContent(
         valueRange = READER_FONT_SIZE_MIN_SP..READER_FONT_SIZE_MAX_SP,
     )
 
-    ThemeSelector(selected = readerTheme, onThemeChange = onThemeChange)
+    if (showThemeSelector) ThemeSelector(selected = readerTheme, onThemeChange = onThemeChange)
 
     SettingsSliderRow(
         title = stringResource(R.string.reader_text_brightness_title),

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AlertDialog
@@ -62,6 +63,7 @@ data class SettingsHomeActions(
     val onReset: () -> Unit,
     val onClose: () -> Unit,
     val onOpenSearchResult: ((SettingsSearchEntry) -> Unit)? = null,
+    val onOpenTheme: () -> Unit = {},
 )
 
 data class SettingsTutorialActions(val onNext: () -> Unit = {}, val onPrevious: () -> Unit = {}, val onSkip: () -> Unit = {},)
@@ -158,6 +160,12 @@ private fun SettingsHomeRows(
 ) {
     val rows =
         listOf(
+            SettingsHomeRow(
+                title = stringResource(R.string.theme_settings_title),
+                subtitle = stringResource(R.string.theme_settings_subtitle),
+                icon = Icons.Default.Palette,
+                onClick = actions.onOpenTheme,
+            ),
             SettingsHomeRow(
                 title = stringResource(R.string.settings_language_title),
                 subtitle = languageLabel,

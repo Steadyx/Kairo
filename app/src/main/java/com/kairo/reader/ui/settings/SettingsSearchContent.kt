@@ -101,6 +101,7 @@ internal fun SettingsHomeActions.openSearchResult(entry: SettingsSearchEntry) {
     when (entry.page) {
         SettingsSearchPage.RSVP -> onOpenRsvp()
         SettingsSearchPage.READER -> onOpenReader()
+        SettingsSearchPage.THEME -> onOpenTheme()
         SettingsSearchPage.BIONIC -> onOpenBionic()
         SettingsSearchPage.FOCUS -> onOpenFocus()
         SettingsSearchPage.LANGUAGE -> onOpenLanguage()

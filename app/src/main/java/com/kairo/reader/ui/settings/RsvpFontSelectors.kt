@@ -24,33 +24,7 @@ internal fun RsvpFontFamilySelector(
     selected: RsvpFontFamily,
     onFontFamilyChange: (RsvpFontFamily) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(
-            stringResource(R.string.rsvp_font_title),
-            modifier = Modifier.settingsSearchTarget(stringResource(R.string.rsvp_font_title)),
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RsvpFontFamily.entries.forEach { family ->
-                OutlinedButton(
-                    onClick = { onFontFamilyChange(family) },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        text = stringResource(rsvpFontFamilyLabelRes(family)),
-                        color = if (family ==
-                            selected
-                        ) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onBackground
-                        },
-                    )
-                }
-            }
-        }
-    }
+    ThemeFontSelector(stringResource(R.string.rsvp_font_title), selected, onFontFamilyChange)
 }
 
 internal const val PHRASE_CHUNK_MIN_WORDS = 2

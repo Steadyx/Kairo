@@ -45,6 +45,7 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
                 },
                 onOpenRsvp = { dependencies.navController.navigate(KairoRoutes.SETTINGS_RSVP) },
                 onOpenBionic = { dependencies.navController.navigate(KairoRoutes.SETTINGS_BIONIC) },
+                onOpenTheme = { dependencies.navController.navigate(KairoRoutes.SETTINGS_THEME) },
                 onOpenReader = { dependencies.navController.navigate(KairoRoutes.SETTINGS_READER) },
                 onOpenFocus = { dependencies.navController.navigate(KairoRoutes.SETTINGS_FOCUS) },
                 onOpenInfo = { dependencies.navController.navigate(KairoRoutes.SETTINGS_INFO) },
@@ -74,6 +75,23 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
                 onPrevious = dependencies.onTutorialPrevious,
                 onSkip = dependencies.onTutorialSkip,
             ),
+        )
+    }
+
+    settingsSearchDestination(KairoRoutes.SETTINGS_THEME) {
+        com.kairo.reader.ui.settings.ThemeSettingsScreen(
+            preferences = dependencies.prefs,
+            onApply = { design, saved ->
+                dependencies.container.preferencesRepository.updateAppearance(
+                    design.custom,
+                    design.readerFont,
+                    design.interfaceFont,
+                    design.timedFont,
+                    design.theme,
+                    saved,
+                )
+            },
+            onBack = { dependencies.navController.popBackStack() },
         )
     }
 

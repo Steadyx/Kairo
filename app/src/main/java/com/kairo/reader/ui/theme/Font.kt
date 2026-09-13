@@ -1,3 +1,4 @@
+@file:Suppress("MagicNumber")
 @file:OptIn(ExperimentalTextApi::class)
 
 package com.kairo.reader.ui.theme
@@ -142,3 +143,30 @@ val RobotoFontFamily =
             ),
         ),
     )
+
+internal val LoraFontFamily = variableFontFamily(R.font.lora, 400, 700)
+internal val LexendFontFamily = variableFontFamily(R.font.lexend, 100, 900)
+
+private fun variableFontFamily(resource: Int, minimumWeight: Int, maximumWeight: Int): FontFamily =
+    FontFamily(
+        (100..900 step 100).map { weight ->
+            Font(
+                resource,
+                weight = FontWeight(weight),
+                variationSettings = FontVariation.Settings(
+                    FontVariation.weight(weight.coerceIn(minimumWeight, maximumWeight))
+                )
+            )
+        }
+    )
+
+internal fun com.kairo.reader.core.model.RsvpFontFamily.composeFontFamily(): FontFamily = when (this) {
+    com.kairo.reader.core.model.RsvpFontFamily.INTER -> InterFontFamily
+    com.kairo.reader.core.model.RsvpFontFamily.ROBOTO -> RobotoFontFamily
+    com.kairo.reader.core.model.RsvpFontFamily.MERRIWEATHER -> MerriweatherFontFamily
+    com.kairo.reader.core.model.RsvpFontFamily.LORA -> LoraFontFamily
+    com.kairo.reader.core.model.RsvpFontFamily.LEXEND -> LexendFontFamily
+    com.kairo.reader.core.model.RsvpFontFamily.SYSTEM_SANS -> FontFamily.SansSerif
+    com.kairo.reader.core.model.RsvpFontFamily.SYSTEM_SERIF -> FontFamily.Serif
+    com.kairo.reader.core.model.RsvpFontFamily.MONOSPACE -> FontFamily.Monospace
+}

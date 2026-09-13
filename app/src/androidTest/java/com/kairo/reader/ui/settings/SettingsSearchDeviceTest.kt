@@ -41,7 +41,7 @@ class SettingsSearchDeviceTest {
         val index = buildSettingsSearchIndex(composeRule.activity.resources)
         assertEquals(settingsSearchEntries.size, index.size)
         assertTrue(index.all { it.title.isNotBlank() && it.description.isNotBlank() && it.location.isNotBlank() })
-        assertTrue(searchSettings(index, "Nord").any { it.entry.page == SettingsSearchPage.READER })
+        assertTrue(searchSettings(index, "Nord").any { it.entry.page == SettingsSearchPage.THEME })
     }
 
     @Test
@@ -86,7 +86,7 @@ class SettingsSearchDeviceTest {
         composeRule.onNodeWithContentDescription(text(R.string.action_back)).performClick()
         composeRule.onNodeWithText(text(target.descriptionRes)).assertIsDisplayed()
         composeRule.onNodeWithText(text(R.string.settings_search_hint)).performTextReplacement("Nord")
-        composeRule.onNodeWithText(text(R.string.reader_theme_title)).assertIsDisplayed()
+        composeRule.onNodeWithText(text(R.string.theme_palette)).assertIsDisplayed()
     }
 
     @Test

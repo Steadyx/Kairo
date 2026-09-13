@@ -8,6 +8,7 @@ import android.content.ContextWrapper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsCompat
@@ -17,7 +18,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.kairo.reader.KairoApplication
 import com.kairo.reader.core.model.ReaderTheme
-import com.kairo.reader.ui.theme.readerThemePalette
 
 @Composable
 fun FocusModeSideEffects(
@@ -59,8 +59,9 @@ fun SystemBarsStyleSideEffect(readerTheme: ReaderTheme) {
     val window = activity.window
     val controller = remember(window, view) { WindowInsetsControllerCompat(window, view) }
 
-    DisposableEffect(readerTheme) {
-        val useDarkIcons = !readerTheme.readerThemePalette().isDark
+    val background = androidx.compose.material3.MaterialTheme.colorScheme.background
+    DisposableEffect(readerTheme, background) {
+        val useDarkIcons = background.luminance() > DARK_ICON_LUMINANCE_THRESHOLD
         controller.isAppearanceLightStatusBars = useDarkIcons
         controller.isAppearanceLightNavigationBars = useDarkIcons
         onDispose { }
@@ -99,3 +100,5 @@ private tailrec fun Context.findActivity(): Activity? =
         is ContextWrapper -> baseContext.findActivity()
         else -> null
     }
+
+private const val DARK_ICON_LUMINANCE_THRESHOLD = 0.179f

@@ -275,6 +275,12 @@ internal fun rsvpFontFamilyLabelRes(family: RsvpFontFamily): Int =
     when (family) {
         RsvpFontFamily.INTER -> R.string.rsvp_font_family_inter
         RsvpFontFamily.ROBOTO -> R.string.rsvp_font_family_roboto
+        RsvpFontFamily.MERRIWEATHER -> R.string.font_merriweather
+        RsvpFontFamily.LORA -> R.string.font_lora
+        RsvpFontFamily.LEXEND -> R.string.font_lexend
+        RsvpFontFamily.SYSTEM_SANS -> R.string.font_system_sans
+        RsvpFontFamily.SYSTEM_SERIF -> R.string.font_system_serif
+        RsvpFontFamily.MONOSPACE -> R.string.font_monospace
     }
 
 internal fun rsvpFontWeightLabelRes(weight: RsvpFontWeight): Int =

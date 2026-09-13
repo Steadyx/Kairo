@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
 import com.kairo.reader.core.model.ReaderTheme
+import com.kairo.reader.ui.theme.materialColorScheme
 import com.kairo.reader.ui.theme.readerThemePalette
 
 enum class SettingsNavRowPresentation {
@@ -278,10 +279,11 @@ fun SettingsScaffold(
     title: String,
     onBack: (() -> Unit)?,
     maxContentWidth: Dp = 720.dp,
+    compactHeader: Boolean = false,
     content: @Composable (Modifier) -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val compactHeight = maxHeight < 480.dp
+        val compactHeight = compactHeader || maxHeight < 480.dp
         val navigationIcon: @Composable () -> Unit = {
             if (onBack != null) {
                 androidx.compose.material3.FilledTonalIconButton(onClick = onBack) {
@@ -397,6 +399,7 @@ fun ThemeSelector(
         val themes =
             listOf(
                 ReaderTheme.LIGHT,
+                ReaderTheme.CUSTOM,
                 ReaderTheme.LINEN,
                 ReaderTheme.MIST,
                 ReaderTheme.SAGE,
@@ -479,12 +482,17 @@ fun ThemeSelector(
 
 @Composable
 private fun rememberThemePreview(theme: ReaderTheme): Pair<Color, Color> {
+    if (theme == ReaderTheme.CUSTOM) {
+        val scheme = com.kairo.reader.ui.theme.LocalCustomTheme.current.materialColorScheme()
+        return scheme.background to scheme.primary
+    }
     val palette = theme.readerThemePalette()
     return palette.background to palette.primary
 }
 
-private fun readerThemeLabelRes(theme: ReaderTheme): Int =
+internal fun readerThemeLabelRes(theme: ReaderTheme): Int =
     when (theme) {
+        ReaderTheme.CUSTOM -> R.string.theme_custom_preset
         ReaderTheme.LIGHT -> R.string.reader_theme_light
         ReaderTheme.LINEN -> R.string.reader_theme_linen
         ReaderTheme.MIST -> R.string.reader_theme_mist
