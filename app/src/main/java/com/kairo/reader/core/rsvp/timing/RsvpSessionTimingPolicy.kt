@@ -9,27 +9,30 @@ internal object RsvpSessionTimingPolicy {
     fun applyInitialSessionRamps(
         frames: MutableList<RsvpFrame>,
         config: RsvpConfig,
+        startFrameIndex: Int = 0,
     ) {
         if (frames.isEmpty()) return
 
-        val total = frames.size
+        val safeStart = startFrameIndex.coerceIn(frames.indices)
+        val total = frames.size - safeStart
         val rampUp = min(config.rampUpFrames.coerceAtLeast(0), total / 2)
         for (i in 0 until rampUp) {
-            frames[i] =
-                frames[i].copy(
-                    durationMs = (frames[i].durationMs * rampUpMultiplier(i, rampUp)).toLong(),
+            val index = safeStart + i
+            frames[index] =
+                frames[index].copy(
+                    durationMs = (frames[index].durationMs * rampUpMultiplier(i, rampUp)).toLong(),
                 )
         }
 
-        frames[0] =
-            frames[0].copy(
-                durationMs = addNonNegativeDelay(frames[0].durationMs, config.startDelayMs)
+        frames[safeStart] =
+            frames[safeStart].copy(
+                durationMs = addNonNegativeDelay(frames[safeStart].durationMs, config.startDelayMs)
                     .coerceAtLeast(MIN_FRAME_MS),
             )
 
         val rampDown = min(config.rampDownFrames.coerceAtLeast(0), total / 2)
-        val start = total - rampDown
-        for (i in start until total) {
+        val start = frames.size - rampDown
+        for (i in start until frames.size) {
             frames[i] =
                 frames[i].copy(
                     durationMs = (frames[i].durationMs * rampDownMultiplier(i - start, rampDown)).toLong(),
@@ -48,9 +51,10 @@ internal object RsvpSessionTimingPolicy {
         frameIndex: Int,
         rampStartIndex: Int,
         preparationScale: Double = 1.0,
+        initialRampStartIndex: Int = 0,
     ): Double {
         val rampFrames = config.rampUpFrames
-        if (rampStartIndex <= 0 || rampStartIndex < rampFrames) return 1.0
+        if (hasInitialRamp(config, rampStartIndex, initialRampStartIndex)) return 1.0
         val offset = frameIndex - rampStartIndex
         if (rampFrames <= 0 || offset < 0 || offset >= rampFrames) return 1.0
         return 1.0 + (rampUpMultiplier(offset, rampFrames) - 1.0) * preparationScale.coerceIn(0.0, 1.0)
@@ -61,15 +65,19 @@ internal object RsvpSessionTimingPolicy {
         frameIndex: Int,
         rampStartIndex: Int,
         preparationScale: Double = 1.0,
+        initialRampStartIndex: Int = 0,
     ): Long {
-        if (rampStartIndex <= 0 ||
-            rampStartIndex < config.rampUpFrames ||
+        if (hasInitialRamp(config, rampStartIndex, initialRampStartIndex) ||
             frameIndex != rampStartIndex
         ) {
             return 0L
         }
         return (config.startDelayMs * preparationScale.coerceIn(0.0, 1.0)).toLong()
     }
+
+    private fun hasInitialRamp(config: RsvpConfig, rampStartIndex: Int, initialRampStartIndex: Int): Boolean =
+        rampStartIndex < 0 ||
+            (rampStartIndex - initialRampStartIndex) in 0 until config.rampUpFrames.coerceAtLeast(1)
 
     fun resumePreparationScale(pausedMs: Long): Double =
         ((pausedMs - BRIEF_PAUSE_MS).coerceAtLeast(0L).toDouble() / REORIENTATION_WINDOW_MS)

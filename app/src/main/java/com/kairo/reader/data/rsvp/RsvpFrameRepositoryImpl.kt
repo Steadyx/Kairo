@@ -63,6 +63,31 @@ class RsvpFrameRepositoryImpl(
     private val previewDispatcher = dispatcherProvider.default
     private val scope = CoroutineScope(SupervisorJob() + dispatcherProvider.default)
 
+    override suspend fun getSeekableFrames(
+        bookId: BookId,
+        chapterIndex: Int,
+        config: RsvpConfig,
+        startIndex: Int,
+        options: RsvpGenerationOptions,
+    ): RsvpFrameSet {
+        val baseConfig = config.normalizedForPlayback().withoutPlaybackEffects()
+        val key = CacheKey(
+            bookId.value,
+            chapterIndex,
+            baseConfig.frameTimingKey(),
+            0,
+            CacheMode.CHAPTER_BASE,
+            options,
+            currentGeneration(bookId),
+        )
+        val base = ensureFramesAsync(key, bookId, chapterIndex, baseConfig, 0, options).await()
+        val tokens = tokenRepository.getTokens(bookId, chapterIndex)
+        // Copying, optional boundary splitting, playback effects and indexing stay off the UI thread.
+        return withContext(engineDispatcher) {
+            buildSeekableFrameSet(tokens, base, config, startIndex, engine, options)
+        }
+    }
+
     override suspend fun getFrames(
         bookId: BookId,
         chapterIndex: Int,
@@ -308,15 +333,6 @@ class RsvpFrameRepositoryImpl(
     private fun RsvpFrameSet.startsBefore(startIndex: Int): Boolean =
         startIndex > 0 && frames.firstOrNull()?.originalTokenIndex?.let { it < startIndex } == true
 
-    private fun RsvpConfig.withoutPlaybackEffects(): RsvpConfig =
-        copy(
-            startDelayMs = 0L,
-            endDelayMs = 0L,
-            rampUpFrames = 0,
-            rampDownFrames = 0,
-            blinkMode = BlinkMode.OFF,
-        )
-
     private fun RsvpFrame.asPreviewFrame(visibleEndExclusive: Int): RsvpFrame =
         copy(nextOriginalTokenIndex = nextOriginalTokenIndex.coerceIn(0, visibleEndExclusive))
 
@@ -390,3 +406,12 @@ private fun previewLookaheadEndExclusive(
     }
     return cursor
 }
+
+internal fun RsvpConfig.withoutPlaybackEffects(): RsvpConfig =
+    copy(
+        startDelayMs = 0L,
+        endDelayMs = 0L,
+        rampUpFrames = 0,
+        rampDownFrames = 0,
+        blinkMode = BlinkMode.OFF,
+    )
