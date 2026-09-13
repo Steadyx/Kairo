@@ -95,6 +95,7 @@ internal fun RsvpFrameAlignmentEffect(context: RsvpUiContext) {
                 resumeCursor = runtime.currentResumeCursor,
                 frameIndexMap = context.frameState.frameIndexMap,
             )
+        runtime.rampStartFrameIndex = runtime.frameIndex
         syncRuntimePositionFromVisibleFrame(runtime, frames, book)
     }
 }
@@ -252,6 +253,7 @@ internal fun RsvpPlaybackLoopEffect(
                 runtime.frameIndex,
                 runtime.rampStartFrameIndex,
                 runtime.resumePreparationScale,
+                initialRampStartIndex = context.frameState.initialRampStartFrameIndex,
             )
         val resumeDelayMs =
             RsvpSessionTimingPolicy.resumeDelayMs(
@@ -259,6 +261,7 @@ internal fun RsvpPlaybackLoopEffect(
                 runtime.frameIndex,
                 runtime.rampStartFrameIndex,
                 runtime.resumePreparationScale,
+                initialRampStartIndex = context.frameState.initialRampStartFrameIndex,
             )
         val frameMs = scaledFrameDurationMs(frame, config, effectiveTempoMs, tempoScale)
         var scaledMs =
