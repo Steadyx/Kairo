@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kairo.reader.R
 import com.kairo.reader.ui.rememberWindowContainerMetrics
-import kotlin.math.roundToInt
 
 @Composable
 internal fun BoxScope.RsvpProgressBar(context: RsvpUiContext) {
@@ -61,8 +60,7 @@ internal fun BoxScope.RsvpProgressBar(context: RsvpUiContext) {
         return
     }
 
-    val frames = context.frameState.frames
-    val progress = (runtime.frameIndex + 1).toFloat() / frames.size.toFloat()
+    val progress = rememberRsvpProgress(context).fraction
 
     LinearProgressIndicator(
         progress = { progress },
@@ -349,12 +347,7 @@ internal fun BoxScope.RsvpPositioningIndicator(context: RsvpUiContext) {
 @Composable
 internal fun BoxScope.RsvpScrubTargetIndicator(context: RsvpUiContext) {
     val runtime = context.runtime
-    val frames = context.frameState.frames
-    val frameCount = frames.size.coerceAtLeast(1)
-    val progressPercent =
-        (((runtime.frameIndex + 1).toFloat() / frameCount.toFloat()) * PERCENT_SCALE)
-            .roundToInt()
-            .coerceIn(0, PERCENT_SCALE.toInt())
+    val progress = rememberRsvpProgress(context)
     val topPadding = wordAwareIndicatorTopPadding(context, SCRUB_INDICATOR_TOP_PADDING)
 
     AnimatedVisibility(
@@ -378,7 +371,7 @@ internal fun BoxScope.RsvpScrubTargetIndicator(context: RsvpUiContext) {
                 ),
         ) {
             Text(
-                text = "${runtime.frameIndex + 1}/$frameCount • $progressPercent%",
+                text = "${progress.currentWord}/${progress.totalWords} • ${progress.percent}%",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
