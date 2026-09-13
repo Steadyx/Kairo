@@ -243,7 +243,7 @@ internal fun rememberRsvpDisplayedSpeed(
     }
 
 @Composable
-private fun rememberRsvpTextColors(
+internal fun rememberRsvpTextColors(
     textBrightness: Float,
     config: RsvpConfig,
 ): OrpColors {

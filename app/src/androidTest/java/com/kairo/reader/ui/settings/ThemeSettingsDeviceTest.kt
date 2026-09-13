@@ -54,13 +54,14 @@ class ThemeSettingsDeviceTest {
         val restoration = StateRestorationTester(rule)
         restoration.setContent {
             KairoTheme {
-                ThemeSettingsScreen(UserPreferences(), onApply = { theme, custom, reader, interfaceFont, timed ->
+                ThemeSettingsScreen(UserPreferences(), onApply = { design, saved ->
                     applied = UserPreferences(
-                        readerTheme = theme,
-                        customTheme = custom,
-                        readerFontFamily = reader,
-                        interfaceFontFamily = interfaceFont,
-                        rsvpFontFamily = timed
+                        readerTheme = design.theme,
+                        customTheme = design.custom,
+                        savedThemes = saved,
+                        readerFontFamily = design.readerFont,
+                        interfaceFontFamily = design.interfaceFont,
+                        rsvpFontFamily = design.timedFont
                     )
                 }, onBack = {})
             }
@@ -91,7 +92,7 @@ class ThemeSettingsDeviceTest {
         var applied = false
         rule.setContent {
             KairoTheme {
-                ThemeSettingsScreen(UserPreferences(), onApply = { _, _, _, _, _ -> applied = true }, onBack = { closed = true })
+                ThemeSettingsScreen(UserPreferences(), onApply = { _, _ -> applied = true }, onBack = { closed = true })
             }
         }
         node(R.string.theme_tab_colours).performClick()
@@ -120,7 +121,7 @@ class ThemeSettingsDeviceTest {
                             readerTheme = ReaderTheme.CUSTOM,
                             customTheme = CustomTheme(background = 0xFF172C29.toInt())
                         ),
-                        onApply = { _, _, _, _, _ -> },
+                        onApply = { _, _ -> },
                         onBack = {}
                     )
                 }
@@ -161,7 +162,7 @@ class ThemeSettingsDeviceTest {
 
     @Test
     fun draggingKeepsPreviewAndControlsAnchored() {
-        rule.setContent { KairoTheme { ThemeSettingsScreen(UserPreferences(), { _, _, _, _, _ -> }, {}) } }
+        rule.setContent { KairoTheme { ThemeSettingsScreen(UserPreferences(), { _, _ -> }, {}) } }
         node(R.string.theme_tab_colours).performClick()
         val before = rule.onNodeWithTag("theme-controls").getUnclippedBoundsInRoot()
         rule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress))[2]
@@ -175,11 +176,12 @@ class ThemeSettingsDeviceTest {
 
     @Test
     fun incompleteHexBlocksApplyAndResetResetsEditorAsWellAsPreview() {
-        rule.setContent { KairoTheme { ThemeSettingsScreen(UserPreferences(), { _, _, _, _, _ -> }, {}) } }
+        rule.setContent { KairoTheme { ThemeSettingsScreen(UserPreferences(), { _, _ -> }, {}) } }
         node(R.string.theme_tab_colours).performClick()
         node(R.string.theme_hex).performScrollTo().performTextReplacement("#12")
         node(R.string.theme_apply).assertIsNotEnabled()
-        node(R.string.theme_start_again).performClick()
+        rule.onNodeWithContentDescription(rule.activity.getString(R.string.theme_reset_options)).performClick()
+        node(R.string.theme_reset_colours).performClick()
         node(R.string.theme_hex).performScrollTo().assertTextContains("#F4EFE4")
         node(R.string.theme_apply).assertIsEnabled()
     }
@@ -193,7 +195,7 @@ class ThemeSettingsDeviceTest {
     fun landscapeKeepsPreviewBesideControls() {
         rule.activityRule.scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
         rule.waitUntil(5_000) { rule.activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
-        rule.setContent { KairoTheme { ThemeSettingsScreen(UserPreferences(), { _, _, _, _, _ -> }, {}) } }
+        rule.setContent { KairoTheme { ThemeSettingsScreen(UserPreferences(), { _, _ -> }, {}) } }
         node(R.string.theme_tab_colours).performClick()
         node(R.string.theme_hex).performScrollTo().assertIsDisplayed()
         val preview = rule.onNodeWithTag("theme-live-preview").getUnclippedBoundsInRoot()

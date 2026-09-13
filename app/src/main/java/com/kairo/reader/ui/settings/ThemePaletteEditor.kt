@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -63,7 +64,14 @@ internal fun CustomTheme.withRole(role: ThemeColorRole, value: Int?): CustomThem
 }
 
 @Composable
-internal fun ThemePaletteEditor(theme: CustomTheme, onValidityChange: (Boolean) -> Unit, onChange: (CustomTheme) -> Unit) {
+internal fun ThemePaletteEditor(
+    theme: CustomTheme,
+    onValidityChange: (Boolean) -> Unit,
+    onEditStart: () -> Unit = {},
+    onEditFinished: () -> Unit = {},
+    onChange: (CustomTheme) -> Unit,
+) {
+    val focus = LocalFocusManager.current
     var editing by rememberSaveable { mutableStateOf(ThemeColorRole.BACKGROUND) }
     val scheme = remember(theme) { theme.materialColorScheme() }
     val colors = listOf(scheme.background, scheme.surface, scheme.onBackground, scheme.primary, scheme.secondary, scheme.tertiary)
@@ -72,6 +80,8 @@ internal fun ThemePaletteEditor(theme: CustomTheme, onValidityChange: (Boolean) 
             val stateLabel = stringResource(if (theme.roleValue(role) == null) R.string.theme_auto else R.string.theme_pinned)
             Column(
                 Modifier.semantics { stateDescription = stateLabel }.selectable(editing == role, role = Role.RadioButton, onClick = {
+                    focus.clearFocus()
+                    onEditFinished()
                     editing =
                         role
                 }).padding(4.dp),
@@ -85,6 +95,7 @@ internal fun ThemePaletteEditor(theme: CustomTheme, onValidityChange: (Boolean) 
                     border = BorderStroke(if (editing == role) 3.dp else 1.dp, MaterialTheme.colorScheme.outline)
                 ) {}
                 Text(stringResource(role.labelRes), style = MaterialTheme.typography.labelMedium)
+                Text(stateLabel, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -94,6 +105,9 @@ internal fun ThemePaletteEditor(theme: CustomTheme, onValidityChange: (Boolean) 
             role = editing,
             initial = theme.roleValue(editing) ?: colors[editing.ordinal].toArgb(),
             automatic = automatic,
+            effective = colors[editing.ordinal].toArgb(),
+            onEditStart = onEditStart,
+            onEditFinished = onEditFinished,
             onValidityChange = onValidityChange,
             onChange = { onChange(theme.withRole(editing, it)) },
         )

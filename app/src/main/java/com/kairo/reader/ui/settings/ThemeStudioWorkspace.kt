@@ -18,6 +18,7 @@ import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -43,7 +44,7 @@ internal fun ThemeStudioWorkspace(
 ) {
     BoxWithConstraints(modifier) {
         val previewWidth = maxWidth * 0.4f
-        val previewHeight = minOf(maxHeight * 0.30f, 196.dp)
+        val previewHeight = minOf(maxHeight * 0.40f, 244.dp)
         if (maxWidth >= 640.dp) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(16.dp)) {
                 Column(Modifier.width(previewWidth).verticalScroll(rememberScrollState())) { preview() }
@@ -67,17 +68,23 @@ private fun ColumnScope.StudioControls(
     onSectionChange: (ThemeStudioSection) -> Unit,
     controls: @Composable ColumnScope.() -> Unit,
 ) {
-    val stateHolder = rememberSaveableStateHolder()
-    SecondaryScrollableTabRow(selectedTabIndex = section.ordinal, edgePadding = 12.dp, containerColor = MaterialTheme.colorScheme.surface) {
-        ThemeStudioSection.entries.forEach { item ->
-            Tab(selected = section == item, onClick = { onSectionChange(item) }, text = { Text(stringResource(item.titleRes)) })
+    key(revision) {
+        val stateHolder = rememberSaveableStateHolder()
+        SecondaryScrollableTabRow(
+            selectedTabIndex = section.ordinal,
+            edgePadding = 12.dp,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            ThemeStudioSection.entries.forEach { item ->
+                Tab(selected = section == item, onClick = { onSectionChange(item) }, text = { Text(stringResource(item.titleRes)) })
+            }
         }
-    }
-    stateHolder.SaveableStateProvider("${section.name}:$revision") {
-        Column(
-            Modifier.weight(1f).fillMaxWidth().testTag("theme-controls").verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            content = controls,
-        )
+        stateHolder.SaveableStateProvider(section.name) {
+            Column(
+                Modifier.weight(1f).fillMaxWidth().testTag("theme-controls").verticalScroll(rememberScrollState()).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                content = controls,
+            )
+        }
     }
 }

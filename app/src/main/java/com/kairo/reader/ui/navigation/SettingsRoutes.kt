@@ -79,14 +79,17 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
     }
 
     settingsSearchDestination(KairoRoutes.SETTINGS_THEME) {
-        val scope = rememberCoroutineScope()
         com.kairo.reader.ui.settings.ThemeSettingsScreen(
             preferences = dependencies.prefs,
-            onApply = { theme, custom, reader, interfaceFont, timed ->
-                scope.launch {
-                    dependencies.container.preferencesRepository.updateAppearance(custom, reader, interfaceFont, timed, theme)
-                    dependencies.navController.popBackStack()
-                }
+            onApply = { design, saved ->
+                dependencies.container.preferencesRepository.updateAppearance(
+                    design.custom,
+                    design.readerFont,
+                    design.interfaceFont,
+                    design.timedFont,
+                    design.theme,
+                    saved,
+                )
             },
             onBack = { dependencies.navController.popBackStack() },
         )
