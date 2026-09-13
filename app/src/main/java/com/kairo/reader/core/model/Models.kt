@@ -325,6 +325,7 @@ data class UserPreferences(
     val readerFontSizeSp: Float = 18f,
     val readerTheme: ReaderTheme = ReaderTheme.LIGHT,
     val customTheme: CustomTheme = CustomTheme(),
+    val savedThemes: List<SavedTheme> = emptyList(),
     val readerFontFamily: RsvpFontFamily = RsvpFontFamily.MERRIWEATHER,
     val interfaceFontFamily: RsvpFontFamily = RsvpFontFamily.SYSTEM_SANS,
     val readerTextBrightness: Float = 0.88f,

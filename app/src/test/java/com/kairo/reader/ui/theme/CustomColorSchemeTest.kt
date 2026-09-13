@@ -2,8 +2,10 @@ package com.kairo.reader.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import com.kairo.reader.core.model.ColorHarmony
 import com.kairo.reader.core.model.CustomTheme
+import com.kairo.reader.core.model.ReaderTheme
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -50,6 +52,24 @@ class CustomColorSchemeTest {
         assertTrue(first.secondary != second.secondary)
         assertTrue(first.tertiary != second.tertiary)
         assertEquals(theme, theme.copy(harmony = ColorHarmony.TRIADIC).copy(harmony = theme.harmony))
+    }
+
+    @Test
+    fun editingAPresetPinsItsColoursAndKeepsContrastWhenEdited() {
+        ReaderTheme.entries.filterNot { it == ReaderTheme.CUSTOM }.forEach { preset ->
+            val original = preset.materialColorScheme()
+            val copy = preset.copyAsCustom(CustomTheme())
+            assertEquals(original.background.toArgb(), copy.background)
+            assertEquals(original.surface.toArgb(), copy.surface)
+            assertEquals(original.onBackground.toArgb(), copy.text)
+            assertEquals(original.primary.toArgb(), copy.primary)
+            assertEquals(original.secondary.toArgb(), copy.secondary)
+            assertEquals(original.tertiary.toArgb(), copy.tertiary)
+            assertScheme(copy.materialColorScheme())
+            listOf(0xFF747474, 0xFF000000, 0xFFFFFFFF, 0xFFFF0000).forEach { background ->
+                assertScheme(copy.copy(background = background.toInt()).materialColorScheme())
+            }
+        }
     }
 
     private fun assertScheme(scheme: ColorScheme) {

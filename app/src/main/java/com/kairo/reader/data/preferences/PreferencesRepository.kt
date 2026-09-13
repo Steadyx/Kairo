@@ -40,6 +40,7 @@ interface PreferencesRepository {
         interfaceFont: RsvpFontFamily,
         timedFont: RsvpFontFamily,
         theme: com.kairo.reader.core.model.ReaderTheme,
+        savedThemes: List<com.kairo.reader.core.model.SavedTheme>? = null,
     )
 
     suspend fun updateInvertedScroll(enabled: Boolean)

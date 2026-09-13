@@ -74,6 +74,7 @@ internal class UserPreferencesMapper(
             readerFontSizeSp = prefs.readOrDefault(keys.readerFontSize, defaults.readerFontSizeSp),
             readerTheme = readerTheme,
             customTheme = com.kairo.reader.core.model.decodeCustomTheme(prefs[keys.customTheme]),
+            savedThemes = ThemeLibraryCodec.decode(prefs[keys.savedThemes]),
             readerFontFamily = RsvpFontFamily.entries.find { it.name == prefs[keys.readerFontFamily] } ?: defaults.readerFontFamily,
             interfaceFontFamily = RsvpFontFamily.entries.find {
                 it.name == prefs[keys.interfaceFontFamily]

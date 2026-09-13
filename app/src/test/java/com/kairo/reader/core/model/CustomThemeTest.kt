@@ -29,6 +29,15 @@ class CustomThemeTest {
     }
 
     @Test
+    fun legacyThemesMigrateAndCopiedPresetMetadataSurvives() {
+        val old = decodeCustomTheme("1|#001122|TONAL||#FFFFFF|#AABBCC||")
+        assertEquals(old, decodeCustomTheme(old.encode()))
+        val copy = old.copy(sourcePreset = ReaderTheme.EMBER)
+        assertEquals(copy, decodeCustomTheme(copy.encode()))
+        assertNull(decodeCustomTheme(copy.encode().replace("EMBER", "CUSTOM")).sourcePreset)
+    }
+
+    @Test
     fun hexInputAcceptsSixDigitsOnlyAndIsAlwaysOpaque() {
         assertEquals(0xFFAABBCC.toInt(), parseThemeColor(" #aabbcc "))
         assertEquals(0xFF000000.toInt(), parseThemeColor("000000"))

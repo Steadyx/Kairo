@@ -7,6 +7,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.kairo.reader.core.model.CustomTheme
 import com.kairo.reader.core.model.ReaderTheme
 import com.kairo.reader.core.model.RsvpFontFamily
+import com.kairo.reader.core.model.SavedTheme
+import com.kairo.reader.core.model.ThemeDesign
 import com.kairo.reader.core.model.encode
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -22,8 +24,10 @@ class ThemePreferencesDeviceTest {
     fun customThemeAndAllFontChoicesLoadFromStoredPreferences() {
         val theme = CustomTheme(background = 0xFF172C29.toInt(), primary = 0xFFEDC892.toInt())
         RsvpFontFamily.entries.forEach { font ->
+            val saved = listOf(SavedTheme("one", "Reading", ThemeDesign(custom = theme, readerFont = font)))
             val stored = mutablePreferencesOf(
                 PrefKeys.customTheme to theme.encode(),
+                PrefKeys.savedThemes to ThemeLibraryCodec.encode(saved),
                 PrefKeys.readerTheme to ReaderTheme.CUSTOM.name,
                 PrefKeys.readerFontFamily to font.name,
                 PrefKeys.interfaceFontFamily to font.name,
@@ -31,6 +35,7 @@ class ThemePreferencesDeviceTest {
             )
             val loaded = mapper.map(stored)
             assertEquals(theme, loaded.customTheme)
+            assertEquals(saved, loaded.savedThemes)
             assertEquals(ReaderTheme.CUSTOM, loaded.readerTheme)
             assertEquals(font, loaded.readerFontFamily)
             assertEquals(font, loaded.interfaceFontFamily)

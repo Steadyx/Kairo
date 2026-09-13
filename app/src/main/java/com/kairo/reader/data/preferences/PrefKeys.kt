@@ -78,6 +78,7 @@ internal object PrefKeys {
     val readerFontSize = floatPreferencesKey("reader_font_size")
     val readerTheme = stringPreferencesKey("reader_theme")
     val customTheme = stringPreferencesKey("custom_theme_v1")
+    val savedThemes = stringPreferencesKey("saved_themes")
     val readerFontFamily = stringPreferencesKey("reader_font_family")
     val interfaceFontFamily = stringPreferencesKey("interface_font_family")
     val readerTextBrightness = floatPreferencesKey("reader_text_brightness")

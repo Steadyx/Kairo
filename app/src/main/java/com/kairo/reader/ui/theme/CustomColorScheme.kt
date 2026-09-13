@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import com.kairo.reader.core.model.ColorHarmony
 import com.kairo.reader.core.model.CustomTheme
+import com.kairo.reader.core.model.ReaderTheme
 import kotlin.math.max
 import kotlin.math.min
 
@@ -39,13 +40,24 @@ private fun foreground(background: Color): Color =
 /** All surfaces stay on the same side of the text contrast boundary, even with a pinned surface. */
 @Suppress("LongMethod")
 internal fun CustomTheme.materialColorScheme(): ColorScheme {
+    val source = sourcePreset?.takeUnless { it == ReaderTheme.CUSTOM }?.materialColorScheme()
     val bg = Color(background).copy(alpha = 1f)
     val ink = foreground(bg)
     val dark = ink == Color.White
     val end = if (dark) Color.Black else Color.White
     val baseSurface = contrastingColor(surface?.let(::Color) ?: lerp(bg, end, 0.12f), listOf(ink))
-    val containers = listOf(0f, 0.12f, 0.24f, 0.36f, 0.48f).map { lerp(baseSurface, end, it) }
-    val surfaces = containers + bg
+    val containers = if (source != null && surface == source.surface.toArgb()) {
+        listOf(
+            source.surfaceContainerLowest,
+            source.surfaceContainerLow,
+            source.surfaceContainer,
+            source.surfaceContainerHigh,
+            source.surfaceContainerHighest
+        ).map { contrastingColor(it, listOf(ink)) }
+    } else {
+        listOf(0f, 0.12f, 0.24f, 0.36f, 0.48f).map { lerp(baseSurface, end, it) }
+    }
+    val surfaces = containers + bg + baseSurface
     val onSurface = contrastingColor(text?.let(::Color) ?: ink, surfaces)
     val hue = backgroundHue(bg)
     val offsets = when (harmony) {
@@ -58,9 +70,9 @@ internal fun CustomTheme.materialColorScheme(): ColorScheme {
         val seed = override?.let(::Color) ?: Color.hsl((hue + offsets[index]) % 360f, 0.48f - index * 0.08f, 0.5f)
         contrastingColor(seed, surfaces)
     }
-    val primaryContainer = lerp(bg, accents[0], 0.18f)
-    val secondaryContainer = lerp(bg, accents[1], 0.14f)
-    val tertiaryContainer = lerp(bg, accents[2], 0.14f)
+    val primaryContainer = source?.primaryContainer ?: lerp(bg, accents[0], 0.18f)
+    val secondaryContainer = source?.secondaryContainer ?: lerp(bg, accents[1], 0.14f)
+    val tertiaryContainer = source?.tertiaryContainer ?: lerp(bg, accents[2], 0.14f)
     val error = contrastingColor(Color(0xFFBA1A1A), surfaces)
     val errorContainer = lerp(bg, error, 0.14f)
     val inverse = if (dark) Color(0xFFF1EEE8) else Color(0xFF262521)
@@ -68,7 +80,12 @@ internal fun CustomTheme.materialColorScheme(): ColorScheme {
     return scheme.copy(
         background = bg, onBackground = onSurface,
         surface = baseSurface, onSurface = onSurface,
-        surfaceVariant = containers[2], onSurfaceVariant = onSurface,
+        surfaceVariant = if (source != null) containers[4] else containers[2],
+        onSurfaceVariant = if (source != null && text == source.onBackground.toArgb()) {
+            contrastingColor(source.onSurfaceVariant, surfaces)
+        } else {
+            onSurface
+        },
         surfaceContainerLowest = containers[0], surfaceContainerLow = containers[1],
         surfaceContainer = containers[2], surfaceContainerHigh = containers[3], surfaceContainerHighest = containers[4],
         surfaceBright = if (dark) baseSurface else containers[4], surfaceDim = if (dark) containers[4] else baseSurface,

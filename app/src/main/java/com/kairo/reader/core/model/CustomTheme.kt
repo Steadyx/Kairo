@@ -11,6 +11,7 @@ data class CustomTheme(
     val primary: Int? = null,
     val secondary: Int? = null,
     val tertiary: Int? = null,
+    val sourcePreset: ReaderTheme? = null,
 )
 
 enum class ColorHarmony { TONAL, ANALOGOUS, COMPLEMENTARY, TRIADIC }
@@ -23,12 +24,18 @@ fun themeColorHex(value: Int): String = "#" + (value.toLong() and 0xFFFFFF).toSt
 
 /** Versioned, delimiter-safe encoding shared by persistence and the saveable editor draft. */
 fun CustomTheme.encode(): String =
-    listOf("1", themeColorHex(background), harmony.name, surface, text, primary, secondary, tertiary)
+    listOf("2", themeColorHex(background), harmony.name, surface, text, primary, secondary, tertiary, sourcePreset?.name)
         .joinToString("|") { if (it is Int) themeColorHex(it) else it?.toString().orEmpty() }
 
 fun decodeCustomTheme(value: String?): CustomTheme {
     val parts = value?.split('|') ?: return CustomTheme()
-    if (parts.size != THEME_FIELD_COUNT || parts[0] != "1") return CustomTheme()
+    if (!(
+            (parts.size == LEGACY_THEME_FIELD_COUNT && parts[0] == "1") ||
+                (parts.size == THEME_FIELD_COUNT && parts[0] == "2")
+            )
+    ) {
+        return CustomTheme()
+    }
     val defaults = CustomTheme()
     return CustomTheme(
         background = parseThemeColor(parts[1]) ?: defaults.background,
@@ -38,7 +45,9 @@ fun decodeCustomTheme(value: String?): CustomTheme {
         primary = parseThemeColor(parts[5]),
         secondary = parseThemeColor(parts[6]),
         tertiary = parseThemeColor(parts[7]),
+        sourcePreset = ReaderTheme.entries.find { it != ReaderTheme.CUSTOM && it.name == parts.getOrNull(8) },
     )
 }
 
-private const val THEME_FIELD_COUNT = 8
+private const val THEME_FIELD_COUNT = 9
+private const val LEGACY_THEME_FIELD_COUNT = 8

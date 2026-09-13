@@ -306,9 +306,11 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         interfaceFont: RsvpFontFamily,
         timedFont: RsvpFontFamily,
         theme: ReaderTheme,
+        savedThemes: List<com.kairo.reader.core.model.SavedTheme>?,
     ) {
         context.dataStore.edit { prefs ->
             prefs[keys.customTheme] = customTheme.encode()
+            if (savedThemes != null) prefs[keys.savedThemes] = ThemeLibraryCodec.encode(savedThemes)
             prefs[keys.readerFontFamily] = readerFont.name
             prefs[keys.interfaceFontFamily] = interfaceFont.name
             prefs[keys.rsvpFontFamily] = timedFont.name
