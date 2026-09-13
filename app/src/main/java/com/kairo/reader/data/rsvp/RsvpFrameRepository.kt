@@ -10,9 +10,19 @@ data class RsvpFrameSet(
     val frames: List<RsvpFrame>,
     val baseTempoMs: Long,
     val frameIndexMap: RsvpFrameIndexMap = RsvpFrameIndexMap.from(frames),
+    val initialRampStartFrameIndex: Int = 0,
 )
 
 interface RsvpFrameRepository {
+    /** Full chapter navigation; startIndex selects the initial playback position, not its bounds. */
+    suspend fun getSeekableFrames(
+        bookId: BookId,
+        chapterIndex: Int,
+        config: RsvpConfig,
+        startIndex: Int = 0,
+        options: RsvpGenerationOptions = RsvpGenerationOptions.DEFAULT,
+    ): RsvpFrameSet = getFrames(bookId, chapterIndex, config, startIndex = 0, options = options)
+
     suspend fun getFrames(
         bookId: BookId,
         chapterIndex: Int,

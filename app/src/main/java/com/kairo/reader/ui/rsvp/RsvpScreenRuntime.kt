@@ -19,6 +19,7 @@ internal data class RsvpFrameLoadState(
     val isComplete: Boolean = true,
     val loadFailed: Boolean = false,
     val frameIndexMap: RsvpFrameIndexMap = RsvpFrameIndexMap.from(frames),
+    val initialRampStartFrameIndex: Int = 0,
 )
 
 internal data class RsvpTimingInfo(val minTempoMs: Long, val maxTempoMs: Long, val tempoScale: Double,)

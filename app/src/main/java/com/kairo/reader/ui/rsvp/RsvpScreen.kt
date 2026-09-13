@@ -448,7 +448,7 @@ private fun rememberFrameLoadState(
 
         val computed =
             runCatching {
-                frameRepository.getFrames(
+                frameRepository.getSeekableFrames(
                     book.bookId,
                     book.chapterIndex,
                     profile.config,
@@ -492,6 +492,7 @@ private fun rememberFrameLoadState(
         isComplete = isComplete,
         loadFailed = frameLoadFailed,
         frameIndexMap = frameIndexMap,
+        initialRampStartFrameIndex = activeFrameSet?.initialRampStartFrameIndex ?: 0,
     )
 }
 

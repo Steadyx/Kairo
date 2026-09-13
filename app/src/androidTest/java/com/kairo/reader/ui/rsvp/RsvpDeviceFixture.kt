@@ -39,6 +39,8 @@ internal class RsvpDeviceFixture(tokens: List<Token>, config: RsvpConfig, startI
 
     @Volatile var saved: RsvpResumePoint? = null
 
+    @Volatile var position: RsvpResumePoint? = null
+
     @Volatile var finished = false
     val loads = AtomicInteger()
     private val repository = RsvpFrameRepositoryImpl(
@@ -50,20 +52,22 @@ internal class RsvpDeviceFixture(tokens: List<Token>, config: RsvpConfig, startI
     )
     val dependencies = RsvpScreenDependencies(
         object : RsvpFrameRepository by repository {
-            override suspend fun getFrames(
+            override suspend fun getSeekableFrames(
                 bookId: BookId,
                 chapterIndex: Int,
                 config: RsvpConfig,
                 startIndex: Int,
                 options: RsvpGenerationOptions,
-            ): RsvpFrameSet = repository.getFrames(bookId, chapterIndex, config, startIndex, options).also { loads.incrementAndGet() }
+            ): RsvpFrameSet = repository.getSeekableFrames(bookId, chapterIndex, config, startIndex, options).also {
+                loads.incrementAndGet()
+            }
         },
     )
     val callbacks = RsvpScreenCallbacks(
         bookmarks = RsvpBookmarkCallbacks({ _, _ -> }, {}),
         playback = RsvpPlaybackCallbacks(
             onFinished = { finished = true },
-            onPositionChanged = {},
+            onPositionChanged = { position = it },
             onTempoChange = {},
             onExit = { saved = it },
             onFrameConsumed = {

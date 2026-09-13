@@ -18,8 +18,9 @@ import kotlin.math.roundToLong
 internal fun applyPlaybackEffects(
     frames: MutableList<RsvpFrame>,
     config: RsvpConfig,
+    startFrameIndex: Int = 0,
 ) {
-    RsvpSessionTimingPolicy.applyInitialSessionRamps(frames = frames, config = config)
+    RsvpSessionTimingPolicy.applyInitialSessionRamps(frames = frames, config = config, startFrameIndex = startFrameIndex)
     applyBlinkSeparation(frames, config)
 }
 

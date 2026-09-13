@@ -108,6 +108,7 @@ private fun RsvpDefaultBottomControls(
     controlsModifier: Modifier,
 ) {
     val runtime = context.runtime
+    val progress = rememberRsvpProgress(context)
     val previewContent = rememberPausedPreviewContent(context, compact = false)
     Column(
         modifier =
@@ -153,8 +154,8 @@ private fun RsvpDefaultBottomControls(
             progressText =
             stringResource(
                 R.string.rsvp_frame_progress,
-                runtime.frameIndex + 1,
-                context.frameState.frames.size,
+                progress.currentWord,
+                progress.totalWords,
             ),
             speedText = speedText,
         )
@@ -176,6 +177,7 @@ private fun RsvpCompactBottomControls(
     controlsModifier: Modifier,
 ) {
     val runtime = context.runtime
+    val progress = rememberRsvpProgress(context)
     val previewContent = rememberPausedPreviewContent(context, compact = true)
     Column(
         modifier =
@@ -230,8 +232,8 @@ private fun RsvpCompactBottomControls(
                     progressText =
                     stringResource(
                         R.string.rsvp_frame_progress,
-                        runtime.frameIndex + 1,
-                        context.frameState.frames.size,
+                        progress.currentWord,
+                        progress.totalWords,
                     ),
                     speedText = speedText,
                     compact = true,
@@ -537,9 +539,7 @@ private fun RsvpPlaybackInfoPill(
 
 @Composable
 private fun RsvpControlsProgress(context: RsvpUiContext) {
-    val runtime = context.runtime
-    val frames = context.frameState.frames
-    val progress = (runtime.frameIndex + 1).toFloat() / frames.size.coerceAtLeast(1).toFloat()
+    val progress = rememberRsvpProgress(context).fraction
 
     LinearProgressIndicator(
         progress = { progress },

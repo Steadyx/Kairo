@@ -6,6 +6,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -18,11 +21,13 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalFoundationApi::class)
+@Composable
 internal fun Modifier.rsvpGestureModifier(
     context: RsvpUiContext,
     interactionSource: MutableInteractionSource,
 ): Modifier {
     val runtime = context.runtime
+    val latestContext by rememberUpdatedState(context)
     val dragEnabled =
         shouldHandleGlobalRsvpDrag(
             showQuickSettings = runtime.showQuickSettings,
@@ -31,18 +36,19 @@ internal fun Modifier.rsvpGestureModifier(
     val dragModifier =
         if (dragEnabled) {
             pointerInput(
+                runtime,
                 context.state.profile.config.tempoMsPerWord,
                 runtime.isPositioningMode,
                 runtime.showQuickSettings,
             ) {
                 detectDragGestures(
-                    onDragStart = { handleDragStart(context) },
-                    onDragEnd = { handleDragEnd(context) },
+                    onDragStart = { handleDragStart(latestContext) },
+                    onDragEnd = { handleDragEnd(latestContext) },
                     // A cancelled drag must release scrub/tempo state like a normal end,
                     // otherwise playback stays paused with isScrubbing stuck on.
-                    onDragCancel = { handleDragEnd(context) },
+                    onDragCancel = { handleDragEnd(latestContext) },
                     onDrag = { change, dragAmount ->
-                        handleDrag(context, dragAmount)
+                        handleDrag(latestContext, dragAmount)
                         change.consume()
                     },
                 )
