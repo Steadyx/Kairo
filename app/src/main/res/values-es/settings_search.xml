@@ -8,9 +8,6 @@
     <string name="settings_search_font_size_description">Tamaño del texto que se muestra al leer.</string>
     <string name="settings_search_theme_description">Elige los colores y un tema de lectura claro u oscuro.</string>
     <string name="settings_search_long_threshold_description">Longitud de palabra a partir de la cual se aplica el tiempo mínimo para palabras largas.</string>
-    <string name="settings_search_syllables_description">Tiempo de lectura adicional para palabras con más sílabas.</string>
-    <string name="settings_search_rarity_description">Tiempo de lectura adicional para palabras menos frecuentes.</string>
-    <string name="settings_search_complexity_description">Ajusta cuánto influye la dificultad de las palabras en el tiempo de lectura.</string>
     <string name="settings_search_parentheticals_description">Ajusta el ritmo del texto entre paréntesis.</string>
     <string name="settings_search_dialogue_description">Ajusta la velocidad de lectura de los diálogos.</string>
     <string name="settings_search_vertical_description">Mueve el texto RSVP hacia arriba o abajo en la pantalla.</string>

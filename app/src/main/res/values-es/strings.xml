@@ -128,9 +128,8 @@
     <string name="rsvp_long_word_min_subtitle">Tiempo extra para palabras largas o técnicas.</string>
     <string name="rsvp_sentence_end_pause_title">Pausa al final de frase</string>
     <string name="rsvp_sentence_end_pause_subtitle">Respiro en los límites de las oraciones.</string>
-    <string name="rsvp_adaptive_pacing_title">Ritmo adaptativo</string>
-    <string name="rsvp_adaptive_pacing_subtitle">Añade retención extra en palabras y cláusulas difíciles.</string>
-    <string name="rsvp_adaptive_pacing_summary">Dificultad +%1$d ms | Complejidad +%2$d ms | Umbral %3$s</string>
+    <string name="rsvp_adaptive_pacing_title">Ritmo automático</string>
+    <string name="rsvp_adaptive_pacing_subtitle">Ajusta las transiciones y los finales de oración. El apoyo a la lectura funciona de forma independiente.</string>
     <string name="rsvp_display_title">Visualización</string>
     <string name="rsvp_display_subtitle">Solo afecta a la pantalla de lectura rápida.</string>
     <string name="rsvp_speed_limits_title">Límites de velocidad</string>
@@ -139,16 +138,11 @@
     <string name="rsvp_unlock_extreme_speeds_title">Desbloquear velocidades extremas</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle">Permite hasta %1$d ms (puede ser ilegible).</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle_long">Permite velocidades muy altas (pueden volverse ilegibles rápidamente).</string>
-    <string name="rsvp_readability_floors_title">Umbrales de legibilidad</string>
+    <string name="rsvp_readability_floors_title">Tiempos mínimos de visualización</string>
     <string name="rsvp_readability_floors_summary">Umbral %1$d caracteres | División +%2$d ms</string>
     <string name="rsvp_long_word_threshold_title">Umbral de palabra larga</string>
     <string name="rsvp_split_word_pause_title">Pausa entre fragmentos</string>
     <string name="rsvp_split_word_pause_subtitle">Tiempo extra entre fragmentos de palabras largas.</string>
-    <string name="rsvp_difficulty_model_title">Modelo de dificultad</string>
-    <string name="rsvp_difficulty_model_summary">Sílabas +%1$d ms | Rareza +%2$d ms | Intensidad %3$s</string>
-    <string name="rsvp_syllable_boost_title">Impulso por sílabas</string>
-    <string name="rsvp_rarity_boost_title">Impulso por rareza</string>
-    <string name="rsvp_complexity_strength_title">Intensidad de complejidad</string>
     <string name="rsvp_punctuation_pauses_title">Pausas de puntuación</string>
     <string name="rsvp_punctuation_pauses_summary">Respiración %1$s | Coma %2$d ms | Punto %3$d ms | Párrafo %4$d ms | Página %5$s</string>
     <string name="rsvp_punctuation_comma">Coma</string>
@@ -170,12 +164,6 @@
     <string name="rsvp_context_shaping_summary">Paréntesis %1$s | Diálogo %2$s</string>
     <string name="rsvp_parentheticals_title">Paréntesis</string>
     <string name="rsvp_dialogue_pace_title">Ritmo de diálogo</string>
-    <string name="rsvp_difficulty_boost_title">Impulso de dificultad</string>
-    <string name="rsvp_difficulty_boost_subtitle">Máxima retención extra para palabras difíciles.</string>
-    <string name="rsvp_complex_word_boost_title">Impulso de palabras complejas</string>
-    <string name="rsvp_complex_word_boost_subtitle">Retención extra para palabras sobre el umbral de complejidad.</string>
-    <string name="rsvp_complex_word_threshold_title">Umbral de palabra compleja</string>
-    <string name="rsvp_complex_word_threshold_subtitle">Más bajo = más palabras consideradas complejas.</string>
     <string name="rsvp_rhythm_title">Ritmo</string>
     <string name="rsvp_rhythm_summary">Estabilidad %1$s | Cláusula %2$s | Separación %3$s</string>
     <string name="rsvp_stability_title">Estabilidad</string>
@@ -647,4 +635,8 @@
     <string name="rsvp_context_assist_ticker_description">Muestra palabras anteriores y siguientes entre cláusulas y oraciones en la línea de lectura. Se reinicia al comenzar un párrafo.</string>
     <string name="rsvp_context_assist_clause_description">Muestra palabras alrededor de la actual dentro de la cláusula si hay espacio, sin mover la palabra principal. Pausa para revisar la cláusula.</string>
     <string name="rsvp_context_assist_off_description">Muestra solo el texto principal de lectura.</string>
+    <string name="rsvp_difficult_word_support_title">Apoyo a la lectura</string>
+    <string name="rsvp_difficult_word_support_subtitle">Más tiempo para palabras difíciles y frases densas.</string>
+    <string name="rsvp_reading_support_off">Desactivado</string>
+    <string name="rsvp_reading_support_strong">Intenso</string>
 </resources>

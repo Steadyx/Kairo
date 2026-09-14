@@ -128,9 +128,8 @@
     <string name="rsvp_long_word_min_subtitle">Temps supplémentaire pour les mots longs ou techniques.</string>
     <string name="rsvp_sentence_end_pause_title">Pause en fin de phrase</string>
     <string name="rsvp_sentence_end_pause_subtitle">Respiration aux limites de phrase.</string>
-    <string name="rsvp_adaptive_pacing_title">Rythme adaptatif</string>
-    <string name="rsvp_adaptive_pacing_subtitle">Ajoute du temps aux mots et propositions difficiles.</string>
-    <string name="rsvp_adaptive_pacing_summary">Difficulté +%1$d ms | Complexité +%2$d ms | Seuil %3$s</string>
+    <string name="rsvp_adaptive_pacing_title">Rythme automatique</string>
+    <string name="rsvp_adaptive_pacing_subtitle">Ajuste les transitions et les fins de phrase. L’aide à la lecture fonctionne indépendamment.</string>
     <string name="rsvp_display_title">Affichage</string>
     <string name="rsvp_display_subtitle">Affecte uniquement l\'écran de lecture rapide.</string>
     <string name="rsvp_speed_limits_title">Limites de vitesse</string>
@@ -139,16 +138,11 @@
     <string name="rsvp_unlock_extreme_speeds_title">Déverrouiller les vitesses extrêmes</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle">Autorise jusqu\'à %1$d ms (peut devenir illisible).</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle_long">Autorise des vitesses très élevées (peut devenir rapidement illisible).</string>
-    <string name="rsvp_readability_floors_title">Planchers de lisibilité</string>
+    <string name="rsvp_readability_floors_title">Durées minimales d’affichage</string>
     <string name="rsvp_readability_floors_summary">Seuil %1$d caractères | Découpage +%2$d ms</string>
     <string name="rsvp_long_word_threshold_title">Seuil de mot long</string>
     <string name="rsvp_split_word_pause_title">Pause entre segments</string>
     <string name="rsvp_split_word_pause_subtitle">Temps supplémentaire entre segments de mots longs.</string>
-    <string name="rsvp_difficulty_model_title">Modèle de difficulté</string>
-    <string name="rsvp_difficulty_model_summary">Syllabes +%1$d ms | Rareté +%2$d ms | Force %3$s</string>
-    <string name="rsvp_syllable_boost_title">Boost syllabique</string>
-    <string name="rsvp_rarity_boost_title">Boost de rareté</string>
-    <string name="rsvp_complexity_strength_title">Force de complexité</string>
     <string name="rsvp_punctuation_pauses_title">Pauses de ponctuation</string>
     <string name="rsvp_punctuation_pauses_summary">Respiration %1$s | Virgule %2$d ms | Point %3$d ms | Paragraphe %4$d ms | Page %5$s</string>
     <string name="rsvp_punctuation_comma">Virgule</string>
@@ -170,12 +164,6 @@
     <string name="rsvp_context_shaping_summary">Parenthèses %1$s | Dialogue %2$s</string>
     <string name="rsvp_parentheticals_title">Parenthèses</string>
     <string name="rsvp_dialogue_pace_title">Rythme de dialogue</string>
-    <string name="rsvp_difficulty_boost_title">Boost de difficulté</string>
-    <string name="rsvp_difficulty_boost_subtitle">Temps supplémentaire max pour les mots difficiles.</string>
-    <string name="rsvp_complex_word_boost_title">Boost de mots complexes</string>
-    <string name="rsvp_complex_word_boost_subtitle">Temps supplémentaire pour les mots au-dessus du seuil de complexité.</string>
-    <string name="rsvp_complex_word_threshold_title">Seuil de mot complexe</string>
-    <string name="rsvp_complex_word_threshold_subtitle">Plus bas = plus de mots considérés complexes.</string>
     <string name="rsvp_rhythm_title">Rythme</string>
     <string name="rsvp_rhythm_summary">Stabilité %1$s | Proposition %2$s | Séparation %3$s</string>
     <string name="rsvp_stability_title">Stabilité</string>
@@ -647,4 +635,8 @@
     <string name="rsvp_context_assist_ticker_description">Affiche les mots précédents et suivants sur la ligne de lecture, au-delà des propositions et des phrases. Repart à zéro à chaque paragraphe.</string>
     <string name="rsvp_context_assist_clause_description">Affiche les mots autour du mot actuel dans la proposition selon la place disponible, sans déplacer le mot principal. Faites une pause pour revoir la proposition.</string>
     <string name="rsvp_context_assist_off_description">Affiche uniquement le texte principal.</string>
+    <string name="rsvp_difficult_word_support_title">Aide à la lecture</string>
+    <string name="rsvp_difficult_word_support_subtitle">Plus de temps pour les mots difficiles et les phrases denses.</string>
+    <string name="rsvp_reading_support_off">Désactivée</string>
+    <string name="rsvp_reading_support_strong">Forte</string>
 </resources>

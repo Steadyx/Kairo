@@ -2,6 +2,9 @@ package com.kairo.reader.ui.settings
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasAnyAncestor
@@ -9,11 +12,15 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kairo.reader.R
 import com.kairo.reader.TestActivity
+import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.ui.theme.KairoFocusedReadingTheme
 import com.kairo.reader.ui.theme.KairoTheme
@@ -97,12 +104,48 @@ class RsvpSettingsParityTest {
         composeRule.onNode(isDialog()).assertDoesNotExist()
     }
 
+    @Test
+    fun readingSupportCommitsWithOnlyTwoEssentialSlidersAndFloorsRemainAdvanced() {
+        val prefs = mutableStateOf(UserPreferences())
+        composeRule.setContent {
+            KairoTheme {
+                SettingsFixture(
+                    prefs.value,
+                    onConfigChange = { update -> prefs.value = prefs.value.copy(rsvpConfig = update(prefs.value.rsvpConfig)) },
+                    onBack = {},
+                )
+            }
+        }
+        val resources = composeRule.activity.resources
+        val sliders = SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)
+        // The essential sliders are speed and reading support.
+        composeRule.onAllNodes(sliders).assertCountEquals(2)
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_difficult_word_support_title)).performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodes(sliders)[1].performSemanticsAction(SemanticsActions.SetProgress) { it(150f) }
+        composeRule.runOnIdle { assertEquals(1.5, prefs.value.rsvpConfig.difficultWordSupport, 0.0) }
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_adaptive_pacing_title)).assertDoesNotExist()
+        val screenshot = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        val directory = requireNotNull(composeRule.activity.getExternalFilesDir("ui-review"))
+        java.io.File(directory, "rsvp-comprehension-controls.png").outputStream().use {
+            screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_difficult_word_support_title)).assertExists()
+        composeRule.onNodeWithText(resources.getString(R.string.settings_advanced_title)).performScrollTo().performClick()
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_readability_floors_title)).performScrollTo().performClick()
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_min_word_time_title)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_long_word_min_title)).performScrollTo().assertIsDisplayed()
+    }
+
     @androidx.compose.runtime.Composable
-    private fun SettingsFixture(prefs: UserPreferences, onBack: () -> Unit) {
+    private fun SettingsFixture(
+        prefs: UserPreferences,
+        onConfigChange: ((RsvpConfig) -> RsvpConfig) -> Unit = {},
+        onBack: () -> Unit,
+    ) {
         RsvpSettingsScreen(
             preferences = prefs,
             onSelectRsvpProfile = {}, onSaveRsvpProfile = { _, _ -> }, onDeleteRsvpProfile = {},
-            onRsvpTempoMsPerWordChange = {}, onRsvpConfigChange = {}, onUnlockExtremeSpeedChange = {},
+            onRsvpTempoMsPerWordChange = {}, onRsvpConfigChange = onConfigChange, onUnlockExtremeSpeedChange = {},
             onRsvpFontSizeChange = {}, onRsvpTextBrightnessChange = {}, onRsvpFontWeightChange = {},
             onRsvpFontFamilyChange = {}, onRsvpVerticalBiasChange = {}, onRsvpHorizontalBiasChange = {},
             onBack = onBack,
