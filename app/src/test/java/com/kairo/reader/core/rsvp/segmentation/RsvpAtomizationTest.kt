@@ -181,7 +181,7 @@ class RsvpAtomizationTest {
 
     @Test
     fun disabledParentheticalAnalysisCannotInfluenceScoredGrouping() {
-        val tokens = listOf(punctuation("("), word("zog"), word("mif"), punctuation(")"))
+        val tokens = listOf(punctuation("("), word("red"), word("hat"), punctuation(")"))
         val baseConfig =
             RsvpConfig(
                 enablePhraseChunking = true,
@@ -205,7 +205,8 @@ class RsvpAtomizationTest {
 
         assertEquals(2, enabled.selectedWordCount)
         assertTrue(enabled.components.any { it.reason == RsvpSegmentationReason.PARENTHETICAL_COHESION })
-        assertEquals(1, disabled.selectedWordCount)
+        // Familiar words can still group; disabling the aside must remove its affinity.
+        assertTrue(enabled.pathScore > disabled.pathScore)
         assertTrue(disabled.components.none { it.reason == RsvpSegmentationReason.PARENTHETICAL_COHESION })
     }
 

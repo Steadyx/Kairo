@@ -442,7 +442,7 @@ class ComprehensionRsvpEngineTest {
     }
 
     @Test
-    fun adaptiveHoldAddsTimeForDifficultWords() {
+    fun readingSupportAddsTimeForDifficultWords() {
         val baseConfig =
             RsvpConfig(
                 tempoMsPerWord = 115L,
@@ -476,7 +476,7 @@ class ComprehensionRsvpEngineTest {
             engine.generateFrames(
                 tokens = tokens,
                 startIndex = 0,
-                config = baseConfig.copy(useAdaptiveTiming = false),
+                config = baseConfig.copy(difficultWordSupport = 0.0),
             )
 
         assertTrue(adaptive[0].durationMs > baseline[0].durationMs)

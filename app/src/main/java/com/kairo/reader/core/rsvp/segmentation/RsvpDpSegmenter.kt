@@ -139,7 +139,7 @@ internal object RsvpDpSegmenter {
         val visibleCharacters = visibleCodePointCount(token.text)
         val difficulty =
             if (languagePolicy == RsvpLanguagePolicy.ENGLISH) {
-                ((1.0 - wordEase(token)) * RsvpSegmentationWeightsV2.FIXED_POINT_SCALE)
+                ((1.0 - wordEase(token, languagePolicy)) * RsvpSegmentationWeightsV2.FIXED_POINT_SCALE)
                     .roundToInt()
                     .coerceIn(0, RsvpSegmentationWeightsV2.FIXED_POINT_SCALE)
             } else {

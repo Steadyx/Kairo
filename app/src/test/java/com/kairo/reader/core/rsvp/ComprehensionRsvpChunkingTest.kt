@@ -22,6 +22,7 @@ class ComprehensionRsvpChunkingTest : ComprehensionRsvpTestBase() {
     fun hyphenatedWordsAddMicroPauseBetweenParts() {
         val config =
             stableConfig.copy(
+                difficultWordSupport = 0.0,
                 rarityExtraMaxMs = 0L,
                 syllableExtraMs = 0L,
                 complexityStrength = 0.0,

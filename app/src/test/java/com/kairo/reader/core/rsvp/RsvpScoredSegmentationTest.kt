@@ -52,13 +52,13 @@ class RsvpScoredSegmentationTest {
             listOf(
                 word("in"),
                 word("the"),
-                word("puzzle", frequency = 0.0, complexity = 1.8, syllables = 3),
+                word("xqtrpz"),
             )
 
         val scored = engine.generateFrames(tokens, 0, stableConfig, scoredOptions)
 
         assertEquals(listOf("in", "the"), scored.first().words())
-        assertEquals(listOf("puzzle"), scored[1].words())
+        assertEquals(listOf("xqtrpz"), scored[1].words())
     }
 
     @Test
@@ -67,7 +67,7 @@ class RsvpScoredSegmentationTest {
             listOf(
                 word("in"),
                 word("the"),
-                word("puzzle", frequency = 0.0, complexity = 1.8, syllables = 3),
+                word("xqtrpz"),
                 word("on"),
                 word("the"),
                 word("table"),
@@ -76,7 +76,7 @@ class RsvpScoredSegmentationTest {
         val frames = engine.generateFrames(tokens, 0, stableConfig, scoredOptions)
 
         assertEquals(
-            listOf(listOf("in", "the"), listOf("puzzle"), listOf("on", "the", "table")),
+            listOf(listOf("in", "the"), listOf("xqtrpz"), listOf("on", "the", "table")),
             frames.map { frame -> frame.words() },
         )
     }
@@ -116,12 +116,12 @@ class RsvpScoredSegmentationTest {
 
     @Test
     fun persistedWidthsAboveThreeRetainDifficultyAwareScoring() {
-        val tokens = listOf(word("in"), word("the"), word("puzzle", frequency = 0.0, complexity = 1.8, syllables = 3))
+        val tokens = listOf(word("in"), word("the"), word("xqtrpz"))
         listOf(4, 6, Int.MAX_VALUE).forEach { width ->
             val config = stableConfig.copy(maxWordsPerUnit = width, maxCharsPerUnit = 40)
             val frames = engine.generateFrames(tokens, 0, config, scoredOptions)
             assertEquals(listOf("in", "the"), frames.first().words())
-            assertEquals(listOf("puzzle"), frames[1].words())
+            assertEquals(listOf("xqtrpz"), frames[1].words())
         }
     }
 
@@ -131,7 +131,7 @@ class RsvpScoredSegmentationTest {
             listOf(
                 word("in"),
                 word("the"),
-                word("puzzle", frequency = 0.0, complexity = 1.8, syllables = 3),
+                word("xqtrpz"),
                 word("on"),
                 word("the"),
                 word("table"),

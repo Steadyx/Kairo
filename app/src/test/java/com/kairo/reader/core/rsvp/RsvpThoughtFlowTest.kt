@@ -55,8 +55,34 @@ class RsvpThoughtFlowTest : ComprehensionRsvpTestBase() {
         val cues = plan(dense)
         assertTrue(cues.getValue(11).integrationHoldMs > 0.0)
         assertEquals(1, cues.values.count { it.integrationHoldMs > 0.0 })
-        assertTrue(cues.values.sumOf { it.integrationHoldMs } <= stableConfig.adaptiveDifficultyMaxHoldMs)
-        assertEquals(0.0, plan(dense, stableConfig.copy(useAdaptiveTiming = false)).values.sumOf { it.integrationHoldMs }, 0.0)
+        assertTrue(cues.values.sumOf { it.integrationHoldMs } <= 70.0 * stableConfig.difficultWordSupport)
+        assertEquals(0.0, plan(dense, stableConfig.copy(difficultWordSupport = 0.0)).values.sumOf { it.integrationHoldMs }, 0.0)
+    }
+
+    @Test
+    fun densePhrasesReceiveSomeProcessingTimeBeforeTheirLandingWithinOneBudget() {
+        val tokens = List(8) { w("concept$it").copy(frequencyScore = 0.1, complexityMultiplier = 1.8) }
+        val config = stableConfig.copy(phraseBreathingRoomMs = 120L)
+        val cues = plan(tokens, config).values.toList()
+        assertTrue(cues.dropLast(1).all { it.processingHoldMs > 0.0 })
+        assertTrue(cues.last().integrationHoldMs > cues.sumOf { it.processingHoldMs })
+        assertEquals(70.0, cues.sumOf { it.processingHoldMs + it.integrationHoldMs }, 0.001)
+        val disabled = plan(tokens, config.copy(difficultWordSupport = 0.0)).values
+        assertTrue(disabled.all { it.processingHoldMs == 0.0 && it.integrationHoldMs == 0.0 })
+        val adaptiveOff = plan(tokens, config.copy(useAdaptiveTiming = false)).values
+        assertEquals(cues, adaptiveOff.toList())
+    }
+
+    @Test
+    fun splittingAWordDoesNotMultiplyItsPhraseProcessingAllowance() {
+        val tokens = List(8) { w("concept$it").copy(frequencyScore = 0.1, complexityMultiplier = 1.8) }
+        val original = tokens.mapIndexed { index, token -> ExpandedToken(token, index, index, 0, token.text.length) }
+        val split = original.flatMap { entry ->
+            listOf(entry.copy(token = entry.token.copy(isSubwordChunk = true)), entry.copy(token = entry.token.copy(isSubwordChunk = true)))
+        }.mapIndexed { index, entry -> entry.copy(expandedIndex = index) }
+        fun total(words: List<ExpandedToken>) = RsvpThoughtPlan.analyze(words, stableConfig, RsvpLanguagePolicy.ENGLISH)
+            .values.sumOf { it.processingHoldMs + it.integrationHoldMs }
+        assertEquals(total(original), total(split), 0.001)
     }
 
     @Test

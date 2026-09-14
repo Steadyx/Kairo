@@ -30,4 +30,6 @@ data class RsvpFrame(
     // Live tempo changes scale the reading portion independently of this hold.
     // Null allows callers without generated timing to fall back to the punctuation policy.
     val punctuationHoldMs: Long? = null,
+    // Lexical and phrase processing time that must remain on the visible word.
+    val protectedWordMs: Long = 0L,
 )

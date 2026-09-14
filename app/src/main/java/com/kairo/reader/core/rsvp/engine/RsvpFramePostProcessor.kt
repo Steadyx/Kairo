@@ -62,7 +62,7 @@ private fun splitFrameForBlink(
     val repeatedWord = firstWord.text.equals(nextWord.text, ignoreCase = true)
     if ((!repeatedWord && shouldHold) || isHardBoundary(frame.tokens, nextWord)) return listOf(frame)
 
-    val floorMs = max(wordFloorMs(firstWord, config), MIN_FRAME_MS)
+    val floorMs = max(wordFloorMs(firstWord, config), MIN_FRAME_MS + frame.protectedWordMs)
     val maxBlink = (frame.durationMs - floorMs - (frame.punctuationHoldMs ?: 0L)).coerceAtLeast(0L)
     val punctuationFactor = blinkPunctuationFactor(frame.tokens)
     val blinkMs = min((WORD_SEPARATION_MS * punctuationFactor).roundToLong(), maxBlink)

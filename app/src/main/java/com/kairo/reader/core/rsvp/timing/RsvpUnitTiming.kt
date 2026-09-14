@@ -7,11 +7,10 @@ import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpConfigConstraints
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.rsvp.analysis.RsvpReadingDemand
 import com.kairo.reader.core.rsvp.analysis.RsvpThoughtCue
 import com.kairo.reader.core.rsvp.analysis.contextShapingMultiplier
 import com.kairo.reader.core.rsvp.analysis.emphasisMultiplier
-import com.kairo.reader.core.rsvp.analysis.frameDifficulty
-import com.kairo.reader.core.rsvp.analysis.givennessGlideMultiplier
 import com.kairo.reader.core.rsvp.analysis.isEmDashChar
 import com.kairo.reader.core.rsvp.analysis.multiWordPenalty
 import com.kairo.reader.core.rsvp.analysis.phraseBoundaryShapeMultiplier
@@ -28,7 +27,6 @@ import com.kairo.reader.core.rsvp.engine.DIALOGUE_ENTRY_BOOST
 import com.kairo.reader.core.rsvp.engine.EM_DASH_ASIDE_CONTOUR_FACTOR
 import com.kairo.reader.core.rsvp.engine.EM_DASH_ASIDE_PAUSE_FACTOR
 import com.kairo.reader.core.rsvp.engine.EM_DASH_INTERRUPTION_PAUSE_FACTOR
-import com.kairo.reader.core.rsvp.engine.FlowState
 import com.kairo.reader.core.rsvp.engine.MIN_FRAME_MS
 import com.kairo.reader.core.rsvp.engine.PAGE_BREAK_RETENTION_BOOST
 import com.kairo.reader.core.rsvp.engine.PARAGRAPH_BREAK_RETENTION_BOOST
@@ -49,7 +47,6 @@ internal data class RsvpUnitTimingInput(
     val config: RsvpConfig,
     val contextBefore: ContextSnapshot,
     val rhythm: RhythmState,
-    val flow: FlowState,
     val prevToken: Token?,
     val prevWord: Token?,
     val nextToken: Token?,
@@ -65,6 +62,7 @@ internal data class RsvpUnitTimingInput(
     val rhythmBoundaryStrengthMilli: Int = 0,
     val explicitSpeakerTag: Boolean = false,
     val thoughtCues: List<RsvpThoughtCue> = emptyList(),
+    val readingDemands: List<RsvpReadingDemand> = emptyList(),
 )
 
 private class RsvpUnitTimingContext(input: RsvpUnitTimingInput) {
@@ -72,7 +70,6 @@ private class RsvpUnitTimingContext(input: RsvpUnitTimingInput) {
     val config = input.config
     val contextBefore = input.contextBefore
     val rhythm = input.rhythm
-    val flow = input.flow
     val prevToken = input.prevToken
     val prevWord = input.prevWord
     val nextToken = input.nextToken
@@ -88,6 +85,7 @@ private class RsvpUnitTimingContext(input: RsvpUnitTimingInput) {
     val rhythmBoundaryStrengthMilli = input.rhythmBoundaryStrengthMilli
     val explicitSpeakerTag = input.explicitSpeakerTag
     val thoughtCues = input.thoughtCues
+    val readingDemands = input.readingDemands
     val msPerWord = config.tempoMsPerWord.toDouble()
     val pauseScale = pauseScale(msPerWord, config)
     val clausePauseScale =
@@ -190,6 +188,8 @@ private class RsvpUnitTimingContext(input: RsvpUnitTimingInput) {
 private data class FrameWordTiming(
     val duration: Double,
     val expressionMs: Double,
+    val protectedMs: Double,
+    val pauseMs: Double,
     val enteredDialogue: Boolean,
     val exitedDialogue: Boolean,
     val sawParentheticalWord: Boolean,
@@ -203,6 +203,8 @@ private class FrameWordContext(contextBefore: ContextSnapshot) {
     var sawParentheticalWord = false
     var wordOrdinal = 0
     var expressionMs = 0.0
+    var protectedMs = 0.0
+    var pauseMs = 0.0
 }
 
 private fun computeFrameWordTiming(context: RsvpUnitTimingContext): FrameWordTiming {
@@ -214,7 +216,7 @@ private fun computeFrameWordTiming(context: RsvpUnitTimingContext): FrameWordTim
             TokenType.WORD -> {
                 duration += wordDurationContribution(context, state, index, token)
                 context.prose?.onWordShown()
-                if (token.pauseAfterMs > 0L) duration += token.pauseAfterMs * context.pauseScale
+                if (token.pauseAfterMs > 0L) state.pauseMs += token.pauseAfterMs * context.pauseScale
             }
             else -> Unit
         }
@@ -222,6 +224,8 @@ private fun computeFrameWordTiming(context: RsvpUnitTimingContext): FrameWordTim
     return FrameWordTiming(
         duration = duration,
         expressionMs = state.expressionMs,
+        protectedMs = state.protectedMs,
+        pauseMs = state.pauseMs,
         enteredDialogue = state.enteredDialogue,
         exitedDialogue = state.exitedDialogue,
         sawParentheticalWord = state.sawParentheticalWord,
@@ -254,6 +258,7 @@ private fun wordDurationContribution(
     token: Token,
 ): Double {
     val config = context.config
+    val demand = context.readingDemands.getOrNull(state.wordOrdinal)
     val thoughtCue = context.thoughtCues.getOrNull(state.wordOrdinal++)
     val protectedEmphasis = config.useProsodyPacing && thoughtCue?.protectedEmphasis == true
     val inAside = config.useParentheticalAside && (state.parentheticalDepth > 0 || context.emDashAside)
@@ -324,14 +329,10 @@ private fun wordDurationContribution(
         } else {
             1.0
         }
-    val givenness =
-        if (config.useAdaptiveTiming && context.prose != null) {
-            givennessGlideMultiplier(token, context.prose, context.speedStrength)
-        } else {
-            1.0
-        }
+    val wordBudget = wordTimingBudget(token, context.msPerWord, config, demand)
+    state.protectedMs += wordBudget.protectedMs
     val duration =
-        wordDurationMs(token, context.msPerWord, config) *
+        wordBudget.beatMs *
             parentheticalMultiplier *
             dialogueMultiplier *
             context.speakerTagMultiplier
@@ -346,10 +347,9 @@ private fun wordDurationContribution(
         context.anticipatoryLanding,
         if (config.useProsodyPacing) phraseContourMultiplier(context.phraseContour, context.expressionStrength) else 1.0,
         context.phraseShapeMultiplier,
-        if (protectedEmphasis) 1.0 else givenness,
         if (protectedEmphasis) 1.0 + (THOUGHT_EMPHASIS * context.prosodyStrength) else 1.0,
     )
-    val baseline = max(duration, wordFloorMs(token, config).toDouble())
+    val baseline = duration
     state.expressionMs += baseline * (expression - 1.0)
     return baseline
 }
@@ -459,14 +459,14 @@ private fun punctuationPauseForToken(
 
 private val CLOSING_ASIDE_PUNCTUATION = setOf(')', ']', '}')
 
-internal data class RsvpUnitTiming(val durationMs: Long, val punctuationHoldMs: Long)
+internal data class RsvpUnitTiming(val durationMs: Long, val punctuationHoldMs: Long, val protectedWordMs: Long)
 
 internal fun computeUnitDurationMs(input: RsvpUnitTimingInput): Long = computeUnitTiming(input).durationMs
 
 internal fun computeUnitTiming(input: RsvpUnitTimingInput): RsvpUnitTiming =
     with(RsvpUnitTimingContext(input)) {
         val wordTiming = computeFrameWordTiming(this)
-        var duration = wordTiming.duration
+        val duration = wordTiming.duration
 
         val transitionHold =
             transitionHoldMs(
@@ -476,29 +476,16 @@ internal fun computeUnitTiming(input: RsvpUnitTimingInput): RsvpUnitTiming =
                 speedStrength = speedStrength,
                 prosodyStrength = prosodyStrength,
             )
-        if (transitionHold > 0.0) {
-            duration += transitionHold
-        }
 
-        duration *= multiWordPenalty(words.size)
-
-        // Apply flow and rhythm smoothing to word duration BEFORE adding punctuation pauses.
-        // This ensures punctuation pauses are not reduced by the smoothing algorithms.
+        // Smooth the per-word beat, so changing frame width cannot consume reading time.
+        // Difficulty, split-word holds and phrase processing bypass this smoother.
         val hardBoundary = isHardBoundary(frameTokens, nextToken)
-        val difficulty = frameDifficulty(words)
-        duration *=
-            flow.apply(
-                difficulty = difficulty,
-                speedStrength = speedStrength,
-                isBoundary = hardBoundary,
-            )
-
         val smoothedWordDuration =
             rhythm.apply(
-                rawMs = duration,
+                rawMs = duration / words.size.coerceAtLeast(1),
                 isBoundary = hardBoundary,
                 boundaryStrengthMilli = rhythmBoundaryStrengthMilli,
-            )
+            ) * words.size.coerceAtLeast(1) * multiWordPenalty(words.size)
 
         // Now add punctuation pauses on top of the smoothed word duration.
         // These pauses are intentionally NOT smoothed so they remain prominent.
@@ -507,9 +494,10 @@ internal fun computeUnitTiming(input: RsvpUnitTimingInput): RsvpUnitTiming =
         val expression =
             if (wordTiming.duration > 0.0) 1.0 + wordTiming.expressionMs / wordTiming.duration else 1.0
         var totalDuration = max(
-            smoothedWordDuration * expression,
+            smoothedWordDuration * expression + wordTiming.protectedMs,
             words.sumOf { wordFloorMs(it, config).toDouble() },
         )
+        totalDuration += wordTiming.pauseMs + transitionHold + thoughtCues.sumOf { it.processingHoldMs }
         var integrationHold = thoughtCues.sumOf { it.integrationHoldMs }
         if (words.isNotEmpty()) {
             when (boundaryForBoost) {
@@ -556,17 +544,16 @@ internal fun computeUnitTiming(input: RsvpUnitTimingInput): RsvpUnitTiming =
             val scaled = base * pagePauseScale
             totalDuration += max(scaled, floor) * pageBreaks
         }
+        val adaptiveHold = adaptiveHoldMs(
+            words = words,
+            config = config,
+            speedStrength = speedStrength,
+            hardBoundary = hardBoundary,
+            nextWord = nextWord,
+            clauseConfigStrength = clauseConfigStrength,
+        )
+        totalDuration += adaptiveHold
         if (paragraphBreaks == 0 && pageBreaks == 0) {
-            totalDuration +=
-                adaptiveHoldMs(
-                    words = words,
-                    difficulty = difficulty,
-                    config = config,
-                    speedStrength = speedStrength,
-                    hardBoundary = hardBoundary,
-                    nextWord = nextWord,
-                    clauseConfigStrength = clauseConfigStrength,
-                )
             if (!hardBoundary &&
                 config.useClausePausing &&
                 nextWord?.isClauseBoundary == true
@@ -596,6 +583,10 @@ internal fun computeUnitTiming(input: RsvpUnitTimingInput): RsvpUnitTiming =
 
         return RsvpUnitTiming(
             durationMs = totalDuration.toLong().coerceAtLeast(MIN_FRAME_MS),
+            protectedWordMs = (
+                wordTiming.protectedMs + wordTiming.pauseMs + adaptiveHold + transitionHold +
+                    thoughtCues.sumOf { it.processingHoldMs } + if (punctuationHold > 0.0) 0.0 else integrationHold
+                ).toLong(),
             punctuationHoldMs = (punctuationHold + if (punctuationHold > 0.0) integrationHold else 0.0).toLong(),
         )
     }
