@@ -58,7 +58,7 @@ The result is an Android reader that sits somewhere between an ebook app, a spee
 
 - Clean full-screen RSVP playback with minimal interface clutter
 - ORP highlighting support
-- Adaptive pacing based on word length, syllables, punctuation, clause boundaries, and difficulty
+- Offline reading support with bounded word demand, real English word frequencies, and phrase breathing room
 - Optional peripheral context cues that stay inside the ORP focal band
 - Phrase replay by double tap or playback control, with temporary rereading-aware pace easing
 - Phrase chunking, blink modes, readability floors, and punctuation tuning
