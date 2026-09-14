@@ -8,6 +8,9 @@ import com.kairo.reader.core.model.effectiveBlinkMode
 internal fun RsvpConfig.normalizedForPlayback(): RsvpConfig {
     val safeMinWordMs = minWordMs.coerceAtLeast(1L)
     return copy(
+        difficultWordSupport = (difficultWordSupport.takeIf { it.isFinite() } ?: 1.0)
+            .coerceIn(0.0, Constraints.MAX_DIFFICULT_WORD_SUPPORT),
+        phraseBreathingRoomMs = phraseBreathingRoomMs.coerceIn(0L, Constraints.MAX_ADAPTIVE_HOLD_MS),
         tempoMsPerWord = tempoMsPerWord.coerceAtLeast(1L),
         minWordMs = safeMinWordMs,
         longWordMinMs = longWordMinMs.coerceAtLeast(safeMinWordMs),

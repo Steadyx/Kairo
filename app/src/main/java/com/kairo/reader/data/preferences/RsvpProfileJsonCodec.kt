@@ -154,6 +154,8 @@ internal class RsvpProfileJsonCodec(private val onMalformed: (Throwable) -> Unit
     private fun JSONObject.putAdaptiveTiming(config: RsvpConfig) {
         put("useAdaptiveTiming", config.useAdaptiveTiming)
         put("adaptiveDifficultyMaxHoldMs", config.adaptiveDifficultyMaxHoldMs)
+        put("difficultWordSupport", config.difficultWordSupport)
+        put("phraseBreathingRoomMs", config.phraseBreathingRoomMs)
         put("complexWordHoldMs", config.complexWordHoldMs)
         put("complexWordThreshold", config.complexWordThreshold)
     }
@@ -367,6 +369,15 @@ internal class RsvpProfileJsonCodec(private val onMalformed: (Throwable) -> Unit
     ): RsvpConfig =
         copy(
             useAdaptiveTiming = obj.optBoolean("useAdaptiveTiming", defaults.useAdaptiveTiming),
+            difficultWordSupport = (
+                obj.optDouble("difficultWordSupport", defaults.difficultWordSupport)
+                    .takeIf { it.isFinite() } ?: defaults.difficultWordSupport
+                )
+                .coerceIn(0.0, RsvpConfigConstraints.MAX_DIFFICULT_WORD_SUPPORT),
+            phraseBreathingRoomMs = obj.optLong(
+                "phraseBreathingRoomMs",
+                obj.optLong("adaptiveDifficultyMaxHoldMs", defaults.phraseBreathingRoomMs),
+            ).coerceIn(0L, RsvpConfigConstraints.MAX_ADAPTIVE_HOLD_MS),
             adaptiveDifficultyMaxHoldMs =
             obj.optLong(
                 "adaptiveDifficultyMaxHoldMs",

@@ -67,9 +67,40 @@ class RsvpPreferenceCodecsTest {
         assertEquals(listOf(profile), profileCodec.parseCustomProfiles(json.toString()))
     }
 
+    @Test
+    fun legacyAllowancesRoundTripWhileReadingSupportKeepsItsStoredValue() {
+        val prefs = mutablePreferencesOf()
+        prefs[PrefKeys.adaptiveDifficultyMaxHoldMs] = 95L
+        val legacy = preferenceCodec.readRsvpConfig(prefs, RsvpConfig())
+        assertEquals(95L, legacy.phraseBreathingRoomMs)
+        assertEquals(1.0, legacy.difficultWordSupport, 0.0)
+        preferenceCodec.writeRsvpConfig(prefs, legacy.copy(phraseBreathingRoomMs = 0L, difficultWordSupport = 1.5))
+        assertEquals(0L, preferenceCodec.readRsvpConfig(prefs, RsvpConfig()).phraseBreathingRoomMs)
+        val json = """[{"id":"user:old","name":"Old","config":{"adaptiveDifficultyMaxHoldMs":95}}]"""
+        val restored = profileCodec.parseCustomProfiles(json).single().config
+        assertEquals(95L, restored.phraseBreathingRoomMs)
+        assertEquals(1.0, restored.difficultWordSupport, 0.0)
+    }
+
+    @Test
+    fun comprehensionControlsClampMalformedStoredValues() {
+        val prefs = mutablePreferencesOf()
+        prefs[PrefKeys.difficultWordSupport] = Double.NaN
+        prefs[PrefKeys.phraseBreathingRoomMs] = -5L
+        val decoded = preferenceCodec.readRsvpConfig(prefs, RsvpConfig())
+        assertEquals(1.0, decoded.difficultWordSupport, 0.0)
+        assertEquals(0L, decoded.phraseBreathingRoomMs)
+        val json = """[{"id":"user:bad","name":"Bad","config":{"difficultWordSupport":99,"phraseBreathingRoomMs":-1}}]"""
+        val restored = profileCodec.parseCustomProfiles(json).single().config
+        assertEquals(2.0, restored.difficultWordSupport, 0.0)
+        assertEquals(0L, restored.phraseBreathingRoomMs)
+    }
+
     private fun distinctiveConfig(): RsvpConfig =
         RsvpConfig(
             tempoMsPerWord = 137L,
+            difficultWordSupport = 1.4,
+            phraseBreathingRoomMs = 123L,
             minWordMs = 41L,
             longWordMinMs = 171L,
             longWordChars = 11,
