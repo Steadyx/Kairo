@@ -64,7 +64,7 @@ class RsvpPunctuationTimingDeviceTest {
             listOf(easy, easy, easy, difficult, easy),
             RsvpConfig(
                 tempoMsPerWord = 150L, smoothingAlpha = 0.01, maxSlowdownFactor = 1.01,
-                difficultWordSupport = 2.0, maxChunkLength = 32,
+                difficultWordSupport = 2.0, maxChunkLength = 0,
                 useAdaptiveTiming = false, useProsodyPacing = false, useFocalStress = false,
                 useClausePausing = false, useDialogueDetection = false,
                 startDelayMs = 0L, endDelayMs = 0L, rampUpFrames = 0, rampDownFrames = 0,

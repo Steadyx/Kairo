@@ -111,6 +111,37 @@ class RsvpReadingDemandTest {
     }
 
     @Test
+    fun difficultWordsUseProgressivePartsWithoutAWholeWordFlash() {
+        val tokens = listOf(word("the"), word("neuroplasticity"), word("the"))
+        val engine = ComprehensionRsvpEngine()
+        val config = RsvpConfig(
+            maxChunkLength = 32,
+            enablePhraseChunking = false,
+            startDelayMs = 0,
+            endDelayMs = 0,
+            rampUpFrames = 0,
+            rampDownFrames = 0,
+        )
+        fun frames(settings: RsvpConfig) = engine.generateFrames(tokens, 0, settings, RsvpGenerationOptions(english))
+        val supported = frames(config)
+        assertEquals(null, supported.first().tokens.first().highlightStart)
+        assertTrue(frames(config.copy(difficultWordSupport = 0.0)).all { frame -> frame.tokens.all { it.highlightStart == null } })
+        assertEquals(3, frames(config.copy(maxChunkLength = 0)).size)
+        val split = supported.flatMap { it.tokens }.filter { it.isSubwordChunk }
+        assertEquals(listOf("neuro", "plast", "icity"), split.map { it.text.substring(it.highlightStart!!, it.highlightEndExclusive!!) })
+        assertEquals(0, split.first().highlightStart)
+        assertEquals(tokens[1].text.length, split.last().highlightEndExclusive)
+        assertTrue(split.zipWithNext().all { (a, b) -> a.highlightEndExclusive == b.highlightStart })
+        assertTrue(split.all { it.text == tokens[1].text })
+        assertEquals(split, frames(config.copy(maxChunkLength = 6)).flatMap { it.tokens }.filter { it.isSubwordChunk })
+        val resumed = engine.generateFrames(tokens, 1, config, RsvpGenerationOptions(english))
+        assertEquals(split, resumed.flatMap { it.tokens }.filter { it.isSubwordChunk })
+        val hardFrames = supported.filter { it.originalTokenIndex == 1 }
+        assertTrue(hardFrames.dropLast(1).all { it.nextOriginalTokenIndex == 1 })
+        assertEquals(2, hardFrames.last().nextOriginalTokenIndex)
+    }
+
+    @Test
     fun frequencyBackoffOnlyUsesKnownFormsAndDoesNotReplaceSurfaceFrequency() {
         val singular = EnglishReadingFrequency.zipf("instructor")!!
         assertTrue(EnglishReadingFrequency.recognitionZipf("instructors")!! > EnglishReadingFrequency.zipf("instructors")!!)

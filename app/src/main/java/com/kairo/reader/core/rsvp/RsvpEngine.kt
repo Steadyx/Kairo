@@ -5,9 +5,9 @@ import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
-import com.kairo.reader.core.model.splitTokenForRsvp
 import com.kairo.reader.core.rsvp.analysis.ReadingDemandAnalyzer
 import com.kairo.reader.core.rsvp.analysis.RsvpTokenAnalysis
+import com.kairo.reader.core.rsvp.analysis.RsvpWordPartSupport
 import com.kairo.reader.core.rsvp.analysis.analyzeExpandedTokens
 import com.kairo.reader.core.rsvp.analysis.nextTokenAfter
 import com.kairo.reader.core.rsvp.analysis.shouldKeepFullFocalDuration
@@ -123,7 +123,7 @@ private fun generateFramesWithNormalizedConfig(
 
     val analysisStartIndex = resolveAnalysisStartIndex(tokens, startIndex)
     val expanded = ReadingDemandAnalyzer.attach(
-        buildExpandedTokens(tokens, analysisStartIndex, config),
+        buildExpandedTokens(tokens, analysisStartIndex, config, options.languagePolicy),
         tokens,
         analysisStartIndex,
         options.languagePolicy,
@@ -161,16 +161,13 @@ private fun buildExpandedTokens(
     tokens: List<Token>,
     analysisStartIndex: Int,
     config: RsvpConfig,
+    languagePolicy: RsvpLanguagePolicy,
 ): List<ExpandedToken> =
     tokens
         .subList(analysisStartIndex, tokens.size)
         .flatMapIndexed { index, token ->
             var sourceCursor = 0
-            splitTokenForRsvp(
-                token = token,
-                maxChunkLength = config.maxChunkLength,
-                subwordChunkPauseMs = config.subwordChunkPauseMs,
-            ).map { splitToken ->
+            RsvpWordPartSupport.split(token, config, languagePolicy).map { splitToken ->
                 val sourceStart =
                     if (splitToken.text == token.text) {
                         0

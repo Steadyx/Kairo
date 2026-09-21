@@ -117,6 +117,25 @@ class RsvpProtectedTimingTest {
         }
     }
 
+    @Test
+    fun longWordSupportRemainsVisibleAboveItsFloorWithSeparationEnabled() {
+        val settings = config.copy(
+            longWordMinMs = 400L,
+            maxChunkLength = 32,
+            enablePhraseChunking = false,
+            blinkMode = BlinkMode.SUBTLE,
+        )
+        val tokens = listOf(easy, Token("neuroplasticity", TokenType.WORD), easy)
+        val frames = ComprehensionRsvpEngine().generateFrames(tokens, 0, settings, RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH))
+        val hard = frames.filter { !it.isWordSeparation && it.originalTokenIndex == 1 }
+        assertTrue(hard.size > 1)
+        assertTrue(hard.all { it.protectedWordMs > 0 })
+        assertTrue(hard.all { it.durationMs >= settings.longWordMinMs + it.protectedWordMs })
+        val firstPart = frames.indexOf(hard.first())
+        val lastPart = frames.indexOf(hard.last())
+        assertTrue(frames.subList(firstPart, lastPart + 1).none { it.isWordSeparation })
+    }
+
     private fun rhythm() = RhythmState(smoothingAlpha = 0.01, maxSpeedupFactor = 1.01, maxSlowdownFactor = 1.01)
 
     private fun duration(

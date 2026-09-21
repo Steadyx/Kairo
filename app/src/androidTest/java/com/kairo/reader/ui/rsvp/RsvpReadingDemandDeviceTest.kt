@@ -36,7 +36,7 @@ class RsvpReadingDemandDeviceTest {
             val before = SystemClock.elapsedRealtimeNanos()
             val frames = engine.generateFrames(tokens, 0, config, options)
             times += (SystemClock.elapsedRealtimeNanos() - before) / 1_000_000L
-            assertEquals(tokens.size, frames.size)
+            assertEquals(tokens.indices.toList(), frames.map { it.originalTokenIndex }.distinct())
             assertTrue(frames[3].protectedWordMs > frames[0].protectedWordMs)
             val durations = frames.map { frame -> frame.durationMs }
             expectedDurations?.let { expected -> assertEquals(expected, durations) }
