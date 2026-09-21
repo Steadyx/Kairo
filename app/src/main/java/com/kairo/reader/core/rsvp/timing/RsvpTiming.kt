@@ -89,7 +89,6 @@ internal fun wordTimingBudget(
     readingDemand: RsvpReadingDemand? = null,
 ): RsvpWordTimingBudget {
     val text = word.text
-    val letters = ReadingDemandAnalyzer.displayedLength(word)
     val demand = readingDemand ?: ReadingDemandAnalyzer.analyze(word, RsvpLanguagePolicy.UNKNOWN)
     val difficultyExtra = demand.allowanceMs(msPerWord) * config.difficultWordSupport
     var duration = msPerWord
@@ -108,9 +107,6 @@ internal fun wordTimingBudget(
     }
 
     var protectedMs = difficultyExtra
-    if (letters >= config.longWordChars) {
-        protectedMs = max(protectedMs, config.longWordMinMs.toDouble() - duration)
-    }
     if (text.endsWith("-")) {
         protectedMs += msPerWord * HYPHEN_CONTINUATION_HOLD_FACTOR
     }

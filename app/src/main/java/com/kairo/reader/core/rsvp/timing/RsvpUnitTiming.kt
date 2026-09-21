@@ -494,9 +494,11 @@ internal fun computeUnitTiming(input: RsvpUnitTimingInput): RsvpUnitTiming =
         val expression =
             if (wordTiming.duration > 0.0) 1.0 + wordTiming.expressionMs / wordTiming.duration else 1.0
         var totalDuration = max(
-            smoothedWordDuration * expression + wordTiming.protectedMs,
+            smoothedWordDuration * expression,
             words.sumOf { wordFloorMs(it, config).toDouble() },
         )
+        // Reading support is extra exposure, even when the readability floor exceeds the beat.
+        totalDuration += wordTiming.protectedMs
         totalDuration += wordTiming.pauseMs + transitionHold + thoughtCues.sumOf { it.processingHoldMs }
         var integrationHold = thoughtCues.sumOf { it.integrationHoldMs }
         if (words.isNotEmpty()) {

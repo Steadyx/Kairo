@@ -94,13 +94,27 @@ class RsvpProtectedTimingTest {
         val frames = ComprehensionRsvpEngine().generateFrames(
             tokens,
             0,
-            config.copy(blinkMode = BlinkMode.SUBTLE, maxChunkLength = 30),
+            config.copy(blinkMode = BlinkMode.SUBTLE, maxChunkLength = 0),
             RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH),
         )
         val hardFrame = frames.first { !it.isWordSeparation && it.originalTokenIndex == 2 }
         assertTrue(hardFrame.protectedWordMs > 80L)
         assertTrue(hardFrame.durationMs > hardFrame.protectedWordMs)
         assertTrue(frames.none { it.isWordSeparation && it.protectedWordMs != 0L })
+    }
+
+    @Test
+    fun readabilityFloorCannotConsumeTheDifficultWordAllowance() {
+        for (tempo in listOf(50L, 150L, 300L)) {
+            for (count in listOf(1, 2, 3)) {
+                val settings = config.copy(tempoMsPerWord = tempo, minWordMs = 400L)
+                val words = List(count) { easy }
+                val demands = List(count) { RsvpReadingDemand(1.5) }
+                val off = duration(words, rhythm(), settings.copy(difficultWordSupport = 0.0), demands)
+                val on = duration(words, rhythm(), settings, demands)
+                assertTrue("tempo=$tempo count=$count", on.durationMs >= off.durationMs + on.protectedWordMs - 1L)
+            }
+        }
     }
 
     private fun rhythm() = RhythmState(smoothingAlpha = 0.01, maxSpeedupFactor = 1.01, maxSlowdownFactor = 1.01)

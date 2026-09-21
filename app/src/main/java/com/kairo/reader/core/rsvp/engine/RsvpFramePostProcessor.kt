@@ -56,13 +56,20 @@ private fun splitFrameForBlink(
     val firstWord = frame.tokens.singleWordOrNull()
     val nextWord = nextTokens.singleWordOrNull()
     if (firstWord == null || nextWord == null) return listOf(frame)
+    // A moving highlight is one continuous word, not a repeated-word flash.
+    if (firstWord.isSubwordChunk &&
+        nextWord.isSubwordChunk &&
+        frame.originalTokenIndex == next?.originalTokenIndex
+    ) {
+        return listOf(frame)
+    }
     val shouldHold =
         frame.tokens.none { it.type == TokenType.PUNCTUATION } &&
             shouldPreferHold(firstWord, nextWord)
     val repeatedWord = firstWord.text.equals(nextWord.text, ignoreCase = true)
     if ((!repeatedWord && shouldHold) || isHardBoundary(frame.tokens, nextWord)) return listOf(frame)
 
-    val floorMs = max(wordFloorMs(firstWord, config), MIN_FRAME_MS + frame.protectedWordMs)
+    val floorMs = max(wordFloorMs(firstWord, config), MIN_FRAME_MS) + frame.protectedWordMs
     val maxBlink = (frame.durationMs - floorMs - (frame.punctuationHoldMs ?: 0L)).coerceAtLeast(0L)
     val punctuationFactor = blinkPunctuationFactor(frame.tokens)
     val blinkMs = min((WORD_SEPARATION_MS * punctuationFactor).roundToLong(), maxBlink)
