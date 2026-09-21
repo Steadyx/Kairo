@@ -37,7 +37,7 @@ internal object ReadingDemandAnalyzer {
         val english = policy == RsvpLanguagePolicy.ENGLISH && word.isNotEmpty() && word.all { it in 'a'..'z' || it == '\'' }
         val rarity = when {
             digits > 0 -> 0.35 * ln(1.0 + digits)
-            english -> EnglishReadingFrequency.zipf(word)?.let { ((5.5 - it) / 3.0).coerceIn(0.0, 1.0) }
+            english -> EnglishReadingFrequency.recognitionZipf(word)?.let { ((5.5 - it) / 3.0).coerceIn(0.0, 1.0) }
                 ?: spellingFallback(word)
             else -> 0.0 // No English frequency or pronunciation assumptions for other scripts/languages.
         }
@@ -46,7 +46,10 @@ internal object ReadingDemandAnalyzer {
         } else {
             0.0
         }
-        return RsvpReadingDemand(visual + 0.85 * rarity, novelty)
+        // Familiarity can help recognition, but cannot erase the work of decoding a long word.
+        // Use a floor, not another additive syllable allowance on top of length and rarity.
+        val decoding = if (english) decodingDemand(word, length) else 0.0
+        return RsvpReadingDemand(maxOf(visual + 0.85 * rarity, decoding), novelty)
     }
 
     /** Build from source positions before splitting. Seeking cannot turn a repeated term into a first occurrence. */
@@ -113,6 +116,17 @@ internal object ReadingDemandAnalyzer {
         return visible.codePoints().filter { Character.isLetterOrDigit(it) }.count().toInt().coerceAtLeast(1)
     }
 
+    private fun decodingDemand(word: String, length: Int): Double {
+        val vowelGroups = word.indices.count { index ->
+            word[index] in "aeiouy" && (index == 0 || word[index - 1] !in "aeiouy")
+        }
+        // Vowel groups are an orthographic cue, not a claim about exact spoken syllables.
+        val ending = word.removeSuffix("'s").removeSuffix("s")
+        val silentEnding = ending.endsWith("e") && !ending.endsWith("le")
+        val groups = (vowelGroups - if (silentEnding) 1 else 0).coerceAtLeast(1)
+        return 0.14 * (length - 7).coerceAtLeast(0) + 0.08 * (groups - 3).coerceAtLeast(0)
+    }
+
     private fun spellingFallback(word: String): Double {
         var run = 0
         var longest = 0
@@ -137,4 +151,19 @@ internal object EnglishReadingFrequency {
     }
 
     fun zipf(word: String): Double? = frequencies[word]?.div(100.0)
+
+    /** A familiar base form provides evidence for simple inflections, with a small recognition cost. */
+    fun recognitionZipf(word: String): Double? {
+        val candidates = buildList {
+            zipf(word)?.let(::add)
+            val bases = buildList {
+                if (word.endsWith("'s")) add(word.dropLast(2))
+                if (word.endsWith("s") && !word.endsWith("ss")) add(word.dropLast(1))
+                if (word.endsWith("es")) add(word.dropLast(2))
+                if (word.endsWith("ies")) add(word.dropLast(3) + "y")
+            }
+            bases.mapNotNull(::zipf).forEach { add(it - 0.15) }
+        }
+        return candidates.maxOrNull()
+    }
 }

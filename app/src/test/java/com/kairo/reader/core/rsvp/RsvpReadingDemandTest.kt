@@ -111,6 +111,15 @@ class RsvpReadingDemandTest {
     }
 
     @Test
+    fun frequencyBackoffOnlyUsesKnownFormsAndDoesNotReplaceSurfaceFrequency() {
+        val singular = EnglishReadingFrequency.zipf("instructor")!!
+        assertTrue(EnglishReadingFrequency.recognitionZipf("instructors")!! > EnglishReadingFrequency.zipf("instructors")!!)
+        assertTrue(EnglishReadingFrequency.recognitionZipf("instructors")!! < singular)
+        assertEquals(EnglishReadingFrequency.zipf("representatives"), EnglishReadingFrequency.recognitionZipf("representatives"))
+        assertEquals(null, EnglishReadingFrequency.recognitionZipf("quizzacious"))
+    }
+
+    @Test
     fun obsoleteTuningCannotStackAnotherAllowanceAndSupportWorksWithCadenceDisabled() {
         val config = RsvpConfig(startDelayMs = 0, endDelayMs = 0, rampUpFrames = 0, rampDownFrames = 0, useAdaptiveTiming = false)
         val tokens = listOf(word("quizzacious"), word("12345"), word("neuroplasticity"))
