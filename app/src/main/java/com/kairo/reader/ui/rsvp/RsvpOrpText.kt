@@ -42,6 +42,7 @@ internal fun buildOrpAnnotatedText(
     highlightEndExclusive: Int,
     highlightColor: Color,
     pivotHighlightVisible: Boolean = true,
+    additionalHighlights: List<IntRange> = emptyList(),
 ): AnnotatedString =
     buildAnnotatedString {
         append(fullText)
@@ -55,6 +56,11 @@ internal fun buildOrpAnnotatedText(
                     end = safeEnd,
                 )
             }
+        }
+        additionalHighlights.forEach { range ->
+            val start = range.first.coerceIn(0, fullText.length)
+            val end = (range.last + 1).coerceIn(start, fullText.length)
+            if (end > start) addStyle(SpanStyle(color = highlightColor), start, end)
         }
         if (pivotHighlightVisible && fullText.isNotEmpty()) {
             val safeIndex = pivotPosition.coerceIn(0, fullText.lastIndex)
@@ -102,6 +108,7 @@ internal fun buildOrpTextContent(
         wordCount = wordCount,
         highlightStart = state.highlightStart,
         highlightEndExclusive = state.highlightEndExclusive,
+        additionalHighlights = state.additionalHighlights.toList(),
     )
 }
 
@@ -129,6 +136,14 @@ private fun appendWord(
                 state.highlightStart = safeStart
                 state.highlightEndExclusive = safeEnd
             }
+        }
+    } else {
+        val highlightStart = token.highlightStart
+        val highlightEnd = token.highlightEndExclusive
+        if (highlightStart != null && highlightEnd != null) {
+            val safeStart = highlightStart.coerceIn(0, token.text.length)
+            val safeEnd = highlightEnd.coerceIn(safeStart, token.text.length)
+            if (safeEnd > safeStart) state.additionalHighlights += (start + safeStart) until (start + safeEnd)
         }
     }
     state.needsSpace = true
