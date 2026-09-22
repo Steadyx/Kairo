@@ -11,6 +11,14 @@ internal val rsvpSearchEntries = listOf(
         sectionRes = R.string.rsvp_quick_tune_title,
     ),
     SettingsSearchEntry(
+        id = "rsvp.rsvp_word_parts_title",
+        page = SettingsSearchPage.RSVP,
+        titleRes = R.string.rsvp_word_parts_title,
+        descriptionRes = R.string.rsvp_word_parts_subtitle,
+        sectionRes = R.string.rsvp_readability_floors_title,
+        advanced = true,
+    ),
+    SettingsSearchEntry(
         id = "rsvp.rsvp_reading_speed_title",
         page = SettingsSearchPage.RSVP,
         titleRes = R.string.rsvp_reading_speed_title,

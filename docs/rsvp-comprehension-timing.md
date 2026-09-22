@@ -78,14 +78,17 @@ their configured splitting behavior. A zero limit disables splitting.
 
 Each part keeps its reading beat and display floor, while the source word's extra
 recognition allowance is shared across the parts. No blank separation frame is
-inserted between parts of the same source word. Turning Reading support off restores
-the configured length-only splitting policy; a zero chunk length disables splitting.
+inserted between parts of the same source word. **Word-part guidance** in Advanced →
+Readability controls this presentation separately from Reading support. Turning it
+off restores configured length-only splitting; a zero chunk length disables splitting.
 
 ## A separate phrase allowance
 
-Phrase processing uses distinct information-word count, numbers and phrase length,
-not another spelling-complexity sum. Dense phrases receive at most 70 ms at 100%
-support. The same support slider scales this allowance. Existing phrase distribution
+For English, phrase processing uses distinct information-word count, numbers and
+phrase length, not another spelling-complexity sum. Other language policies and
+UNKNOWN use phrase length and numbers only; without language-specific familiarity
+data, distinct words alone do not imply density. Phrases receive at most 70 ms at
+100% support. The same support slider scales this allowance. Existing phrase distribution
 is retained: 40% through a multiword phrase and 60% at its landing. A single source
 word receives any allowance at its landing. Split words count once.
 
@@ -99,14 +102,20 @@ remain additive.
 ## Controls and compatibility
 
 The everyday sliders are **Speed** and **Reading support** (Off–200%, labelled Strong
-at the maximum). The separate phrase slider and six difficulty fine-tuning controls
+at the maximum). Reading support scales extra time without changing word-part frame
+count. **Word-part guidance** is a separate Advanced switch, on by default; it is
+English-only and does not change the extra-time strength. The separate phrase slider and six difficulty fine-tuning controls
 are removed from both settings and search. **Automatic cadence** is in Advanced →
 Rhythm and controls existing clause/sentence shaping independently of Reading support.
 Punctuation preferences and readability floors remain separate.
 
 Reading support retains the `difficult_word_support` DataStore key and
 `difficultWordSupport` profile JSON property. Existing values are preserved and clamped
-to 0–2; older profiles without this field receive 100%. The retired numeric fields
+to 0–2; older profiles without this field receive 100%. Word-part guidance persists as
+`show_difficult_word_parts` / `showDifficultWordParts`. Older profiles default to on,
+except when their stored Reading support was Off; that choice keeps guidance off until
+the new switch is changed.
+The retired numeric fields
 still round-trip to avoid destructive changes to saved profiles, but playback ignores
 them. This is a new timing policy, not an exact reproduction of old custom tuning.
 Study selects 150% support and Sprint 50%; other existing presets retain 100%.

@@ -133,6 +133,7 @@ internal class RsvpConfigPreferenceCodec(private val keys: PrefKeys, private val
         prefs[keys.useAdaptiveTiming] = config.useAdaptiveTiming
         prefs[keys.adaptiveDifficultyMaxHoldMs] = config.adaptiveDifficultyMaxHoldMs
         prefs[keys.difficultWordSupport] = config.difficultWordSupport
+        prefs[keys.showDifficultWordParts] = config.showDifficultWordParts
         prefs[keys.phraseBreathingRoomMs] = config.phraseBreathingRoomMs
         prefs[keys.complexWordHoldMs] = config.complexWordHoldMs
         prefs[keys.complexWordThreshold] = config.complexWordThreshold
@@ -422,6 +423,8 @@ internal class RsvpConfigPreferenceCodec(private val keys: PrefKeys, private val
             prefs.readOrDefault(keys.useAdaptiveTiming, defaults.useAdaptiveTiming),
             difficultWordSupport = (prefs[keys.difficultWordSupport]?.takeIf { it.isFinite() } ?: defaults.difficultWordSupport)
                 .coerceIn(0.0, Constraints.MAX_DIFFICULT_WORD_SUPPORT),
+            showDifficultWordParts = prefs[keys.showDifficultWordParts]
+                ?: (defaults.showDifficultWordParts && prefs[keys.difficultWordSupport] != 0.0),
             phraseBreathingRoomMs = (
                 prefs[keys.phraseBreathingRoomMs] ?: prefs[keys.adaptiveDifficultyMaxHoldMs]
                     ?: defaults.phraseBreathingRoomMs

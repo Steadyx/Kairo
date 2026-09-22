@@ -624,7 +624,9 @@
     <string name="rsvp_context_assist_clause_description">主词保持固定，在空间允许时显示当前分句中前后的词。暂停可回顾分句。</string>
     <string name="rsvp_context_assist_off_description">仅显示主要阅读文本。</string>
     <string name="rsvp_difficult_word_support_title">阅读辅助</string>
-    <string name="rsvp_difficult_word_support_subtitle">为难词和信息密集的短语增加时间。</string>
+    <string name="rsvp_difficult_word_support_subtitle">为单词和短语增加时间；英语还会考虑词语的熟悉程度。</string>
+    <string name="rsvp_word_parts_title">单词分段提示</string>
+    <string name="rsvp_word_parts_subtitle">移动高亮，分段显示部分较长的英语单词。额外时间可单独调整。</string>
     <string name="rsvp_reading_support_off">关闭</string>
     <string name="rsvp_reading_support_strong">强</string>
 </resources>

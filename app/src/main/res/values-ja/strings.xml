@@ -624,7 +624,9 @@
     <string name="rsvp_context_assist_clause_description">中心の単語を固定し、空きスペースに現在の節の前後の単語を表示します。一時停止すると節を確認できます。</string>
     <string name="rsvp_context_assist_off_description">メインの読書テキストのみ表示します。</string>
     <string name="rsvp_difficult_word_support_title">読書サポート</string>
-    <string name="rsvp_difficult_word_support_subtitle">難しい単語や内容の濃いフレーズに時間を追加します。</string>
+    <string name="rsvp_difficult_word_support_subtitle">単語やフレーズに時間を追加します。英語では単語のなじみやすさも考慮します。</string>
+    <string name="rsvp_word_parts_title">単語の分割表示</string>
+    <string name="rsvp_word_parts_subtitle">一部の長い英単語を、強調箇所を動かしながら分割表示します。追加時間は別に調整できます。</string>
     <string name="rsvp_reading_support_off">オフ</string>
     <string name="rsvp_reading_support_strong">強</string>
 </resources>

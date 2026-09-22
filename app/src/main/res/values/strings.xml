@@ -648,7 +648,9 @@
     <string name="rsvp_context_assist_clause_description">Shows surrounding words from the current clause where space allows, keeping the main word fixed. Pause to review the clause.</string>
     <string name="rsvp_context_assist_off_description">Shows only the main reading text.</string>
     <string name="rsvp_difficult_word_support_title">Reading support</string>
-    <string name="rsvp_difficult_word_support_subtitle">Extra time for demanding words and dense phrases.</string>
+    <string name="rsvp_difficult_word_support_subtitle">Extra time for words and phrases; English also uses word familiarity.</string>
+    <string name="rsvp_word_parts_title">Word-part guidance</string>
+    <string name="rsvp_word_parts_subtitle">Show selected long English words with a moving highlight. Extra time is controlled separately.</string>
     <string name="rsvp_reading_support_off">Off</string>
     <string name="rsvp_reading_support_strong">Strong</string>
 </resources>

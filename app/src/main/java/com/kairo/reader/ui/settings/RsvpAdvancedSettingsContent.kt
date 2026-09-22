@@ -78,6 +78,12 @@ internal fun RsvpAdvancedSettingsContent(
                     config.subwordChunkPauseMs,
                 ),
             ) {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.rsvp_word_parts_title),
+                    subtitle = stringResource(R.string.rsvp_word_parts_subtitle),
+                    checked = config.showDifficultWordParts,
+                    onCheckedChange = { enabled -> updateConfig { it.copy(showDifficultWordParts = enabled) } },
+                )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_min_word_time_title),
                     subtitle = stringResource(R.string.rsvp_min_word_time_subtitle),

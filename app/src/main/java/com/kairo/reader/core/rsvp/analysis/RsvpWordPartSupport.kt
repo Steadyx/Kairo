@@ -33,7 +33,7 @@ internal object RsvpWordPartSupport {
     private fun automaticBase(token: Token, config: RsvpConfig, policy: RsvpLanguagePolicy): String? {
         if (policy != RsvpLanguagePolicy.ENGLISH ||
             token.type != TokenType.WORD ||
-            config.difficultWordSupport <= 0.0 ||
+            !config.showDifficultWordParts ||
             config.maxChunkLength <= PART_LENGTH ||
             token.isSubwordChunk
         ) {

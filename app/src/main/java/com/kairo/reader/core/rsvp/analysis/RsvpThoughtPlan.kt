@@ -110,9 +110,14 @@ internal object RsvpThoughtPlan {
     ): Double {
         val informationWords = words.distinctBy { it.originalIndex }
             .distinctBy { normalizeWord(it.token.text) }
-        val contentCount = informationWords.count {
-            languagePolicy != RsvpLanguagePolicy.ENGLISH ||
+        // Without a language-specific familiarity model, word count is not evidence of density.
+        // Keep length and numbers as the shared fallback for non-English and unknown text.
+        val contentCount = if (languagePolicy == RsvpLanguagePolicy.ENGLISH) {
+            informationWords.count {
                 (EnglishReadingFrequency.zipf(ReadingDemandAnalyzer.normalize(it.token.text)) ?: 0.0) < COMMON_WORD_ZIPF
+            }
+        } else {
+            0
         }
         val numbers = informationWords.count { it.token.text.any(Char::isDigit) }
         val lengthLoad = (informationWords.size - EASY_PHRASE_WORDS).coerceAtLeast(0).toDouble()

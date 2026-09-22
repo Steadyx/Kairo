@@ -74,12 +74,26 @@ class RsvpPreferenceCodecsTest {
         val legacy = preferenceCodec.readRsvpConfig(prefs, RsvpConfig())
         assertEquals(95L, legacy.phraseBreathingRoomMs)
         assertEquals(1.0, legacy.difficultWordSupport, 0.0)
+        assertTrue(legacy.showDifficultWordParts)
         preferenceCodec.writeRsvpConfig(prefs, legacy.copy(phraseBreathingRoomMs = 0L, difficultWordSupport = 1.5))
         assertEquals(0L, preferenceCodec.readRsvpConfig(prefs, RsvpConfig()).phraseBreathingRoomMs)
         val json = """[{"id":"user:old","name":"Old","config":{"adaptiveDifficultyMaxHoldMs":95}}]"""
         val restored = profileCodec.parseCustomProfiles(json).single().config
         assertEquals(95L, restored.phraseBreathingRoomMs)
         assertEquals(1.0, restored.difficultWordSupport, 0.0)
+        assertTrue(restored.showDifficultWordParts)
+    }
+
+    @Test
+    fun existingOffSupportKeepsAutomaticWordPartsOffUntilTheNewSwitchIsChosen() {
+        val prefs = mutablePreferencesOf()
+        prefs[PrefKeys.difficultWordSupport] = 0.0
+        assertTrue(!preferenceCodec.readRsvpConfig(prefs, RsvpConfig()).showDifficultWordParts)
+        prefs[PrefKeys.showDifficultWordParts] = true
+        assertTrue(preferenceCodec.readRsvpConfig(prefs, RsvpConfig()).showDifficultWordParts)
+
+        val oldJson = """[{"id":"user:off","name":"Off","config":{"difficultWordSupport":0}}]"""
+        assertTrue(!profileCodec.parseCustomProfiles(oldJson).single().config.showDifficultWordParts)
     }
 
     @Test
@@ -100,6 +114,7 @@ class RsvpPreferenceCodecsTest {
         RsvpConfig(
             tempoMsPerWord = 137L,
             difficultWordSupport = 1.4,
+            showDifficultWordParts = false,
             phraseBreathingRoomMs = 123L,
             minWordMs = 41L,
             longWordMinMs = 171L,

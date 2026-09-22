@@ -636,7 +636,9 @@
     <string name="rsvp_context_assist_clause_description">Affiche les mots autour du mot actuel dans la proposition selon la place disponible, sans déplacer le mot principal. Faites une pause pour revoir la proposition.</string>
     <string name="rsvp_context_assist_off_description">Affiche uniquement le texte principal.</string>
     <string name="rsvp_difficult_word_support_title">Aide à la lecture</string>
-    <string name="rsvp_difficult_word_support_subtitle">Plus de temps pour les mots difficiles et les phrases denses.</string>
+    <string name="rsvp_difficult_word_support_subtitle">Plus de temps pour les mots et les phrases ; en anglais, la familiarité des mots compte aussi.</string>
+    <string name="rsvp_word_parts_title">Guidage par segments</string>
+    <string name="rsvp_word_parts_subtitle">Surligne successivement les segments de certains longs mots anglais. Le temps supplémentaire se règle séparément.</string>
     <string name="rsvp_reading_support_off">Désactivée</string>
     <string name="rsvp_reading_support_strong">Forte</string>
 </resources>

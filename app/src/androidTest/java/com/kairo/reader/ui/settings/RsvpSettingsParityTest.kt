@@ -132,6 +132,8 @@ class RsvpSettingsParityTest {
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_difficult_word_support_title)).assertExists()
         composeRule.onNodeWithText(resources.getString(R.string.settings_advanced_title)).performScrollTo().performClick()
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_readability_floors_title)).performScrollTo().performClick()
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_word_parts_title)).performScrollTo().assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertTrue(!prefs.value.rsvpConfig.showDifficultWordParts) }
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_min_word_time_title)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_long_word_min_title)).performScrollTo().assertIsDisplayed()
     }

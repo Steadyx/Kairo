@@ -636,7 +636,9 @@
     <string name="rsvp_context_assist_clause_description">Muestra palabras alrededor de la actual dentro de la cláusula si hay espacio, sin mover la palabra principal. Pausa para revisar la cláusula.</string>
     <string name="rsvp_context_assist_off_description">Muestra solo el texto principal de lectura.</string>
     <string name="rsvp_difficult_word_support_title">Apoyo a la lectura</string>
-    <string name="rsvp_difficult_word_support_subtitle">Más tiempo para palabras difíciles y frases densas.</string>
+    <string name="rsvp_difficult_word_support_subtitle">Más tiempo para palabras y frases; en inglés también se considera la familiaridad con cada palabra.</string>
+    <string name="rsvp_word_parts_title">Guía por partes</string>
+    <string name="rsvp_word_parts_subtitle">Resalta por partes algunas palabras largas en inglés. El tiempo adicional se ajusta por separado.</string>
     <string name="rsvp_reading_support_off">Desactivado</string>
     <string name="rsvp_reading_support_strong">Intenso</string>
 </resources>

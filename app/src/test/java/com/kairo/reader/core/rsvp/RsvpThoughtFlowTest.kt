@@ -74,6 +74,23 @@ class RsvpThoughtFlowTest : ComprehensionRsvpTestBase() {
     }
 
     @Test
+    fun languagesWithoutFamiliarityDataUseLengthAndNumbersInsteadOfTreatingEveryWordAsDense() {
+        val routine = listOf("the", "cat", "is", "in", "house", "with", "a", "dog").map(::w)
+        val expected = 14.0 // Eight distinct words contribute one length-load unit.
+        for (policy in listOf(
+            RsvpLanguagePolicy.DEFAULT_NON_ENGLISH,
+            RsvpLanguagePolicy.CJK,
+            RsvpLanguagePolicy.RTL,
+            RsvpLanguagePolicy.UNKNOWN,
+        )) {
+            val cues = plan(routine, language = policy).values
+            assertEquals(policy.name, expected, cues.sumOf { it.processingHoldMs + it.integrationHoldMs }, 0.001)
+            val numbered = plan(routine.dropLast(1) + w("2026"), language = policy).values
+            assertTrue(policy.name, numbered.sumOf { it.processingHoldMs + it.integrationHoldMs } > expected)
+        }
+    }
+
+    @Test
     fun splittingAWordDoesNotMultiplyItsPhraseProcessingAllowance() {
         val tokens = List(8) { w("concept$it").copy(frequencyScore = 0.1, complexityMultiplier = 1.8) }
         val original = tokens.mapIndexed { index, token -> ExpandedToken(token, index, index, 0, token.text.length) }

@@ -239,6 +239,8 @@ data class RsvpConfig(
     val adaptiveDifficultyMaxHoldMs: Long = 70L,
     /** Reading support (0..2) for both word recognition and phrase processing; retains its original storage key. */
     val difficultWordSupport: Double = 1.0,
+    /** Show selected long English words as moving word parts, independently of extra reading time. */
+    val showDifficultWordParts: Boolean = true,
     /** Legacy phrase allowance retained for profile compatibility; ignored by playback. */
     val phraseBreathingRoomMs: Long = adaptiveDifficultyMaxHoldMs,
     /** Legacy complex-word hold; ignored by playback. */

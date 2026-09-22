@@ -1,8 +1,10 @@
 package com.kairo.reader.core.rsvp
 
+import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.tokenization.TokenizerRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,13 +16,38 @@ class RsvpGenerationOptionsTest {
             "en-GB" to RsvpLanguagePolicy.ENGLISH,
             "eng" to RsvpLanguagePolicy.ENGLISH,
             "fr" to RsvpLanguagePolicy.DEFAULT_NON_ENGLISH,
+            "de" to RsvpLanguagePolicy.DEFAULT_NON_ENGLISH,
+            "es" to RsvpLanguagePolicy.DEFAULT_NON_ENGLISH,
+            "pt-BR" to RsvpLanguagePolicy.DEFAULT_NON_ENGLISH,
             "ja" to RsvpLanguagePolicy.CJK,
+            "zh-CN" to RsvpLanguagePolicy.CJK,
             "ar" to RsvpLanguagePolicy.RTL,
             null to RsvpLanguagePolicy.UNKNOWN,
             "und" to RsvpLanguagePolicy.UNKNOWN,
         )
         fixtures.forEach { (tag, policy) ->
             assertEquals(policy, RsvpGenerationOptions.fromLanguageTag(tag).languagePolicy)
+        }
+    }
+
+    @Test
+    fun translatedLanguageBookPassagesKeepTheirTokensThroughPlayback() {
+        val passages = mapOf(
+            "de" to "Das Haus steht neben dem alten Fluss.",
+            "es" to "La casa está cerca del río antiguo.",
+            "fr" to "La maison est près de la rivière.",
+            "pt-BR" to "A casa fica perto do rio antigo.",
+            "ja" to "私は本を読んでいます。",
+            "zh-CN" to "我正在阅读这本书。",
+        )
+        val engine = ComprehensionRsvpEngine()
+        val config = RsvpConfig(enablePhraseChunking = true, maxWordsPerUnit = 2, maxChunkLength = 32)
+        passages.forEach { (tag, passage) ->
+            val chapter = Chapter(0, tag, "", passage)
+            val tokens = TokenizerRegistry.resolve(tag).tokenize(chapter)
+            val frames = engine.generateFrames(tokens, 0, config, RsvpGenerationOptions.fromLanguageTag(tag))
+            assertEquals(tag, tokens.map(Token::text), frames.flatMap { it.tokens }.map(Token::text))
+            assertTrue(tag, frames.all { it.durationMs > 0L })
         }
     }
 

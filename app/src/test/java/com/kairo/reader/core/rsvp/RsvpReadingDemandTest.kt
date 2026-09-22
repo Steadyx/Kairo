@@ -125,7 +125,10 @@ class RsvpReadingDemandTest {
         fun frames(settings: RsvpConfig) = engine.generateFrames(tokens, 0, settings, RsvpGenerationOptions(english))
         val supported = frames(config)
         assertEquals(null, supported.first().tokens.first().highlightStart)
-        assertTrue(frames(config.copy(difficultWordSupport = 0.0)).all { frame -> frame.tokens.all { it.highlightStart == null } })
+        val noExtraTime = frames(config.copy(difficultWordSupport = 0.0))
+        assertEquals(supported.map { it.tokens }, noExtraTime.map { it.tokens })
+        assertTrue(supported.sumOf { it.protectedWordMs } > noExtraTime.sumOf { it.protectedWordMs })
+        assertTrue(frames(config.copy(showDifficultWordParts = false)).all { frame -> frame.tokens.all { it.highlightStart == null } })
         assertEquals(3, frames(config.copy(maxChunkLength = 0)).size)
         val split = supported.flatMap { it.tokens }.filter { it.isSubwordChunk }
         assertEquals(listOf("neuro", "plast", "icity"), split.map { it.text.substring(it.highlightStart!!, it.highlightEndExclusive!!) })

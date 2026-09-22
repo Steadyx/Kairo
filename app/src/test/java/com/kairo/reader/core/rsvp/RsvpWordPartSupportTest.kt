@@ -110,7 +110,7 @@ class RsvpWordPartSupportTest {
             val original = word(text)
             val changed = original.copy(syllableCount = 99, frequencyScore = 0.0, complexityMultiplier = 99.0)
             for (tempo in listOf(50L, 150L, 500L)) {
-                for (support in listOf(0.25, 1.0, 2.0)) {
+                for (support in listOf(0.0, 0.01, 0.25, 1.0, 2.0)) {
                     val settings = config.copy(tempoMsPerWord = tempo, difficultWordSupport = support)
                     assertEquals(ranges(parts(text)), ranges(RsvpWordPartSupport.split(changed, settings, english)))
                 }
@@ -129,9 +129,11 @@ class RsvpWordPartSupportTest {
         for (text in listOf("1234567890123456", "well-understood", "électromagnétique")) {
             assertEquals(splitTokenForRsvp(word(text), 32, 35L), parts(text))
         }
-        for (settings in listOf(config.copy(difficultWordSupport = 0.0), config.copy(maxChunkLength = 0))) {
+        for (settings in listOf(config.copy(showDifficultWordParts = false), config.copy(maxChunkLength = 0))) {
             assertEquals(1, RsvpWordPartSupport.split(word("neuroplasticity"), settings, english).size)
         }
+        assertTrue(parts("neuroplasticity").size > 1)
+        assertTrue(RsvpWordPartSupport.split(word("neuroplasticity"), config.copy(difficultWordSupport = 0.0), english).size > 1)
         for (limit in listOf(4, 6, 7)) {
             val token = word("electrocardiographies")
             val split = RsvpWordPartSupport.split(token, config.copy(maxChunkLength = limit), english)

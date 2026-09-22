@@ -630,7 +630,9 @@
     <string name="rsvp_context_assist_clause_description">Zeigt umgebende Wörter des aktuellen Teilsatzes, soweit Platz ist. Das Hauptwort bleibt fest. Pausiere, um den Teilsatz anzusehen.</string>
     <string name="rsvp_context_assist_off_description">Zeigt nur den Hauptlesetext.</string>
     <string name="rsvp_difficult_word_support_title">Leseunterstützung</string>
-    <string name="rsvp_difficult_word_support_subtitle">Mehr Zeit für anspruchsvolle Wörter und dichte Phrasen.</string>
+    <string name="rsvp_difficult_word_support_subtitle">Mehr Zeit für Wörter und Phrasen; bei Englisch zählt auch die Vertrautheit mit Wörtern.</string>
+    <string name="rsvp_word_parts_title">Wortteil-Hilfe</string>
+    <string name="rsvp_word_parts_subtitle">Hebt Teile ausgewählter langer englischer Wörter nacheinander hervor. Die zusätzliche Zeit wird separat eingestellt.</string>
     <string name="rsvp_reading_support_off">Aus</string>
     <string name="rsvp_reading_support_strong">Stark</string>
 </resources>

@@ -636,7 +636,9 @@
     <string name="rsvp_context_assist_clause_description">Mostra palavras ao redor da atual na oração quando há espaço, sem mover a palavra principal. Pause para rever a oração.</string>
     <string name="rsvp_context_assist_off_description">Mostra apenas o texto principal da leitura.</string>
     <string name="rsvp_difficult_word_support_title">Apoio à leitura</string>
-    <string name="rsvp_difficult_word_support_subtitle">Mais tempo para palavras difíceis e frases densas.</string>
+    <string name="rsvp_difficult_word_support_subtitle">Mais tempo para palavras e frases; em inglês, também considera a familiaridade das palavras.</string>
+    <string name="rsvp_word_parts_title">Guia por partes</string>
+    <string name="rsvp_word_parts_subtitle">Destaca em partes algumas palavras longas em inglês. O tempo extra é ajustado separadamente.</string>
     <string name="rsvp_reading_support_off">Desativado</string>
     <string name="rsvp_reading_support_strong">Forte</string>
 </resources>
