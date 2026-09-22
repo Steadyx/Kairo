@@ -66,7 +66,7 @@ internal fun buildOrpAnnotatedText(
         if (pivotHighlightVisible && fullText.isNotEmpty()) {
             val safeIndex = pivotPosition.coerceIn(0, fullText.lastIndex)
             addStyle(
-                style = SpanStyle(color = pivotColor, textDecoration = TextDecoration.Underline),
+                style = SpanStyle(color = pivotColor),
                 start = safeIndex,
                 end = (safeIndex + 1).coerceAtMost(fullText.length),
             )

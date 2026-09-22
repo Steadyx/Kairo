@@ -1,7 +1,9 @@
 package com.kairo.reader.ui.rsvp
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kairo.reader.TestActivity
+import com.kairo.reader.core.model.ReaderTheme
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpProfile
 import com.kairo.reader.core.model.Token
@@ -26,7 +29,11 @@ import com.kairo.reader.core.rsvp.ComprehensionRsvpEngine
 import com.kairo.reader.core.rsvp.RsvpGenerationOptions
 import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import com.kairo.reader.ui.theme.KairoTheme
+import com.kairo.reader.ui.theme.colorContrast
+import com.kairo.reader.ui.theme.materialColorScheme
+import com.kairo.reader.ui.theme.rsvpAccentColors
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -36,6 +43,48 @@ import org.junit.runner.RunWith
 class RsvpDifficultyHighlightDeviceTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<TestActivity>()
+
+    @Test
+    fun darkThemesRenderAContrastingPivotLetterWithoutAHighlightBlock() {
+        var theme by mutableStateOf(ReaderTheme.DARK)
+        composeRule.setContent {
+            KairoTheme(readerTheme = theme) {
+                val scheme = MaterialTheme.colorScheme
+                val accents = scheme.rsvpAccentColors()
+                Box(Modifier.size(FOCUS_STAGE_WIDTH_DP.dp, FOCUS_STAGE_HEIGHT_DP.dp).background(scheme.background)) {
+                    OrpAlignedText(
+                        tokens = listOf(Token("reading", TokenType.WORD)),
+                        typography = OrpTypography(FOCUS_FONT_SIZE_SP, FontFamily.Monospace, FontWeight.Normal),
+                        colors = OrpColors(scheme.onBackground, accents.pivot, scheme.onBackground, accents.wordPart),
+                        layout = OrpTextLayout(
+                            horizontalBias = FOCUS_HORIZONTAL_BIAS,
+                            lockPivot = true,
+                            smoothTranslation = false,
+                            preferWindowing = false,
+                            simplifyPunctuation = false,
+                            guideVisible = true,
+                            pivotHighlightVisible = true,
+                            guideThickness = FOCUS_GUIDE_THICKNESS,
+                        ),
+                    )
+                }
+            }
+        }
+
+        for (currentTheme in listOf(ReaderTheme.DARK, ReaderTheme.INK)) {
+            composeRule.runOnIdle { theme = currentTheme }
+            val scheme = currentTheme.materialColorScheme()
+            val accents = scheme.rsvpAccentColors()
+            val text = renderedLayout().layoutInput.text
+            val pivot = text.spanStyles.last()
+            assertEquals(PIVOT_CHARACTER_COUNT, pivot.end - pivot.start)
+            assertEquals(accents.pivot, pivot.item.color)
+            assertEquals(Color.Unspecified, pivot.item.background)
+            assertNull(pivot.item.fontWeight)
+            assertNull(pivot.item.textDecoration)
+            assertTrue(colorContrast(pivot.item.color, scheme.background) >= WCAG_AA_TEXT_CONTRAST)
+        }
+    }
 
     @Test
     fun difficultWordsMoveLeftToRightWithoutMovingTheRenderedWord() {
@@ -165,5 +214,15 @@ class RsvpDifficultyHighlightDeviceTest {
     private fun highlightedText(layout: TextLayoutResult): String {
         val text = layout.layoutInput.text
         return text.spanStyles.filter { it.item.color == Color.Blue }.joinToString("") { text.text.substring(it.start, it.end) }
+    }
+
+    private companion object {
+        const val FOCUS_STAGE_WIDTH_DP = 360
+        const val FOCUS_STAGE_HEIGHT_DP = 180
+        const val FOCUS_FONT_SIZE_SP = 28f
+        const val FOCUS_HORIZONTAL_BIAS = 0.5f
+        const val FOCUS_GUIDE_THICKNESS = 1f
+        const val PIVOT_CHARACTER_COUNT = 1
+        const val WCAG_AA_TEXT_CONTRAST = 4.5f
     }
 }

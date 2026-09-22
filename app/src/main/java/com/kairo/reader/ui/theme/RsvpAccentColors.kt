@@ -8,19 +8,29 @@ import kotlin.math.min
 
 internal data class RsvpAccentColors(val pivot: Color, val wordPart: Color)
 
-/** Keep the two RSVP cues legible and distinct while following editable theme accents. */
+/** Tertiary is usually the palette's hue-separated accent; reserve primary for word parts. */
 internal fun ColorScheme.rsvpAccentColors(): RsvpAccentColors {
-    val pivot = contrastingColor(primary, listOf(background))
-    val themedWordPart = contrastingColor(tertiary, listOf(background))
+    val themedPivot = contrastingColor(tertiary, listOf(background))
+    val pivot = if (colorChroma(background) >= MIN_BACKGROUND_CHROMA &&
+        hueDistance(background, themedPivot) < MIN_PIVOT_HUE_DISTANCE
+    ) {
+        contrastingColor(
+            Color.hsl(
+                (colorHue(background) + HUE_HALF_TURN) % FULL_CIRCLE_DEGREES,
+                PIVOT_SATURATION,
+                accentLightness(background),
+            ),
+            listOf(background),
+        )
+    } else {
+        themedPivot
+    }
+    val themedWordPart = contrastingColor(primary, listOf(background))
     val wordPart = if (channelDistance(pivot, themedWordPart) >= MIN_ACCENT_DISTANCE) {
         themedWordPart
     } else {
         val hue = colorHue(pivot)
-        val lightness = if (colorContrast(Color.White, background) > colorContrast(Color.Black, background)) {
-            DARK_BACKGROUND_WORD_PART_LIGHTNESS
-        } else {
-            LIGHT_BACKGROUND_WORD_PART_LIGHTNESS
-        }
+        val lightness = accentLightness(background)
         val derived = DISTINCT_HUE_OFFSETS.map { offset ->
             contrastingColor(
                 Color.hsl((hue + offset) % FULL_CIRCLE_DEGREES, WORD_PART_SATURATION, lightness),
@@ -41,6 +51,21 @@ internal fun ColorScheme.rsvpAccentColors(): RsvpAccentColors {
 private fun channelDistance(first: Color, second: Color): Float =
     max(abs(first.red - second.red), max(abs(first.green - second.green), abs(first.blue - second.blue)))
 
+private fun accentLightness(background: Color): Float =
+    if (colorContrast(Color.White, background) > colorContrast(Color.Black, background)) {
+        DARK_BACKGROUND_ACCENT_LIGHTNESS
+    } else {
+        LIGHT_BACKGROUND_ACCENT_LIGHTNESS
+    }
+
+private fun colorChroma(color: Color): Float =
+    max(color.red, max(color.green, color.blue)) - min(color.red, min(color.green, color.blue))
+
+private fun hueDistance(first: Color, second: Color): Float {
+    val distance = abs(colorHue(first) - colorHue(second))
+    return min(distance, FULL_CIRCLE_DEGREES - distance)
+}
+
 private fun colorHue(color: Color): Float {
     val high = max(color.red, max(color.green, color.blue))
     val low = min(color.red, min(color.green, color.blue))
@@ -55,16 +80,20 @@ private fun colorHue(color: Color): Float {
 }
 
 private const val MIN_ACCENT_DISTANCE = 0.16f
+private const val MIN_BACKGROUND_CHROMA = 0.04f
+private const val MIN_PIVOT_HUE_DISTANCE = 45f
 private const val MIN_TEXT_CONTRAST = 4.5f
 private const val WORD_PART_SATURATION = 0.9f
-private const val LIGHT_BACKGROUND_WORD_PART_LIGHTNESS = 0.38f
-private const val DARK_BACKGROUND_WORD_PART_LIGHTNESS = 0.72f
+private const val PIVOT_SATURATION = 0.8f
+private const val LIGHT_BACKGROUND_ACCENT_LIGHTNESS = 0.38f
+private const val DARK_BACKGROUND_ACCENT_LIGHTNESS = 0.72f
 private const val NEUTRAL_CHROMA_THRESHOLD = 0.02f
 private const val NEUTRAL_HUE_DEGREES = 40f
 private const val GREEN_HUE_SECTOR = 2f
 private const val BLUE_HUE_SECTOR = 4f
 private const val HUE_SECTOR_DEGREES = 60f
 private const val FULL_CIRCLE_DEGREES = 360f
+private const val HUE_HALF_TURN = 180f
 private const val HUE_QUARTER_TURN = 90f
 private const val HUE_WARM_TURN = 150f
 private const val HUE_COOL_TURN = 210f

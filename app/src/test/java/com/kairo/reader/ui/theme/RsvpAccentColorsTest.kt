@@ -19,6 +19,17 @@ class RsvpAccentColorsTest {
     }
 
     @Test
+    fun warmPageUsesACoolPivotMarkerEvenWithAWarmCustomTertiary() {
+        val scheme = CustomTheme(
+            background = Color(0xFFF2E6D2).toArgb(),
+            tertiary = Color(0xFF7A4B1F).toArgb(),
+        ).materialColorScheme()
+        val pivot = scheme.rsvpAccentColors().pivot
+        assertTrue("Pivot should stand apart from the warm page: $pivot", pivot.blue > pivot.red)
+        assertAccents(scheme)
+    }
+
+    @Test
     fun customThemesStayLegibleWhenAccentsMatchOrHavePoorContrast() {
         val random = Random(PALETTE_RANDOM_SEED)
         repeat(CUSTOM_PALETTE_SAMPLES) {
