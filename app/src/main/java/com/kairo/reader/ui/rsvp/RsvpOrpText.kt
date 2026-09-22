@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import kotlin.math.roundToInt
@@ -51,7 +52,7 @@ internal fun buildOrpAnnotatedText(
             val safeEnd = highlightEndExclusive.coerceIn(safeStart, fullText.length)
             if (safeEnd > safeStart) {
                 addStyle(
-                    style = SpanStyle(color = highlightColor),
+                    style = SpanStyle(color = highlightColor, textDecoration = TextDecoration.Underline),
                     start = safeStart,
                     end = safeEnd,
                 )
@@ -60,12 +61,12 @@ internal fun buildOrpAnnotatedText(
         additionalHighlights.forEach { range ->
             val start = range.first.coerceIn(0, fullText.length)
             val end = (range.last + 1).coerceIn(start, fullText.length)
-            if (end > start) addStyle(SpanStyle(color = highlightColor), start, end)
+            if (end > start) addStyle(SpanStyle(color = highlightColor, textDecoration = TextDecoration.Underline), start, end)
         }
         if (pivotHighlightVisible && fullText.isNotEmpty()) {
             val safeIndex = pivotPosition.coerceIn(0, fullText.lastIndex)
             addStyle(
-                style = SpanStyle(color = pivotColor),
+                style = SpanStyle(color = pivotColor, textDecoration = TextDecoration.Underline),
                 start = safeIndex,
                 end = (safeIndex + 1).coerceAtMost(fullText.length),
             )
