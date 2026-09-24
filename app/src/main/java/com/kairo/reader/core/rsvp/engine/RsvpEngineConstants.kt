@@ -16,7 +16,6 @@ internal const val MAX_MIN_PAUSE_SCALE = 0.97
 internal const val BASE_MS_PER_WORD_AT_300 = 200.0
 internal const val DEFAULT_CLAUSE_PAUSE_FACTOR = 1.25
 internal const val MIN_BLINK_MS = 16L
-internal const val ADAPTIVE_DIFFICULTY_FLOOR = 0.35
 internal const val CLAUSE_BOUNDARY_HOLD_MS = 55.0
 internal const val ADAPTIVE_HOLD_MAX_MS = 160.0
 internal const val EASY_PAIR_THRESHOLD = 0.72
@@ -46,10 +45,6 @@ internal const val PHRASE_ONSET_LIFT = 0.05
 // time, later mentions read lighter. Tracked in a small LRU of recently shown content words,
 // cleared at page breaks (scene changes re-introduce). The glide also roughly cancels the
 // proper-noun emphasis boost on re-mentions.
-internal const val GIVENNESS_GLIDE = 0.08
-internal const val GIVENNESS_MIN_CHARS = 5
-internal const val GIVENNESS_MAX_ENTRIES = 160
-internal const val GIVENNESS_INITIAL_CAPACITY = 64
 
 // Em-dash role shaping. A dash is not one thing: paired dashes wrap an aside and should read as
 // a light dip in register (parenthesis-like), not two full clause stops in a row; a dash that is
@@ -87,16 +82,11 @@ internal const val FUNCTION_BRIDGE_COHERENCE_THRESHOLD = 0.65
 internal const val PRONOUN_BRIDGE_MAX_CHARS = 6
 internal const val AUXILIARY_BRIDGE_MAX_CHARS = 6
 internal const val AUXILIARY_CONTENT_MAX_CHARS = 8
-internal const val AUXILIARY_CONTENT_MIN_FREQUENCY = 0.45
 internal const val MIN_PROSODY_MULTIPLIER = 0.88
 internal const val MAX_PROSODY_MULTIPLIER = 1.18
 internal const val CLAUSE_LEAD_BOOST_MS = 20.0
 internal const val SENTENCE_END_BREAK_BOOST_MS = 40.0
 internal const val EMBEDDED_QUOTE_FACTOR = 0.45
-internal const val FLOW_EMA_ALPHA = 0.25
-internal const val FLOW_MAX_BOOST = 0.04
-internal const val FLOW_MAX_SLOWDOWN = 0.05
-internal const val FLOW_STRENGTH = 0.12
 internal const val MAX_BOUNDARY_TAIL_LIFT = 0.30
 internal const val MIN_BOUNDARY_TAIL_LIFT_STRENGTH = 0.85
 internal const val MIN_LANDING_HOLD_MS = 8.0

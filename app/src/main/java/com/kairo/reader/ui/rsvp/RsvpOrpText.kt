@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import kotlin.math.roundToInt
@@ -42,6 +43,7 @@ internal fun buildOrpAnnotatedText(
     highlightEndExclusive: Int,
     highlightColor: Color,
     pivotHighlightVisible: Boolean = true,
+    additionalHighlights: List<IntRange> = emptyList(),
 ): AnnotatedString =
     buildAnnotatedString {
         append(fullText)
@@ -50,11 +52,16 @@ internal fun buildOrpAnnotatedText(
             val safeEnd = highlightEndExclusive.coerceIn(safeStart, fullText.length)
             if (safeEnd > safeStart) {
                 addStyle(
-                    style = SpanStyle(color = highlightColor),
+                    style = SpanStyle(color = highlightColor, textDecoration = TextDecoration.Underline),
                     start = safeStart,
                     end = safeEnd,
                 )
             }
+        }
+        additionalHighlights.forEach { range ->
+            val start = range.first.coerceIn(0, fullText.length)
+            val end = (range.last + 1).coerceIn(start, fullText.length)
+            if (end > start) addStyle(SpanStyle(color = highlightColor, textDecoration = TextDecoration.Underline), start, end)
         }
         if (pivotHighlightVisible && fullText.isNotEmpty()) {
             val safeIndex = pivotPosition.coerceIn(0, fullText.lastIndex)
@@ -102,6 +109,7 @@ internal fun buildOrpTextContent(
         wordCount = wordCount,
         highlightStart = state.highlightStart,
         highlightEndExclusive = state.highlightEndExclusive,
+        additionalHighlights = state.additionalHighlights.toList(),
     )
 }
 
@@ -129,6 +137,14 @@ private fun appendWord(
                 state.highlightStart = safeStart
                 state.highlightEndExclusive = safeEnd
             }
+        }
+    } else {
+        val highlightStart = token.highlightStart
+        val highlightEnd = token.highlightEndExclusive
+        if (highlightStart != null && highlightEnd != null) {
+            val safeStart = highlightStart.coerceIn(0, token.text.length)
+            val safeEnd = highlightEnd.coerceIn(safeStart, token.text.length)
+            if (safeEnd > safeStart) state.additionalHighlights += (start + safeStart) until (start + safeEnd)
         }
     }
     state.needsSpace = true

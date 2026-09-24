@@ -6,7 +6,6 @@ import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.rsvp.analysis.RsvpThoughtCue
 import com.kairo.reader.core.rsvp.engine.BoundaryBefore
 import com.kairo.reader.core.rsvp.engine.ContextSnapshot
-import com.kairo.reader.core.rsvp.engine.FlowState
 import com.kairo.reader.core.rsvp.engine.RhythmState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -32,7 +31,6 @@ class RsvpBoundaryIntegrationTest {
             config = config,
             contextBefore = ContextSnapshot(0, false),
             rhythm = RhythmState(1.0, 2.0, 2.0),
-            flow = FlowState(1.0, 1.0, 1.0, 0.0),
             prevToken = null,
             prevWord = null,
             nextToken = Token("Next", TokenType.WORD),

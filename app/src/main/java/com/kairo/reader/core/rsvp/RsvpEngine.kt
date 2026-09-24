@@ -5,20 +5,15 @@ import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
-import com.kairo.reader.core.model.splitTokenForRsvp
+import com.kairo.reader.core.rsvp.analysis.ReadingDemandAnalyzer
 import com.kairo.reader.core.rsvp.analysis.RsvpTokenAnalysis
+import com.kairo.reader.core.rsvp.analysis.RsvpWordPartSupport
 import com.kairo.reader.core.rsvp.analysis.analyzeExpandedTokens
 import com.kairo.reader.core.rsvp.analysis.nextTokenAfter
-import com.kairo.reader.core.rsvp.analysis.recordGivennessWord
 import com.kairo.reader.core.rsvp.analysis.shouldKeepFullFocalDuration
 import com.kairo.reader.core.rsvp.engine.BoundaryBefore
 import com.kairo.reader.core.rsvp.engine.ContextState
 import com.kairo.reader.core.rsvp.engine.ExpandedToken
-import com.kairo.reader.core.rsvp.engine.FLOW_EMA_ALPHA
-import com.kairo.reader.core.rsvp.engine.FLOW_MAX_BOOST
-import com.kairo.reader.core.rsvp.engine.FLOW_MAX_SLOWDOWN
-import com.kairo.reader.core.rsvp.engine.FLOW_STRENGTH
-import com.kairo.reader.core.rsvp.engine.FlowState
 import com.kairo.reader.core.rsvp.engine.MAX_ANTICIPATORY_LANDING_BOOST
 import com.kairo.reader.core.rsvp.engine.MIN_FOCAL_SUPPORT_COMPRESSION
 import com.kairo.reader.core.rsvp.engine.MIN_FRAME_MS
@@ -73,7 +68,7 @@ interface RsvpEngine {
  *
  * Core idea:
  * - Build *reading units* (1–2 word phrases + attached punctuation) that match language flow.
- * - Compute unit durations via a difficulty model (length/syllables/rarity/complexity) + breath pauses.
+ * - Compute unit durations via one bounded reading-demand allowance + breath pauses.
  * - Apply context shaping (parentheticals/quotes) and rhythm shaping (EMA smoothing + jitter clamps).
  *
  * The result is a calm, legible cadence where long words and punctuation never "flash" away.
@@ -115,7 +110,6 @@ private data class RsvpGenerationContext(
     val frames: MutableList<RsvpFrame>,
     val state: ContextState,
     val rhythm: RhythmState,
-    val flow: FlowState,
     val prose: ProseState,
 )
 
@@ -128,7 +122,12 @@ private fun generateFramesWithNormalizedConfig(
     if (tokens.isEmpty()) return emptyList()
 
     val analysisStartIndex = resolveAnalysisStartIndex(tokens, startIndex)
-    val expanded = buildExpandedTokens(tokens, analysisStartIndex, config)
+    val expanded = ReadingDemandAnalyzer.attach(
+        buildExpandedTokens(tokens, analysisStartIndex, config, options.languagePolicy),
+        tokens,
+        analysisStartIndex,
+        options.languagePolicy,
+    )
     val cursor = resolveFirstPlaybackCursor(expanded, startIndex) ?: return emptyList()
     val context =
         RsvpGenerationContext(
@@ -146,8 +145,7 @@ private fun generateFramesWithNormalizedConfig(
             frames = mutableListOf(),
             state = createContextState(tokens, expanded[cursor].originalIndex),
             rhythm = createRhythmState(config),
-            flow = createFlowState(),
-            prose = createProseState(expanded, cursor, config),
+            prose = createProseState(expanded, cursor),
         )
 
     var nextCursor = cursor
@@ -163,16 +161,13 @@ private fun buildExpandedTokens(
     tokens: List<Token>,
     analysisStartIndex: Int,
     config: RsvpConfig,
+    languagePolicy: RsvpLanguagePolicy,
 ): List<ExpandedToken> =
     tokens
         .subList(analysisStartIndex, tokens.size)
         .flatMapIndexed { index, token ->
             var sourceCursor = 0
-            splitTokenForRsvp(
-                token = token,
-                maxChunkLength = config.maxChunkLength,
-                subwordChunkPauseMs = config.subwordChunkPauseMs,
-            ).map { splitToken ->
+            RsvpWordPartSupport.split(token, config, languagePolicy).map { splitToken ->
                 val sourceStart =
                     if (splitToken.text == token.text) {
                         0
@@ -261,18 +256,9 @@ private fun createRhythmState(config: RsvpConfig): RhythmState =
         maxSlowdownFactor = config.maxSlowdownFactor,
     )
 
-private fun createFlowState(): FlowState =
-    FlowState(
-        alpha = FLOW_EMA_ALPHA,
-        maxBoost = FLOW_MAX_BOOST,
-        maxSlowdown = FLOW_MAX_SLOWDOWN,
-        strength = FLOW_STRENGTH,
-    )
-
 private fun createProseState(
     expanded: List<ExpandedToken>,
     playbackCursor: Int,
-    config: RsvpConfig,
 ): ProseState {
     val prose = ProseState()
     var previousWord: Token? = null
@@ -283,9 +269,6 @@ private fun createProseState(
         when (token.type) {
             TokenType.WORD -> {
                 prose.onWordShown()
-                if (config.useAdaptiveTiming) {
-                    recordGivennessWord(token, prose)
-                }
                 previousWord = token
             }
             TokenType.PUNCTUATION -> {
@@ -340,7 +323,6 @@ private fun RsvpGenerationContext.appendBreakFrame(cursor: Int): Int? {
             displayOriginalEndCharacterOffset = expanded[cursor].sourceCharacterEndExclusive,
         )
     rhythm.reset()
-    flow.reset()
     if (cursorToken.type == TokenType.PAGE_BREAK) {
         prose.onPageBreak()
     } else {
@@ -412,7 +394,6 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
                 config = config,
                 contextBefore = contextBefore,
                 rhythm = rhythm,
-                flow = flow,
                 prevToken = expanded.getOrNull(cursor - 1)?.token,
                 prevWord = findPrevWord(expanded, beforeIndex = cursor),
                 nextToken = expanded.getOrNull(nextCursor)?.token,
@@ -431,6 +412,7 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
                 explicitSpeakerTag =
                 selection.dialogueRole == RsvpDialogueRole.SPEAKER_TAG,
                 thoughtCues = unitCues,
+                readingDemands = (wordCursor until nextCursor).mapNotNull { expanded[it].readingDemand },
             ),
         )
 
@@ -439,6 +421,7 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
             tokens = frameTokens,
             durationMs = timing.durationMs,
             punctuationHoldMs = timing.punctuationHoldMs,
+            protectedWordMs = timing.protectedWordMs,
             originalTokenIndex = frameOriginalIndex,
             resumeCursor =
             RsvpResumeCursor.fromCharacterOffset(

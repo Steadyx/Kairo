@@ -114,7 +114,7 @@ data class RsvpConfig(
      * Tempo in milliseconds for a baseline, easy word.
      *
      * This is the primary speed control for the engine. The actual time per unit is then shaped
-     * by readability floors, difficulty (length/syllables/rarity/complexity), punctuation, context,
+     * by readability floors, bounded reading demand, punctuation, context,
      * and rhythm smoothing.
      *
      * An estimated WPM can be derived from this, but WPM is not the direct control.
@@ -128,7 +128,8 @@ data class RsvpConfig(
     val longWordMinMs: Long = 120L,
     val longWordChars: Int = 10,
     /**
-     * Difficulty model.
+     * Legacy difficulty fields retained only for lossless preference/profile round trips.
+     * Playback uses difficultWordSupport and the unified ReadingDemandAnalyzer instead.
      * - syllableExtraMs: additional time per syllable beyond the first.
      * - rarityExtraMaxMs: additional time for rare words (0..max) based on frequencyScore.
      * - complexityStrength: how strongly to apply Token.complexityMultiplier (0..1).
@@ -137,7 +138,7 @@ data class RsvpConfig(
     val rarityExtraMaxMs: Long = 65L,
     val complexityStrength: Double = 0.65,
     /**
-     * Length curve. Adds time for longer words smoothly instead of abrupt thresholds.
+     * Legacy length curve, retained for profile compatibility; ignored by playback.
      * lengthStrength controls overall impact; lengthExponent controls how quickly it grows.
      */
     val lengthStrength: Double = 0.9,
@@ -206,7 +207,7 @@ data class RsvpConfig(
     /**
      * Rhythm shaping.
      * smoothingAlpha is EMA smoothing (0..1). Lower = steadier but less responsive.
-     * maxSpeedupFactor/maxSlowdownFactor clamp jitter between adjacent units.
+     * maxSpeedupFactor/maxSlowdownFactor clamp per-word beat changes, excluding protected difficulty time.
      */
     val smoothingAlpha: Double = 0.35,
     val maxSpeedupFactor: Double = 1.25,
@@ -234,12 +235,21 @@ data class RsvpConfig(
     /** Global punctuation breathing multiplier. 1.0 is neutral. */
     val punctuationPauseFactor: Double = 1.08,
     val useAdaptiveTiming: Boolean = true,
+    /** Legacy adaptive difficulty cap; ignored by playback. */
     val adaptiveDifficultyMaxHoldMs: Long = 70L,
+    /** Reading support (0..2) for both word recognition and phrase processing; retains its original storage key. */
+    val difficultWordSupport: Double = 1.0,
+    /** Show selected long English words as moving word parts, independently of extra reading time. */
+    val showDifficultWordParts: Boolean = true,
+    /** Legacy phrase allowance retained for profile compatibility; ignored by playback. */
+    val phraseBreathingRoomMs: Long = adaptiveDifficultyMaxHoldMs,
+    /** Legacy complex-word hold; ignored by playback. */
     val complexWordHoldMs: Long = 45L,
     val useClausePausing: Boolean = true,
     val useDialogueDetection: Boolean = true,
     val useProsodyPacing: Boolean = true,
     val prosodyStrength: Double = 1.0,
+    /** Legacy threshold; ignored by playback. */
     val complexWordThreshold: Double = 1.3,
     val clausePauseFactor: Double = 1.25,
     val blinkMode: BlinkMode = BlinkMode.OFF,

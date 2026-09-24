@@ -27,14 +27,25 @@ class RsvpPresetCadenceTest {
     )
 
     @Test
-    fun allProfilesKeepSourceWordsAndShowWholeOrdinaryTermsAtMultipleSpeeds() {
+    fun allProfilesKeepSourceWordsAndSupportMultisyllabicProseAtMultipleSpeeds() {
         for (tempo in listOf(80L, 150L, 250L)) {
             RsvpProfile.entries.forEach { profile ->
                 val frames = engine.generateFrames(tokens, 0, profile.defaultConfig().copy(tempoMsPerWord = tempo), options)
                 assertEquals(
                     tokens.filter { it.type == TokenType.WORD }.map { it.text },
-                    frames.flatMap { it.tokens }.filter { it.type == TokenType.WORD }.map { it.text },
+                    frames.flatMap { it.tokens }
+                        .filter { it.type == TokenType.WORD && (!it.isSubwordChunk || it.highlightStart == 0) }
+                        .map { it.text },
                 )
+                val displayed = frames.flatMap { it.tokens }
+                assertTrue(displayed.filter { it.text == "distinguish" }.all { !it.isSubwordChunk })
+                assertTrue(displayed.filter { it.text == "measurements" }.all { !it.isSubwordChunk })
+                for (supported in listOf("uncertainty", "observations")) {
+                    val parts = displayed.filter { it.text == supported }
+                    assertTrue("$profile at $tempo: $supported should receive moving support", parts.size > 1)
+                    assertTrue(parts.all { it.isSubwordChunk })
+                    assertEquals(supported, parts.joinToString("") { it.text.substring(it.highlightStart!!, it.highlightEndExclusive!!) })
+                }
                 assertTrue(frames.all { it.durationMs > 0 })
             }
         }

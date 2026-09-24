@@ -42,6 +42,7 @@ import com.kairo.reader.ui.bionic.BionicReadingText
 import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.theme.composeFontFamily
 import com.kairo.reader.ui.theme.readingColor
+import com.kairo.reader.ui.theme.rsvpAccentColors
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlay
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
 import com.kairo.reader.ui.tutorial.StartingTutorialTargetIds
@@ -255,11 +256,12 @@ internal fun rememberRsvpTextColors(
     val pivotLineAlpha =
         (PIVOT_LINE_ALPHA_BASE * clampedBrightness * guideBrightness)
             .coerceIn(PIVOT_LINE_ALPHA_MIN, PIVOT_LINE_ALPHA_MAX)
+    val accents = MaterialTheme.colorScheme.rsvpAccentColors()
     return OrpColors(
-        pivotColor = MaterialTheme.colorScheme.primary,
+        pivotColor = accents.pivot,
         pivotLineColor = MaterialTheme.colorScheme.onBackground.copy(alpha = pivotLineAlpha),
         textColor = readingColor(MaterialTheme.colorScheme.onBackground.copy(alpha = clampedBrightness)),
-        highlightColor = MaterialTheme.colorScheme.primary,
+        highlightColor = accents.wordPart,
     )
 }
 

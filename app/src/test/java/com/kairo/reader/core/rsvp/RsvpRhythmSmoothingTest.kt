@@ -87,7 +87,7 @@ class RsvpRhythmSmoothingTest {
                 tempoMsPerWord = 150L,
                 enablePhraseChunking = false,
                 maxWordsPerUnit = 2,
-                maxChunkLength = 40,
+                maxChunkLength = 0, // Keep this test about whole-word smoothing, independent of moving-part support.
                 startDelayMs = 0L,
                 endDelayMs = 0L,
                 rampUpFrames = 0,

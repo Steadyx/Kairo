@@ -160,6 +160,7 @@ internal fun OrpAlignedTextLayout(
                     highlightStart = display.content.highlightStart,
                     highlightEndExclusive = display.content.highlightEndExclusive,
                     highlightColor = colors.highlightColor,
+                    additionalHighlights = display.content.additionalHighlights,
                     pivotHighlightVisible = layout.pivotHighlightVisible,
                 )
             }
@@ -278,6 +279,7 @@ private fun resolveOrpDisplay(
             highlightStart = content.highlightStart,
             highlightEndExclusive = content.highlightEndExclusive,
             highlightColor = colors.highlightColor,
+            additionalHighlights = content.additionalHighlights,
             pivotHighlightVisible = pivotHighlightVisible,
         )
     val baseMeasured =
@@ -323,6 +325,7 @@ private fun resolveOrpDisplay(
             highlightStart = windowed.highlightStart,
             highlightEndExclusive = windowed.highlightEndExclusive,
             highlightColor = colors.highlightColor,
+            additionalHighlights = windowed.additionalHighlights,
             pivotHighlightVisible = pivotHighlightVisible,
         )
     val windowedMeasured =
@@ -423,6 +426,11 @@ private fun buildWindowedContent(
         wordCount = content.wordCount,
         highlightStart = highlightStart,
         highlightEndExclusive = highlightEndExclusive,
+        additionalHighlights = content.additionalHighlights.mapNotNull { range ->
+            val start = maxOf(range.first, window.start)
+            val end = minOf(range.last + 1, window.endExclusive)
+            if (end > start) (prefixOffset + start - window.start) until (prefixOffset + end - window.start) else null
+        },
     )
 }
 

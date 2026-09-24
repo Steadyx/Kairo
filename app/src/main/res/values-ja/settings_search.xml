@@ -8,9 +8,6 @@
     <string name="settings_search_font_size_description">読書中に表示する文字の大きさ。</string>
     <string name="settings_search_theme_description">色と、明るいまたは暗い読書テーマを選びます。</string>
     <string name="settings_search_long_threshold_description">長い単語の最小表示時間を適用する文字数。</string>
-    <string name="settings_search_syllables_description">音節の多い単語に追加する読書時間。</string>
-    <string name="settings_search_rarity_description">出現頻度の低い単語に追加する読書時間。</string>
-    <string name="settings_search_complexity_description">単語の難しさが読書時間に与える影響を調整します。</string>
     <string name="settings_search_parentheticals_description">括弧内のテキストのペースを調整します。</string>
     <string name="settings_search_dialogue_description">会話文の読書速度を調整します。</string>
     <string name="settings_search_vertical_description">画面上のRSVPテキストを上下に移動します。</string>

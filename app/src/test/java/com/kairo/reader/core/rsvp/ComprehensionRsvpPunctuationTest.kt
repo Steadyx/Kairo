@@ -88,7 +88,7 @@ class ComprehensionRsvpPunctuationTest : ComprehensionRsvpTestBase() {
         )
 
         assertTrue(abbrevEnd.isNotEmpty() && normalEnd.isNotEmpty())
-        val diff = abs(abbrevEnd[0].durationMs - normalEnd[0].durationMs)
+        val diff = abs(requireNotNull(abbrevEnd[0].punctuationHoldMs) - requireNotNull(normalEnd[0].punctuationHoldMs))
         assertTrue("Expected abbreviation at sentence end to pause like a sentence end", diff <= 5L)
     }
 

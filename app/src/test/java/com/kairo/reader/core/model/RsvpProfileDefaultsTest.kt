@@ -173,7 +173,7 @@ class RsvpProfileDefaultsTest {
         assertFalse(study.useFocalStress)
         assertTrue(study.longWordMinMs > balanced.longWordMinMs)
         assertTrue(study.maxChunkLength >= 32)
-        assertTrue(study.adaptiveDifficultyMaxHoldMs > balanced.adaptiveDifficultyMaxHoldMs)
+        assertTrue(study.difficultWordSupport > balanced.difficultWordSupport)
         assertEquals(7, RsvpProfile.entries.map { it.defaultConfig().profileCadenceIdentity() }.toSet().size)
     }
 

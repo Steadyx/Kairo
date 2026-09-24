@@ -5,11 +5,11 @@ import com.kairo.reader.core.linguistics.DialogueAnalyzer
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import com.kairo.reader.core.rsvp.engine.ACRONYM_EMPHASIS_BOOST
 import com.kairo.reader.core.rsvp.engine.AUXILIARY_BRIDGE_MAX_CHARS
 import com.kairo.reader.core.rsvp.engine.AUXILIARY_BRIDGE_WORDS
 import com.kairo.reader.core.rsvp.engine.AUXILIARY_CONTENT_MAX_CHARS
-import com.kairo.reader.core.rsvp.engine.AUXILIARY_CONTENT_MIN_FREQUENCY
 import com.kairo.reader.core.rsvp.engine.BoundaryBefore
 import com.kairo.reader.core.rsvp.engine.COHERENCE_HOLD_MS
 import com.kairo.reader.core.rsvp.engine.CONTENT_WORD_STRESS_BOOST
@@ -20,8 +20,6 @@ import com.kairo.reader.core.rsvp.engine.FUNCTION_BRIDGE_WORDS
 import com.kairo.reader.core.rsvp.engine.FUNCTION_WORDS
 import com.kairo.reader.core.rsvp.engine.FUNCTION_WORD_GLIDE_LIGHT
 import com.kairo.reader.core.rsvp.engine.FUNCTION_WORD_GLIDE_STRONG
-import com.kairo.reader.core.rsvp.engine.GIVENNESS_GLIDE
-import com.kairo.reader.core.rsvp.engine.GIVENNESS_MIN_CHARS
 import com.kairo.reader.core.rsvp.engine.GLUE_WORDS
 import com.kairo.reader.core.rsvp.engine.MAX_BOUNDARY_TAIL_LIFT
 import com.kairo.reader.core.rsvp.engine.MAX_EMPHASIS_MULTIPLIER
@@ -36,7 +34,6 @@ import com.kairo.reader.core.rsvp.engine.PHRASE_PRE_BOUNDARY_LIFT
 import com.kairo.reader.core.rsvp.engine.PRONOUN_BRIDGE_MAX_CHARS
 import com.kairo.reader.core.rsvp.engine.PRONOUN_BRIDGE_WORDS
 import com.kairo.reader.core.rsvp.engine.PROPER_NOUN_BOOST
-import com.kairo.reader.core.rsvp.engine.ProseState
 import com.kairo.reader.core.rsvp.engine.SEMANTIC_ANCHOR_BOOST
 import com.kairo.reader.core.rsvp.engine.SEMANTIC_ANCHOR_WORDS
 import com.kairo.reader.core.rsvp.engine.TIGHT_PAIR_HINTS
@@ -340,46 +337,6 @@ internal fun phraseBoundaryShapeMultiplier(
     return multiplier
 }
 
-/**
- * Given/new glide: words shown recently read lighter on re-mention.
- *
- * Only substantial non-function words are tracked, so the within-phrase evenness of glue words is
- * untouched. Mutates [prose] (records this word as seen) — call exactly once per displayed word.
- */
-internal fun givennessGlideMultiplier(
-    token: Token,
-    prose: ProseState,
-    speedStrength: Double,
-): Double {
-    val key = givennessKey(token) ?: return 1.0
-
-    val given = prose.isGiven(key)
-    prose.record(key)
-    if (!given) return 1.0
-
-    return 1.0 - (GIVENNESS_GLIDE * speedStrength.coerceIn(0.0, 1.0))
-}
-
-internal fun recordGivennessWord(
-    token: Token,
-    prose: ProseState,
-) {
-    val key = givennessKey(token) ?: return
-    prose.record(key)
-}
-
-private fun givennessKey(token: Token): String? {
-    if (token.isSubwordChunk) return null
-    val key = givennessKey(token.text)
-    return key.takeIf { it.length >= GIVENNESS_MIN_CHARS && !isFunctionWord(it) }
-}
-
-private fun givennessKey(text: String): String =
-    normalizeWord(text)
-        .removeSuffix("'s")
-        .removeSuffix("’s")
-        .filter { it.isLetter() }
-
 internal fun isPhraseBreakBefore(
     currentLower: String,
     nextLower: String,
@@ -417,12 +374,6 @@ internal fun isPhraseBreakBefore(
     return false
 }
 
-internal fun frameDifficulty(words: List<Token>): Double {
-    if (words.isEmpty()) return 0.0
-    val total = words.sumOf { (1.0 - wordEase(it)) }
-    return (total / words.size).coerceIn(0.0, 1.0)
-}
-
 internal fun shouldPreferHold(
     prev: Token,
     next: Token,
@@ -437,7 +388,8 @@ internal fun shouldPreferHold(
             prev.text.length <= MAX_GLUE_PAIR_WORD_CHARS &&
             next.text.length <= MAX_GLUE_PAIR_WORD_CHARS
     val easyPair =
-        wordEase(prev) >= EASY_PAIR_THRESHOLD && wordEase(next) >= EASY_PAIR_THRESHOLD
+        wordEase(prev, RsvpLanguagePolicy.ENGLISH) >= EASY_PAIR_THRESHOLD &&
+            wordEase(next, RsvpLanguagePolicy.ENGLISH) >= EASY_PAIR_THRESHOLD
 
     // Check coherence score for high-coherence pairs
     val coherence = ClauseDetector.getCoherenceScore(prevLower, nextLower)
@@ -474,6 +426,8 @@ internal fun analyzePhraseChunkPair(
     val prevLower = prev.text.lowercase()
     val nextLower = next.text.lowercase()
     val pairKey = "$prevLower $nextLower"
+    val previousFrequency = EnglishReadingFrequency.zipf(ReadingDemandAnalyzer.normalize(prev.text)) ?: 0.0
+    val nextFrequency = EnglishReadingFrequency.zipf(ReadingDemandAnalyzer.normalize(next.text)) ?: 0.0
 
     val pronounAuxiliaryBridge =
         prevLower in PRONOUN_BRIDGE_WORDS &&
@@ -484,7 +438,7 @@ internal fun analyzePhraseChunkPair(
         prevLower in AUXILIARY_BRIDGE_WORDS &&
             nextLower !in SEMANTIC_ANCHOR_WORDS &&
             next.text.length <= AUXILIARY_CONTENT_MAX_CHARS &&
-            next.frequencyScore >= AUXILIARY_CONTENT_MIN_FREQUENCY
+            nextFrequency >= AUXILIARY_CONTENT_MIN_ZIPF
     val coherenceScore = ClauseDetector.getCoherenceScore(prevLower, nextLower)
     val coherentShortPair =
         coherenceScore >= PHRASE_CHUNK_COHERENCE_THRESHOLD &&
@@ -496,8 +450,8 @@ internal fun analyzePhraseChunkPair(
         prev.text.length <= MAX_GENERAL_CHUNK_PREV_CHARS &&
             next.text.length <= MAX_GENERAL_CHUNK_NEXT_CHARS
     val bothCommon =
-        prev.frequencyScore >= COMMON_WORD_FREQUENCY_THRESHOLD &&
-            next.frequencyScore >= COMMON_WORD_FREQUENCY_THRESHOLD
+        previousFrequency >= COMMON_WORD_ZIPF_THRESHOLD &&
+            nextFrequency >= COMMON_WORD_ZIPF_THRESHOLD
 
     val generalShortPair = (glue && bothShort) || (bothShort && bothCommon)
     val tightPair = pairKey in TIGHT_PAIR_HINTS
@@ -570,31 +524,8 @@ internal fun boundaryTailLiftWeight(
     )
 }
 
-internal fun wordEase(word: Token): Double {
-    val letters = word.text.count { it.isLetterOrDigit() }.coerceAtLeast(1)
-    val lengthScore =
-        (
-            (letters - WORD_EASE_BASE_CHARS).coerceAtLeast(0) /
-                WORD_EASE_LENGTH_SCALE
-            ).coerceIn(0.0, 1.0)
-    val syllableScore =
-        (
-            (word.syllableCount - 1).coerceAtLeast(0) /
-                WORD_EASE_SYLLABLE_SCALE
-            ).coerceIn(0.0, 1.0)
-    val rarityScore = (1.0 - word.frequencyScore).coerceIn(0.0, 1.0)
-    val complexityScore = (word.complexityMultiplier - 1.0).coerceAtLeast(
-        0.0
-    ).coerceIn(0.0, 1.0)
-
-    val difficulty =
-        (lengthScore * WORD_EASE_LENGTH_WEIGHT) +
-            (syllableScore * WORD_EASE_SYLLABLE_WEIGHT) +
-            (rarityScore * WORD_EASE_RARITY_WEIGHT) +
-            (complexityScore * WORD_EASE_COMPLEXITY_WEIGHT)
-
-    return (1.0 - difficulty).coerceIn(0.0, 1.0)
-}
+internal fun wordEase(word: Token, policy: RsvpLanguagePolicy = RsvpLanguagePolicy.UNKNOWN): Double =
+    1.0 - ReadingDemandAnalyzer.analyze(word, policy).difficulty
 
 private const val MAX_SPEAKER_TAG_FRAME_WORDS = 3
 private const val MIN_DIALOGUE_SPEED_STRENGTH = 0.15
@@ -610,12 +541,6 @@ private const val MAX_COHERENT_CHUNK_PREV_CHARS = 5
 private const val MAX_COHERENT_CHUNK_NEXT_CHARS = 8
 private const val MAX_GENERAL_CHUNK_PREV_CHARS = 4
 private const val MAX_GENERAL_CHUNK_NEXT_CHARS = 7
-private const val COMMON_WORD_FREQUENCY_THRESHOLD = 0.7
+private const val COMMON_WORD_ZIPF_THRESHOLD = 4.5
+private const val AUXILIARY_CONTENT_MIN_ZIPF = 4.0
 private const val FIXED_POINT_SCALE = 1000
-private const val WORD_EASE_BASE_CHARS = 4
-private const val WORD_EASE_LENGTH_SCALE = 8.0
-private const val WORD_EASE_SYLLABLE_SCALE = 4.0
-private const val WORD_EASE_LENGTH_WEIGHT = 0.35
-private const val WORD_EASE_SYLLABLE_WEIGHT = 0.25
-private const val WORD_EASE_RARITY_WEIGHT = 0.25
-private const val WORD_EASE_COMPLEXITY_WEIGHT = 0.15

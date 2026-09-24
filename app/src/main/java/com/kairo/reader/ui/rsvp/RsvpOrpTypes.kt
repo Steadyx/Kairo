@@ -28,6 +28,7 @@ internal data class OrpTextContent(
     val wordCount: Int,
     val highlightStart: Int,
     val highlightEndExclusive: Int,
+    val additionalHighlights: List<IntRange> = emptyList(),
 )
 
 internal data class OrpBounds(
@@ -50,4 +51,5 @@ internal data class OrpTextBuildState(
     var firstWordEndExclusive: Int = INVALID_INDEX,
     var highlightStart: Int = INVALID_INDEX,
     var highlightEndExclusive: Int = INVALID_INDEX,
+    val additionalHighlights: MutableList<IntRange> = mutableListOf(),
 )

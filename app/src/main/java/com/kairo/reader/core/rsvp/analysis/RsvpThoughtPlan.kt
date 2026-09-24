@@ -15,6 +15,7 @@ internal data class RsvpThoughtCue(
     val isLastWord: Boolean,
     val protectedEmphasis: Boolean,
     val integrationHoldMs: Double,
+    val processingHoldMs: Double = 0.0,
 )
 
 internal object RsvpThoughtPlan {
@@ -31,7 +32,10 @@ internal object RsvpThoughtPlan {
         fun finish(endExclusive: Int) {
             if (words.isEmpty()) return
             val protected = protectedWords(words, english, previousModals)
-            val hold = integrationHold(words, config)
+            val hold = integrationHold(words, config, languagePolicy)
+            val sourceWords = words.distinctBy { it.originalIndex }
+            val processingShare = if (sourceWords.size > 1) PROCESSING_SHARE else 0.0
+            val lastChunks = words.associateBy { it.originalIndex }
             val start = words.first().originalIndex
             words.forEachIndexed { index, word ->
                 cues[word.expandedIndex] = RsvpThoughtCue(
@@ -39,7 +43,12 @@ internal object RsvpThoughtPlan {
                     endTokenIndexExclusive = endExclusive,
                     isLastWord = index == words.lastIndex,
                     protectedEmphasis = word.expandedIndex in protected,
-                    integrationHoldMs = if (index == words.lastIndex) hold else 0.0,
+                    integrationHoldMs = if (index == words.lastIndex) hold * (1.0 - processingShare) else 0.0,
+                    processingHoldMs = if (lastChunks[word.originalIndex] == word) {
+                        hold * processingShare / sourceWords.size
+                    } else {
+                        0.0
+                    },
                 )
             }
             previousModals = words.map { normalizeWord(it.token.text) }.filter { it in MODALS }.toSet()
@@ -94,26 +103,36 @@ internal object RsvpThoughtPlan {
         }
     }
 
-    private fun integrationHold(words: List<ExpandedToken>, config: RsvpConfig): Double {
-        if (!config.useAdaptiveTiming) return 0.0
-        // Count source words once: spelling chunks must not manufacture cognitive load.
-        val sourceWords = words.distinctBy { it.originalIndex }
-        val informationWords = sourceWords.distinctBy { normalizeWord(it.token.text) }
-        val density = informationWords.sumOf {
-            (1.0 - it.token.frequencyScore).coerceIn(0.0, 1.0) +
-                (it.token.complexityMultiplier - 1.0).coerceIn(0.0, 1.0) +
-                if (it.token.text.any(Char::isDigit)) NUMBER_LOAD else 0.0
+    private fun integrationHold(
+        words: List<ExpandedToken>,
+        config: RsvpConfig,
+        languagePolicy: RsvpLanguagePolicy,
+    ): Double {
+        val informationWords = words.distinctBy { it.originalIndex }
+            .distinctBy { normalizeWord(it.token.text) }
+        // Without a language-specific familiarity model, word count is not evidence of density.
+        // Keep length and numbers as the shared fallback for non-English and unknown text.
+        val contentCount = if (languagePolicy == RsvpLanguagePolicy.ENGLISH) {
+            informationWords.count {
+                (EnglishReadingFrequency.zipf(ReadingDemandAnalyzer.normalize(it.token.text)) ?: 0.0) < COMMON_WORD_ZIPF
+            }
+        } else {
+            0
         }
+        val numbers = informationWords.count { it.token.text.any(Char::isDigit) }
         val lengthLoad = (informationWords.size - EASY_PHRASE_WORDS).coerceAtLeast(0).toDouble()
-        val load = (density - EASY_DENSITY).coerceAtLeast(0.0) + sqrt(lengthLoad)
-        return (load * HOLD_PER_LOAD_MS).coerceAtMost(config.adaptiveDifficultyMaxHoldMs.toDouble())
+        val load = (contentCount - EASY_CONTENT_WORDS).coerceAtLeast(0) + numbers * NUMBER_LOAD + sqrt(lengthLoad)
+        return (load * HOLD_PER_LOAD_MS).coerceAtMost(PHRASE_ALLOWANCE_MS) * config.difficultWordSupport
     }
 
     private val NEGATIONS = setOf("not", "never", "neither", "nor", "no", "cannot", "can't", "won't", "isn't", "wasn't")
     private val CONTRAST_MARKERS = setOf("but", "instead", "rather", "however", "only", "except")
     private val MODALS = setOf("can", "could", "may", "might", "must", "shall", "should", "will", "would")
+    private const val COMMON_WORD_ZIPF = 5.0
+    private const val EASY_CONTENT_WORDS = 3
+    private const val PHRASE_ALLOWANCE_MS = 70.0
+    private const val PROCESSING_SHARE = 0.4
     private const val NUMBER_LOAD = 0.75
     private const val EASY_PHRASE_WORDS = 7
-    private const val EASY_DENSITY = 2.0
     private const val HOLD_PER_LOAD_MS = 14.0
 }

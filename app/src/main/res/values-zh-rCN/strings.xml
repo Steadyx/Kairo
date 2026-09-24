@@ -128,9 +128,8 @@
     <string name="rsvp_long_word_min_subtitle">为长词或专业词提供额外时间。</string>
     <string name="rsvp_sentence_end_pause_title">句末停顿</string>
     <string name="rsvp_sentence_end_pause_subtitle">在句子边界留出空隙。</string>
-    <string name="rsvp_adaptive_pacing_title">自适应节奏</string>
-    <string name="rsvp_adaptive_pacing_subtitle">为难词和从句添加额外停顿。</string>
-    <string name="rsvp_adaptive_pacing_summary">难度 +%1$d毫秒 | 复杂度 +%2$d毫秒 | 阈值 %3$s</string>
+    <string name="rsvp_adaptive_pacing_title">自动节奏</string>
+    <string name="rsvp_adaptive_pacing_subtitle">调整分句过渡和句末停顿。阅读辅助独立生效。</string>
     <string name="rsvp_display_title">显示</string>
     <string name="rsvp_display_subtitle">只影响速读屏幕。</string>
     <string name="rsvp_speed_limits_title">速度限制</string>
@@ -139,16 +138,11 @@
     <string name="rsvp_unlock_extreme_speeds_title">解锁极限速度</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle">允许最低至 %1$d毫秒（可能难以阅读）。</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle_long">允许非常高的速度（可能很快难以阅读）。</string>
-    <string name="rsvp_readability_floors_title">可读性下限</string>
+    <string name="rsvp_readability_floors_title">最短显示时间</string>
     <string name="rsvp_readability_floors_summary">阈值 %1$d 字符 | 拆分 +%2$d毫秒</string>
     <string name="rsvp_long_word_threshold_title">长词阈值</string>
     <string name="rsvp_split_word_pause_title">分段停顿</string>
     <string name="rsvp_split_word_pause_subtitle">长词分段之间的额外时间。</string>
-    <string name="rsvp_difficulty_model_title">难度模型</string>
-    <string name="rsvp_difficulty_model_summary">音节 +%1$d毫秒 | 稀有度 +%2$d毫秒 | 强度 %3$s</string>
-    <string name="rsvp_syllable_boost_title">音节增强</string>
-    <string name="rsvp_rarity_boost_title">稀有度增强</string>
-    <string name="rsvp_complexity_strength_title">复杂度强度</string>
     <string name="rsvp_punctuation_pauses_title">标点停顿</string>
     <string name="rsvp_punctuation_pauses_summary">呼吸 %1$s | 逗号 %2$d毫秒 | 句号 %3$d毫秒 | 段落 %4$d毫秒 | 页面 %5$s</string>
     <string name="rsvp_punctuation_comma">逗号</string>
@@ -170,12 +164,6 @@
     <string name="rsvp_context_shaping_summary">括号 %1$s | 对话 %2$s</string>
     <string name="rsvp_parentheticals_title">括号</string>
     <string name="rsvp_dialogue_pace_title">对话节奏</string>
-    <string name="rsvp_difficulty_boost_title">难度增强</string>
-    <string name="rsvp_difficulty_boost_subtitle">难词的最大额外停顿。</string>
-    <string name="rsvp_complex_word_boost_title">复杂词增强</string>
-    <string name="rsvp_complex_word_boost_subtitle">为超过复杂度阈值的词提供额外停顿。</string>
-    <string name="rsvp_complex_word_threshold_title">复杂词阈值</string>
-    <string name="rsvp_complex_word_threshold_subtitle">越低 = 更多词被视为复杂。</string>
     <string name="rsvp_rhythm_title">节奏</string>
     <string name="rsvp_rhythm_summary">稳定性 %1$s | 从句 %2$s | 单词间隔 %3$s</string>
     <string name="rsvp_stability_title">稳定性</string>
@@ -635,4 +623,10 @@
     <string name="rsvp_context_assist_ticker_description">在阅读行跨分句和句子显示前后的词。在新段落处重置。</string>
     <string name="rsvp_context_assist_clause_description">主词保持固定，在空间允许时显示当前分句中前后的词。暂停可回顾分句。</string>
     <string name="rsvp_context_assist_off_description">仅显示主要阅读文本。</string>
+    <string name="rsvp_difficult_word_support_title">阅读辅助</string>
+    <string name="rsvp_difficult_word_support_subtitle">为单词和短语增加时间；英语还会考虑词语的熟悉程度。</string>
+    <string name="rsvp_word_parts_title">单词分段提示</string>
+    <string name="rsvp_word_parts_subtitle">移动高亮，分段显示部分较长的英语单词。额外时间可单独调整。</string>
+    <string name="rsvp_reading_support_off">关闭</string>
+    <string name="rsvp_reading_support_strong">强</string>
 </resources>

@@ -78,6 +78,46 @@ internal fun RsvpAdvancedSettingsContent(
                     config.subwordChunkPauseMs,
                 ),
             ) {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.rsvp_word_parts_title),
+                    subtitle = stringResource(R.string.rsvp_word_parts_subtitle),
+                    checked = config.showDifficultWordParts,
+                    onCheckedChange = { enabled -> updateConfig { it.copy(showDifficultWordParts = enabled) } },
+                )
+                DeferredSliderRow(
+                    title = stringResource(R.string.rsvp_min_word_time_title),
+                    subtitle = stringResource(R.string.rsvp_min_word_time_subtitle),
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
+                    rawValue = config.minWordMs.toFloat(),
+                    onCommit = { newValue ->
+                        updateConfig {
+                            it.copy(
+                                minWordMs =
+                                newValue.toLong().coerceIn(Constraints.MIN_WORD_MS, Constraints.MAX_WORD_MS),
+                            )
+                        }
+                    },
+                    valueRange = Constraints.MIN_WORD_MS.toFloat()..Constraints.MAX_WORD_MS.toFloat(),
+                )
+                DeferredSliderRow(
+                    title = stringResource(R.string.rsvp_long_word_min_title),
+                    subtitle = stringResource(R.string.rsvp_long_word_min_subtitle),
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
+                    rawValue = config.longWordMinMs.toFloat(),
+                    onCommit = { newValue ->
+                        updateConfig {
+                            it.copy(
+                                longWordMinMs =
+                                newValue.toLong().coerceIn(
+                                    Constraints.MIN_LONG_WORD_MS,
+                                    Constraints.MAX_LONG_WORD_MS,
+                                ),
+                            )
+                        }
+                    },
+                    valueRange =
+                    Constraints.MIN_LONG_WORD_MS.toFloat()..Constraints.MAX_LONG_WORD_MS.toFloat(),
+                )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_long_word_threshold_title),
                     valueLabel = { resources.getString(R.string.format_chars, it.toInt()) },
@@ -110,60 +150,6 @@ internal fun RsvpAdvancedSettingsContent(
                         }
                     },
                     valueRange = 0f..Constraints.MAX_SUBWORD_PAUSE_MS.toFloat(),
-                )
-            }
-
-            ExpandableSettingsSection(
-                title = stringResource(R.string.rsvp_difficulty_model_title),
-                summary =
-                stringResource(
-                    R.string.rsvp_difficulty_model_summary,
-                    config.syllableExtraMs,
-                    config.rarityExtraMaxMs,
-                    formatPercent(resources, config.complexityStrength),
-                ),
-            ) {
-                DeferredSliderRow(
-                    title = stringResource(R.string.rsvp_syllable_boost_title),
-                    valueLabel = { resources.getString(R.string.format_plus_ms, it.toLong()) },
-                    rawValue = config.syllableExtraMs.toFloat(),
-                    onCommit = { newValue ->
-                        updateConfig {
-                            it.copy(
-                                syllableExtraMs =
-                                newValue.toLong().coerceIn(0L, Constraints.MAX_SYLLABLE_EXTRA_MS),
-                            )
-                        }
-                    },
-                    valueRange = 0f..Constraints.MAX_SYLLABLE_EXTRA_MS.toFloat(),
-                )
-                DeferredSliderRow(
-                    title = stringResource(R.string.rsvp_rarity_boost_title),
-                    valueLabel = { resources.getString(R.string.format_plus_ms, it.toLong()) },
-                    rawValue = config.rarityExtraMaxMs.toFloat(),
-                    onCommit = { newValue ->
-                        updateConfig {
-                            it.copy(
-                                rarityExtraMaxMs =
-                                newValue.toLong().coerceIn(0L, Constraints.MAX_RARITY_EXTRA_MS),
-                            )
-                        }
-                    },
-                    valueRange = 0f..Constraints.MAX_RARITY_EXTRA_MS.toFloat(),
-                )
-                DeferredSliderRow(
-                    title = stringResource(R.string.rsvp_complexity_strength_title),
-                    valueLabel = { resources.getString(R.string.format_percent, it.toInt()) },
-                    rawValue = (config.complexityStrength * Constraints.PERCENT_SCALE).toFloat(),
-                    onCommit = { newValue ->
-                        updateConfig {
-                            it.copy(
-                                complexityStrength =
-                                (newValue / Constraints.PERCENT_SCALE).coerceIn(0.0, 1.0),
-                            )
-                        }
-                    },
-                    valueRange = 0f..Constraints.PERCENT_SCALE.toFloat(),
                 )
             }
 
@@ -225,6 +211,16 @@ internal fun RsvpAdvancedSettingsContent(
                         }
                     },
                     valueRange = 0f..Constraints.MAX_PERIOD_PAUSE_MS.toFloat(),
+                )
+                DeferredSliderRow(
+                    title = stringResource(R.string.rsvp_sentence_end_pause_title),
+                    subtitle = stringResource(R.string.rsvp_sentence_end_pause_subtitle),
+                    valueLabel = { resources.getString(R.string.format_ms, it.toLong()) },
+                    rawValue = config.sentenceEndPauseMs.toFloat(),
+                    onCommit = { value ->
+                        updateConfig { it.copy(sentenceEndPauseMs = value.toLong().coerceIn(0L, Constraints.MAX_SENTENCE_END_PAUSE_MS)) }
+                    },
+                    valueRange = 0f..Constraints.MAX_SENTENCE_END_PAUSE_MS.toFloat(),
                 )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_punctuation_dash),
@@ -524,67 +520,6 @@ internal fun RsvpAdvancedSettingsContent(
             }
 
             ExpandableSettingsSection(
-                title = stringResource(R.string.rsvp_adaptive_pacing_title),
-                summary =
-                stringResource(
-                    R.string.rsvp_adaptive_pacing_summary,
-                    config.adaptiveDifficultyMaxHoldMs,
-                    config.complexWordHoldMs,
-                    formatMultiplier(resources, config.complexWordThreshold),
-                ),
-            ) {
-                DeferredSliderRow(
-                    title = stringResource(R.string.rsvp_difficulty_boost_title),
-                    subtitle = stringResource(R.string.rsvp_difficulty_boost_subtitle),
-                    valueLabel = { resources.getString(R.string.format_plus_ms, it.toLong()) },
-                    rawValue = config.adaptiveDifficultyMaxHoldMs.toFloat(),
-                    onCommit = { newValue ->
-                        updateConfig {
-                            it.copy(
-                                adaptiveDifficultyMaxHoldMs =
-                                newValue.toLong().coerceIn(0L, Constraints.MAX_ADAPTIVE_HOLD_MS),
-                            )
-                        }
-                    },
-                    valueRange = 0f..Constraints.MAX_ADAPTIVE_HOLD_MS.toFloat(),
-                )
-                DeferredSliderRow(
-                    title = stringResource(R.string.rsvp_complex_word_boost_title),
-                    subtitle = stringResource(R.string.rsvp_complex_word_boost_subtitle),
-                    valueLabel = { resources.getString(R.string.format_plus_ms, it.toLong()) },
-                    rawValue = config.complexWordHoldMs.toFloat(),
-                    onCommit = { newValue ->
-                        updateConfig {
-                            it.copy(
-                                complexWordHoldMs =
-                                newValue.toLong().coerceIn(0L, Constraints.MAX_ADAPTIVE_HOLD_MS),
-                            )
-                        }
-                    },
-                    valueRange = 0f..Constraints.MAX_ADAPTIVE_HOLD_MS.toFloat(),
-                )
-                DeferredSliderRow(
-                    title = stringResource(R.string.rsvp_complex_word_threshold_title),
-                    subtitle = stringResource(R.string.rsvp_complex_word_threshold_subtitle),
-                    valueLabel = { resources.getString(R.string.format_multiplier, it) },
-                    rawValue = config.complexWordThreshold.toFloat(),
-                    onCommit = { newValue ->
-                        updateConfig {
-                            it.copy(
-                                complexWordThreshold =
-                                newValue.toDouble().coerceIn(
-                                    Constraints.MIN_COMPLEX_WORD_THRESHOLD,
-                                    Constraints.MAX_COMPLEX_WORD_THRESHOLD,
-                                ),
-                            )
-                        }
-                    },
-                    valueRange =
-                    Constraints.MIN_COMPLEX_WORD_THRESHOLD.toFloat()..Constraints.MAX_COMPLEX_WORD_THRESHOLD.toFloat(),
-                )
-            }
-
-            ExpandableSettingsSection(
                 title = stringResource(R.string.rsvp_rhythm_title),
                 summary =
                 stringResource(
@@ -594,6 +529,12 @@ internal fun RsvpAdvancedSettingsContent(
                     stringResource(blinkModeLabelRes(config.blinkMode)),
                 ),
             ) {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.rsvp_adaptive_pacing_title),
+                    subtitle = stringResource(R.string.rsvp_adaptive_pacing_subtitle),
+                    checked = config.useAdaptiveTiming,
+                    onCheckedChange = { enabled -> updateConfig { it.copy(useAdaptiveTiming = enabled) } },
+                )
                 DeferredSliderRow(
                     title = stringResource(R.string.rsvp_stability_title),
                     subtitle = stringResource(R.string.rsvp_stability_subtitle),

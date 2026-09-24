@@ -8,6 +8,8 @@ import com.kairo.reader.TestActivity
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.rsvp.RsvpGenerationOptions
+import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import com.kairo.reader.ui.theme.KairoTheme
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -51,6 +53,40 @@ class RsvpPunctuationTimingDeviceTest {
             val displayedMs = fixture.consumedAtMs[index] - fixture.consumedAtMs[index - 1]
             assertTrue("The test must exercise a full second of punctuation hold", hold >= 1000L)
             assertTrue("Live tempo must preserve the hold: $displayedMs ms vs $hold ms", displayedMs >= hold)
+        }
+    }
+
+    @Test
+    fun difficultWordAllowanceRemainsVisibleAfterEasyWords() {
+        val easy = Token("cat", TokenType.WORD, frequencyScore = 0.5, syllableCount = 1)
+        val difficult = easy.copy(text = "quizzacious")
+        val fixture = RsvpDeviceFixture(
+            listOf(easy, easy, easy, difficult, easy),
+            RsvpConfig(
+                tempoMsPerWord = 150L, smoothingAlpha = 0.01, maxSlowdownFactor = 1.01,
+                difficultWordSupport = 2.0, maxChunkLength = 0,
+                useAdaptiveTiming = false, useProsodyPacing = false, useFocalStress = false,
+                useClausePausing = false, useDialogueDetection = false,
+                startDelayMs = 0L, endDelayMs = 0L, rampUpFrames = 0, rampDownFrames = 0,
+            ),
+        )
+        fixture.state = fixture.state.copy(
+            book = fixture.state.book.copy(generationOptions = RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH)),
+        )
+        ActivityScenario.launch(TestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.setContent { KairoTheme { RsvpScreen(fixture.state, fixture.callbacks, fixture.dependencies) } }
+            }
+            val deadline = SystemClock.elapsedRealtime() + 15_000L
+            while (!fixture.finished && SystemClock.elapsedRealtime() < deadline) SystemClock.sleep(20L)
+            assertTrue("Playback must finish", fixture.finished)
+            val index = fixture.consumed.indexOfFirst { it.originalTokenIndex == 3 }
+            assertTrue("Difficult word must be consumed after the warmup", index > 0)
+            val frame = fixture.consumed[index]
+            val displayedMs = fixture.consumedAtMs[index] - fixture.consumedAtMs[index - 1]
+            assertTrue("Reading allowance must survive smoothing", frame.protectedWordMs >= 160L)
+            assertTrue("Difficult word must retain its reading beat and allowance", frame.durationMs >= 290L)
+            assertTrue("Real playback must honour its duration: $displayedMs vs ${frame.durationMs}", displayedMs >= frame.durationMs)
         }
     }
 

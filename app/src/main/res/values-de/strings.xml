@@ -128,9 +128,8 @@
     <string name="rsvp_long_word_min_subtitle">Zusatzzeit für lange oder technische Wörter.</string>
     <string name="rsvp_sentence_end_pause_title">Pause am Satzende</string>
     <string name="rsvp_sentence_end_pause_subtitle">Atempause an Satzgrenzen.</string>
-    <string name="rsvp_adaptive_pacing_title">Adaptives Tempo</string>
-    <string name="rsvp_adaptive_pacing_subtitle">Fügt extra Halt für schwierige Wörter und Klauseln hinzu.</string>
-    <string name="rsvp_adaptive_pacing_summary">Schwierigkeit +%1$d ms | Komplexität +%2$d ms | Schwelle %3$s</string>
+    <string name="rsvp_adaptive_pacing_title">Automatischer Rhythmus</string>
+    <string name="rsvp_adaptive_pacing_subtitle">Passt Satzübergänge und Satzenden an. Die Leseunterstützung funktioniert unabhängig davon.</string>
     <string name="rsvp_display_title">Anzeige</string>
     <string name="rsvp_display_subtitle">Beeinflusst nur die Schnellleseansicht.</string>
     <string name="rsvp_speed_limits_title">Geschwindigkeitsgrenzen</string>
@@ -139,16 +138,11 @@
     <string name="rsvp_unlock_extreme_speeds_title">Extreme Geschwindigkeiten freischalten</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle">Erlaubt bis %1$d ms (kann unlesbar werden).</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle_long">Erlaubt sehr hohe Geschwindigkeiten (kann schnell unlesbar werden).</string>
-    <string name="rsvp_readability_floors_title">Lesbarkeitsgrenzen</string>
+    <string name="rsvp_readability_floors_title">Mindestanzeigezeiten</string>
     <string name="rsvp_readability_floors_summary">Schwelle %1$d Zeichen | Aufteilung +%2$d ms</string>
     <string name="rsvp_long_word_threshold_title">Schwelle für lange Wörter</string>
     <string name="rsvp_split_word_pause_title">Pause zwischen Segmenten</string>
     <string name="rsvp_split_word_pause_subtitle">Extra Zeit zwischen Segmenten langer Wörter.</string>
-    <string name="rsvp_difficulty_model_title">Schwierigkeitsmodell</string>
-    <string name="rsvp_difficulty_model_summary">Silben +%1$d ms | Seltenheit +%2$d ms | Stärke %3$s</string>
-    <string name="rsvp_syllable_boost_title">Silben-Boost</string>
-    <string name="rsvp_rarity_boost_title">Seltenheits-Boost</string>
-    <string name="rsvp_complexity_strength_title">Komplexitätsstärke</string>
     <string name="rsvp_punctuation_pauses_title">Interpunktionspausen</string>
     <string name="rsvp_punctuation_pauses_summary">Atmung %1$s | Komma %2$d ms | Punkt %3$d ms | Absatz %4$d ms | Seite %5$s</string>
     <string name="rsvp_punctuation_comma">Komma</string>
@@ -170,12 +164,6 @@
     <string name="rsvp_context_shaping_summary">Klammern %1$s | Dialog %2$s</string>
     <string name="rsvp_parentheticals_title">Klammern</string>
     <string name="rsvp_dialogue_pace_title">Dialogtempo</string>
-    <string name="rsvp_difficulty_boost_title">Schwierigkeits-Boost</string>
-    <string name="rsvp_difficulty_boost_subtitle">Maximale Zusatzzeit für schwierige Wörter.</string>
-    <string name="rsvp_complex_word_boost_title">Komplexe Wörter-Boost</string>
-    <string name="rsvp_complex_word_boost_subtitle">Extra Halt für Wörter über der Komplexitätsschwelle.</string>
-    <string name="rsvp_complex_word_threshold_title">Schwelle für komplexe Wörter</string>
-    <string name="rsvp_complex_word_threshold_subtitle">Niedriger = mehr Wörter gelten als komplex.</string>
     <string name="rsvp_rhythm_title">Rhythmus</string>
     <string name="rsvp_rhythm_summary">Stabilität %1$s | Klausel %2$s | Trennung %3$s</string>
     <string name="rsvp_stability_title">Stabilität</string>
@@ -641,4 +629,10 @@
     <string name="rsvp_context_assist_ticker_description">Zeigt vorherige und kommende Wörter über Teilsatz- und Satzgrenzen hinweg in der Lesezeile. Beginnt bei einem neuen Absatz neu.</string>
     <string name="rsvp_context_assist_clause_description">Zeigt umgebende Wörter des aktuellen Teilsatzes, soweit Platz ist. Das Hauptwort bleibt fest. Pausiere, um den Teilsatz anzusehen.</string>
     <string name="rsvp_context_assist_off_description">Zeigt nur den Hauptlesetext.</string>
+    <string name="rsvp_difficult_word_support_title">Leseunterstützung</string>
+    <string name="rsvp_difficult_word_support_subtitle">Mehr Zeit für Wörter und Phrasen; bei Englisch zählt auch die Vertrautheit mit Wörtern.</string>
+    <string name="rsvp_word_parts_title">Wortteil-Hilfe</string>
+    <string name="rsvp_word_parts_subtitle">Hebt Teile ausgewählter langer englischer Wörter nacheinander hervor. Die zusätzliche Zeit wird separat eingestellt.</string>
+    <string name="rsvp_reading_support_off">Aus</string>
+    <string name="rsvp_reading_support_strong">Stark</string>
 </resources>

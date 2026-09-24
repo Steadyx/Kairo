@@ -148,7 +148,16 @@ private fun ThemeRsvpPreview(preferences: UserPreferences, design: ThemeDesign) 
     Column(Modifier.fillMaxWidth().heightIn(min = 112.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(stringResource(R.string.theme_preview_paused), style = MaterialTheme.typography.labelSmall)
         OrpAlignedText(
-            tokens = listOf(Token(sample, TokenType.WORD, orpIndex = (sample.length / 3).coerceAtMost(sample.lastIndex))),
+            tokens = listOf(
+                Token(
+                    sample,
+                    TokenType.WORD,
+                    orpIndex = (sample.length / ORP_PREVIEW_PIVOT_DIVISOR).coerceAtMost(sample.lastIndex),
+                    isSubwordChunk = true,
+                    highlightStart = (sample.length / WORD_PART_PREVIEW_START_DIVISOR).coerceAtMost(sample.lastIndex),
+                    highlightEndExclusive = sample.length,
+                )
+            ),
             typography = OrpTypography(
                 preferences.rsvpFontSizeSp,
                 design.timedFont.composeFontFamily(),
@@ -196,3 +205,5 @@ private fun ThemeInterfacePreview() {
 }
 
 private val CircleShapeForPreview = RoundedCornerShape(50)
+private const val ORP_PREVIEW_PIVOT_DIVISOR = 3
+private const val WORD_PART_PREVIEW_START_DIVISOR = 2

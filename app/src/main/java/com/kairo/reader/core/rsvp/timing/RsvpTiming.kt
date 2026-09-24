@@ -7,7 +7,9 @@ import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.isSentenceEndingPunctuation
 import com.kairo.reader.core.model.wordFloorMsForReadability
-import com.kairo.reader.core.rsvp.engine.ADAPTIVE_DIFFICULTY_FLOOR
+import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
+import com.kairo.reader.core.rsvp.analysis.ReadingDemandAnalyzer
+import com.kairo.reader.core.rsvp.analysis.RsvpReadingDemand
 import com.kairo.reader.core.rsvp.engine.ADAPTIVE_HOLD_MAX_MS
 import com.kairo.reader.core.rsvp.engine.BASE_MS_PER_WORD_AT_300
 import com.kairo.reader.core.rsvp.engine.BoundaryBefore
@@ -38,30 +40,19 @@ import com.kairo.reader.core.rsvp.text.isEmbeddedQuote
 import com.kairo.reader.core.rsvp.text.isQuoteChar
 import kotlin.math.max
 import kotlin.math.pow
-import kotlin.math.roundToLong
 
 internal fun adaptiveHoldMs(
     words: List<Token>,
-    difficulty: Double,
     config: RsvpConfig,
     speedStrength: Double,
     hardBoundary: Boolean,
     nextWord: Token?,
     clauseConfigStrength: Double,
 ): Double {
-    if (!config.useAdaptiveTiming || words.isEmpty() || nextWord == null) return 0.0
+    if (!config.useAdaptiveTiming || words.isEmpty()) return 0.0
 
-    val difficultyScale =
-        (
-            (difficulty - ADAPTIVE_DIFFICULTY_FLOOR).coerceAtLeast(0.0) /
-                (1.0 - ADAPTIVE_DIFFICULTY_FLOOR)
-            )
-            .coerceIn(0.0, 1.0)
-    var hold = difficultyScale * config.adaptiveDifficultyMaxHoldMs * speedStrength
-
-    if (words.any { it.complexityMultiplier >= config.complexWordThreshold }) {
-        hold += config.complexWordHoldMs * speedStrength
-    }
+    if (nextWord == null) return 0.0
+    var hold = 0.0
 
     val lastWord = words.lastOrNull()
     if (!hardBoundary && config.useClausePausing && lastWord?.isClauseBoundary == true) {
@@ -86,56 +77,28 @@ internal fun adaptiveHoldMs(
     return hold.coerceAtMost(ADAPTIVE_HOLD_MAX_MS * speedStrength)
 }
 
-internal fun wordDurationMs(
+internal data class RsvpWordTimingBudget(val beatMs: Double, val protectedMs: Double)
+
+internal fun wordDurationMs(word: Token, msPerWord: Double, config: RsvpConfig): Double =
+    wordTimingBudget(word, msPerWord, config).let { it.beatMs + it.protectedMs }
+
+internal fun wordTimingBudget(
     word: Token,
     msPerWord: Double,
     config: RsvpConfig,
-): Double {
+    readingDemand: RsvpReadingDemand? = null,
+): RsvpWordTimingBudget {
     val text = word.text
-    val fullLetters = text.count { it.isLetterOrDigit() }.coerceAtLeast(1)
-    val (letters, syllables) =
-        if (word.isSubwordChunk &&
-            word.highlightStart != null &&
-            word.highlightEndExclusive != null &&
-            word.highlightEndExclusive > word.highlightStart &&
-            word.highlightEndExclusive <= text.length
-        ) {
-            val chunkText = text.substring(word.highlightStart, word.highlightEndExclusive)
-            val chunkLetters = chunkText.count { it.isLetterOrDigit() }.coerceAtLeast(1)
-            val ratio =
-                (chunkLetters.toDouble() / fullLetters.toDouble())
-                    .coerceIn(MIN_SUBWORD_LENGTH_RATIO, 1.0)
-            val scaledSyllables =
-                max(1.0, word.syllableCount.toDouble() * ratio).roundToLong().toInt()
-            chunkLetters to scaledSyllables
-        } else {
-            fullLetters to word.syllableCount
-        }
-
-    val lengthCurve =
-        run {
-            val x =
-                (
-                    (letters - LENGTH_CURVE_BASE_CHARS).coerceAtLeast(0) /
-                        LENGTH_CURVE_CHAR_SCALE
-                    )
-            1.0 + config.lengthStrength * (x.pow(config.lengthExponent))
-        }
-
-    val complexityComponent =
-        1.0 + (max(0.0, word.complexityMultiplier - 1.0) * config.complexityStrength)
-
-    val rarityExtra = (1.0 - word.frequencyScore).coerceIn(0.0, 1.0) * config.rarityExtraMaxMs
-    val syllableExtra = max(0, syllables - 1) * config.syllableExtraMs
-
-    var duration = (msPerWord * lengthCurve * complexityComponent) + rarityExtra + syllableExtra
+    val demand = readingDemand ?: ReadingDemandAnalyzer.analyze(word, RsvpLanguagePolicy.UNKNOWN)
+    val difficultyExtra = demand.allowanceMs(msPerWord) * config.difficultWordSupport
+    var duration = msPerWord
 
     // Dynamism: let easy, predictable words glide below the baseline tempo so the cadence rises
     // and falls with difficulty rather than only ever adding time. Hard words are untouched (they
     // already earned length/rarity time). Mid-word continuations (hyphen/subword) are left alone,
     // and the unit-level word floor downstream keeps every frame readable.
     if (!word.isSubwordChunk && !text.endsWith("-")) {
-        val ease = word.frequencyScore.coerceIn(0.0, 1.0)
+        val ease = 1.0 - demand.difficulty
         if (ease > DYNAMISM_EASE_PIVOT) {
             val t = (ease - DYNAMISM_EASE_PIVOT) / (1.0 - DYNAMISM_EASE_PIVOT)
             val compressionStrength = speedStrength(msPerWord)
@@ -143,15 +106,11 @@ internal fun wordDurationMs(
         }
     }
 
-    if (letters >= config.longWordChars) {
-        duration = max(duration, config.longWordMinMs.toDouble())
-    }
-
+    var protectedMs = difficultyExtra
     if (text.endsWith("-")) {
-        duration += msPerWord * HYPHEN_CONTINUATION_HOLD_FACTOR
+        protectedMs += msPerWord * HYPHEN_CONTINUATION_HOLD_FACTOR
     }
-
-    return duration
+    return RsvpWordTimingBudget(beatMs = duration, protectedMs = protectedMs)
 }
 
 internal fun punctuationPauseMs(
@@ -389,9 +348,6 @@ private const val BASE_EXPRESSION_STRENGTH = 0.30
 private const val PHRASE_END_HOLD_FACTOR = 0.6
 private const val COHERENCE_GROUP_THRESHOLD = 0.5
 private const val COHERENCE_HOLD_REDUCTION = 0.4
-private const val MIN_SUBWORD_LENGTH_RATIO = 0.2
-private const val LENGTH_CURVE_BASE_CHARS = 4
-private const val LENGTH_CURVE_CHAR_SCALE = 10.0
 private const val HYPHEN_CONTINUATION_HOLD_FACTOR = 0.25
 private const val MIN_PAUSE_TEMPO_RATIO = 0.12
 private const val MAX_PAUSE_TEMPO_RATIO = 2.5

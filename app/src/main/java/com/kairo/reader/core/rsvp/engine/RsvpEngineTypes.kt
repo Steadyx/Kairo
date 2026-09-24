@@ -2,6 +2,7 @@ package com.kairo.reader.core.rsvp.engine
 
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.rsvp.analysis.RsvpReadingDemand
 import kotlin.math.max
 
 internal data class ExpandedToken(
@@ -10,6 +11,7 @@ internal data class ExpandedToken(
     val expandedIndex: Int,
     val sourceCharacterStart: Int,
     val sourceCharacterEndExclusive: Int,
+    val readingDemand: RsvpReadingDemand? = null,
 )
 
 internal data class PhraseContour(val preBoundaryWeight: Double, val restartWeight: Double,) {
@@ -71,23 +73,12 @@ internal data class ContextSnapshot(val parentheticalDepth: Int, val inDialogue:
  * Sequential prose memory carried across frames during generation.
  *
  * Tracks how deep into the current sentence the reader is (for sentence wrap-up pauses) and
- * which content words have been shown recently (for given/new pacing). Frames are generated in
+ * phrase timing. Frames are generated in
  * reading order, so this state is deterministic for a given token stream.
  */
 internal class ProseState {
     var wordsInSentence: Int = 0
         private set
-
-    private val seenWords =
-        object : LinkedHashMap<String, Boolean>(
-            GIVENNESS_INITIAL_CAPACITY,
-            GIVENNESS_CACHE_LOAD_FACTOR,
-            true,
-        ) {
-            override fun removeEldestEntry(
-                eldest: MutableMap.MutableEntry<String, Boolean>?
-            ): Boolean = size > GIVENNESS_MAX_ENTRIES
-        }
 
     fun onWordShown() {
         wordsInSentence++
@@ -103,18 +94,8 @@ internal class ProseState {
 
     fun onPageBreak() {
         wordsInSentence = 0
-        seenWords.clear()
-    }
-
-    /** Whether [key] was shown recently; refreshes its recency when found. */
-    fun isGiven(key: String): Boolean = seenWords[key] != null
-
-    fun record(key: String) {
-        seenWords[key] = true
     }
 }
-
-private const val GIVENNESS_CACHE_LOAD_FACTOR = 0.75f
 
 internal class RhythmState {
     private var ema: Double? = null
@@ -176,38 +157,3 @@ internal class RhythmState {
 
 private const val RHYTHM_BOUNDARY_SCALE = 1000
 private const val PARTIAL_BOUNDARY_RESEED_MAX = 0.25
-
-internal class FlowState(
-    private val alpha: Double,
-    private val maxBoost: Double,
-    private val maxSlowdown: Double,
-    private val strength: Double,
-) {
-    private var ema: Double? = null
-
-    fun apply(
-        difficulty: Double,
-        speedStrength: Double,
-        isBoundary: Boolean,
-    ): Double {
-        if (isBoundary) {
-            ema = difficulty
-            return 1.0
-        }
-
-        val prev = ema ?: difficulty
-        val delta = difficulty - prev
-
-        // Gentle flow adjustment - reduce variation for smoother cadence
-        val multiplier =
-            (1.0 + (delta * strength * speedStrength))
-                .coerceIn(1.0 - maxSlowdown, 1.0 + maxBoost)
-
-        ema = prev + (alpha * (difficulty - prev))
-        return multiplier
-    }
-
-    fun reset() {
-        ema = null
-    }
-}

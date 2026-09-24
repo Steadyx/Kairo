@@ -213,9 +213,8 @@
     <string name="rsvp_long_word_min_subtitle">Extra time for long or technical words.</string>
     <string name="rsvp_sentence_end_pause_title">Sentence end pause</string>
     <string name="rsvp_sentence_end_pause_subtitle">Breathing room at sentence boundaries.</string>
-    <string name="rsvp_adaptive_pacing_title">Adaptive pacing</string>
-    <string name="rsvp_adaptive_pacing_subtitle">Adds extra hold on difficult words and clauses.</string>
-    <string name="rsvp_adaptive_pacing_summary">Difficulty +%1$dms | Complex +%2$dms | Threshold %3$s</string>
+    <string name="rsvp_adaptive_pacing_title">Automatic cadence</string>
+    <string name="rsvp_adaptive_pacing_subtitle">Shape clause transitions and sentence endings. Reading support works independently.</string>
     <string name="rsvp_comprehension_title">Comprehension</string>
     <string name="rsvp_comprehension_subtitle">Peripheral context, natural phrase units and easier rereading.</string>
     <string name="rsvp_context_assist_title">Context assist</string>
@@ -234,17 +233,12 @@
     <string name="rsvp_unlock_extreme_speeds_title">Unlock extreme speeds</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle">Allows down to %1$dms (can become unreadable).</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle_long">Allows very high speeds (can quickly become unreadable).</string>
-    <string name="rsvp_readability_floors_title">Readability floors</string>
+    <string name="rsvp_readability_floors_title">Minimum display times</string>
     <!-- Compound summary: threshold 8–14 chars and subword pause 0–200 ms. -->
     <string name="rsvp_readability_floors_summary" tools:ignore="PluralsCandidate">Threshold %1$d chars | Split +%2$dms</string>
     <string name="rsvp_long_word_threshold_title">Long-word threshold</string>
     <string name="rsvp_split_word_pause_title">Split-word pause</string>
     <string name="rsvp_split_word_pause_subtitle">Extra time between long-word chunks.</string>
-    <string name="rsvp_difficulty_model_title">Difficulty model</string>
-    <string name="rsvp_difficulty_model_summary">Syll +%1$dms | Rarity +%2$dms | Strength %3$s</string>
-    <string name="rsvp_syllable_boost_title">Syllable boost</string>
-    <string name="rsvp_rarity_boost_title">Rarity boost</string>
-    <string name="rsvp_complexity_strength_title">Complexity strength</string>
     <string name="rsvp_punctuation_pauses_title">Punctuation pauses</string>
     <string name="rsvp_punctuation_pauses_summary">Breathing %1$s | Comma %2$dms | Period %3$dms | Paragraph %4$dms | Page %5$s</string>
     <string name="rsvp_punctuation_breathing_title">Punctuation breathing</string>
@@ -277,12 +271,6 @@
     <string name="rsvp_parenthetical_aside_subtitle">Reads bracketed or dash-bounded asides as faster, quieter side remarks.</string>
     <string name="rsvp_parenthetical_aside_pace_title">Aside pace</string>
     <string name="rsvp_parenthetical_aside_pace_subtitle">Lower = faster parenthetical aside words and punctuation.</string>
-    <string name="rsvp_difficulty_boost_title">Difficulty boost</string>
-    <string name="rsvp_difficulty_boost_subtitle">Max extra hold for difficult words.</string>
-    <string name="rsvp_complex_word_boost_title">Complex word boost</string>
-    <string name="rsvp_complex_word_boost_subtitle">Extra hold for words above the complexity threshold.</string>
-    <string name="rsvp_complex_word_threshold_title">Complex word threshold</string>
-    <string name="rsvp_complex_word_threshold_subtitle">Lower = more words considered complex.</string>
     <string name="rsvp_rhythm_title">Rhythm</string>
     <string name="rsvp_rhythm_summary">Stability %1$s | Clause %2$s | Separation %3$s</string>
     <string name="rsvp_stability_title">Stability</string>
@@ -659,4 +647,10 @@
     <string name="rsvp_context_assist_ticker_description">Shows preceding and upcoming words across clause and sentence boundaries on the reading line. Resets at a new paragraph.</string>
     <string name="rsvp_context_assist_clause_description">Shows surrounding words from the current clause where space allows, keeping the main word fixed. Pause to review the clause.</string>
     <string name="rsvp_context_assist_off_description">Shows only the main reading text.</string>
+    <string name="rsvp_difficult_word_support_title">Reading support</string>
+    <string name="rsvp_difficult_word_support_subtitle">Extra time for words and phrases; English also uses word familiarity.</string>
+    <string name="rsvp_word_parts_title">Word-part guidance</string>
+    <string name="rsvp_word_parts_subtitle">Show selected long English words with a moving highlight. Extra time is controlled separately.</string>
+    <string name="rsvp_reading_support_off">Off</string>
+    <string name="rsvp_reading_support_strong">Strong</string>
 </resources>

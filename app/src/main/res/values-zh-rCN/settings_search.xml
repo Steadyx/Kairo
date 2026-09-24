@@ -8,9 +8,6 @@
     <string name="settings_search_font_size_description">阅读时显示的文字大小。</string>
     <string name="settings_search_theme_description">选择颜色以及浅色或深色阅读主题。</string>
     <string name="settings_search_long_threshold_description">开始应用长词最短显示时间的单词长度。</string>
-    <string name="settings_search_syllables_description">为音节较多的单词增加阅读时间。</string>
-    <string name="settings_search_rarity_description">为不常见的单词增加阅读时间。</string>
-    <string name="settings_search_complexity_description">调整单词难度对阅读时间的影响程度。</string>
     <string name="settings_search_parentheticals_description">调整括号内文字的阅读节奏。</string>
     <string name="settings_search_dialogue_description">调整对话的阅读速度。</string>
     <string name="settings_search_vertical_description">在屏幕上向上或向下移动RSVP文字。</string>

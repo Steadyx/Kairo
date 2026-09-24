@@ -128,9 +128,8 @@
     <string name="rsvp_long_word_min_subtitle">長い・専門的な単語に追加時間。</string>
     <string name="rsvp_sentence_end_pause_title">文末ポーズ</string>
     <string name="rsvp_sentence_end_pause_subtitle">文の区切りに余白を追加します。</string>
-    <string name="rsvp_adaptive_pacing_title">適応ペース</string>
-    <string name="rsvp_adaptive_pacing_subtitle">難しい単語や節に追加の停止を加えます。</string>
-    <string name="rsvp_adaptive_pacing_summary">難度 +%1$dミリ秒 | 複雑度 +%2$dミリ秒 | しきい値 %3$s</string>
+    <string name="rsvp_adaptive_pacing_title">自動リズム</string>
+    <string name="rsvp_adaptive_pacing_subtitle">節の切り替わりと文末の間を調整します。読書サポートは独立して動作します。</string>
     <string name="rsvp_display_title">表示</string>
     <string name="rsvp_display_subtitle">速読画面のみに影響します。</string>
     <string name="rsvp_speed_limits_title">速度制限</string>
@@ -139,16 +138,11 @@
     <string name="rsvp_unlock_extreme_speeds_title">極端な速度を解除</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle">%1$dミリ秒 まで許可（読めなくなる可能性があります）。</string>
     <string name="rsvp_unlock_extreme_speeds_subtitle_long">非常に高い速度を許可（すぐに読めなくなる可能性があります）。</string>
-    <string name="rsvp_readability_floors_title">可読性の下限</string>
+    <string name="rsvp_readability_floors_title">最小表示時間</string>
     <string name="rsvp_readability_floors_summary">しきい値 %1$d 文字 | 分割 +%2$dミリ秒</string>
     <string name="rsvp_long_word_threshold_title">長い単語のしきい値</string>
     <string name="rsvp_split_word_pause_title">分割間のポーズ</string>
     <string name="rsvp_split_word_pause_subtitle">長い単語の分割間に追加時間。</string>
-    <string name="rsvp_difficulty_model_title">難易度モデル</string>
-    <string name="rsvp_difficulty_model_summary">音節 +%1$dミリ秒 | 希少度 +%2$dミリ秒 | 強度 %3$s</string>
-    <string name="rsvp_syllable_boost_title">音節ブースト</string>
-    <string name="rsvp_rarity_boost_title">希少度ブースト</string>
-    <string name="rsvp_complexity_strength_title">複雑度の強度</string>
     <string name="rsvp_punctuation_pauses_title">句読点のポーズ</string>
     <string name="rsvp_punctuation_pauses_summary">余白 %1$s | カンマ %2$dミリ秒 | ピリオド %3$dミリ秒 | 段落 %4$dミリ秒 | ページ %5$s</string>
     <string name="rsvp_punctuation_comma">カンマ</string>
@@ -170,12 +164,6 @@
     <string name="rsvp_context_shaping_summary">括弧 %1$s | 会話 %2$s</string>
     <string name="rsvp_parentheticals_title">括弧</string>
     <string name="rsvp_dialogue_pace_title">会話ペース</string>
-    <string name="rsvp_difficulty_boost_title">難易度ブースト</string>
-    <string name="rsvp_difficulty_boost_subtitle">難しい単語への最大追加停止。</string>
-    <string name="rsvp_complex_word_boost_title">複雑単語ブースト</string>
-    <string name="rsvp_complex_word_boost_subtitle">複雑度しきい値を超える単語に追加停止。</string>
-    <string name="rsvp_complex_word_threshold_title">複雑単語のしきい値</string>
-    <string name="rsvp_complex_word_threshold_subtitle">低いほど複雑な単語に判定されます。</string>
     <string name="rsvp_rhythm_title">リズム</string>
     <string name="rsvp_rhythm_summary">安定性 %1$s | 句 %2$s | 単語の区切り %3$s</string>
     <string name="rsvp_stability_title">安定性</string>
@@ -635,4 +623,10 @@
     <string name="rsvp_context_assist_ticker_description">節や文の境界を越えて前後の単語を読書行に表示します。新しい段落でリセットします。</string>
     <string name="rsvp_context_assist_clause_description">中心の単語を固定し、空きスペースに現在の節の前後の単語を表示します。一時停止すると節を確認できます。</string>
     <string name="rsvp_context_assist_off_description">メインの読書テキストのみ表示します。</string>
+    <string name="rsvp_difficult_word_support_title">読書サポート</string>
+    <string name="rsvp_difficult_word_support_subtitle">単語やフレーズに時間を追加します。英語では単語のなじみやすさも考慮します。</string>
+    <string name="rsvp_word_parts_title">単語の分割表示</string>
+    <string name="rsvp_word_parts_subtitle">一部の長い英単語を、強調箇所を動かしながら分割表示します。追加時間は別に調整できます。</string>
+    <string name="rsvp_reading_support_off">オフ</string>
+    <string name="rsvp_reading_support_strong">強</string>
 </resources>

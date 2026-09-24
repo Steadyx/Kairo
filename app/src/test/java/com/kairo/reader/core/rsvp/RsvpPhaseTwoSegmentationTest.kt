@@ -37,6 +37,9 @@ class RsvpPhaseTwoSegmentationTest {
 
     @Test
     fun namedEntitiesCreateObservableGroupingWithoutOverridingHardLimits() {
+        // Isolate phrase grouping: automatic word parts legitimately take priority
+        // over keeping a long member such as Organization inside a named-entity phrase.
+        val config = config.copy(maxChunkLength = 0)
         val entity = listOf(word("New"), word("York"), word("City"), word("expanded"))
 
         val scored = engine.generateFrames(entity, 0, config, englishOptions)

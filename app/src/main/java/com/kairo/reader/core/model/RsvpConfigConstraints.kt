@@ -2,6 +2,7 @@ package com.kairo.reader.core.model
 
 /** User-editable RSVP bounds shared by UI, persistence, profile codecs, and engine validation. */
 object RsvpConfigConstraints {
+    const val MAX_DIFFICULT_WORD_SUPPORT = 2.0
     const val PERCENT_SCALE = 100.0
 
     const val MIN_WORD_MS = 20L
