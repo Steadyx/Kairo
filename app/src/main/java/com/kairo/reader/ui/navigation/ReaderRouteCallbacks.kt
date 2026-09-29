@@ -53,8 +53,6 @@ internal data class ReaderRouteCallbackDependencies(
     val effectiveUiState: ReaderUiState,
     val readerViewModel: ReaderViewModel,
     val readerPositionSaver: ReaderPositionSaver,
-    val getLastExplicitFocusIndex: () -> Int,
-    val setLastExplicitFocusIndex: (Int) -> Unit,
     val getPendingRsvpLaunchTempoMsPerWord: () -> Long,
     val clearPendingRsvpLaunchTempoMsPerWord: () -> Unit,
     val onShowUserMessage: (String) -> Unit,
@@ -125,7 +123,6 @@ internal fun buildReaderRouteCallbacks(
             dependencies.navigateReaderToLibrary()
         },
         onFocusChange = { newFocusIndex ->
-            dependencies.setLastExplicitFocusIndex(newFocusIndex)
             dependencies.readerViewModel.setFocusIndex(newFocusIndex)
             val wordIndex =
                 resolveWordIndex(
@@ -149,7 +146,6 @@ internal fun buildReaderRouteCallbacks(
                 } else {
                     tokens.nearestWordIndex(focusTokenIndex).coerceIn(0, tokens.lastIndex)
                 }
-            dependencies.setLastExplicitFocusIndex(safeIndex)
             dependencies.readerViewModel.setPageIndex(pageIndex, safeIndex)
             val wordIndex =
                 resolveWordIndex(
@@ -186,17 +182,19 @@ internal fun buildReaderRouteCallbacks(
         },
     )
 
-private fun ReaderRouteCallbackDependencies.buildCurrentReaderPosition(
-    tokenIndex: Int = effectiveUiState.focusIndex,
-): ReadingPosition? {
-    val chapterData = effectiveUiState.chapterData ?: return null
+private fun ReaderRouteCallbackDependencies.buildCurrentReaderPosition(): ReadingPosition? {
+    // A tap or chapter change can precede recomposition. Read the complete current
+    // location together, retaining a pending RSVP result only until the model catches up.
+    val liveState = readerViewModel.uiState.value
+    val currentState = if (liveState == uiState) effectiveUiState else liveState
+    val chapterData = currentState.chapterData ?: return null
     val tokens = chapterData.tokens
     if (tokens.isEmpty()) return null
-    val safeIndex = tokens.nearestWordIndex(tokenIndex).coerceIn(0, tokens.lastIndex)
+    val safeIndex = tokens.nearestWordIndex(currentState.focusIndex).coerceIn(0, tokens.lastIndex)
     val wordIndex = resolveWordIndex(chapterData.wordCountByToken, safeIndex)
     return ReadingPosition(
         bookIdValue,
-        effectiveUiState.chapterIndex,
+        currentState.chapterIndex,
         safeIndex,
         wordIndex,
     )
@@ -208,11 +206,7 @@ private fun ReaderRouteCallbackDependencies.saveCurrentReaderPosition() {
 
 private fun ReaderRouteCallbackDependencies.navigateReaderToLibrary() {
     container.readingSessionCoordinator.finalizeReader(bookIdValue)
-    val position =
-        getLastExplicitFocusIndex()
-            .takeIf { it >= 0 }
-            ?.let(::buildCurrentReaderPosition)
-            ?: buildCurrentReaderPosition()
+    val position = buildCurrentReaderPosition()
     lifecycleScope.launch(dispatcherProvider.io) {
         if (position != null) {
             readerPositionSaver.saveImmediateAndJoin(position)

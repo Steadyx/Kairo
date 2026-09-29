@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -167,7 +166,6 @@ internal fun ReaderRoute(input: ReaderRouteInput) {
                 onShowUserMessage = onShowUserMessage,
             )
 
-        var lastExplicitFocusIndex by remember(bookId) { mutableIntStateOf(-1) }
         val readerCallbacks =
             buildReaderRouteCallbacks(
                 ReaderRouteCallbackDependencies(
@@ -185,8 +183,6 @@ internal fun ReaderRoute(input: ReaderRouteInput) {
                     effectiveUiState = rsvpResult.effectiveUiState,
                     readerViewModel = readerViewModel,
                     readerPositionSaver = readerPositionSaver,
-                    getLastExplicitFocusIndex = { lastExplicitFocusIndex },
-                    setLastExplicitFocusIndex = { lastExplicitFocusIndex = it },
                     getPendingRsvpLaunchTempoMsPerWord = { rsvpResult.pendingLaunchTempoMs },
                     clearPendingRsvpLaunchTempoMsPerWord = rsvpResult.clearPendingLaunchTempo,
                     onShowUserMessage = onShowUserMessage,
