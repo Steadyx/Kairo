@@ -10,7 +10,7 @@ import com.kairo.reader.core.tokenization.CHAPTER_WORD_COUNT_VERSION
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface BookDao {
+interface BookDao : ChapterContentQueries {
     @Transaction
     suspend fun insertBook(
         book: BookEntity,
@@ -153,26 +153,6 @@ interface BookDao {
 
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount, wordCountVersion
-        FROM chapters
-        WHERE bookId = :bookId
-        ORDER BY `index`
-        """,
-    )
-    suspend fun getChapters(bookId: String): List<ChapterEntity>
-
-    @Query(
-        """
-        SELECT bookId, `index`, title, htmlContent, plainText, imagePaths, wordCount, wordCountVersion
-        FROM chapters
-        WHERE bookId = :bookId
-        ORDER BY `index`
-        """,
-    )
-    suspend fun getChaptersWithContent(bookId: String): List<ChapterEntity>
-
-    @Query(
-        """
         SELECT bookId, entryIndex, label, depth, chapterIndex, characterOffset
         FROM table_of_contents_entries
         WHERE bookId = :bookId
@@ -180,19 +160,6 @@ interface BookDao {
         """,
     )
     suspend fun getTableOfContentsEntries(bookId: String): List<TableOfContentsEntryEntity>
-
-    @Query(
-        """
-        SELECT bookId, `index`, title, htmlContent, plainText, imagePaths, wordCount, wordCountVersion
-        FROM chapters
-        WHERE bookId = :bookId AND `index` = :index
-        LIMIT 1
-        """,
-    )
-    suspend fun getChapter(
-        bookId: String,
-        index: Int,
-    ): ChapterEntity?
 
     @Query(
         """
