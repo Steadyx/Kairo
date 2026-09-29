@@ -2,13 +2,14 @@ package com.kairo.reader.data.local
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 
 data class SearchPassageBookEntity(val bookId: String, val bookTitle: String,)
 
 data class SearchPassageChapterPageEntity(val chapterIndex: Int, val chapterTitle: String?, val plainText: String,)
 
 @Dao
-interface SearchDao {
+interface SearchDao : ChapterTextQueries {
     @Query(
         """
         SELECT
@@ -27,18 +28,28 @@ interface SearchDao {
         SELECT
             `index` AS chapterIndex,
             title AS chapterTitle,
-            plainText
+            '' AS plainText
         FROM chapters
         WHERE bookId = :bookId AND `index` > :afterChapterIndex
         ORDER BY `index`
         LIMIT :pageSize
         """,
     )
-    suspend fun searchPassageChapterPage(
+    suspend fun searchPassageChapterMetadataPage(
         bookId: String,
         afterChapterIndex: Int,
         pageSize: Int,
     ): List<SearchPassageChapterPageEntity>
+
+    @Transaction
+    suspend fun searchPassageChapterPage(
+        bookId: String,
+        afterChapterIndex: Int,
+        pageSize: Int,
+    ): List<SearchPassageChapterPageEntity> =
+        searchPassageChapterMetadataPage(bookId, afterChapterIndex, pageSize).map { chapter ->
+            chapter.copy(plainText = requireNotNull(readChapterPlainText(bookId, chapter.chapterIndex)))
+        }
 
     @Query(
         """

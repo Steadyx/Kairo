@@ -272,7 +272,7 @@ private class FakeSearchDao(
             )
     }
 
-    override suspend fun searchPassageChapterPage(
+    override suspend fun searchPassageChapterMetadataPage(
         bookId: String,
         afterChapterIndex: Int,
         pageSize: Int,
@@ -286,6 +286,26 @@ private class FakeSearchDao(
             .sortedBy { it.chapterIndex }
             .take(pageSize)
             .toList()
+    }
+
+    override suspend fun getChapterHtmlChunk(
+        bookId: String,
+        chapterIndex: Int,
+        offset: Int,
+        byteCount: Int,
+    ): com.kairo.reader.data.local.ChapterTextChunk? =
+        error("Passage search must not load HTML")
+
+    override suspend fun getChapterPlainTextChunk(
+        bookId: String,
+        chapterIndex: Int,
+        offset: Int,
+        byteCount: Int,
+    ): com.kairo.reader.data.local.ChapterTextChunk? {
+        val bytes = passagesByBook[bookId]?.firstOrNull { it.chapterIndex == chapterIndex }
+            ?.plainText?.toByteArray() ?: return null
+        val start = (offset - 1).coerceAtMost(bytes.size)
+        return com.kairo.reader.data.local.ChapterTextChunk(bytes.copyOfRange(start, (start + byteCount).coerceAtMost(bytes.size)))
     }
 
     override suspend fun searchBooks(

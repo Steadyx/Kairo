@@ -25,6 +25,7 @@ md-backup/
 .claude
 
 # Local/generated docs
+/docs/future-improvements-exploration.md
 /docs/main-activity-modularisation-checklist.md
 /docs/reader-image-page-navigation-checklist.md
 /docs/performance-hindrances.md

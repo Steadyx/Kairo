@@ -11,10 +11,10 @@ data class EpubNavigationChapterCandidate(val chapterIndex: Int, val title: Stri
 data class EpubChapterCoordinate(val chapterIndex: Int, val plainText: String,)
 
 @Dao
-interface EpubNavigationDao {
+interface EpubNavigationDao : ChapterTextQueries {
     @Query(
         """
-        SELECT `index` AS chapterIndex, title, htmlContent
+        SELECT `index` AS chapterIndex, title, '' AS htmlContent
         FROM chapters
         WHERE bookId = :bookId
           AND instr(htmlContent, :canonicalMarker) = 0
@@ -24,35 +24,45 @@ interface EpubNavigationDao {
         LIMIT :limit
         """,
     )
-    suspend fun getMarkerlessNavigationCandidates(
+    suspend fun getMarkerlessNavigationCandidateMetadata(
         bookId: String,
         canonicalMarker: String,
         maxHtmlCharacters: Int,
         limit: Int,
     ): List<EpubNavigationChapterCandidate>
 
+    @Transaction
+    suspend fun getMarkerlessNavigationCandidates(
+        bookId: String,
+        canonicalMarker: String,
+        maxHtmlCharacters: Int,
+        limit: Int,
+    ): List<EpubNavigationChapterCandidate> =
+        getMarkerlessNavigationCandidateMetadata(bookId, canonicalMarker, maxHtmlCharacters, limit).map { chapter ->
+            chapter.copy(htmlContent = requireNotNull(readChapterHtml(bookId, chapter.chapterIndex)))
+        }
+
     @Query(
         """
-        SELECT `index` AS chapterIndex, plainText
+        SELECT `index` AS chapterIndex, '' AS plainText
         FROM chapters
         WHERE bookId = :bookId
         ORDER BY `index`
         """,
     )
-    suspend fun getChapterCoordinates(bookId: String): List<EpubChapterCoordinate>
+    suspend fun getChapterCoordinateMetadata(bookId: String): List<EpubChapterCoordinate>
 
-    @Query(
-        """
-        SELECT htmlContent
-        FROM chapters
-        WHERE bookId = :bookId AND `index` = :chapterIndex
-        LIMIT 1
-        """,
-    )
+    @Transaction
+    suspend fun getChapterCoordinates(bookId: String): List<EpubChapterCoordinate> =
+        getChapterCoordinateMetadata(bookId).map { chapter ->
+            chapter.copy(plainText = requireNotNull(readChapterPlainText(bookId, chapter.chapterIndex)))
+        }
+
+    @Transaction
     suspend fun getChapterHtmlContent(
         bookId: String,
         chapterIndex: Int,
-    ): String?
+    ): String? = readChapterHtml(bookId, chapterIndex)
 
     @Query(
         """
