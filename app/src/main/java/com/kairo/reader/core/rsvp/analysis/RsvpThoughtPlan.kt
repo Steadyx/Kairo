@@ -31,7 +31,7 @@ internal object RsvpThoughtPlan {
 
         fun finish(endExclusive: Int) {
             if (words.isEmpty()) return
-            val protected = protectedWords(words, english, previousModals)
+            val protected = protectedWords(words, english, previousModals, config.useProsodyPacing)
             val hold = integrationHold(words, config, languagePolicy)
             val sourceWords = words.distinctBy { it.originalIndex }
             val processingShare = if (sourceWords.size > 1) PROCESSING_SHARE else 0.0
@@ -86,9 +86,14 @@ internal object RsvpThoughtPlan {
         words: List<ExpandedToken>,
         english: Boolean,
         previousModals: Set<String>,
+        includeAuthorEmphasis: Boolean,
     ): Set<Int> = buildSet {
         words.forEachIndexed { index, entry ->
             val token = entry.token
+            // A split source word gets one authored accent, on its final part.
+            if (includeAuthorEmphasis && token.authorEmphasis && words.getOrNull(index + 1)?.originalIndex != entry.originalIndex) {
+                add(entry.expandedIndex)
+            }
             if (token.isSubwordChunk) return@forEachIndexed
             val word = normalizeWord(token.text)
             val previous = words.getOrNull(index - 1)?.token?.text?.let(::normalizeWord)

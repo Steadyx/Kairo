@@ -202,21 +202,19 @@ class ComprehensionRsvpContourTest : ComprehensionRsvpTestBase() {
             )
 
         val withoutClause =
-            engine
-                .generateFrames(
-                    tokens = listOf(w("because")),
-                    startIndex = 0,
-                    config = baseConfig.copy(useClausePausing = false)
-                )
+            englishFrames(
+                tokens = listOf(w("because")),
+                startIndex = 0,
+                config = baseConfig.copy(useClausePausing = false)
+            )
                 .first()
                 .durationMs
         val withClause =
-            engine
-                .generateFrames(
-                    tokens = listOf(w("because")),
-                    startIndex = 0,
-                    config = baseConfig.copy(useClausePausing = true)
-                )
+            englishFrames(
+                tokens = listOf(w("because")),
+                startIndex = 0,
+                config = baseConfig.copy(useClausePausing = true)
+            )
                 .first()
                 .durationMs
 

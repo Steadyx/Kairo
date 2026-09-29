@@ -6,6 +6,7 @@ import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.rsvp.analysis.ReadingDemandAnalyzer
+import com.kairo.reader.core.rsvp.analysis.RsvpPhraseBoundaries
 import com.kairo.reader.core.rsvp.analysis.RsvpTokenAnalysis
 import com.kairo.reader.core.rsvp.analysis.RsvpWordPartSupport
 import com.kairo.reader.core.rsvp.analysis.analyzeExpandedTokens
@@ -23,6 +24,7 @@ import com.kairo.reader.core.rsvp.engine.PARAGRAPH_BREAK_RETENTION_BOOST
 import com.kairo.reader.core.rsvp.engine.PhraseContour
 import com.kairo.reader.core.rsvp.engine.ProseState
 import com.kairo.reader.core.rsvp.engine.RhythmState
+import com.kairo.reader.core.rsvp.engine.RsvpWordExpression
 import com.kairo.reader.core.rsvp.engine.SKIPPABLE_BOUNDARY_PUNCTUATION
 import com.kairo.reader.core.rsvp.engine.applyPlaybackEffects
 import com.kairo.reader.core.rsvp.engine.buildUnit
@@ -163,7 +165,7 @@ private fun buildExpandedTokens(
     config: RsvpConfig,
     languagePolicy: RsvpLanguagePolicy,
 ): List<ExpandedToken> =
-    tokens
+    RsvpPhraseBoundaries.annotate(tokens, languagePolicy)
         .subList(analysisStartIndex, tokens.size)
         .flatMapIndexed { index, token ->
             var sourceCursor = 0
@@ -399,10 +401,15 @@ private fun RsvpGenerationContext.appendReadingFrame(cursor: Int): Int? {
                 nextToken = expanded.getOrNull(nextCursor)?.token,
                 nextWord = expanded.getOrNull(findFirstWordCursor(expanded, nextCursor))?.token,
                 boundaryBefore = boundaryBefore(expanded, wordCursor),
-                focalSuppression = focalSuppression(wordCursor),
-                anticipatoryLanding = anticipatoryLanding(wordCursor),
                 emDashAside = config.useParentheticalAside && wordCursor in analysis.emDashAsideIndices,
-                phraseContour = analysis.phraseContours[wordCursor] ?: PhraseContour.NONE,
+                wordExpressions = (wordCursor until nextCursor).filter { expanded[it].token.type == TokenType.WORD }.map {
+                    RsvpWordExpression(
+                        focalSuppression = focalSuppression(it),
+                        anticipatoryLanding = anticipatoryLanding(it),
+                        phraseContour = analysis.phraseContours[it] ?: PhraseContour.NONE,
+                    )
+                },
+                languagePolicy = options.languagePolicy,
                 prose = prose,
                 pairedEmDashInUnit =
                 (frameStartCursor until nextCursor).any { it in analysis.pairedEmDashIndices },

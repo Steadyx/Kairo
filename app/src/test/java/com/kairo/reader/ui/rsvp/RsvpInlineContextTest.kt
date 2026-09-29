@@ -8,6 +8,7 @@ import com.kairo.reader.core.model.RsvpContextAssistMode
 import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
@@ -16,6 +17,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RsvpInlineContextTest {
+    @Test
+    fun clauseContextSharesTheContextualBoundaryDecision() {
+        val source = listOf(word("I"), word("want"), word("that").copy(isClauseBoundary = true), word("one"))
+        val frame = RsvpFrame(listOf(source[1]), 200L, originalTokenIndex = 1)
+        val context = requireNotNull(
+            buildRsvpReadingContext(source, frame, Color.Black, RsvpContextAssistMode.FULL_CLAUSE, RsvpLanguagePolicy.ENGLISH),
+        )
+        assertEquals("I want that one", context.pausedPhrase.text)
+        assertEquals("that one", context.followingCues.first().text)
+    }
+
     @Test
     fun cueContainsOnlyAlreadyReadWordsFromTheCurrentPhrase() {
         val tokens = "earlier sentence she had already left".split(" ").map(::word)

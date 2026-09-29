@@ -7,6 +7,9 @@ import com.kairo.reader.core.model.TokenType
 abstract class ComprehensionRsvpTestBase {
     protected val engine = ComprehensionRsvpEngine()
 
+    protected fun englishFrames(tokens: List<Token>, startIndex: Int, config: RsvpConfig) =
+        engine.generateFrames(tokens, startIndex, config, RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH))
+
     protected fun w(text: String) =
         Token(
             text = text,

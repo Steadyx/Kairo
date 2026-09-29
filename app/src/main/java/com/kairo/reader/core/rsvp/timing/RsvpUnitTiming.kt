@@ -7,6 +7,7 @@ import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpConfigConstraints
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import com.kairo.reader.core.rsvp.analysis.RsvpReadingDemand
 import com.kairo.reader.core.rsvp.analysis.RsvpThoughtCue
 import com.kairo.reader.core.rsvp.analysis.contextShapingMultiplier
@@ -30,10 +31,10 @@ import com.kairo.reader.core.rsvp.engine.EM_DASH_INTERRUPTION_PAUSE_FACTOR
 import com.kairo.reader.core.rsvp.engine.MIN_FRAME_MS
 import com.kairo.reader.core.rsvp.engine.PAGE_BREAK_RETENTION_BOOST
 import com.kairo.reader.core.rsvp.engine.PARAGRAPH_BREAK_RETENTION_BOOST
-import com.kairo.reader.core.rsvp.engine.PhraseContour
 import com.kairo.reader.core.rsvp.engine.ProseState
 import com.kairo.reader.core.rsvp.engine.QUOTE_TRANSITION_HOLD_FRACTION
 import com.kairo.reader.core.rsvp.engine.RhythmState
+import com.kairo.reader.core.rsvp.engine.RsvpWordExpression
 import com.kairo.reader.core.rsvp.engine.SENTENCE_START_HOLD_FRACTION
 import com.kairo.reader.core.rsvp.text.boundaryBeforeForPunctuation
 import com.kairo.reader.core.rsvp.text.isHardBoundary
@@ -52,10 +53,9 @@ internal data class RsvpUnitTimingInput(
     val nextToken: Token?,
     val nextWord: Token?,
     val boundaryBefore: BoundaryBefore,
-    val focalSuppression: Double = 1.0,
-    val anticipatoryLanding: Double = 1.0,
     val emDashAside: Boolean = false,
-    val phraseContour: PhraseContour = PhraseContour.NONE,
+    val wordExpressions: List<RsvpWordExpression> = emptyList(),
+    val languagePolicy: RsvpLanguagePolicy = RsvpLanguagePolicy.UNKNOWN,
     val prose: ProseState? = null,
     val pairedEmDashInUnit: Boolean = false,
     val afterPairedEmDash: Boolean = false,
@@ -75,10 +75,9 @@ private class RsvpUnitTimingContext(input: RsvpUnitTimingInput) {
     val nextToken = input.nextToken
     val nextWord = input.nextWord
     val boundaryBefore = input.boundaryBefore
-    val focalSuppression = input.focalSuppression
-    val anticipatoryLanding = input.anticipatoryLanding
     val emDashAside = input.emDashAside
-    val phraseContour = input.phraseContour
+    val wordExpressions = input.wordExpressions
+    val english = input.languagePolicy == RsvpLanguagePolicy.ENGLISH
     val prose = input.prose
     val pairedEmDashInUnit = input.pairedEmDashInUnit
     val afterPairedEmDash = input.afterPairedEmDash
@@ -154,35 +153,19 @@ private class RsvpUnitTimingContext(input: RsvpUnitTimingInput) {
         ).coerceIn(0.0, 2.0)
     val dialogueEntryBoost = 1.0 + (DIALOGUE_ENTRY_BOOST * expressionStrength)
 
-    // Phrase-arc shaping at grammatical boundaries: single-word, punctuation-free frames only,
-    // mirroring the breath in transitionHoldMs (punctuation frames are shaped by the contour
-    // machinery instead).
-    val phraseShapeMultiplier =
-        if (config.useProsodyPacing &&
-            words.size == 1 &&
-            firstWord != null &&
-            frameTokens.none { it.type == TokenType.PUNCTUATION }
-        ) {
-            phraseBoundaryShapeMultiplier(
-                word = firstWord,
+    val speakerTagMultiplier =
+        if (english) {
+            speakerTagMultiplier(
+                wordsInFrame = words,
                 prevWord = prevWord,
                 nextWord = nextWord,
-                boundaryBefore = boundaryForBoost,
-                speedStrength = expressionStrength,
-                prosodyStrength = prosodyStrength,
+                config = config,
+                speedStrength = speedStrength,
+                explicitSpeakerTag = explicitSpeakerTag,
             )
         } else {
             1.0
         }
-    val speakerTagMultiplier =
-        speakerTagMultiplier(
-            wordsInFrame = words,
-            prevWord = prevWord,
-            nextWord = nextWord,
-            config = config,
-            speedStrength = speedStrength,
-            explicitSpeakerTag = explicitSpeakerTag,
-        )
 }
 
 private data class FrameWordTiming(
@@ -259,6 +242,7 @@ private fun wordDurationContribution(
 ): Double {
     val config = context.config
     val demand = context.readingDemands.getOrNull(state.wordOrdinal)
+    val wordExpression = context.wordExpressions.getOrNull(state.wordOrdinal) ?: RsvpWordExpression()
     val thoughtCue = context.thoughtCues.getOrNull(state.wordOrdinal++)
     val protectedEmphasis = config.useProsodyPacing && thoughtCue?.protectedEmphasis == true
     val inAside = config.useParentheticalAside && (state.parentheticalDepth > 0 || context.emDashAside)
@@ -279,25 +263,17 @@ private fun wordDurationContribution(
             else -> 1.0
         }
     if (state.parentheticalDepth > 0 && !inAside) state.sawParentheticalWord = true
-    val nextWordText =
+    val nextWord =
         context.frameTokens
             .subList(index + 1, context.frameTokens.size)
             .firstOrNull { it.type == TokenType.WORD }
-            ?.text
-            ?: context.nextWord?.text
-    val previousWordText =
+            ?: context.nextWord
+    val previousWord =
         context.frameTokens
             .subList(0, index)
             .lastOrNull { it.type == TokenType.WORD }
-            ?.text
-            ?: context.prevWord?.text
-    val clauseMultiplier =
-        if (config.useClausePausing) {
-            val raw = ClauseDetector.getClausePauseFactor(token.text, nextWordText)
-            1.0 + ((raw - 1.0) * context.speedStrength * context.clauseConfigStrength)
-        } else {
-            1.0
-        }
+            ?: context.prevWord
+    val clauseMultiplier = contextualClauseMultiplier(context, token, nextWord)
     val terminalMultiplier =
         terminalWordMultiplier(
             wordIndex = index,
@@ -312,12 +288,12 @@ private fun wordDurationContribution(
     val prosody =
         prosodyMultiplier(
             token,
-            previousWordText,
-            nextWordText,
+            previousWord?.text,
+            nextWord?.text,
             index == context.firstWordIndex,
-            context.boundaryBefore,
+            if (index == context.firstWordIndex) context.boundaryBefore else BoundaryBefore.NONE,
             context.expressionStrength,
-            context.prosodyStrength,
+            if (context.english) context.prosodyStrength else 0.0,
         )
     val dialogueEntry =
         if (config.useDialogueDetection &&
@@ -343,15 +319,47 @@ private fun wordDurationContribution(
         emphasis,
         if (protectedEmphasis) max(1.0, prosody) else prosody,
         dialogueEntry,
-        if (protectedEmphasis) 1.0 else context.focalSuppression,
-        context.anticipatoryLanding,
-        if (config.useProsodyPacing) phraseContourMultiplier(context.phraseContour, context.expressionStrength) else 1.0,
-        context.phraseShapeMultiplier,
+        if (protectedEmphasis) 1.0 else wordExpression.focalSuppression,
+        wordExpression.anticipatoryLanding,
+        if (config.useProsodyPacing) phraseContourMultiplier(wordExpression.phraseContour, context.expressionStrength) else 1.0,
+        wordPhraseShape(context, index, token, previousWord, nextWord),
         if (protectedEmphasis) 1.0 + (THOUGHT_EMPHASIS * context.prosodyStrength) else 1.0,
     )
     val baseline = duration
     state.expressionMs += baseline * (expression - 1.0)
     return baseline
+}
+
+private fun contextualClauseMultiplier(context: RsvpUnitTimingContext, token: Token, nextWord: Token?): Double {
+    if (!context.config.useClausePausing || !context.english) return 1.0
+    val extra = when {
+        token.isClauseBoundary -> CLAUSE_ONSET_EXTRA
+        nextWord?.isClauseBoundary == true -> CLAUSE_TAIL_EXTRA
+        nextWord != null && ClauseDetector.isPhraseEnder(token.text) -> PHRASE_END_EXTRA
+        else -> 0.0
+    }
+    return 1.0 + (extra * context.speedStrength * context.clauseConfigStrength)
+}
+
+private fun wordPhraseShape(
+    context: RsvpUnitTimingContext,
+    index: Int,
+    token: Token,
+    previousWord: Token?,
+    nextWord: Token?,
+): Double {
+    if (!context.config.useProsodyPacing || !context.english) return 1.0
+    val before = context.frameTokens.getOrNull(index - 1) ?: context.prevToken
+    val after = context.frameTokens.getOrNull(index + 1) ?: context.nextToken
+    if (before?.type == TokenType.PUNCTUATION || after?.type == TokenType.PUNCTUATION) return 1.0
+    return phraseBoundaryShapeMultiplier(
+        word = token,
+        prevWord = previousWord,
+        nextWord = nextWord,
+        boundaryBefore = if (index == context.firstWordIndex) context.boundaryForBoost else BoundaryBefore.NONE,
+        speedStrength = context.expressionStrength,
+        prosodyStrength = context.prosodyStrength,
+    )
 }
 
 /** Bound overlapping automatic cues while leaving explicit difficulty and pause settings intact. */
@@ -361,6 +369,9 @@ internal fun coordinateRsvpExpression(vararg multipliers: Double): Double =
 private const val MIN_EXPRESSION = 0.82
 private const val MAX_EXPRESSION = 1.4
 private const val THOUGHT_EMPHASIS = 0.08
+private const val CLAUSE_ONSET_EXTRA = 0.18
+private const val CLAUSE_TAIL_EXTRA = 0.12
+private const val PHRASE_END_EXTRA = 0.08
 
 private class FramePunctuationContext(contextBefore: ContextSnapshot) {
     var parentheticalDepth = contextBefore.parentheticalDepth
@@ -469,13 +480,17 @@ internal fun computeUnitTiming(input: RsvpUnitTimingInput): RsvpUnitTiming =
         val duration = wordTiming.duration
 
         val transitionHold =
-            transitionHoldMs(
-                frameTokens = frameTokens,
-                firstWord = firstWord,
-                nextWord = nextWord,
-                speedStrength = speedStrength,
-                prosodyStrength = prosodyStrength,
-            )
+            if (english) {
+                transitionHoldMs(
+                    frameTokens = frameTokens,
+                    lastWord = words.lastOrNull(),
+                    nextWord = nextWord,
+                    speedStrength = speedStrength,
+                    prosodyStrength = prosodyStrength,
+                )
+            } else {
+                0.0
+            }
 
         // Smooth the per-word beat, so changing frame width cannot consume reading time.
         // Difficulty, split-word holds and phrase processing bypass this smoother.
@@ -546,14 +561,18 @@ internal fun computeUnitTiming(input: RsvpUnitTimingInput): RsvpUnitTiming =
             val scaled = base * pagePauseScale
             totalDuration += max(scaled, floor) * pageBreaks
         }
-        val adaptiveHold = adaptiveHoldMs(
-            words = words,
-            config = config,
-            speedStrength = speedStrength,
-            hardBoundary = hardBoundary,
-            nextWord = nextWord,
-            clauseConfigStrength = clauseConfigStrength,
-        )
+        val adaptiveHold = if (english) {
+            adaptiveHoldMs(
+                words = words,
+                config = config,
+                speedStrength = speedStrength,
+                hardBoundary = hardBoundary,
+                nextWord = nextWord,
+                clauseConfigStrength = clauseConfigStrength,
+            )
+        } else {
+            0.0
+        }
         totalDuration += adaptiveHold
         if (paragraphBreaks == 0 && pageBreaks == 0) {
             if (!hardBoundary &&
