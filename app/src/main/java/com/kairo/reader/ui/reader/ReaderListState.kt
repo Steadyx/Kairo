@@ -68,8 +68,10 @@ internal fun rememberReaderListState(
         }
     }
 
-    LaunchedEffect(listStateKey, listItemCount) {
-        if (listItemCount > 0 && listState.firstVisibleItemIndex != safeIndex) {
+    LaunchedEffect(listStateKey, listItemCount, safeIndex) {
+        // Search/TOC navigation can change focus without changing the current page.
+        // A word tapped in an already visible paragraph should not move that paragraph.
+        if (listItemCount > 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == safeIndex }) {
             listState.scrollToItem(safeIndex)
         }
     }
