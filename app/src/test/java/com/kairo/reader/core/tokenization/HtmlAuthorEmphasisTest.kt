@@ -109,6 +109,27 @@ class HtmlAuthorEmphasisTest {
         }
     }
 
+    @Test
+    fun normalizationAcrossEmphasisEdgesKeepsUnrelatedAccents() {
+        for (number in listOf("<em>50</em> %", "<em>20</em> º C", "− <em>35</em>")) {
+            val html = "<p>I meant $number, then <em>Tuesday</em>.</p>"
+            val tokens = tokenizeImportedHtml(html)
+            assertEquals(number, listOf("Tuesday"), tokens.filter { it.authorEmphasis }.map { it.text })
+            assertEquals(
+                tokenizeImportedHtml(html.replace("<em>", "").replace("</em>", "")),
+                tokens.map { it.copy(authorEmphasis = false) },
+            )
+        }
+    }
+
+    @Test
+    fun numericMarkupKeepsFollowingEmphasisAcrossTokenizerFamilies() {
+        val html = "<p>I meant <em>50</em> %, then <em>Tuesday</em>.</p>"
+        for (language in listOf("en", "fr", "ar", "zh")) {
+            assertTrue(language, tokenizeImportedHtml(html, language).any { it.text == "Tuesday" && it.authorEmphasis })
+        }
+    }
+
     private fun tokenizeImportedHtml(html: String, language: String = "en"): List<Token> =
         tokenize(html, EpubContentRewriter().extractPlainText(html), language)
 

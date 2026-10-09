@@ -35,19 +35,14 @@ internal object HtmlEmphasisApplier {
         }
         val source = markedText(normalizeText(body.text()))
         val visible = tokens.indices.filter { tokens[it].type == TokenType.WORD || tokens[it].type == TokenType.PUNCTUATION }
-        val sourceTokens = tokenizeInlineText(source.text).map(::canonicalText)
+        val sourceTokens = tokenizeInlineText(normalizeText(source.text)).map(::canonicalText)
         // Full alignment disambiguates repeated words, nested markup and inline word fragments.
         // A mismatch simply drops optional expression; tokens, links and positions stay untouched.
         if (visible.map { canonicalText(tokens[it].text) } != sourceTokens) return tokens
-        var offset = 0
-        val ranges = MutableList(tokens.size) { IntRange.EMPTY }
-        sourceTokens.forEachIndexed { index, text ->
-            val start = source.text.indexOf(text, offset)
-            if (start < 0) return tokens
-            offset = start + text.length
-            ranges[visible[index]] = start until offset
-        }
-        val emphasized = emphasizedIndices(tokens, ranges, source.ranges)
+        val ranges = sourceRanges(source.text, sourceTokens, tokenizeInlineText, normalizeText) ?: return tokens
+        val tokenRanges = MutableList(tokens.size) { IntRange.EMPTY }
+        visible.forEachIndexed { index, tokenIndex -> tokenRanges[tokenIndex] = ranges[index] }
+        val emphasized = emphasizedIndices(tokens, tokenRanges, source.ranges)
         return tokens.mapIndexed { index, token ->
             if (index in emphasized) token.copy(authorEmphasis = true) else token
         }
@@ -57,6 +52,44 @@ internal object HtmlEmphasisApplier {
         listOf(element.attr("epub:type"), element.attr("role"), element.className()).any { value ->
             value.lowercase().split(Regex("\\s+")).any { it in PAGE_BREAK_MARKERS }
         }
+
+    private fun sourceRanges(
+        text: String,
+        normalizedTokens: List<String>,
+        tokenizeInlineText: (String) -> List<String>,
+        normalizeText: (String) -> String,
+    ): List<IntRange>? {
+        var offset = 0
+        val parts = tokenizeInlineText(text).map { part ->
+            val start = text.indexOf(canonicalText(part), offset)
+            if (start < 0) return null
+            offset = start + part.length
+            start until offset
+        }
+        var cursor = 0
+        val ranges = mutableListOf<IntRange>()
+        while (cursor < parts.size) {
+            val start = parts[cursor].first
+            var end: Int
+            var candidateTokens: List<String>
+            // Normalization can join pieces across markup, such as <em>50</em> %.
+            do {
+                end = parts.getOrNull(cursor++)?.last?.plus(1) ?: return null
+                val candidate = text.substring(start, end)
+                candidateTokens = if (candidate == normalizedTokens.getOrNull(ranges.size)) {
+                    listOf(candidate)
+                } else {
+                    tokenizeInlineText(normalizeText(candidate)).map(::canonicalText)
+                }
+            } while (candidateTokens.isEmpty() ||
+                candidateTokens.indices.any {
+                    candidateTokens[it] != normalizedTokens.getOrNull(ranges.size + it)
+                }
+            )
+            repeat(candidateTokens.size) { ranges += start until end }
+        }
+        return ranges.takeIf { it.size == normalizedTokens.size }
+    }
 
     private fun emphasizedIndices(tokens: List<Token>, ranges: List<IntRange>, accents: List<IntRange>): Set<Int> = buildSet {
         var cursor = 0
