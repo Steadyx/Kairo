@@ -17,6 +17,14 @@ internal object HtmlEmphasisApplier {
         if (tokens.isEmpty() || !EMPHASIS_TAG.containsMatchIn(html) || html.any { it == START || it == END }) return tokens
         val body = Jsoup.parse(html).body()
         body.select("script, style, template, [hidden], [aria-hidden=true]").remove()
+        body.getAllElements().filter { element ->
+            isPageBreak(element) ||
+                (
+                    element.isBlock &&
+                        element.children().none { it.isBlock } &&
+                        ParagraphBreakPatterns.sceneBreak.matches(normalizeText(element.text()))
+                    )
+        }.forEach { it.replaceWith(TextNode(" ")) }
         if (body.text().any { it == START || it == END }) return tokens
         val blockTexts = mutableMapOf<Element, String>()
         val accents = body.select("em, strong").filter { isLocalEmphasis(it, blockTexts) }
@@ -44,6 +52,11 @@ internal object HtmlEmphasisApplier {
             if (index in emphasized) token.copy(authorEmphasis = true) else token
         }
     }
+
+    private fun isPageBreak(element: Element): Boolean =
+        listOf(element.attr("epub:type"), element.attr("role"), element.className()).any { value ->
+            value.lowercase().split(Regex("\\s+")).any { it in PAGE_BREAK_MARKERS }
+        }
 
     private fun emphasizedIndices(tokens: List<Token>, ranges: List<IntRange>, accents: List<IntRange>): Set<Int> = buildSet {
         var cursor = 0
@@ -105,6 +118,7 @@ internal object HtmlEmphasisApplier {
     private const val END = '\uE001'
     private const val MAX_EMPHASIS_WORDS = 4
     private const val MAX_EMPHASIS_CHARACTERS = 48
+    private val PAGE_BREAK_MARKERS = setOf("pagebreak", "doc-pagebreak", "page-break")
     private val EMPHASIS_TAG = Regex("<\\s*(em|strong)\\b", RegexOption.IGNORE_CASE)
     private val EXCLUDED_ANCESTORS = setOf("em", "strong", "i", "cite", "code", "pre", "h1", "h2", "h3", "h4", "h5", "h6")
 }

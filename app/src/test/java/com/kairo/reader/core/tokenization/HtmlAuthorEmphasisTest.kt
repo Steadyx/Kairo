@@ -3,6 +3,7 @@ package com.kairo.reader.core.tokenization
 import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.data.books.EpubContentRewriter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -82,6 +83,34 @@ class HtmlAuthorEmphasisTest {
         assertEquals(1500, tokens.size)
         assertEquals(500, tokens.count { it.authorEmphasis })
     }
+
+    @Test
+    fun importedPageMarkersDoNotDiscardEmphasisOrChangeReadingTokens() {
+        for (attribute in listOf("epub:type='pagebreak'", "role='doc-pagebreak'", "class='page-break'")) {
+            val html = "<p>Tuesday came.</p><span $attribute>12</span><p>I meant <em>Tuesday</em> again.</p>"
+            for (language in listOf("en", "fr", "ar", "zh")) {
+                val tokens = tokenizeImportedHtml(html, language)
+                assertEquals(listOf(false, true), tokens.filter { it.text == "Tuesday" }.map { it.authorEmphasis })
+                assertEquals(
+                    tokenizeImportedHtml(html.replace("<em>", "").replace("</em>", ""), language),
+                    tokens.map { it.copy(authorEmphasis = false) },
+                )
+            }
+        }
+    }
+
+    @Test
+    fun importedSceneSeparatorsDoNotDiscardEmphasis() {
+        for (separator in listOf("— —", "– –", "* * *", "---", "• • •")) {
+            val html = "<p>Tuesday came.</p><p>$separator</p><p>I meant <em>Tuesday</em> again.</p>"
+            val tokens = tokenizeImportedHtml(html)
+            assertEquals(separator, listOf(false, true), tokens.filter { it.text == "Tuesday" }.map { it.authorEmphasis })
+            assertTrue(separator, tokens.any { it.type == TokenType.PAGE_BREAK })
+        }
+    }
+
+    private fun tokenizeImportedHtml(html: String, language: String = "en"): List<Token> =
+        tokenize(html, EpubContentRewriter().extractPlainText(html), language)
 
     private fun tokenize(html: String, plain: String, language: String = "en"): List<Token> =
         TokenizerRegistry.resolve(language).tokenize(Chapter(0, null, html, plain))
