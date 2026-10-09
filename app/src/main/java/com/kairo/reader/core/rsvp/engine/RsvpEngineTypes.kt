@@ -20,6 +20,13 @@ internal data class PhraseContour(val preBoundaryWeight: Double, val restartWeig
     }
 }
 
+/** Expression stays attached to its source word even when several words share a frame. */
+internal data class RsvpWordExpression(
+    val focalSuppression: Double = 1.0,
+    val anticipatoryLanding: Double = 1.0,
+    val phraseContour: PhraseContour = PhraseContour.NONE,
+)
+
 internal data class UnitBuildResult(val tokens: List<Token>, val originalWordIndex: Int, val nextCursor: Int,)
 
 internal enum class BoundaryBefore {

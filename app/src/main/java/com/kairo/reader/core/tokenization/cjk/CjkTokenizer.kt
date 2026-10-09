@@ -4,6 +4,7 @@ import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.withoutInlinePhysicalPageBreaks
 import com.kairo.reader.core.tokenization.ChapterTokenizer
+import com.kairo.reader.core.tokenization.HtmlEmphasisApplier
 
 class CjkTokenizer(config: CjkSegmenterConfig = CjkSegmenterConfig(),) : ChapterTokenizer {
     private val segmenter = CjkSegmenter(config)
@@ -41,10 +42,11 @@ class CjkTokenizer(config: CjkSegmenterConfig = CjkSegmenterConfig(),) : Chapter
             }
         }
 
-        return CjkLinkApplier.apply(
+        val linked = CjkLinkApplier.apply(
             tokens.withoutInlinePhysicalPageBreaks().toMutableList(),
             chapter,
             segmenter::tokenizeInlineText,
         )
+        return HtmlEmphasisApplier.apply(linked, chapter.htmlContent, CjkTextNormalizer::normalizeInlineText, segmenter::tokenizeInlineText)
     }
 }

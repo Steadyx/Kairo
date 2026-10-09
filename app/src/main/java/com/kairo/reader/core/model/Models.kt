@@ -107,6 +107,8 @@ data class Token(
     val isSubwordChunk: Boolean = false,
     /** If this token is inside a link, the target chapter index */
     val linkChapterIndex: Int? = null,
+    /** Local semantic emphasis from source markup; independent of difficulty and display styling. */
+    val authorEmphasis: Boolean = false,
 )
 
 data class RsvpConfig(
