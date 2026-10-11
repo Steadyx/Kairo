@@ -8,23 +8,22 @@ import kotlin.math.min
 
 internal data class RsvpAccentColors(val pivot: Color, val wordPart: Color)
 
-/** Tertiary is usually the palette's hue-separated accent; reserve primary for word parts. */
+/** Keep the palette's tertiary hue, but give the single-letter focus a richer tone than UI accents. */
 internal fun ColorScheme.rsvpAccentColors(): RsvpAccentColors {
-    val themedPivot = contrastingColor(tertiary, listOf(background))
-    val pivot = if (colorChroma(background) >= MIN_BACKGROUND_CHROMA &&
-        hueDistance(background, themedPivot) < MIN_PIVOT_HUE_DISTANCE
+    val pivotHue = if (colorChroma(background) >= MIN_BACKGROUND_CHROMA &&
+        hueDistance(background, tertiary) < MIN_PIVOT_HUE_DISTANCE
     ) {
-        contrastingColor(
-            Color.hsl(
-                (colorHue(background) + HUE_HALF_TURN) % FULL_CIRCLE_DEGREES,
-                PIVOT_SATURATION,
-                accentLightness(background),
-            ),
-            listOf(background),
-        )
+        (colorHue(background) + HUE_HALF_TURN) % FULL_CIRCLE_DEGREES
     } else {
-        themedPivot
+        colorHue(tertiary)
     }
+    // Pale dark-theme accents can meet background contrast yet disappear among near-white letters.
+    // A controlled saturation and tone separate the pivot from both the page and the reading text.
+    val pivot = contrastingColor(
+        Color.hsl(pivotHue, PIVOT_SATURATION, min(accentLightness(background), MAX_PIVOT_LIGHTNESS)),
+        listOf(background),
+        minimum = PIVOT_TEXT_CONTRAST,
+    )
     val themedWordPart = contrastingColor(primary, listOf(background))
     val wordPart = if (channelDistance(pivot, themedWordPart) >= MIN_ACCENT_DISTANCE) {
         themedWordPart
@@ -83,8 +82,10 @@ private const val MIN_ACCENT_DISTANCE = 0.16f
 private const val MIN_BACKGROUND_CHROMA = 0.04f
 private const val MIN_PIVOT_HUE_DISTANCE = 45f
 private const val MIN_TEXT_CONTRAST = 4.5f
+private const val PIVOT_TEXT_CONTRAST = 6f
 private const val WORD_PART_SATURATION = 0.9f
-private const val PIVOT_SATURATION = 0.8f
+private const val PIVOT_SATURATION = 0.78f
+private const val MAX_PIVOT_LIGHTNESS = 0.68f
 private const val LIGHT_BACKGROUND_ACCENT_LIGHTNESS = 0.38f
 private const val DARK_BACKGROUND_ACCENT_LIGHTNESS = 0.72f
 private const val NEUTRAL_CHROMA_THRESHOLD = 0.02f

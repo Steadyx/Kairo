@@ -6,6 +6,7 @@ import com.kairo.reader.core.model.CustomTheme
 import com.kairo.reader.core.model.ReaderTheme
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.random.Random
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,7 +15,17 @@ class RsvpAccentColorsTest {
     @Test
     fun everyBuiltInThemeHasLegibleDistinctRsvpAccents() {
         ReaderTheme.entries.filter { it != ReaderTheme.CUSTOM }.forEach { theme ->
-            assertAccents(theme.materialColorScheme())
+            val scheme = theme.materialColorScheme()
+            assertAccents(scheme)
+            val pivot = scheme.rsvpAccentColors().pivot
+            val chroma = max(pivot.red, max(pivot.green, pivot.blue)) - min(pivot.red, min(pivot.green, pivot.blue))
+            val textDistance = max(
+                abs(pivot.red - scheme.onBackground.red),
+                max(abs(pivot.green - scheme.onBackground.green), abs(pivot.blue - scheme.onBackground.blue)),
+            )
+            assertTrue("$theme pivot should remain vivid among reading text: $pivot", chroma >= MIN_PIVOT_CHROMA)
+            assertTrue("$theme pivot blends into reading text: $pivot", textDistance >= MIN_PIVOT_TEXT_DISTANCE)
+            assertTrue("$theme pivot needs strong page contrast: $pivot", colorContrast(pivot, scheme.background) >= MIN_PIVOT_CONTRAST)
         }
     }
 
@@ -61,5 +72,8 @@ class RsvpAccentColorsTest {
         const val WCAG_AA_TEXT_CONTRAST = 4.5f
         const val CONTRAST_TOLERANCE = 0.0001f
         const val MIN_VISIBLE_CHANNEL_DELTA = 0.05f
+        const val MIN_PIVOT_CHROMA = 0.35f
+        const val MIN_PIVOT_TEXT_DISTANCE = 0.3f
+        const val MIN_PIVOT_CONTRAST = 6f
     }
 }
