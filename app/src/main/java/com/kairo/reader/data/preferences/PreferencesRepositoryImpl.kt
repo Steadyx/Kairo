@@ -201,6 +201,12 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
         }
     }
 
+    override suspend fun acknowledgeRelease(versionCode: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[keys.lastSeenReleaseVersionCode] = maxOf(prefs[keys.lastSeenReleaseVersionCode] ?: 0, versionCode)
+        }
+    }
+
     override suspend fun updateHasSeenStartingTutorial(seen: Boolean) {
         context.dataStore.edit { prefs -> prefs[keys.hasSeenStartingTutorial] = seen }
     }
@@ -443,7 +449,11 @@ class PreferencesRepositoryImpl(private val context: Context,) : PreferencesRepo
     }
 
     override suspend fun reset() {
-        context.dataStore.edit { it.clear() }
+        context.dataStore.edit { prefs ->
+            val seenRelease = prefs[keys.lastSeenReleaseVersionCode]
+            prefs.clear()
+            if (seenRelease != null) prefs[keys.lastSeenReleaseVersionCode] = seenRelease
+        }
     }
 }
 

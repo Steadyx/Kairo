@@ -13,6 +13,7 @@ internal object PrefKeys {
     val rsvpPresetVersion = intPreferencesKey("rsvp_preset_version")
     val rsvpProfile = stringPreferencesKey("rsvp_profile")
     val customRsvpProfilesJson = stringPreferencesKey("custom_rsvp_profiles_json")
+    val lastSeenReleaseVersionCode = intPreferencesKey("last_seen_release_version_code")
     val hasSeenStartingTutorial = booleanPreferencesKey("has_seen_starting_tutorial")
     val minWordMs = longPreferencesKey("min_word_ms")
     val longWordMinMs = longPreferencesKey("long_word_min_ms")
