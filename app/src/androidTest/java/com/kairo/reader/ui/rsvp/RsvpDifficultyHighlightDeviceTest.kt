@@ -1,5 +1,6 @@
 package com.kairo.reader.ui.rsvp
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -9,7 +10,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performSemanticsAction
@@ -21,6 +25,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kairo.reader.TestActivity
 import com.kairo.reader.core.model.ReaderTheme
 import com.kairo.reader.core.model.RsvpConfig
+import com.kairo.reader.core.model.RsvpFontFamily
 import com.kairo.reader.core.model.RsvpProfile
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
@@ -30,8 +35,10 @@ import com.kairo.reader.core.rsvp.RsvpGenerationOptions
 import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import com.kairo.reader.ui.theme.KairoTheme
 import com.kairo.reader.ui.theme.colorContrast
+import com.kairo.reader.ui.theme.composeFontFamily
 import com.kairo.reader.ui.theme.materialColorScheme
 import com.kairo.reader.ui.theme.rsvpAccentColors
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -45,16 +52,19 @@ class RsvpDifficultyHighlightDeviceTest {
     val composeRule = createAndroidComposeRule<TestActivity>()
 
     @Test
-    fun darkThemesRenderAContrastingPivotLetterWithoutAHighlightBlock() {
+    fun lightAndDarkThemesRenderAContrastingPivotLetterWithoutAHighlightBlock() {
         var theme by mutableStateOf(ReaderTheme.DARK)
         composeRule.setContent {
             KairoTheme(readerTheme = theme) {
                 val scheme = MaterialTheme.colorScheme
                 val accents = scheme.rsvpAccentColors()
-                Box(Modifier.size(FOCUS_STAGE_WIDTH_DP.dp, FOCUS_STAGE_HEIGHT_DP.dp).background(scheme.background)) {
+                Box(
+                    Modifier.size(FOCUS_STAGE_WIDTH_DP.dp, FOCUS_STAGE_HEIGHT_DP.dp)
+                        .background(scheme.background).testTag("rsvp-accent-stage"),
+                ) {
                     OrpAlignedText(
                         tokens = listOf(Token("reading", TokenType.WORD)),
-                        typography = OrpTypography(FOCUS_FONT_SIZE_SP, FontFamily.Monospace, FontWeight.Normal),
+                        typography = OrpTypography(FOCUS_FONT_SIZE_SP, RsvpFontFamily.MERRIWEATHER.composeFontFamily(), FontWeight.Normal),
                         colors = OrpColors(scheme.onBackground, accents.pivot, scheme.onBackground, accents.wordPart),
                         layout = OrpTextLayout(
                             horizontalBias = FOCUS_HORIZONTAL_BIAS,
@@ -71,7 +81,7 @@ class RsvpDifficultyHighlightDeviceTest {
             }
         }
 
-        for (currentTheme in listOf(ReaderTheme.DARK, ReaderTheme.INK)) {
+        for (currentTheme in ReaderTheme.entries.filter { it != ReaderTheme.CUSTOM }) {
             composeRule.runOnIdle { theme = currentTheme }
             val scheme = currentTheme.materialColorScheme()
             val accents = scheme.rsvpAccentColors()
@@ -82,7 +92,8 @@ class RsvpDifficultyHighlightDeviceTest {
             assertEquals(Color.Unspecified, pivot.item.background)
             assertNull(pivot.item.fontWeight)
             assertNull(pivot.item.textDecoration)
-            assertTrue(colorContrast(pivot.item.color, scheme.background) >= WCAG_AA_TEXT_CONTRAST)
+            assertTrue(colorContrast(pivot.item.color, scheme.background) >= PIVOT_TEXT_CONTRAST)
+            captureAccent(currentTheme)
         }
     }
 
@@ -211,6 +222,14 @@ class RsvpDifficultyHighlightDeviceTest {
         return layouts.single()
     }
 
+    private fun captureAccent(theme: ReaderTheme) {
+        val bitmap = composeRule.onNodeWithTag("rsvp-accent-stage").captureToImage().asAndroidBitmap()
+        val directory = requireNotNull(composeRule.activity.getExternalFilesDir("rsvp-accent-review"))
+        File(directory, "${theme.name.lowercase()}.png").outputStream().use {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+        }
+    }
+
     private fun highlightedText(layout: TextLayoutResult): String {
         val text = layout.layoutInput.text
         return text.spanStyles.filter { it.item.color == Color.Blue }.joinToString("") { text.text.substring(it.start, it.end) }
@@ -223,6 +242,6 @@ class RsvpDifficultyHighlightDeviceTest {
         const val FOCUS_HORIZONTAL_BIAS = 0.5f
         const val FOCUS_GUIDE_THICKNESS = 1f
         const val PIVOT_CHARACTER_COUNT = 1
-        const val WCAG_AA_TEXT_CONTRAST = 4.5f
+        const val PIVOT_TEXT_CONTRAST = 6f
     }
 }
