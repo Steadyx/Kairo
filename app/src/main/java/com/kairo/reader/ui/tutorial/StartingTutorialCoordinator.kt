@@ -20,6 +20,7 @@ import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.data.books.SharedTextImport
 import com.kairo.reader.sample.SampleBooks
 import com.kairo.reader.ui.navigation.KairoRoutes
+import com.kairo.reader.ui.updates.releaseNotes
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -31,6 +32,7 @@ internal data class StartingTutorialCoordinator(
     val readerState: StartingTutorialOverlayState?,
     val rsvpState: StartingTutorialOverlayState?,
     val start: () -> Unit,
+    val startReleaseTour: () -> Unit,
     val next: () -> Unit,
     val previous: () -> Unit,
     val skip: () -> Unit,
@@ -47,8 +49,10 @@ internal fun rememberStartingTutorialCoordinator(
     externalArticleUrl: String?,
     externalSharedText: SharedTextImport?,
     isImporting: Boolean,
+    onViewChangelog: () -> Unit,
 ): StartingTutorialCoordinator {
     val coroutineScope = rememberCoroutineScope()
+    var isReleaseTour by rememberSaveable { mutableStateOf(false) }
     var tutorialSteps by remember {
         mutableStateOf(startingTutorialSteps(includeReaderAndRsvp = false))
     }
@@ -56,7 +60,8 @@ internal fun rememberStartingTutorialCoordinator(
     var tutorialStepIndex by rememberSaveable { mutableIntStateOf(0) }
     var tutorialActive by rememberSaveable { mutableStateOf(false) }
     var tutorialAutoStarted by rememberSaveable { mutableStateOf(false) }
-    val safeTutorialStepIndex = clampTutorialStepIndex(tutorialStepIndex, tutorialSteps)
+    val sessionSteps = if (isReleaseTour) releaseNotes.first().tour else tutorialSteps
+    val safeTutorialStepIndex = clampTutorialStepIndex(tutorialStepIndex, sessionSteps)
     val availableTutorialLaunchContext by produceState<StartingTutorialLaunchContext?>(
         initialValue = null,
         prefs.hasSeenStartingTutorial,
@@ -78,7 +83,7 @@ internal fun rememberStartingTutorialCoordinator(
             }
     }
 
-    LaunchedEffect(tutorialSteps.size, tutorialStepIndex) {
+    LaunchedEffect(sessionSteps.size, tutorialStepIndex) {
         if (safeTutorialStepIndex != null && safeTutorialStepIndex != tutorialStepIndex) {
             tutorialStepIndex = safeTutorialStepIndex
         }
@@ -110,6 +115,7 @@ internal fun rememberStartingTutorialCoordinator(
 
             StartingTutorialRoute.SETTINGS -> {
                 navController.navigate(KairoRoutes.SETTINGS) {
+                    popUpTo(KairoRoutes.SETTINGS) { inclusive = false }
                     launchSingleTop = true
                 }
             }
@@ -149,7 +155,16 @@ internal fun rememberStartingTutorialCoordinator(
         }
     }
 
+    fun startReleaseTour() {
+        val firstStep = releaseNotes.first().tour.firstOrNull() ?: return
+        isReleaseTour = true
+        tutorialStepIndex = 0
+        tutorialActive = true
+        navigateToTutorialRoute(firstStep.route)
+    }
+
     fun startStartingTutorial() {
+        isReleaseTour = false
         val sessionSteps =
             startingTutorialSteps(includeReaderAndRsvp = availableTutorialLaunchContext != null)
         tutorialLaunchContext = availableTutorialLaunchContext
@@ -162,7 +177,7 @@ internal fun rememberStartingTutorialCoordinator(
 
     fun dismissStartingTutorial(markAsSeen: Boolean = true) {
         tutorialActive = false
-        if (markAsSeen) {
+        if (markAsSeen && !isReleaseTour) {
             markStartingTutorialSeenIfNeeded()
         }
     }
@@ -174,13 +189,13 @@ internal fun rememberStartingTutorialCoordinator(
 
     fun moveStartingTutorial(stepDelta: Int) {
         val nextIndex = tutorialStepIndex + stepDelta
-        if (nextIndex !in tutorialSteps.indices) {
+        if (nextIndex !in sessionSteps.indices) {
             finishStartingTutorial()
             return
         }
-        val previousRoute = tutorialSteps.getOrNull(tutorialStepIndex)?.route
+        val previousRoute = sessionSteps.getOrNull(tutorialStepIndex)?.route
         tutorialStepIndex = nextIndex
-        val nextRoute = tutorialSteps[nextIndex].route
+        val nextRoute = sessionSteps[nextIndex].route
         if (nextRoute != previousRoute) {
             navigateToTutorialRoute(nextRoute)
         }
@@ -189,9 +204,17 @@ internal fun rememberStartingTutorialCoordinator(
     val tutorialOverlayState =
         if (tutorialActive && safeTutorialStepIndex != null) {
             StartingTutorialOverlayState(
-                step = tutorialSteps[safeTutorialStepIndex],
+                step = sessionSteps[safeTutorialStepIndex],
                 index = safeTutorialStepIndex,
-                totalSteps = tutorialSteps.size,
+                totalSteps = sessionSteps.size,
+                onViewChangelog = if (isReleaseTour) {
+                    {
+                        dismissStartingTutorial()
+                        onViewChangelog()
+                    }
+                } else {
+                    null
+                },
             )
         } else {
             null
@@ -237,6 +260,7 @@ internal fun rememberStartingTutorialCoordinator(
         rsvpState =
         tutorialOverlayState?.takeIf { it.step.route == StartingTutorialRoute.RSVP },
         start = ::startStartingTutorial,
+        startReleaseTour = ::startReleaseTour,
         next = { moveStartingTutorial(1) },
         previous = { moveStartingTutorial(-1) },
         skip = { dismissStartingTutorial() },

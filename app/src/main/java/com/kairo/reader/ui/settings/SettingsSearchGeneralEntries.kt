@@ -143,6 +143,12 @@ internal val languageSearchEntries = listOf(
 
 internal val updatesSearchEntries = listOf(
     SettingsSearchEntry(
+        id = "changelog.whats_new",
+        page = SettingsSearchPage.CHANGELOG,
+        titleRes = R.string.whats_new_title,
+        descriptionRes = R.string.whats_new_subtitle,
+    ),
+    SettingsSearchEntry(
         id = "updates.update_check_title",
         page = SettingsSearchPage.UPDATES,
         titleRes = R.string.update_check_title,

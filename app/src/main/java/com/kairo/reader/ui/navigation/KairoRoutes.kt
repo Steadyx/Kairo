@@ -7,6 +7,7 @@ internal object KairoRoutes {
     const val LIBRARY_WITH_TAB = "library?tab={tab}"
     const val SETTINGS = "settings"
     const val SETTINGS_LANGUAGE = "settings/language"
+    const val SETTINGS_CHANGELOG = "settings/changelog"
     const val SETTINGS_INFO = "settings/info"
     const val SETTINGS_RSVP = "settings/rsvp"
     const val SETTINGS_BIONIC = "settings/bionic"

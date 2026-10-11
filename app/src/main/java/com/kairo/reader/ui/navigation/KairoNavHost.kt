@@ -11,12 +11,14 @@ import com.kairo.reader.KairoApplication
 import com.kairo.reader.R
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.data.books.SharedTextImport
+import com.kairo.reader.ui.export.NoteExportPhase
 import com.kairo.reader.ui.export.NoteExportProgressDialog
 import com.kairo.reader.ui.export.rememberNoteExportCoordinator
 import com.kairo.reader.ui.importing.rememberImportCoordinator
 import com.kairo.reader.ui.tutorial.rememberStartingTutorialCoordinator
 import com.kairo.reader.ui.updates.InAppUpdateCheckResult
 import com.kairo.reader.ui.updates.InAppUpdateUiBindings
+import com.kairo.reader.ui.updates.WhatsNewPrompt
 
 @Suppress("FunctionNaming")
 @Composable
@@ -74,6 +76,7 @@ internal fun KairoNavHost(
             externalArticleUrl = externalArticleUrl,
             externalSharedText = externalSharedText,
             isImporting = importCoordinator.state.isImporting,
+            onViewChangelog = { navController.navigate(KairoRoutes.SETTINGS_CHANGELOG) },
         )
     KairoNavChrome(
         prefs = prefs,
@@ -144,6 +147,7 @@ internal fun KairoNavHost(
                             }
                         },
                         onOpenStartingTutorial = tutorialCoordinator.start,
+                        onOpenReleaseTour = tutorialCoordinator.startReleaseTour,
                         onTutorialNext = tutorialCoordinator.next,
                         onTutorialPrevious = tutorialCoordinator.previous,
                         onTutorialSkip = tutorialCoordinator.skip,
@@ -152,6 +156,21 @@ internal fun KairoNavHost(
             )
         }
     }
+    WhatsNewPrompt(
+        preferences = prefs,
+        repository = container.preferencesRepository,
+        canShow = (currentRoute == KairoRoutes.LIBRARY || currentRoute == KairoRoutes.LIBRARY_WITH_TAB) &&
+            !tutorialCoordinator.active &&
+            !importCoordinator.state.isImporting &&
+            externalImportUri == null &&
+            externalArticleUrl == null &&
+            externalSharedText == null &&
+            inAppUpdateUi.prompt == null &&
+            noteExportUi.state.phase == NoteExportPhase.IDLE &&
+            noteExportUi.state.sheetOrigin == null,
+        onStartTour = tutorialCoordinator.startReleaseTour,
+        onViewChangelog = { navController.navigate(KairoRoutes.SETTINGS_CHANGELOG) },
+    )
     NoteExportProgressDialog(
         phase = noteExportUi.state.phase,
         onCancelAwaiting = noteExportUi.cancelPending,
