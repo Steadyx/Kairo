@@ -66,7 +66,7 @@ scroll requesters on those screens. The app uses packaged notes, not Git or a
 network service at runtime.
 
 The initial history covers `v1.0.7..v1.0.8`, `v1.0.8..v1.1.0`,
-`v1.1.0..v1.2.0`, and `v1.2.0..v1.3.0`. The first Upcoming entry covers
+`v1.1.0..v1.2.0`, and `v1.2.0..v1.3.0`. The 1.4.0 entry covers
 `v1.3.0..2785d82` plus the new changelog and tour itself.
 
 Before shipping, run `./gradlew qualityGate :app:compileDebugAndroidTestKotlin`
