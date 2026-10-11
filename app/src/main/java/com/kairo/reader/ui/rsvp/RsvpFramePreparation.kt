@@ -1,5 +1,8 @@
 package com.kairo.reader.ui.rsvp
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.data.rsvp.RsvpFrameRepository
@@ -56,26 +59,68 @@ internal suspend fun awaitRsvpChapterHandoff(
     book: RsvpBookContext,
     config: RsvpConfig,
     frameRepository: RsvpFrameRepository,
+    publishChapter: (RsvpFrameSet) -> Unit = {},
 ): RsvpFrameSet? {
     if (chapterFrames == null || preview == null) return chapterFrames
-    // Never replace a word while it is being read or a gesture is using its frame index.
-    snapshotFlow {
-        !runtime.isScrubbing &&
-            !runtime.isAdjustingPosition &&
-            (!runtime.isPlaying || hasConsumedLoadedFrames(runtime, preview.frames))
-    }.first { it }
-    if (runtime.completed) return chapterFrames
-    val continuingPlayback = hasConsumedLoadedFrames(runtime, preview.frames)
-    if (!continuingPlayback) syncRuntimePositionFromVisibleFrame(runtime, preview.frames, book)
-    return runCatching {
-        frameRepository.getSeekableFrames(
-            book.bookId,
-            book.chapterIndex,
-            if (continuingPlayback) config.copy(startDelayMs = 0L, rampUpFrames = 0) else config,
-            startIndex = runtime.currentTokenIndex,
-            options = book.generationOptions,
-        )
-    }.onFailure { error ->
-        if (error is CancellationException) throw error
-    }.getOrNull()
+    var activated by mutableStateOf(false)
+    runtime.activatePreparedChapter = {
+        if (!activated) {
+            val scrubStart = preview.frames.getOrNull(runtime.dragStartFrameIndex).takeIf { runtime.isScrubbing }
+            syncRuntimePositionFromVisibleFrame(runtime, preview.frames, book)
+            alignRuntimeToFrameSet(runtime, chapterFrames, book)
+            if (scrubStart != null) {
+                runtime.dragStartFrameIndex = alignFrameIndex(
+                    chapterFrames.frames,
+                    scrubStart.originalTokenIndex,
+                    scrubStart.resumeCursor,
+                    chapterFrames.frameIndexMap,
+                )
+            }
+            publishChapter(chapterFrames)
+            activated = true
+        }
+        chapterFrames
+    }
+    try {
+        // Navigation publishes synchronously; automatic handoff waits for a safe playback boundary.
+        snapshotFlow {
+            activated ||
+                (
+                    !runtime.isScrubbing &&
+                        !runtime.isAdjustingPosition &&
+                        (!runtime.isPlaying || hasConsumedLoadedFrames(runtime, preview.frames))
+                    )
+        }.first { it }
+        if (activated || runtime.completed) return chapterFrames
+        val continuingPlayback = hasConsumedLoadedFrames(runtime, preview.frames)
+        if (!continuingPlayback) syncRuntimePositionFromVisibleFrame(runtime, preview.frames, book)
+        val prepared = runCatching {
+            frameRepository.getSeekableFrames(
+                book.bookId,
+                book.chapterIndex,
+                if (continuingPlayback) config.copy(startDelayMs = 0L, rampUpFrames = 0) else config,
+                startIndex = runtime.currentTokenIndex,
+                options = book.generationOptions,
+            )
+        }.onFailure { error ->
+            if (error is CancellationException) throw error
+        }.getOrNull()
+        return if (activated) chapterFrames else prepared
+    } finally {
+        runtime.activatePreparedChapter = null
+    }
+}
+
+internal fun prepareRsvpNavigation(context: RsvpUiContext): RsvpUiContext {
+    val chapter = context.runtime.activatePreparedChapter?.invoke() ?: return context
+    return context.copy(
+        frameState = context.frameState.copy(
+            frames = chapter.frames,
+            baseTempoMs = chapter.baseTempoMs,
+            isLoading = false,
+            isComplete = true,
+            frameIndexMap = chapter.frameIndexMap,
+            initialRampStartFrameIndex = chapter.initialRampStartFrameIndex,
+        ),
+    )
 }

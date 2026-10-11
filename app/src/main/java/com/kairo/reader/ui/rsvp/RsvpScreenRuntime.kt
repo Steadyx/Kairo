@@ -11,6 +11,7 @@ import com.kairo.reader.core.model.BionicReadingPreferences
 import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.rsvp.timing.RsvpSessionTimingPolicy
 import com.kairo.reader.data.rsvp.RsvpFrameIndexMap
+import com.kairo.reader.data.rsvp.RsvpFrameSet
 
 internal data class RsvpFrameLoadState(
     val frames: List<RsvpFrame>,
@@ -69,6 +70,7 @@ internal class RsvpRuntimeState(
     var scheduledFrameIndex by mutableIntStateOf(-1)
     var nextFrameAtMs by mutableLongStateOf(0L)
     var startupPreparationMs = 0L
+    var activatePreparedChapter: (() -> RsvpFrameSet)? = null
     private var playbackIsPlaying by mutableStateOf(true)
     var isPlaying: Boolean
         get() = playbackIsPlaying

@@ -475,6 +475,7 @@ private fun rememberFrameLoadState(
             book = book,
             config = profile.config,
             frameRepository = frameRepository,
+            publishChapter = { frameSetState = LoadedRsvpFrameSet(it, isComplete = true) },
         )
 
         if (computed == null) {
@@ -491,6 +492,7 @@ private fun rememberFrameLoadState(
             return@LaunchedEffect
         }
 
+        if (frameSetState?.frameSet === computed) return@LaunchedEffect
         // Publish the chapter and its aligned position together, before rendering or playback.
         alignRuntimeToFrameSet(runtime, computed, book)
         runtime.startupPreparationMs =

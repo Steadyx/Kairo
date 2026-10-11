@@ -2,16 +2,19 @@ package com.kairo.reader.ui.rsvp
 
 import android.os.SystemClock
 import android.util.Log
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kairo.reader.R
 import com.kairo.reader.TestActivity
@@ -144,6 +147,44 @@ class RsvpStartupDeviceTest {
             "8000-token UI: first consumed=${fixture.consumedAtMs.first() - startedAt} ms, chapter loads=${fixture.loads.get()}",
         )
         composeRule.waitUntil(timeoutMillis = 15_000L) { fixture.loads.get() > 0 }
+    }
+
+    @Test
+    fun replayDuringOpeningCanReachBeforeTheLaunchPositionOnceChapterIsReady() {
+        val fixture = startBufferedMidChapter()
+
+        composeRule.onRoot().performTouchInput { doubleClick() }
+
+        composeRule.waitUntil(timeoutMillis = 3000L) { (fixture.position?.tokenIndex ?: 80) < 80 }
+        assertTrue("Replay must reach text before the opening buffer", requireNotNull(fixture.position).tokenIndex < 80)
+    }
+
+    @Test
+    fun backwardSwipeDuringOpeningCanReachBeforeTheLaunchPositionOnceChapterIsReady() {
+        val fixture = startBufferedMidChapter()
+
+        composeRule.onRoot().performTouchInput {
+            swipe(Offset(width * 0.85f, height * 0.4f), Offset(width * 0.15f, height * 0.4f), durationMillis = 160L)
+        }
+
+        composeRule.waitUntil(timeoutMillis = 3000L) { (fixture.position?.tokenIndex ?: 80) < 80 }
+        assertTrue("Swipe must reach text before the opening buffer", requireNotNull(fixture.position).tokenIndex < 80)
+    }
+
+    private fun startBufferedMidChapter(): RsvpDeviceFixture {
+        val fixture = fixture(startDelayMs = 0L, tokens = List(200) { Token("word$it", TokenType.WORD) })
+        fixture.state = fixture.state.copy(
+            book = fixture.state.book.copy(startIndex = 80, sessionStartIndex = 80),
+            profile = fixture.state.profile.copy(config = fixture.state.profile.config.copy(tempoMsPerWord = 600L)),
+        )
+        val releaseFrames = showWithBlockedPreparation(fixture)
+        composeRule.waitUntil(timeoutMillis = 10_000L) { fixture.consumed.isNotEmpty() }
+        assertEquals(0, fixture.loads.get())
+        releaseFrames.complete(Unit)
+        composeRule.waitUntil(timeoutMillis = 10_000L) { fixture.loads.get() > 0 }
+        composeRule.waitForIdle()
+        assertTrue("Exercise navigation before the opening has been consumed", fixture.consumed.size < 64)
+        return fixture
     }
 
     private fun fixture(
