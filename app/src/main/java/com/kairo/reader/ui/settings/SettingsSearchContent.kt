@@ -106,6 +106,7 @@ internal fun SettingsHomeActions.openSearchResult(entry: SettingsSearchEntry) {
         SettingsSearchPage.FOCUS -> onOpenFocus()
         SettingsSearchPage.LANGUAGE -> onOpenLanguage()
         SettingsSearchPage.INFO -> onOpenInfo()
+        SettingsSearchPage.CHANGELOG -> onOpenChangelog()
         SettingsSearchPage.UPDATES -> onCheckForUpdates()
         SettingsSearchPage.TUTORIAL -> onOpenStartingTutorial()
         SettingsSearchPage.RESET -> Unit // The home screen opens the confirmation dialog.

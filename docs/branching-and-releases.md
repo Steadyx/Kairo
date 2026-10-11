@@ -43,6 +43,40 @@ Allowed release-branch work:
 
 Do not add new features on a release branch.
 
+### In-app changelog and feature tour
+
+Settings → What’s new contains the offline changelog and a replayable feature
+tour. Maintain its content in
+`app/src/main/java/com/kairo/reader/ui/updates/ReleaseNotes.kt` and the
+`values*/release_notes.xml` resources for every supported language.
+
+During development, keep the newest entry's `version` and `versionCode` null.
+It appears as Upcoming and can be toured manually, but never prompts users.
+During release preparation, assign the actual `versionName` and `versionCode`
+from `app/build.gradle.kts` to that entry. Keep older entries in descending order.
+When starting the next version, prepend a new Upcoming entry. A fixes-only
+release may leave its tour empty and offer just the changelog.
+
+Review `git log --no-merges <previous-release-tag>..HEAD` and the corresponding
+diffs. Summarise every user-facing addition and fix in the changelog, grouping
+related commits; omit internal build, test, and refactoring work. Pick only a few
+features for the tour. Keep its steps on Library or Settings so it works without
+an imported book. New targets must also register their highlight bounds and
+scroll requesters on those screens. The app uses packaged notes, not Git or a
+network service at runtime.
+
+The initial history covers `v1.0.7..v1.0.8`, `v1.0.8..v1.1.0`,
+`v1.1.0..v1.2.0`, and `v1.2.0..v1.3.0`. The first Upcoming entry covers
+`v1.3.0..2785d82` plus the new changelog and tour itself.
+
+Before shipping, run `./gradlew qualityGate :app:compileDebugAndroidTestKotlin`
+and the `WhatsNewDeviceTest` instrumentation tests on a device. Check an upgrade
+from the previous published version: the invitation appears once in an idle
+library, all dismissal paths suppress it, and Settings can replay the tour.
+Check a fresh install too: only the starting tutorial should appear. Verify
+rotation, Back, large text, landscape, and pending external imports. Resetting
+display preferences must not reset the acknowledged release version.
+
 When the release is ready:
 
 ```bash

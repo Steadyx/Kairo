@@ -56,6 +56,7 @@ internal class UserPreferencesMapper(
         defaults: UserPreferences,
     ): UserPreferences =
         copy(
+            lastSeenReleaseVersionCode = prefs[keys.lastSeenReleaseVersionCode] ?: 0,
             hasSeenStartingTutorial =
             prefs.readOrDefault(
                 keys.hasSeenStartingTutorial,

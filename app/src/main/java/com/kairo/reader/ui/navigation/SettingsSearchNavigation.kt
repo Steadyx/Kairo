@@ -31,6 +31,7 @@ internal fun SettingsSearchPage.route(): String? = when (this) {
     SettingsSearchPage.BIONIC -> KairoRoutes.SETTINGS_BIONIC
     SettingsSearchPage.FOCUS -> KairoRoutes.SETTINGS_FOCUS
     SettingsSearchPage.LANGUAGE -> KairoRoutes.SETTINGS_LANGUAGE
+    SettingsSearchPage.CHANGELOG -> KairoRoutes.SETTINGS_CHANGELOG
     SettingsSearchPage.INFO -> KairoRoutes.SETTINGS_INFO
     else -> null
 }

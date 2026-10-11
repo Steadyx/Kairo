@@ -64,6 +64,7 @@ data class SettingsHomeActions(
     val onClose: () -> Unit,
     val onOpenSearchResult: ((SettingsSearchEntry) -> Unit)? = null,
     val onOpenTheme: () -> Unit = {},
+    val onOpenChangelog: () -> Unit = {},
 )
 
 data class SettingsTutorialActions(val onNext: () -> Unit = {}, val onPrevious: () -> Unit = {}, val onSkip: () -> Unit = {},)
@@ -82,6 +83,8 @@ fun SettingsHomeScreen(
     val tutorialTargetRequesters =
         remember {
             mapOf(
+                StartingTutorialTargetIds.SETTINGS_THEME to BringIntoViewRequester(),
+                StartingTutorialTargetIds.SETTINGS_CHANGELOG to BringIntoViewRequester(),
                 StartingTutorialTargetIds.SETTINGS_LANGUAGE to BringIntoViewRequester(),
                 StartingTutorialTargetIds.SETTINGS_RSVP to BringIntoViewRequester(),
                 StartingTutorialTargetIds.SETTINGS_READER to BringIntoViewRequester(),
@@ -164,6 +167,7 @@ private fun SettingsHomeRows(
                 title = stringResource(R.string.theme_settings_title),
                 subtitle = stringResource(R.string.theme_settings_subtitle),
                 icon = Icons.Default.Palette,
+                targetId = StartingTutorialTargetIds.SETTINGS_THEME,
                 onClick = actions.onOpenTheme,
             ),
             SettingsHomeRow(
@@ -203,6 +207,13 @@ private fun SettingsHomeRows(
                 reading = true,
                 targetId = StartingTutorialTargetIds.SETTINGS_FOCUS,
                 onClick = actions.onOpenFocus,
+            ),
+            SettingsHomeRow(
+                title = stringResource(R.string.whats_new_title),
+                subtitle = stringResource(R.string.whats_new_subtitle),
+                icon = Icons.Default.AutoStories,
+                targetId = StartingTutorialTargetIds.SETTINGS_CHANGELOG,
+                onClick = actions.onOpenChangelog,
             ),
             SettingsHomeRow(
                 title = stringResource(R.string.update_check_title),

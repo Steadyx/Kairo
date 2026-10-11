@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="whats_new_title">更新内容</string>
+    <string name="whats_new_subtitle">探索新功能，查看各版本的更新日志。</string>
+    <string name="whats_new_view_changelog">查看更新日志</string>
+    <string name="whats_new_take_tour">开始导览</string>
+    <string name="whats_new_version">版本 %1$s</string>
+    <string name="whats_new_upcoming">即将推出</string>
+    <string name="whats_new_invitation_title">Kairo %1$s 的新功能</string>
+    <string name="whats_new_invitation_body">更新已准备就绪。可以快速了解，也可以继续阅读。随时可从“设置 → 更新内容”再次查看。</string>
+    <string name="whats_new_word_guidance">更清晰的单词引导</string>
+    <string name="release_upcoming_themes">通过主题工作室定制 Kairo：调整颜色和字体、预览阅读界面、撤销修改，并保存命名设计。改进的对比度让高亮文字保持清晰。</string>
+    <string name="release_upcoming_reading">RSVP 现在按自然短语和语义边界组织文本。“速度”和“阅读支持”让调整更简单，预设具有不同的阅读节奏，上下文和单词切换更流畅，改变速度时仍保障阅读时间。切换预设会保留显示偏好。</string>
+    <string name="release_upcoming_guidance">单词部分引导有助于识别不熟悉的英语拼写，更清晰的注视点在各种主题中都易于区分。作者强调、对话和插入语参与富有表现力的阅读，分页或数字附近的强调也能保留。</string>
+    <string name="release_upcoming_progress">Reader 和 RSVP 更一致地显示章节进度。跳转、旋转屏幕、切换章节和恢复阅读时，位置保留更可靠。大章节安全加载，播放启动等待更短，Reader 会滚动到屏幕外的阅读焦点。</string>
+    <string name="release_upcoming_imports">EPUB、PDF、MOBI、DOCX 和文本导入更可靠：改进 Unicode 和中日韩文的字词计数，忽略 DOCX 中已删除的文本，更安全地处理大文件和封面，并改善取消操作。不完整的 EPUB 会被拒绝，而不是作为损坏的图书加入。</string>
+    <string name="release_upcoming_search_focus">段落搜索会在扫描期间显示结果。专注模式允许媒体播放，并在 Kairo 进入后台时解除勿扰。移除图书时会更新相关缓存。</string>
+    <string name="release_upcoming_helper">更新后返回书库时，可以选择参加功能导览。随时跳过、在导览中打开更新日志，或从设置中的更新内容再次查看。</string>
+    <string name="release_130">按名称、说明或选项搜索设置，也可从 Reader 和 RSVP 中搜索，匹配的控件会高亮显示。\n\n通过 Android 文件选择器将已保存的笔记导出为 PDF 或 Markdown，操作界面和文档均已本地化。\n\n焕新的书库和设置布局，改善横屏和小屏操作，并在阅读界面间共享 RSVP 设置。\n\n改善内嵌图片稳定性、阅读位置恢复、HTML 换行、短时阅读记录及应用更新处理。提高 Android 兼容性和无障碍体验。</string>
+    <string name="release_120">已保存页面汇集书签、高亮和可编辑笔记。可搜索书库和书中段落，Unicode 匹配更准确，结果更可靠。\n\nMomentum 跟踪阅读活动、每周目标和历史，支持调整目标及重置。Reader 和定时阅读均会记录阅读过程。\n\n打开 EPUB 原有目录并跟随章节链接。改进导航修复、精确段落选择、阅读数据完整性和无障碍体验。</string>
+    <string name="release_110">可导入文字可选的 PDF、FB2、DOCX 及更多文本格式。通过文件内容辅助识别格式，在书库中更清楚地展示支持的格式，并加快大 PDF 的导入。\n\n通过 Google Play 检查并安装更新。改进导入验证、Android 兼容性和 RSVP 默认字号。</string>
+    <string name="release_108">在 RSVP 之外新增定时 Bionic 阅读，提供独立设置、自适应文字显示和阅读模式选择。\n\n导入粘贴文本和 Markdown，或从其他应用向 Kairo 分享文本。\n\nRSVP 新增连续上下文和上下文重读，并改进短语对齐、标点停顿、加载和翻译。</string>
+</resources>

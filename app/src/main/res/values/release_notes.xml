@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="whats_new_title">What’s new</string>
+    <string name="whats_new_subtitle">Explore new features and the version changelog.</string>
+    <string name="whats_new_view_changelog">View changelog</string>
+    <string name="whats_new_take_tour">Take a tour</string>
+    <string name="whats_new_version">Version %1$s</string>
+    <string name="whats_new_upcoming">Upcoming</string>
+    <string name="whats_new_invitation_title">New in Kairo %1$s</string>
+    <string name="whats_new_invitation_body">Your update is ready to explore. Have a quick look, or carry on reading. You can find this again in Settings → What’s new.</string>
+    <string name="whats_new_word_guidance">Clearer word guidance</string>
+    <string name="release_upcoming_themes">Make Kairo your own with the theme studio: adjust colours and fonts, preview your reading screens, undo edits, and save named designs. Improved contrast keeps highlighted text readable.</string>
+    <string name="release_upcoming_reading">RSVP now groups text around natural phrases and thought boundaries. Speed and Reading support make tuning simpler, with distinct preset rhythms, smoother context and word transitions, and reading time protected when you change speed. Switching presets keeps your display preferences.</string>
+    <string name="release_upcoming_guidance">Word-part guidance helps with unfamiliar English spellings, while a clearer pivot accent stays distinct across themes. Author emphasis, dialogue, and asides inform expressive reading without losing emphasis at page breaks or around numbers.</string>
+    <string name="release_upcoming_progress">Reader and RSVP share chapter progress more consistently. Seeking, rotation, chapter changes, and returning to reading preserve your place more reliably. Large chapters load safely, playback starts with less waiting, and Reader scrolls to an offscreen focus.</string>
+    <string name="release_upcoming_imports">More reliable EPUB, PDF, MOBI, DOCX, and text imports: improved Unicode and Chinese, Japanese, and Korean word counts, deleted DOCX text omitted, safer handling of large files and covers, and better cancellation. Incomplete EPUBs are rejected instead of added as broken books.</string>
+    <string name="release_upcoming_search_focus">Passage search shows results while scanning continues. Focus mode allows media and releases Do Not Disturb when Kairo goes into the background. Book caches are refreshed when books are removed.</string>
+    <string name="release_upcoming_helper">Updates can offer an optional feature tour once you return to the library. Skip at any time, open the changelog during the tour, or revisit What’s new from Settings.</string>
+    <string name="release_130">Search settings by name, description, or option, including from Reader and RSVP, with matching controls highlighted.\n\nExport saved notes as PDF or Markdown through Android’s file picker, with localised controls and documents.\n\nRefreshed library and settings layouts, improved landscape and compact-screen controls, and shared RSVP settings across reading views.\n\nMore stable inline images, reading-position restoration, HTML line breaks, short-session tracking, and app-update handling. Improved Android compatibility and accessibility.</string>
+    <string name="release_120">Saved brings bookmarks, highlights, and editable notes together. Search your library and book passages, with improved Unicode matching and more reliable results.\n\nMomentum tracks reading activity, weekly goals, and history, with goal and reset controls. Both Reader and timed reading record sessions.\n\nOpen authored EPUB contents pages and follow their chapter links. Improved navigation repair, precise paragraph selection, reading-data integrity, and accessibility.</string>
+    <string name="release_110">Import selectable-text PDFs, FB2, DOCX, and additional text formats. File contents help identify the format, supported formats are clearer in the library, and larger PDF imports are faster.\n\nCheck for and install available updates through Google Play. Improved import validation, Android compatibility, and default RSVP text sizing.</string>
+    <string name="release_108">Bionic timed reading joins RSVP, with its own settings, adaptive text rendering, and a reading-mode launcher.\n\nImport pasted text and Markdown, or share text to Kairo from another app.\n\nRSVP gains continuous context and contextual replay, with improved phrase alignment, punctuation timing, loading, and translations.</string>
+</resources>

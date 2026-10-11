@@ -2,10 +2,12 @@
 
 package com.kairo.reader.ui.navigation
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import com.kairo.reader.BuildConfig
 import com.kairo.reader.KairoApplication
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.ui.settings.BionicSettingsScreen
@@ -18,6 +20,7 @@ import com.kairo.reader.ui.settings.SettingsHomeActions
 import com.kairo.reader.ui.settings.SettingsHomeScreen
 import com.kairo.reader.ui.settings.SettingsTutorialActions
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
+import com.kairo.reader.ui.updates.ChangelogScreen
 import kotlinx.coroutines.launch
 
 internal data class SettingsRouteDependencies(
@@ -27,6 +30,7 @@ internal data class SettingsRouteDependencies(
     val tutorialState: StartingTutorialOverlayState?,
     val onCheckForUpdates: () -> Unit,
     val onOpenStartingTutorial: () -> Unit,
+    val onOpenReleaseTour: () -> Unit,
     val onTutorialNext: () -> Unit,
     val onTutorialPrevious: () -> Unit,
     val onTutorialSkip: () -> Unit,
@@ -48,6 +52,7 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
                 onOpenTheme = { dependencies.navController.navigate(KairoRoutes.SETTINGS_THEME) },
                 onOpenReader = { dependencies.navController.navigate(KairoRoutes.SETTINGS_READER) },
                 onOpenFocus = { dependencies.navController.navigate(KairoRoutes.SETTINGS_FOCUS) },
+                onOpenChangelog = { dependencies.navController.navigate(KairoRoutes.SETTINGS_CHANGELOG) },
                 onOpenInfo = { dependencies.navController.navigate(KairoRoutes.SETTINGS_INFO) },
                 onCheckForUpdates = dependencies.onCheckForUpdates,
                 onOpenStartingTutorial = dependencies.onOpenStartingTutorial,
@@ -97,6 +102,16 @@ internal fun NavGraphBuilder.settingsRoutes(dependencies: SettingsRouteDependenc
 
     settingsSearchDestination(KairoRoutes.SETTINGS_LANGUAGE) {
         LanguageSettingsScreen(onBack = { dependencies.navController.popBackStack() })
+    }
+
+    settingsSearchDestination(KairoRoutes.SETTINGS_CHANGELOG) {
+        LaunchedEffect(Unit) {
+            dependencies.container.preferencesRepository.acknowledgeRelease(BuildConfig.VERSION_CODE)
+        }
+        ChangelogScreen(
+            onBack = { dependencies.navController.popBackStack() },
+            onStartTour = dependencies.onOpenReleaseTour,
+        )
     }
 
     settingsSearchDestination(KairoRoutes.SETTINGS_INFO) {

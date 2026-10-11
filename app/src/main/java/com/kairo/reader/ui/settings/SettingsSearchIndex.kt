@@ -27,6 +27,7 @@ enum class SettingsSearchPage(@StringRes val titleRes: Int) {
     LANGUAGE(R.string.settings_language_title),
     INFO(R.string.info_settings_title),
     UPDATES(R.string.update_check_title),
+    CHANGELOG(R.string.whats_new_title),
     TUTORIAL(R.string.settings_starting_tutorial_title),
     RESET(R.string.settings_title),
 }
