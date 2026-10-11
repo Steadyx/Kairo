@@ -3,6 +3,24 @@ package com.kairo.reader.ui.rsvp
 import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.nearestWordIndex
 import com.kairo.reader.data.rsvp.RsvpFrameIndexMap
+import com.kairo.reader.data.rsvp.RsvpFrameSet
+
+internal fun alignRuntimeToFrameSet(
+    runtime: RsvpRuntimeState,
+    frameSet: RsvpFrameSet,
+    book: RsvpBookContext,
+) {
+    if (frameSet.frames.isEmpty()) return
+    runtime.frameIndex =
+        alignFrameIndex(
+            frames = frameSet.frames,
+            tokenIndex = runtime.currentTokenIndex,
+            resumeCursor = runtime.currentResumeCursor,
+            frameIndexMap = frameSet.frameIndexMap,
+        )
+    runtime.rampStartFrameIndex = runtime.frameIndex
+    syncRuntimePositionFromVisibleFrame(runtime, frameSet.frames, book)
+}
 
 internal fun resolveCurrentTokenIndex(
     frames: List<RsvpFrame>,

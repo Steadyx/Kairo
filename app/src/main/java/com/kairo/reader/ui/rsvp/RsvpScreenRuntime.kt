@@ -68,6 +68,7 @@ internal class RsvpRuntimeState(
     var rampStartFrameIndex by mutableIntStateOf(0)
     var scheduledFrameIndex by mutableIntStateOf(-1)
     var nextFrameAtMs by mutableLongStateOf(0L)
+    var startupPreparationMs = 0L
     private var playbackIsPlaying by mutableStateOf(true)
     var isPlaying: Boolean
         get() = playbackIsPlaying
@@ -81,6 +82,7 @@ internal class RsvpRuntimeState(
                 } ?: 1.0
                 pausedAtMs = null
             } else {
+                startupPreparationMs = 0L
                 pausedAtMs = monotonicTimeMs()
             }
             playbackIsPlaying = value

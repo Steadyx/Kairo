@@ -25,11 +25,23 @@ class BionicPlaybackReadinessTest {
     }
 
     @Test
-    fun rsvpKeepsItsInstantPreviewBehavior() {
+    fun rsvpShowsInstantPreviewWithoutPlayingIt() {
         val previewState = frameState(isLoading = true, isComplete = false)
 
         assertFalse(shouldShowLoading(previewState, ReadingPresentationMode.RSVP))
-        assertTrue(isFrameSetReadyForPlayback(previewState, ReadingPresentationMode.RSVP))
+        assertFalse(isFrameSetReadyForPlayback(previewState, ReadingPresentationMode.RSVP))
+    }
+
+    @Test
+    fun playbackWaitsForSuccessfulNonEmptyFrames() {
+        val ready = frameState(isLoading = false, isComplete = true)
+
+        assertTrue(isFrameSetReadyForPlayback(ready, ReadingPresentationMode.RSVP))
+        assertFalse(isFrameSetReadyForPlayback(ready.copy(isLoading = true), ReadingPresentationMode.RSVP))
+        assertTrue(isFrameSetReadyForPlayback(ready.copy(isComplete = false), ReadingPresentationMode.RSVP))
+        assertFalse(isFrameSetReadyForPlayback(ready.copy(isComplete = false), ReadingPresentationMode.BIONIC))
+        assertFalse(isFrameSetReadyForPlayback(ready.copy(loadFailed = true), ReadingPresentationMode.RSVP))
+        assertFalse(isFrameSetReadyForPlayback(ready.copy(frames = emptyList()), ReadingPresentationMode.RSVP))
     }
 
     private fun frameState(
