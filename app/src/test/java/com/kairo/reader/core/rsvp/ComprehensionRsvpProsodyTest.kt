@@ -27,8 +27,8 @@ class ComprehensionRsvpProsodyTest : ComprehensionRsvpTestBase() {
             )
 
         val tokens = listOf(w("he"), w("said"))
-        val withoutDetection = engine.generateFrames(tokens, 0, baseConfig)
-        val withDetection = engine.generateFrames(
+        val withoutDetection = englishFrames(tokens, 0, baseConfig)
+        val withDetection = englishFrames(
             tokens,
             0,
             baseConfig.copy(useDialogueDetection = true)
@@ -62,8 +62,8 @@ class ComprehensionRsvpProsodyTest : ComprehensionRsvpTestBase() {
                 useDialogueDetection = false,
             )
 
-        val standalone = engine.generateFrames(listOf(w("the")), 0, config).first().durationMs
-        val bridged = engine.generateFrames(listOf(w("the"), w("mountain")), 0, config)
+        val standalone = englishFrames(listOf(w("the")), 0, config).first().durationMs
+        val bridged = englishFrames(listOf(w("the"), w("mountain")), 0, config)
 
         assertTrue(bridged.isNotEmpty())
         assertTrue(
@@ -95,8 +95,8 @@ class ComprehensionRsvpProsodyTest : ComprehensionRsvpTestBase() {
                 useDialogueDetection = false,
             )
 
-        val neutral = engine.generateFrames(listOf(w("and"), w("ready")), 0, config)
-        val negation = engine.generateFrames(listOf(w("not"), w("ready")), 0, config)
+        val neutral = englishFrames(listOf(w("and"), w("ready")), 0, config)
+        val negation = englishFrames(listOf(w("not"), w("ready")), 0, config)
 
         assertTrue(neutral.isNotEmpty() && negation.isNotEmpty())
         assertTrue(
@@ -128,8 +128,8 @@ class ComprehensionRsvpProsodyTest : ComprehensionRsvpTestBase() {
                 useDialogueDetection = false,
             )
 
-        val withProsody = engine.generateFrames(listOf(w("the"), w("mountain")), 0, config)
-        val withoutProsody = engine.generateFrames(
+        val withProsody = englishFrames(listOf(w("the"), w("mountain")), 0, config)
+        val withoutProsody = englishFrames(
             listOf(w("the"), w("mountain")),
             0,
             config.copy(useProsodyPacing = false),
@@ -163,12 +163,12 @@ class ComprehensionRsvpProsodyTest : ComprehensionRsvpTestBase() {
                 useProsodyPacing = true,
             )
 
-        val low = engine.generateFrames(
+        val low = englishFrames(
             listOf(w("the"), w("mountain")),
             0,
             config.copy(prosodyStrength = 0.2),
         )
-        val high = engine.generateFrames(
+        val high = englishFrames(
             listOf(w("the"), w("mountain")),
             0,
             config.copy(prosodyStrength = 1.6),

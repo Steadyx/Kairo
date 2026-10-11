@@ -2,6 +2,7 @@
 
 package com.kairo.reader.ui.rsvp
 
+import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +33,7 @@ import com.kairo.reader.data.rsvp.RsvpFrameSet
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
 import com.kairo.reader.ui.tutorial.StartingTutorialTargetIds
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 
 @Composable
@@ -73,8 +75,8 @@ fun RsvpScreen(
             book = state.book,
             profile = state.profile,
             frameRepository = dependencies.frameRepository,
-            previewStartIndex = runtime.currentTokenIndex,
-            previewResumeCursor = runtime.currentResumeCursor,
+            runtime = runtime,
+            presentationMode = presentationMode,
         )
     val tempoScale =
         rememberTempoScale(
@@ -145,10 +147,7 @@ fun RsvpScreen(
         autoPlay = state.initialIsPlaying && !isTutorialMode,
         playbackEnabled =
         !isTutorialMode &&
-            isFrameSetReadyForPlayback(
-                frameState = frameState,
-                presentationMode = presentationMode,
-            ),
+            isFrameSetReadyForPlayback(frameState, presentationMode),
     )
     RsvpIndicatorEffects(runtime)
 
@@ -355,12 +354,11 @@ private fun rememberFrameLoadState(
     book: RsvpBookContext,
     profile: RsvpProfileContext,
     frameRepository: RsvpFrameRepository,
-    previewStartIndex: Int,
-    previewResumeCursor: Int,
+    runtime: RsvpRuntimeState,
+    presentationMode: ReadingPresentationMode,
 ): RsvpFrameLoadState {
     val loadConfigKey = remember(profile.config) { frameLoadConfigKey(profile.config) }
     val instantFrameTokenCount = book.tokens.size
-    val latestPreviewStartIndex by rememberUpdatedState(previewStartIndex)
     var frameSetState by remember(
         book.bookId,
         book.chapterIndex,
@@ -372,8 +370,8 @@ private fun rememberFrameLoadState(
         mutableStateOf(
             buildInstantFrameSet(
                 book.copy(
-                    startIndex = previewStartIndex,
-                    startResumeCursor = previewResumeCursor,
+                    startIndex = runtime.currentTokenIndex,
+                    startResumeCursor = runtime.currentResumeCursor,
                 ),
                 profile.config,
             )?.let { frameSet -> LoadedRsvpFrameSet(frameSet = frameSet, isComplete = false) },
@@ -416,10 +414,19 @@ private fun rememberFrameLoadState(
         instantFrameTokenCount,
         loadAttempt,
     ) {
+        val preparationStartedAtMs =
+            if (presentationMode == ReadingPresentationMode.RSVP &&
+                runtime.isPlaying &&
+                frameSetState?.frameSet?.frames?.getOrNull(runtime.frameIndex) != null
+            ) {
+                SystemClock.elapsedRealtime()
+            } else {
+                null
+            }
         val loadStartIndex =
             resolveFrameLoadStartIndex(
                 bookStartIndex = book.startIndex,
-                previewStartIndex = latestPreviewStartIndex,
+                previewStartIndex = runtime.currentTokenIndex,
                 tokenCount = instantFrameTokenCount,
             )
         val hadFrames = frameSetState?.frameSet?.frames?.isNotEmpty() == true
@@ -427,26 +434,7 @@ private fun rememberFrameLoadState(
             frameSetState?.isComplete == true &&
                 frameSetState?.frameSet?.frames?.isNotEmpty() == true
         if (!hadFrames) isFramesLoading = true
-        if (!hadFrames && book.tokens.isNotEmpty()) {
-            val preview =
-                runCatching {
-                    frameRepository.getPreviewFrames(
-                        tokens = book.tokens,
-                        startIndex = loadStartIndex,
-                        config = profile.config,
-                        options = book.generationOptions,
-                    )
-                }.onFailure { error ->
-                    if (error is CancellationException) {
-                        throw error
-                    }
-                }.getOrNull()
-            if (preview?.frames?.isNotEmpty() == true) {
-                frameSetState = LoadedRsvpFrameSet(frameSet = preview, isComplete = false)
-            }
-        }
-
-        val computed =
+        val chapterFrames = async {
             runCatching {
                 frameRepository.getSeekableFrames(
                     book.bookId,
@@ -456,10 +444,39 @@ private fun rememberFrameLoadState(
                     options = book.generationOptions,
                 )
             }.onFailure { error ->
-                if (error is CancellationException) {
-                    throw error
-                }
+                if (error is CancellationException) throw error
             }.getOrNull()
+        }
+        var preparedPreview = frameSetState?.takeIf { !it.isComplete && !isFramesLoading }?.frameSet
+        if (isFramesLoading &&
+            runtime.isPlaying &&
+            presentationMode == ReadingPresentationMode.RSVP &&
+            book.tokens.size > STARTUP_PREVIEW_TOKEN_COUNT
+        ) {
+            val preview = loadRsvpOpeningFrames(frameRepository, book, profile.config, loadStartIndex, chapterFrames)
+            if (!chapterFrames.isCompleted && preview?.frames?.isNotEmpty() == true) {
+                alignRuntimeToFrameSet(runtime, preview, book)
+                runtime.startupPreparationMs = preparationStartedAtMs?.let {
+                    (SystemClock.elapsedRealtime() - it).coerceAtLeast(0L)
+                } ?: 0L
+                preparedPreview = preview
+                frameSetState = LoadedRsvpFrameSet(
+                    frameSet = preview,
+                    isComplete = preview.frames.last().nextOriginalTokenIndex >= book.tokens.size,
+                )
+                isFramesLoading = false
+            }
+        }
+
+        val computed = awaitRsvpChapterHandoff(
+            chapterFrames = chapterFrames.await(),
+            preview = preparedPreview,
+            runtime = runtime,
+            book = book,
+            config = profile.config,
+            frameRepository = frameRepository,
+            publishChapter = { frameSetState = LoadedRsvpFrameSet(it, isComplete = true) },
+        )
 
         if (computed == null) {
             if (loadAttempt < MAX_FRAME_LOAD_RETRIES) {
@@ -475,6 +492,15 @@ private fun rememberFrameLoadState(
             return@LaunchedEffect
         }
 
+        if (frameSetState?.frameSet === computed) return@LaunchedEffect
+        // Publish the chapter and its aligned position together, before rendering or playback.
+        alignRuntimeToFrameSet(runtime, computed, book)
+        runtime.startupPreparationMs =
+            if (preparedPreview == null && runtime.isPlaying && preparationStartedAtMs != null) {
+                (SystemClock.elapsedRealtime() - preparationStartedAtMs).coerceAtLeast(0L)
+            } else {
+                0L
+            }
         frameSetState = LoadedRsvpFrameSet(frameSet = computed, isComplete = true)
         frameLoadFailed = false
         isFramesLoading = false
@@ -550,11 +576,9 @@ internal fun shouldShowLoading(
     frameState.isLoading &&
         (frameState.frames.isEmpty() || presentationMode == ReadingPresentationMode.BIONIC)
 
-internal fun isFrameSetReadyForPlayback(
-    frameState: RsvpFrameLoadState,
-    presentationMode: ReadingPresentationMode,
-): Boolean =
-    presentationMode == ReadingPresentationMode.RSVP || frameState.isComplete
+internal fun isFrameSetReadyForPlayback(frameState: RsvpFrameLoadState, presentationMode: ReadingPresentationMode): Boolean =
+    shouldSyncPositionFromFrameState(frameState) &&
+        (presentationMode == ReadingPresentationMode.RSVP || frameState.isComplete)
 
 internal fun buildSessionKey(book: RsvpBookContext): String =
     "${book.bookId.value}:${book.chapterIndex}:${book.sessionStartIndex}"
@@ -625,7 +649,6 @@ private fun RsvpPlaybackEffects(
 ) {
     RsvpPositionSaveEffect(context)
     RsvpLifecyclePositionSaveEffect(context)
-    RsvpFrameAlignmentEffect(context)
     RsvpSessionResetEffect(context, sessionKey, autoPlay = autoPlay)
     RsvpPlaybackLoopEffect(context, enabled = playbackEnabled)
 }

@@ -135,7 +135,8 @@ internal fun addBookmarkNow(context: RsvpUiContext) {
     runtime.showQuickSettings = false
 }
 
-internal fun replayPreviousPhrase(context: RsvpUiContext) {
+internal fun replayPreviousPhrase(initialContext: RsvpUiContext) {
+    val context = prepareRsvpNavigation(initialContext)
     val runtime = context.runtime
     val tokens = context.state.book.tokens
     val frames = context.frameState.frames
@@ -314,7 +315,7 @@ private fun handleDrag(
         }
         runtime.dragAxis =
             if (absX > absY) {
-                startScrubbing(context)
+                startScrubbing(prepareRsvpNavigation(context))
                 RsvpDragAxis.HORIZONTAL
             } else {
                 RsvpDragAxis.VERTICAL
@@ -322,7 +323,7 @@ private fun handleDrag(
     }
 
     when (runtime.dragAxis) {
-        RsvpDragAxis.HORIZONTAL -> handleSweep(context)
+        RsvpDragAxis.HORIZONTAL -> handleSweep(prepareRsvpNavigation(context))
         RsvpDragAxis.VERTICAL -> handleTempoDrag(context)
         RsvpDragAxis.NONE -> Unit
     }

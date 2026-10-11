@@ -739,33 +739,14 @@ object ClauseDetector {
     ): Double {
         if (nextWord == null) return 0.0
         val lower = word.lowercase()
-        return when {
-            lower in setOf("a", "an", "the") -> 0.9
-            lower in setOf("my", "your", "his", "her", "its", "our", "their") -> 0.85
-            lower in phraseLeaders -> 0.75
-            lower in setOf(
-                "of",
-                "to",
-                "in",
-                "on",
-                "at",
-                "by",
-                "for",
-                "with",
-                "from",
-                "into",
-                "onto",
-                "upon",
-                "about",
-                "through",
-                "between",
-                "among",
-                "against",
-                "toward",
-                "towards",
-            ) -> 0.7
-            lower in setOf("very", "quite", "rather", "too", "so", "really", "almost", "nearly") -> 0.8
-            lower in setOf("will", "would", "can", "could", "should", "must", "may", "might") -> 0.65
+        return when (lower) {
+            "a", "an", "the" -> 0.9
+            "my", "your", "his", "her", "its", "our", "their" -> 0.85
+            in phraseLeaders -> 0.75
+            "of", "to", "in", "on", "at", "by", "for", "with", "from",
+            "into", "onto", "upon", "about", "through", "between", "among", "against", "toward", "towards" -> 0.7
+            "very", "quite", "rather", "too", "so", "really", "almost", "nearly" -> 0.8
+            "will", "would", "can", "could", "should", "must", "may", "might" -> 0.65
             else -> 0.0
         }
     }
@@ -816,10 +797,11 @@ object DialogueAnalyzer {
 
         val lower = words.map { it.lowercase() }
         val hasVerb = lower.any { it in speakerVerbs }
+        if (!hasVerb) return false
         val text = lower.joinToString(" ")
         val matchesPattern = speakerPatterns.any { it.containsMatchIn(text) }
 
-        return hasVerb && matchesPattern
+        return matchesPattern
     }
 
     fun isSpeakerVerb(word: String): Boolean {

@@ -371,6 +371,8 @@ private fun PrefetchReaderFrames(
     bookId: String,
 ) {
     LaunchedEffect(
+        hasInitialized,
+        bookId,
         uiState.chapterIndex,
         uiState.chapterData,
         uiState.focusIndex,

@@ -233,16 +233,15 @@ internal fun contextShapingMultiplier(
 
 internal fun transitionHoldMs(
     frameTokens: List<Token>,
-    firstWord: Token?,
+    lastWord: Token?,
     nextWord: Token?,
     speedStrength: Double,
     prosodyStrength: Double,
 ): Double {
-    if (firstWord == null || nextWord == null) return 0.0
-    if (frameTokens.count { it.type == TokenType.WORD } != 1) return 0.0
-    if (frameTokens.any { it.type == TokenType.PUNCTUATION }) return 0.0
+    if (lastWord == null || nextWord == null) return 0.0
+    if (frameTokens.lastOrNull()?.type == TokenType.PUNCTUATION) return 0.0
 
-    val firstLower = firstWord.text.lowercase()
+    val firstLower = lastWord.text.lowercase()
     val nextLower = nextWord.text.lowercase()
 
     // Function words should glide into content words with minimal visual gap.
@@ -251,7 +250,7 @@ internal fun transitionHoldMs(
     }
 
     // Check for tight pair patterns that should stay together mentally
-    if (shouldPreferHold(firstWord, nextWord)) {
+    if (shouldPreferHold(lastWord, nextWord)) {
         val hold = TRANSITION_HOLD_BASE_MS + (TRANSITION_HOLD_EXTRA_MS * speedStrength)
         return hold.coerceAtLeast(0.0)
     }
@@ -265,7 +264,7 @@ internal fun transitionHoldMs(
     // Breath before a grammatical phrase boundary (clause-starter / joining conjunction) that
     // carries no punctuation. Kept present even at moderate speed via PHRASE_BREATH_BASE so the
     // phrasing of the inner voice is actually felt, not just a sliver at very high WPM.
-    if (isPhraseBreakBefore(firstLower, nextLower, nextWord)) {
+    if (nextWord.isClauseBoundary) {
         return PHRASE_BREAK_HOLD_MS * (PHRASE_BREATH_BASE + ((1.0 - PHRASE_BREATH_BASE) * speedStrength))
     }
 
@@ -302,9 +301,9 @@ internal fun isCoherencePair(
 }
 
 /**
- * Phrase-arc shaping for a single-word frame at a grammatical (punctuation-free) phrase boundary.
+ * Phrase-arc shaping for each word at a grammatical (punctuation-free) phrase boundary.
  *
- * Uses the same [isPhraseBreakBefore] detector as the breath in [transitionHoldMs], so the arc and
+ * Uses the same contextual boundary annotation as the breath in [transitionHoldMs], so the arc and
  * the breath always fire together: the word closing an intonation unit stretches slightly
  * (pre-boundary lengthening) and the clause-starter opening the next one gets a small onset lift
  * instead of being swallowed by the function-word glide. Punctuation-adjacent words are excluded —
@@ -325,53 +324,16 @@ internal fun phraseBoundaryShapeMultiplier(
     val presence = PHRASE_BREATH_BASE + ((1.0 - PHRASE_BREATH_BASE) * speedStrength)
     var multiplier = 1.0
 
-    if (nextWord != null && isPhraseBreakBefore(wordLower, nextWord.text.lowercase(), nextWord)) {
+    if (nextWord?.isClauseBoundary == true) {
         multiplier *= 1.0 + (PHRASE_PRE_BOUNDARY_LIFT * presence * prosodyStrength)
     }
     if (prevWord != null &&
         boundaryBefore == BoundaryBefore.NONE &&
-        isPhraseBreakBefore(prevWord.text.lowercase(), wordLower, word)
+        word.isClauseBoundary
     ) {
         multiplier *= 1.0 + (PHRASE_ONSET_LIFT * presence * prosodyStrength)
     }
     return multiplier
-}
-
-internal fun isPhraseBreakBefore(
-    currentLower: String,
-    nextLower: String,
-    nextWord: Token,
-): Boolean {
-    // Before clause starters, add a micro-pause for comprehension
-    if (nextLower in setOf(
-            "which",
-            "who",
-            "whom",
-            "whose",
-            "that",
-            "where",
-            "when",
-            "because",
-            "although",
-            "though",
-            "unless",
-            "until",
-            "while",
-            "after",
-            "before",
-            "if",
-        )
-    ) {
-        return true
-    }
-    // Before coordinating conjunctions in longer sentences
-    if (nextLower in setOf("and", "but", "or", "yet", "so") &&
-        currentLower.length > MIN_COORDINATING_BOUNDARY_WORD_CHARS &&
-        !nextWord.isClauseBoundary
-    ) {
-        return true
-    }
-    return false
 }
 
 internal fun shouldPreferHold(
@@ -529,7 +491,6 @@ internal fun wordEase(word: Token, policy: RsvpLanguagePolicy = RsvpLanguagePoli
 
 private const val MAX_SPEAKER_TAG_FRAME_WORDS = 3
 private const val MIN_DIALOGUE_SPEED_STRENGTH = 0.15
-private const val MIN_COORDINATING_BOUNDARY_WORD_CHARS = 3
 private const val MAX_GLUE_PAIR_WORD_CHARS = 4
 private const val HIGH_COHERENCE_HOLD_THRESHOLD = 0.65
 private const val MAX_HIGH_COHERENCE_PREV_CHARS = 5

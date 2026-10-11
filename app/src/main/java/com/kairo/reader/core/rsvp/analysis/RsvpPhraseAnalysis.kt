@@ -96,7 +96,7 @@ internal fun analyzeExpandedTokens(
                 }
             }
         if (config.useFocalStress) {
-            addFocalWord(breathGroup, focal, thoughtCues)
+            addFocalWord(breathGroup, focal, thoughtCues, languagePolicy)
         }
         breathGroup.clear()
         applyRestartContour(tier = tier, afterIndex = boundaryIndex)
@@ -117,7 +117,7 @@ internal fun analyzeExpandedTokens(
             }
             TokenType.PARAGRAPH_BREAK, TokenType.PAGE_BREAK -> {
                 if (config.useFocalStress) {
-                    addFocalWord(breathGroup, focal, thoughtCues)
+                    addFocalWord(breathGroup, focal, thoughtCues, languagePolicy)
                 }
                 breathGroup.clear()
                 previousWord = null
@@ -151,7 +151,7 @@ internal fun analyzeExpandedTokens(
         }
     }
     if (config.useFocalStress) {
-        addFocalWord(breathGroup, focal, thoughtCues)
+        addFocalWord(breathGroup, focal, thoughtCues, languagePolicy)
     }
 
     return RsvpTokenAnalysis(
@@ -180,6 +180,7 @@ private fun addFocalWord(
     group: List<ExpandedToken>,
     focal: MutableSet<Int>,
     thoughtCues: Map<Int, RsvpThoughtCue>,
+    languagePolicy: RsvpLanguagePolicy,
 ) {
     if (group.isEmpty()) return
     val protected = group.filter { thoughtCues[it.expandedIndex]?.protectedEmphasis == true }
@@ -192,43 +193,30 @@ private fun addFocalWord(
         return
     }
 
-    var bestIndex = -1
-    var bestScore = Double.NEGATIVE_INFINITY
-    group.forEachIndexed { positionInGroup, entry ->
-        val score = focalScore(entry.token, positionInGroup, group.size)
-        if (score > bestScore || (score == bestScore && bestIndex != -1)) {
-            bestScore = score
-            bestIndex = entry.expandedIndex
-        }
-    }
-    if (bestIndex >= 0) {
-        focal += bestIndex
+    val focus = if (languagePolicy == RsvpLanguagePolicy.ENGLISH) confidentEnglishFocus(group) else null
+    if (focus != null) {
+        focal += focus.expandedIndex
     } else {
+        // Ambiguous prose stays neutral. Length and rarity already have recognition allowances;
+        // neither is evidence that the author intended rhetorical stress.
         group.forEach { focal += it.expandedIndex }
     }
 }
 
-internal fun focalScore(
-    token: Token,
-    positionInGroup: Int,
-    groupSize: Int,
-): Double {
-    if (token.isSubwordChunk) return Double.NEGATIVE_INFINITY
-    val normalized = normalizeWord(token.text)
-    if (normalized.isEmpty()) return Double.NEGATIVE_INFINITY
-    val letters = normalized.count { it.isLetterOrDigit() }
-    if (letters == 0) return Double.NEGATIVE_INFINITY
-
-    val functionPenalty = if (isFunctionWord(normalized)) FOCAL_FUNCTION_WORD_PENALTY else 1.0
-    val anchorBonus = if (isSemanticAnchor(normalized)) FOCAL_SEMANTIC_ANCHOR_BONUS else 1.0
-    // Tiny end-weighting so the final content word of a breath wins ties.
-    val endWeight = 1.0 + (positionInGroup.toDouble() / (groupSize * FOCAL_END_WEIGHT_DIVISOR))
-    return letters.toDouble() * functionPenalty * anchorBonus * endWeight
+private fun confidentEnglishFocus(group: List<ExpandedToken>): ExpandedToken? {
+    val candidates = group.filter {
+        !it.token.isSubwordChunk &&
+            !isFunctionWord(normalizeWord(it.token.text)) &&
+            normalizeWord(it.token.text) !in LOW_STRESS_TAILS
+    }
+    if (candidates.size == 1) return candidates.single()
+    val last = group.last()
+    val previous = group.getOrNull(group.lastIndex - 1)?.token?.text?.let(::normalizeWord)
+    return last.takeIf { it in candidates && previous in FOCUS_LEADS }
 }
 
-private const val FOCAL_FUNCTION_WORD_PENALTY = 0.25
-private const val FOCAL_SEMANTIC_ANCHOR_BONUS = 1.5
-private const val FOCAL_END_WEIGHT_DIVISOR = 20.0
+private val FOCUS_LEADS = setOf("a", "an", "the", "my", "your", "his", "her", "our", "their", "is", "was", "were", "are")
+private val LOW_STRESS_TAILS = setOf("again", "just", "really", "very", "then", "here", "there")
 
 internal fun MutableMap<Int, PhraseContour>.mergeContour(
     expandedIndex: Int,

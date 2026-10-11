@@ -1,15 +1,44 @@
 package com.kairo.reader.ui.rsvp
 
+import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.rsvp.ComprehensionRsvpEngine
+import com.kairo.reader.data.rsvp.RsvpFrameSet
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class RsvpFrameAlignmentTest {
     private val engine = ComprehensionRsvpEngine()
+
+    @Test
+    fun replacementFramesAlignToLiveResumeCursorBeforePlayback() {
+        val frames = listOf(0 to 0, 4 to 40, 4 to 44, 5 to 50).map { (tokenIndex, cursor) ->
+            RsvpFrame(
+                tokens = listOf(Token("word", TokenType.WORD)),
+                durationMs = 120L,
+                originalTokenIndex = tokenIndex,
+                resumeCursor = cursor,
+            )
+        }
+        val book = RsvpBookContext(BookId("book"), 0, emptyList(), startIndex = 1)
+        for (oldFrameIndex in listOf(0, 10)) {
+            val runtime = RsvpRuntimeState().apply {
+                frameIndex = oldFrameIndex
+                currentTokenIndex = 4
+                currentResumeCursor = 44
+            }
+
+            alignRuntimeToFrameSet(runtime, RsvpFrameSet(frames, 120L), book)
+
+            assertEquals(2, runtime.frameIndex)
+            assertEquals(2, runtime.rampStartFrameIndex)
+            assertEquals(4, runtime.currentTokenIndex)
+            assertEquals(44, runtime.currentResumeCursor)
+        }
+    }
 
     @Test
     fun alignFrameIndexTargetsFirstSplitForFreshTokenStart() {

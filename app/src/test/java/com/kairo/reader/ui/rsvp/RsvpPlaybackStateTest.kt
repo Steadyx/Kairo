@@ -383,25 +383,20 @@ class RsvpPlaybackStateTest {
     }
 
     @Test
-    fun positionSyncGateSkipsFirstReadyFrameSetBeforeSyncingPosition() {
-        val gate = RsvpPositionSyncGate()
+    fun readyFrameSetsCanSaveTheirAlreadyAlignedPositionImmediately() {
         val initialFrames = frameListAt(12)
         val reloadedFrames = frameListAt(12)
 
-        assertFalse(gate.shouldSync(loadedFrameState(initialFrames)))
-        assertTrue(gate.shouldSync(loadedFrameState(initialFrames)))
-        assertFalse(gate.shouldSync(loadedFrameState(reloadedFrames)))
-        assertTrue(gate.shouldSync(loadedFrameState(reloadedFrames)))
+        assertTrue(shouldSyncPositionFromFrameState(loadedFrameState(initialFrames)))
+        assertTrue(shouldSyncPositionFromFrameState(loadedFrameState(reloadedFrames)))
     }
 
     @Test
-    fun positionSyncGateDoesNotArmFromLoadingPreviewFrames() {
-        val gate = RsvpPositionSyncGate()
+    fun positionSyncWaitsForLoadingPreviewToBeReplaced() {
         val frames = frameListAt(7)
 
-        assertFalse(gate.shouldSync(loadedFrameState(frames, isLoading = true)))
-        assertFalse(gate.shouldSync(loadedFrameState(frames)))
-        assertTrue(gate.shouldSync(loadedFrameState(frames)))
+        assertFalse(shouldSyncPositionFromFrameState(loadedFrameState(frames, isLoading = true)))
+        assertTrue(shouldSyncPositionFromFrameState(loadedFrameState(frames)))
     }
 
     @Test
@@ -533,6 +528,15 @@ class RsvpPlaybackStateTest {
 
         assertFalse(savedIsPlaying)
         assertFalse(savedCompleted)
+    }
+
+    @Test
+    fun pausingClearsPreparationCreditBeforeAnExplicitResume() {
+        val runtime = RsvpRuntimeState().apply { startupPreparationMs = 500L }
+
+        runtime.isPlaying = false
+
+        assertEquals(0L, runtime.startupPreparationMs)
     }
 
     @Test

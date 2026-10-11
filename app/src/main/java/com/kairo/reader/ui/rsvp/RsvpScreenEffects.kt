@@ -8,7 +8,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -29,7 +28,6 @@ internal fun RsvpPositionSaveEffect(context: RsvpUiContext) {
     val runtime = context.runtime
     val frames = context.frameState.frames
     val book = context.state.book
-    val positionSyncGate = remember { RsvpPositionSyncGate() }
 
     LaunchedEffect(
         runtime.frameIndex,
@@ -37,9 +35,7 @@ internal fun RsvpPositionSaveEffect(context: RsvpUiContext) {
         context.frameState.isComplete,
         frames,
     ) {
-        // A replacement frame list must align to the saved source position before it can
-        // update that position. Its old numeric frame index belongs to a different list.
-        if (!positionSyncGate.shouldSync(context.frameState)) return@LaunchedEffect
+        if (!shouldSyncPositionFromFrameState(context.frameState)) return@LaunchedEffect
         syncRuntimePositionFromVisibleFrame(runtime, frames, book)
         val now = SystemClock.elapsedRealtime()
         val shouldSave =
@@ -80,28 +76,8 @@ internal fun RsvpLifecyclePositionSaveEffect(context: RsvpUiContext) {
     }
 }
 
-@Composable
-internal fun RsvpFrameAlignmentEffect(context: RsvpUiContext) {
-    val runtime = context.runtime
-    val frames = context.frameState.frames
-    val book = context.state.book
-
-    LaunchedEffect(frames, context.frameState.isLoading, context.frameState.isComplete) {
-        if (!shouldSyncPositionFromFrameState(context.frameState)) return@LaunchedEffect
-        runtime.frameIndex =
-            alignFrameIndex(
-                frames = frames,
-                tokenIndex = runtime.currentTokenIndex,
-                resumeCursor = runtime.currentResumeCursor,
-                frameIndexMap = context.frameState.frameIndexMap,
-            )
-        runtime.rampStartFrameIndex = runtime.frameIndex
-        syncRuntimePositionFromVisibleFrame(runtime, frames, book)
-    }
-}
-
 internal fun shouldSyncPositionFromFrameState(frameState: RsvpFrameLoadState): Boolean =
-    frameState.frames.isNotEmpty() && !frameState.isLoading && frameState.isComplete
+    frameState.frames.isNotEmpty() && !frameState.isLoading && !frameState.loadFailed
 
 internal fun syncRuntimePositionFromVisibleFrame(
     runtime: RsvpRuntimeState,
@@ -137,19 +113,6 @@ internal fun RsvpFrameLoadFailureEffect(context: RsvpUiContext) {
         runtime.scheduledFrameIndex = -1
         runtime.nextFrameAtMs = 0L
         runtime.showControls = true
-    }
-}
-
-internal class RsvpPositionSyncGate {
-    private var lastReadyFrames: List<RsvpFrame>? = null
-
-    fun shouldSync(frameState: RsvpFrameLoadState): Boolean {
-        if (!shouldSyncPositionFromFrameState(frameState)) return false
-        if (lastReadyFrames !== frameState.frames) {
-            lastReadyFrames = frameState.frames
-            return false
-        }
-        return true
     }
 }
 
@@ -226,6 +189,7 @@ internal fun RsvpPlaybackLoopEffect(
     LaunchedEffect(enabled, runtime.isPlaying, runtime.frameIndex, runtime.completed, frames) {
         if (!enabled) return@LaunchedEffect
         if (!runtime.isPlaying || runtime.completed) return@LaunchedEffect
+        if (hasConsumedLoadedFrames(runtime, frames)) return@LaunchedEffect
         if (runtime.frameIndex >= frames.size) return@LaunchedEffect
         val frame = frames[runtime.frameIndex]
         val tempoScale = latestTempoScale
@@ -268,6 +232,12 @@ internal fun RsvpPlaybackLoopEffect(
             ((frameMs * rampMultiplier + resumeDelayMs * tempoScale) * runtime.comprehensionPaceScale)
                 .roundToLong()
                 .coerceAtLeast(MIN_FRAME_DELAY_MS)
+        if (runtime.frameIndex == context.frameState.initialRampStartFrameIndex) {
+            // Preparation overlaps only the startup pause, never the word's reading time.
+            val startDelayMs = (config.startDelayMs * tempoScale * runtime.comprehensionPaceScale)
+                .roundToLong().coerceAtLeast(0L)
+            scaledMs -= runtime.startupPreparationMs.coerceIn(0L, startDelayMs)
+        }
         val floorMs = frameFloorMs(frame, config, effectiveTempoMs)
         if (scaledMs < floorMs) {
             scaledMs = floorMs
@@ -284,6 +254,7 @@ internal fun RsvpPlaybackLoopEffect(
         } else {
             delay(delayMs)
         }
+        runtime.startupPreparationMs = 0L
         context.callbacks.playback.onFrameConsumed(frame)
         if (runtime.frameIndex == frames.lastIndex) {
             if (shouldCompleteAtLoadedFrameBoundary(context)) {
@@ -326,6 +297,12 @@ internal fun holdAtLoadingFrameBoundary(context: RsvpUiContext) {
     runtime.scheduledFrameIndex = -1
     runtime.nextFrameAtMs = 0L
 }
+
+internal fun hasConsumedLoadedFrames(runtime: RsvpRuntimeState, frames: List<RsvpFrame>): Boolean =
+    frames.isNotEmpty() &&
+        runtime.frameIndex == frames.lastIndex &&
+        runtime.scheduledFrameIndex == -1 &&
+        runtime.currentTokenIndex >= frames.last().nextOriginalTokenIndex
 
 @Composable
 internal fun RsvpAutoHideControlsEffect(runtime: RsvpRuntimeState) {

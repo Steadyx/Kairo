@@ -58,7 +58,7 @@ class Tokenizer {
             val nextParagraph = paragraphs.getOrNull(index + 1)
             val nextIsPageBreak = nextParagraph?.let(::isPageBreakParagraph) == true
             if (index < paragraphs.lastIndex && !isPageBreak && !nextIsPageBreak) {
-                val currentCue = blockCues.getOrNull(index) ?: BlockCue(BlockType.PARAGRAPH, false)
+                val currentCue = blockCues.getOrNull(index) ?: BlockCue(BlockType.PARAGRAPH)
                 val nextCue = blockCues.getOrNull(index + 1)
                 val extraPause = structuralPauseMs(currentCue, nextCue)
                 tokens +=
@@ -71,7 +71,13 @@ class Tokenizer {
         }
 
         // Apply links - try multiple strategies
-        return applyLinks(tokens.withoutInlinePhysicalPageBreaks().toMutableList(), chapter)
+        val linked = applyLinks(tokens.withoutInlinePhysicalPageBreaks().toMutableList(), chapter)
+        return HtmlEmphasisApplier.apply(
+            linked,
+            chapter.htmlContent,
+            normalizeText = { normalizeEpubSymbols(normalizeWhitespace(it)) },
+            tokenizeInlineText = ::tokenizeInlineText,
+        )
     }
 
     /**
@@ -195,8 +201,6 @@ class Tokenizer {
             BlockType.PARAGRAPH -> Unit
         }
 
-        if (current.hasEmphasis) extra += EMPHASIS_AFTER_MS
-
         when (next?.type) {
             BlockType.HEADING -> extra += HEADING_BEFORE_MS
             BlockType.BLOCKQUOTE -> extra += BLOCKQUOTE_BEFORE_MS
@@ -217,18 +221,12 @@ class Tokenizer {
 
         val tagRegex =
             Regex("<\\s*(h[1-6]|li|blockquote|pre|p|div|br)\\b[^>]*>", RegexOption.IGNORE_CASE)
-        val emphasisRegex = Regex("<\\s*(em|i)\\b", RegexOption.IGNORE_CASE)
         val matches = tagRegex.findAll(cleaned).toList()
         val cues = mutableListOf<BlockCue>()
         if (matches.isNotEmpty()) {
             for (i in matches.indices) {
                 val match = matches[i]
                 val tag = match.groupValues[1].lowercase()
-                val start = match.range.first
-                val end = if (i < matches.lastIndex) matches[i + 1].range.first else cleaned.length
-                val content = cleaned.substring(start, end)
-                val hasEmphasis = emphasisRegex.containsMatchIn(content)
-
                 val type =
                     when {
                         tag.startsWith("h") -> BlockType.HEADING
@@ -237,7 +235,7 @@ class Tokenizer {
                         tag == "pre" -> BlockType.PREFORMATTED
                         else -> BlockType.PARAGRAPH
                     }
-                cues += BlockCue(type, hasEmphasis)
+                cues += BlockCue(type)
             }
         }
 
@@ -329,7 +327,6 @@ class Tokenizer {
         private const val PREFORMATTED_BEFORE_MS = 110L
         private const val PREFORMATTED_AFTER_MS = 160L
         private const val LIST_END_AFTER_MS = 120L
-        private const val EMPHASIS_AFTER_MS = 60L
 
         // All punctuation characters we want to handle (NOT including apostrophes used in contractions)
         private val PUNCTUATION =
@@ -410,5 +407,5 @@ class Tokenizer {
         PREFORMATTED,
     }
 
-    private data class BlockCue(val type: BlockType, val hasEmphasis: Boolean,)
+    private data class BlockCue(val type: BlockType,)
 }

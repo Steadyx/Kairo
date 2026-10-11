@@ -10,6 +10,9 @@ import org.junit.Test
 class ComprehensionRsvpEngineTest {
     private val engine = ComprehensionRsvpEngine()
 
+    private fun englishFrames(tokens: List<Token>, startIndex: Int, config: RsvpConfig) =
+        engine.generateFrames(tokens, startIndex, config, RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH))
+
     @Test
     fun longWordsNeverFlashTooFastAtHighWpm() {
         val config =
@@ -376,13 +379,13 @@ class ComprehensionRsvpEngineTest {
         val fastConfig = baseConfig.copy(tempoMsPerWord = 70L)
 
         val slowTag =
-            engine.generateFrames(tagTokens, 0, slowConfig).first().durationMs
+            englishFrames(tagTokens, 0, slowConfig).first().durationMs
         val slowPlain =
-            engine.generateFrames(plainTokens, 0, slowConfig).first().durationMs
+            englishFrames(plainTokens, 0, slowConfig).first().durationMs
         val fastTag =
-            engine.generateFrames(tagTokens, 0, fastConfig).first().durationMs
+            englishFrames(tagTokens, 0, fastConfig).first().durationMs
         val fastPlain =
-            engine.generateFrames(plainTokens, 0, fastConfig).first().durationMs
+            englishFrames(plainTokens, 0, fastConfig).first().durationMs
 
         val slowSpeedup = slowPlain - slowTag
         val fastSpeedup = fastPlain - fastTag
@@ -499,7 +502,7 @@ class ComprehensionRsvpEngineTest {
         val tokens =
             listOf(
                 Token(
-                    text = "blue",
+                    text = "because",
                     type = TokenType.WORD,
                     frequencyScore = 1.0,
                     isClauseBoundary = true,
@@ -508,13 +511,13 @@ class ComprehensionRsvpEngineTest {
             )
 
         val adaptive =
-            engine.generateFrames(
+            englishFrames(
                 tokens = tokens,
                 startIndex = 0,
                 config = baseConfig,
             )
         val baseline =
-            engine.generateFrames(
+            englishFrames(
                 tokens = tokens,
                 startIndex = 0,
                 config = baseConfig.copy(useAdaptiveTiming = false),

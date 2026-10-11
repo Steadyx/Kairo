@@ -12,14 +12,18 @@ import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.shouldInsertSpaceBeforeToken
+import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
+import com.kairo.reader.core.rsvp.analysis.RsvpPhraseBoundaries
 
 @Composable
 internal fun rememberRsvpReadingContext(context: RsvpUiContext, frame: RsvpFrame): RsvpReadingContext? {
-    val tokens = context.state.book.tokens
+    val book = context.state.book
+    val tokens = book.tokens
+    val language = book.generationOptions.languagePolicy
     val mode = context.state.profile.config.contextAssistMode
     val color = MaterialTheme.colorScheme.onBackground
-    return remember(tokens, frame, mode, color) {
-        if (mode == RsvpContextAssistMode.OFF) null else buildRsvpReadingContext(tokens, frame, color, mode)
+    return remember(tokens, frame, mode, color, language) {
+        if (mode == RsvpContextAssistMode.OFF) null else buildRsvpReadingContext(tokens, frame, color, mode, language)
     }
 }
 
@@ -29,6 +33,7 @@ internal fun buildRsvpReadingContext(
     frame: RsvpFrame,
     color: Color,
     mode: RsvpContextAssistMode = RsvpContextAssistMode.PREVIOUS_WORDS,
+    language: RsvpLanguagePolicy? = null,
 ): RsvpReadingContext? {
     if (mode == RsvpContextAssistMode.OFF || tokens.isEmpty() || frame.tokens.none { it.type == TokenType.WORD }) return null
     val fallback = resolveRsvpContextWindow(
@@ -36,6 +41,7 @@ internal fun buildRsvpReadingContext(
         frame.displayOriginalStartIndex,
         frame.displayOriginalEndExclusive,
         if (mode == RsvpContextAssistMode.SENTENCE_TICKER) mode else RsvpContextAssistMode.FULL_CLAUSE,
+        language,
     ) ?: return null
     val phraseStart = if (mode != RsvpContextAssistMode.PREVIOUS_WORDS) {
         fallback.startIndex
@@ -87,6 +93,7 @@ internal fun resolveRsvpContextWindow(
     frameStartIndex: Int,
     frameEndExclusive: Int,
     mode: RsvpContextAssistMode,
+    language: RsvpLanguagePolicy? = null,
 ): RsvpContextWindow? {
     if (tokens.isEmpty() || mode == RsvpContextAssistMode.OFF) return null
     val safeStart = frameStartIndex.coerceIn(0, tokens.lastIndex)
@@ -94,6 +101,11 @@ internal fun resolveRsvpContextWindow(
         findWordInRange(tokens, safeStart, frameEndExclusive)
             ?: findWordAtOrAfter(tokens, safeStart)
     if (focusWordIndex < 0) return null
+
+    // Resolve only the nearby candidates; never copy/analyze the whole chapter on the UI thread.
+    val isClauseBoundary: (Int) -> Boolean = { index ->
+        language?.let { RsvpPhraseBoundaries.isBoundary(tokens, index, it) } ?: tokens[index].isClauseBoundary
+    }
 
     val baseRange =
         when (mode) {
@@ -104,11 +116,13 @@ internal fun resolveRsvpContextWindow(
                     focusIndex = focusWordIndex,
                     wordsBefore = CONTEXT_PREVIOUS_WORDS,
                     wordsAfter = CONTEXT_UPCOMING_WORDS,
+                    isClauseBoundary = isClauseBoundary,
                 )
             RsvpContextAssistMode.FULL_CLAUSE ->
                 resolveClauseRange(
                     tokens = tokens,
                     focusIndex = focusWordIndex,
+                    isClauseBoundary = isClauseBoundary,
                 )
             RsvpContextAssistMode.SENTENCE_TICKER ->
                 resolveTickerRange(
@@ -138,6 +152,7 @@ private fun resolveNearbyWordRange(
     focusIndex: Int,
     wordsBefore: Int,
     wordsAfter: Int,
+    isClauseBoundary: (Int) -> Boolean,
 ): IntRange {
     var start = focusIndex
     var seenBefore = 0
@@ -147,7 +162,7 @@ private fun resolveNearbyWordRange(
         start -= 1
         if (candidate.type == TokenType.WORD) {
             seenBefore += 1
-            if (candidate.isClauseBoundary) break
+            if (isClauseBoundary(start)) break
         }
     }
 
@@ -156,7 +171,7 @@ private fun resolveNearbyWordRange(
     while (endExclusive < tokens.size && seenAfter < wordsAfter) {
         val candidate = tokens[endExclusive]
         if (candidate.isParagraphBoundary()) break
-        if (candidate.type == TokenType.WORD && candidate.isClauseBoundary) break
+        if (candidate.type == TokenType.WORD && isClauseBoundary(endExclusive)) break
         endExclusive += 1
         if (candidate.isClausePunctuation()) break
         if (candidate.type == TokenType.WORD) seenAfter += 1
@@ -167,20 +182,21 @@ private fun resolveNearbyWordRange(
 private fun resolveClauseRange(
     tokens: List<Token>,
     focusIndex: Int,
+    isClauseBoundary: (Int) -> Boolean,
 ): IntRange {
     var start = focusIndex
-    while (start > 0 && !tokens[start].isClauseBoundary) {
+    while (start > 0 && !isClauseBoundary(start)) {
         val candidate = tokens[start - 1]
         if (candidate.isParagraphBoundary() || candidate.isClausePunctuation()) break
         start -= 1
-        if (candidate.type == TokenType.WORD && candidate.isClauseBoundary) break
+        if (candidate.type == TokenType.WORD && isClauseBoundary(start)) break
     }
 
     var endExclusive = (focusIndex + 1).coerceAtMost(tokens.size)
     while (endExclusive < tokens.size) {
         val candidate = tokens[endExclusive]
         if (candidate.isParagraphBoundary()) break
-        if (candidate.type == TokenType.WORD && candidate.isClauseBoundary) break
+        if (candidate.type == TokenType.WORD && isClauseBoundary(endExclusive)) break
         endExclusive += 1
         if (candidate.isClausePunctuation()) break
     }
@@ -194,6 +210,7 @@ private fun resolveClauseRange(
             focusIndex = focusIndex,
             wordsBefore = CONTEXT_LONG_CLAUSE_PREVIOUS_WORDS,
             wordsAfter = CONTEXT_LONG_CLAUSE_UPCOMING_WORDS,
+            isClauseBoundary = isClauseBoundary,
         )
     }
 }

@@ -31,6 +31,7 @@ md-backup/
 /docs/performance-hindrances.md
 /docs/release-branch-strategy.md
 /docs/large-file-code-smell-review.md
+/docs/rsvp-expressive-reading-review.md
 
 # Android
 *.apk
