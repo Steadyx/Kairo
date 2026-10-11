@@ -158,7 +158,10 @@ internal class RsvpAtomStream private constructor(val atoms: List<RsvpAtom>, val
                 }
             }
 
-            if (useDialogueDetection && languagePolicy == RsvpLanguagePolicy.ENGLISH) {
+            if (useDialogueDetection &&
+                languagePolicy == RsvpLanguagePolicy.ENGLISH &&
+                RsvpDialogueRole.DIALOGUE_CONTENT in roles
+            ) {
                 annotateEnglishSpeakerTags(
                     atoms = atoms,
                     baseRoles = roles.toList(),
@@ -222,13 +225,9 @@ internal class RsvpAtomStream private constructor(val atoms: List<RsvpAtom>, val
                 (start until endExclusive).all { index ->
                     baseRoles[index] == RsvpDialogueRole.NARRATION
                 }
-            if (!candidateIsNarration) return
+            if (!candidateIsNarration || !hasNearbyDialogue(baseRoles, start, endExclusive)) return
             val words = atoms.subList(start, endExclusive).map { it.token.text }
-            if (!DialogueAnalyzer.isSpeakerTag(words) ||
-                !hasNearbyDialogue(baseRoles, start, endExclusive)
-            ) {
-                return
-            }
+            if (!DialogueAnalyzer.isSpeakerTag(words)) return
             for (index in start until endExclusive) {
                 roles[index] = RsvpDialogueRole.SPEAKER_TAG
             }
