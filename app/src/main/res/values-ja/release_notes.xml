@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="whats_new_title">新着情報</string>
+    <string name="whats_new_subtitle">新機能とバージョンごとの変更履歴を確認できます。</string>
+    <string name="whats_new_view_changelog">変更履歴を見る</string>
+    <string name="whats_new_take_tour">ツアーを開始</string>
+    <string name="whats_new_version">バージョン %1$s</string>
+    <string name="whats_new_upcoming">今後の更新</string>
+    <string name="whats_new_invitation_title">Kairo %1$s の新機能</string>
+    <string name="whats_new_invitation_body">更新内容をご紹介します。少し見てみることも、そのまま読書を続けることもできます。「設定 → 新着情報」からいつでも確認できます。</string>
+    <string name="whats_new_word_guidance">よりわかりやすい単語ガイド</string>
+    <string name="release_upcoming_themes">テーマスタジオで Kairo を自分好みに。色やフォントの調整、読書画面のプレビュー、編集の取り消し、名前付きデザインの保存ができます。コントラストの改善で強調された文字も読みやすくなります。</string>
+    <string name="release_upcoming_reading">RSVP は自然な語句や意味の区切りに沿ってテキストをまとめます。「速度」と「読書サポート」で調整が簡単になり、プリセットごとのリズム、滑らかな文脈表示と単語の切り替え、速度変更時の読書時間の確保に対応します。プリセットを切り替えても表示設定は保持されます。</string>
+    <string name="release_upcoming_guidance">単語の部分ガイドが不慣れな英語のつづりを読む助けとなり、より明確な注視点がどのテーマでも見分けやすくなります。著者の強調、会話、挿入句を表現豊かな読書に反映し、改ページや数字の前後でも強調を保持します。</string>
+    <string name="release_upcoming_progress">Reader と RSVP の章の進捗表示を統一しました。移動、画面回転、章の切り替え、読書の再開で位置をより確実に保持します。大きな章を安全に読み込み、再生開始の待ち時間を短縮し、Reader は画面外の読書位置までスクロールします。</string>
+    <string name="release_upcoming_imports">EPUB、PDF、MOBI、DOCX、テキストの取り込みを改善しました。Unicode と中国語・日本語・韓国語の語数計算を改善し、DOCX の削除済みテキストを除外します。大きなファイルや表紙をより安全に扱い、キャンセルも改善しました。不完全な EPUB は壊れた本として追加せず、取り込みを拒否します。</string>
+    <string name="release_upcoming_search_focus">本文検索は検索中にも結果を表示します。集中モードはメディア再生を許可し、Kairo がバックグラウンドに移ると通知制限を解除します。本の削除時にはキャッシュも更新されます。</string>
+    <string name="release_upcoming_helper">更新後にライブラリへ戻ると、任意の機能ツアーを案内できます。いつでもスキップでき、ツアー中に変更履歴を開いたり、設定の新着情報から再度確認したりできます。</string>
+    <string name="release_130">名前、説明、選択肢で設定を検索できます。Reader や RSVP からも検索でき、該当する項目が強調されます。\n\n保存したノートを Android のファイル選択画面から PDF や Markdown として書き出せます。操作画面と文書は各言語に対応します。\n\nライブラリと設定のデザインを刷新し、横向きや小さな画面の操作性を改善。読書画面間で RSVP 設定を共通化しました。\n\n本文内の画像、読書位置の復元、HTML の改行、短い読書セッションの記録、アプリ更新を安定化。Android 互換性とアクセシビリティも改善しました。</string>
+    <string name="release_120">保存済み画面にブックマーク、ハイライト、編集可能なノートを集約しました。ライブラリや本文を検索でき、Unicode の一致精度と結果の信頼性を改善しました。\n\nMomentum で読書活動、週間目標、履歴を確認でき、目標設定やリセットに対応します。Reader と時間制読書の両方でセッションを記録します。\n\nEPUB 本来の目次を開き、章へのリンクをたどれます。ナビゲーションの修復、正確な段落選択、読書データの整合性、アクセシビリティを改善しました。</string>
+    <string name="release_110">テキストを選択できる PDF、FB2、DOCX などの形式を取り込めます。内容による形式判定、ライブラリでの対応形式の案内を改善し、大きな PDF の取り込みを高速化しました。\n\nGoogle Play 経由で更新を確認・インストールできます。取り込みの検証、Android 互換性、RSVP の標準文字サイズを改善しました。</string>
+    <string name="release_108">RSVP に加えて、時間制の Bionic 読書に対応しました。専用設定、画面に応じた文字表示、読書モード選択を備えます。\n\n貼り付けたテキストや Markdown を取り込んだり、他のアプリから Kairo にテキストを共有したりできます。\n\nRSVP に連続した文脈表示と文脈に応じた再読を追加し、語句の配置、句読点の間、読み込み、翻訳を改善しました。</string>
+</resources>

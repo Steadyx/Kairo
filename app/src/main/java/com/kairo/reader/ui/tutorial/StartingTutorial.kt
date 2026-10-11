@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +21,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -35,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +62,8 @@ object StartingTutorialTargetIds {
     const val LIBRARY_IMPORT = "library_import"
     const val LIBRARY_TABS = "library_tabs"
     const val LIBRARY_SETTINGS = "library_settings"
+    const val SETTINGS_THEME = "settings_theme"
+    const val SETTINGS_CHANGELOG = "settings_changelog"
     const val SETTINGS_LANGUAGE = "settings_language"
     const val SETTINGS_RSVP = "settings_rsvp"
     const val SETTINGS_READER = "settings_reader"
@@ -82,7 +88,12 @@ data class StartingTutorialStep(
     @param:StringRes val bodyRes: Int,
 )
 
-data class StartingTutorialOverlayState(val step: StartingTutorialStep, val index: Int, val totalSteps: Int,) {
+data class StartingTutorialOverlayState(
+    val step: StartingTutorialStep,
+    val index: Int,
+    val totalSteps: Int,
+    val onViewChangelog: (() -> Unit)? = null,
+) {
     val isFirstStep: Boolean = index == 0
     val isLastStep: Boolean = index == totalSteps - 1
 }
@@ -256,6 +267,8 @@ fun StartingTutorialOverlay(
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val cardScrollState = rememberScrollState()
+    LaunchedEffect(state.index) { cardScrollState.scrollTo(0) }
     val interactionSource = remember { MutableInteractionSource() }
     val density = LocalDensity.current
     val windowInfo = LocalWindowInfo.current
@@ -342,7 +355,7 @@ fun StartingTutorialOverlay(
             shadowElevation = 10.dp,
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                modifier = Modifier.verticalScroll(cardScrollState).padding(horizontal = 18.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
@@ -365,15 +378,19 @@ fun StartingTutorialOverlay(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 TutorialHint(state.step)
-                Row(
+                state.onViewChangelog?.let { openChangelog ->
+                    TextButton(onClick = openChangelog) {
+                        Text(stringResource(R.string.whats_new_view_changelog))
+                    }
+                }
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onSkip) {
                         Text(stringResource(R.string.action_skip))
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (!state.isFirstStep) {
                             OutlinedButton(onClick = onPrevious) {
                                 Text(stringResource(R.string.action_previous))
