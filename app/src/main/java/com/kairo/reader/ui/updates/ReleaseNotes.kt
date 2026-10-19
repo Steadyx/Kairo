@@ -17,8 +17,8 @@ internal data class ReleaseNotes(
 @Suppress("MagicNumber") // Android version codes from the corresponding release tags.
 internal val releaseNotes = listOf(
     ReleaseNotes(
-        version = null,
-        versionCode = null,
+        version = "1.4.0",
+        versionCode = 16,
         changes = listOf(
             R.string.release_upcoming_themes,
             R.string.release_upcoming_reading,
