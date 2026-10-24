@@ -8,6 +8,25 @@ import org.junit.Test
 
 class ReaderPaginationTest {
     @Test
+    fun pagesKeepOpeningPunctuationAndFocusOnWords() {
+        listOf("(" to ")", "[" to "]", "“" to "”").forEach { (opening, closing) ->
+            val tokens = listOf(punctuation(opening)) + words("Hello", "world") + punctuation(closing) +
+                Token(text = "\n", type = TokenType.PAGE_BREAK) +
+                punctuation(opening) + words("Next", "page") + punctuation(closing)
+            val pages = buildChapterPages(tokens, wordsPerPage = 2)
+            val blocks = listOf(ReaderParagraphBlock(Paragraph(tokens, 0)))
+            assertEquals(2, pages.size)
+            pages.forEach { page ->
+                val displayed = sliceBlocksForPage(blocks, page).filterIsInstance<ReaderParagraphBlock>()
+                    .flatMap { it.paragraph.tokens }.map { it.text }
+                assertEquals(opening, displayed.first())
+                assertEquals(closing, displayed.last())
+                assertEquals(TokenType.WORD, tokens[page.focusTokenIndex].type)
+            }
+        }
+    }
+
+    @Test
     fun buildChapterPages_usesEarlierSentenceBoundaryInsteadOfCuttingMidSentence() {
         val tokens =
             words("one", "two", "three", "four", "five", "six") +

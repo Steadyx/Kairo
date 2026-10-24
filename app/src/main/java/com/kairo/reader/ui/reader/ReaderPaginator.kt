@@ -31,7 +31,11 @@ internal fun buildChapterPages(
     var cursor = 0
 
     while (cursor < tokens.size) {
-        val pageStartTokenIndex = nextWordTokenIndex(tokens, cursor) ?: break
+        val firstWordIndex = nextWordTokenIndex(tokens, cursor) ?: break
+        var pageStartTokenIndex = firstWordIndex
+        while (pageStartTokenIndex > cursor && tokens[pageStartTokenIndex - 1].type == TokenType.PUNCTUATION) {
+            pageStartTokenIndex -= 1
+        }
         val scan = scanPage(tokens, pageStartTokenIndex, limits)
         if (scan.wordCount <= 0) {
             cursor = pageStartTokenIndex + 1
@@ -47,6 +51,7 @@ internal fun buildChapterPages(
                 startTokenIndex = pageStartTokenIndex,
                 endTokenIndex = endTokenIndex,
                 wordCount = chosenWordCount,
+                focusTokenIndex = firstWordIndex,
             ),
         )
         cursor = scan.nextCursorAfterHardBreak ?: (endTokenIndex + 1)
@@ -218,7 +223,7 @@ private fun isHardReaderPageBreak(
     return !isPhysicalPageBreakToken(token) || shouldKeepPhysicalPageBreak(tokens, index)
 }
 
-private val LEADING_PUNCTUATION = setOf("(", "[", "{")
+private val LEADING_PUNCTUATION = setOf("(", "[", "{", "“", "‘", "«", "‹", "「", "『", "（", "【")
 private val OPENING_BRACKETS = setOf("(", "[", "{")
 private val CLOSING_BRACKETS = setOf(")", "]", "}")
 
