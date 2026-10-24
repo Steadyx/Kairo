@@ -69,9 +69,9 @@ debug version suffix. It reuses debug JVM-test compilation, not an emulator.
 `qualityGate` also includes it, giving the existing GitHub quality workflow the
 same safeguard. Ordinary debug builds and `qualityCheck` do not enforce this
 release-readiness check, so an unfinished Upcoming entry remains valid during
-development. The current 1.3.0/code 15 configuration passes using its historical
-published entry while Upcoming stays unpublished. Do not assign Upcoming the
-old version just to satisfy validation.
+development. The configured release passes when it has a matching published
+entry, even if a separate Upcoming entry remains unpublished. Do not assign
+Upcoming an old version just to satisfy validation.
 
 Review `git log --no-merges <previous-release-tag>..HEAD` and the corresponding
 diffs. Summarise every user-facing addition and fix in the changelog, grouping
