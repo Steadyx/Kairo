@@ -321,3 +321,32 @@ val MIGRATION_13_14: Migration =
             db.execSQL("ALTER TABLE chapters ADD COLUMN wordCountVersion INTEGER NOT NULL DEFAULT 0")
         }
     }
+
+val MIGRATION_14_15: Migration =
+    object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Trim in SQLite so oversized legacy fields never enter a CursorWindow.
+            db.execSQL(
+                """
+                UPDATE books SET title = substr(title, 1, $MAX_METADATA_TITLE_CHARS),
+                    authors = substr(authors, 1, $MAX_METADATA_AUTHORS_CHARS),
+                    languageTag = substr(languageTag, 1, $MAX_METADATA_LANGUAGE_CHARS)
+                WHERE length(title) > $MAX_METADATA_TITLE_CHARS
+                    OR length(authors) > $MAX_METADATA_AUTHORS_CHARS
+                    OR length(languageTag) > $MAX_METADATA_LANGUAGE_CHARS
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                UPDATE chapters SET title = substr(title, 1, $MAX_METADATA_TITLE_CHARS)
+                WHERE length(title) > $MAX_METADATA_TITLE_CHARS
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                UPDATE table_of_contents_entries SET label = substr(label, 1, $MAX_METADATA_TITLE_CHARS)
+                WHERE length(label) > $MAX_METADATA_TITLE_CHARS
+                """.trimIndent(),
+            )
+        }
+    }

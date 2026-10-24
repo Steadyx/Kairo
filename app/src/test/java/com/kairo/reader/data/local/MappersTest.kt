@@ -1,5 +1,6 @@
 package com.kairo.reader.data.local
 
+import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.HighlightColor
@@ -13,6 +14,32 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class MappersTest {
+    @Test
+    fun importedMetadataCannotCreateOversizedRows() {
+        val oversized = "界".repeat(1_048_576)
+        val book = Book(BookId("large"), oversized, listOf(oversized), languageTag = oversized, chapters = emptyList())
+        val entity = book.toEntity()
+        assertEquals(4096, entity.title.length)
+        assertEquals(16384, Converters().fromAuthors(entity.authors).length)
+        assertEquals(128, entity.languageTag?.length)
+        val chapter = Chapter(0, oversized, "<p>Body</p>", "Body").toEntity(book.id)
+        assertEquals(4096, chapter.title?.length)
+        assertEquals("Body", chapter.plainText)
+        val entry = TableOfContentsEntry(oversized, 0, TableOfContentsTarget(0)).toEntity(book.id, 0)
+        assertEquals(4096, entry.label.length)
+    }
+
+    @Test
+    fun metadataLimitsPreserveUnicodeAndOrdinaryMetadata() {
+        val title = "😀".repeat(5000)
+        val book = Book(BookId("unicode"), title, listOf("Ada", "Grace"), chapters = emptyList())
+        val entity = book.toEntity()
+        assertEquals("😀".repeat(4096), entity.title)
+        assertEquals(book.authors, entity.authors)
+        val ordinary = book.copy(title = "A normal title", languageTag = "en-GB")
+        assertEquals(ordinary, ordinary.toEntity().toDomain(emptyList()))
+    }
+
     @Test
     fun chapterToEntityPreservesDeferredWordCount() {
         val chapter =

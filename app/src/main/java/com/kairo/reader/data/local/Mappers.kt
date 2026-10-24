@@ -31,9 +31,9 @@ private fun decodeImagePaths(raw: String): List<String> =
 fun Book.toEntity(importFingerprint: String? = null): BookEntity =
     BookEntity(
         id = id.value,
-        title = title,
-        authors = authors,
-        languageTag = languageTag,
+        title = title.boundedMetadata(MAX_METADATA_TITLE_CHARS),
+        authors = authors.boundedAuthors(),
+        languageTag = languageTag?.boundedMetadata(MAX_METADATA_LANGUAGE_CHARS),
         coverImage = coverImage,
         isCompleted = isCompleted,
         importFingerprint = importFingerprint,
@@ -43,7 +43,7 @@ fun Chapter.toEntity(bookId: BookId): ChapterEntity =
     ChapterEntity(
         bookId = bookId.value,
         index = index,
-        title = title,
+        title = title?.boundedMetadata(MAX_METADATA_TITLE_CHARS),
         htmlContent = htmlContent,
         plainText = plainText,
         imagePaths = encodeImagePaths(imagePaths),
@@ -87,7 +87,7 @@ fun TableOfContentsEntry.toEntity(
     TableOfContentsEntryEntity(
         bookId = bookId.value,
         entryIndex = entryIndex,
-        label = label,
+        label = label.boundedMetadata(MAX_METADATA_TITLE_CHARS),
         depth = depth,
         chapterIndex = target?.chapterIndex,
         characterOffset = target?.characterOffset,

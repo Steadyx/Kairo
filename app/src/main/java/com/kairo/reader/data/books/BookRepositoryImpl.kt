@@ -18,6 +18,7 @@ import com.kairo.reader.data.local.EpubChapterCoordinate
 import com.kairo.reader.data.local.EpubNavigationDao
 import com.kairo.reader.data.local.toDomain
 import com.kairo.reader.data.local.toEntity
+import com.kairo.reader.data.local.withBoundedMetadata
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -414,7 +415,7 @@ class BookRepositoryImpl(
                         chapter.copy(wordCount = 0, wordCountVersion = 0)
                     }
                 },
-            )
+            ).withBoundedMetadata()
         findExistingDuplicate(
             parsedBook = book,
             sourceFingerprint = sourceFingerprint,
