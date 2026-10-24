@@ -88,13 +88,9 @@ adb shell run-as "$PACKAGE" sh -c "pwd >/dev/null" >/dev/null 2>&1 ||
     die "run-as failed for $PACKAGE. Install a debuggable build first."
 
 printf 'Stopping %s before restore...\n' "$PACKAGE"
-adb shell am force-stop "$PACKAGE" >/dev/null 2>&1 || true
+adb shell am force-stop "$PACKAGE" >/dev/null 2>&1 || die "Could not stop $PACKAGE before restore."
 
 printf 'Restoring %s into %s private data...\n' "$BACKUP_FILE" "$PACKAGE"
-adb exec-in run-as "$PACKAGE" sh -c '
-    cd "$HOME" || exit 1
-    rm -rf databases files shared_prefs
-    tar -xf -
-' < "$BACKUP_FILE"
+python3 "$(dirname "$0")/restore-app-data.py" "$BACKUP_FILE" "$PACKAGE"
 
 printf 'Restore complete. Launch %s from Android Studio or the device launcher.\n' "$PACKAGE"

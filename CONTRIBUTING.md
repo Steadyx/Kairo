@@ -26,7 +26,7 @@ For UI, Android integration, manifest, dependency, build, or release work:
 ./gradlew qualityGate
 ```
 
-`qualityCheck` runs ktlint, Detekt, debug compilation, and the debug unit-test suite. `qualityGate` also runs Android Lint and assembles the complete debug APK so Android resources, packaging, and manifests are verified.
+`qualityCheck` runs ktlint, Detekt, debug compilation, and the debug unit-test suite, and Python 3 restore/migration regression tests. `qualityGate` also runs Android Lint and assembles the complete debug APK so Android resources, packaging, and manifests are verified.
 
 Run Android Lint directly when you need its focused diagnostics:
 

@@ -28,11 +28,19 @@ tasks.register("detektFull") {
     dependsOn(":app:detekt")
 }
 
+tasks.register<Exec>("scriptTests") {
+    group = "verification"
+    description = "Runs restore-tool and SQLite migration regression tests without a device"
+    environment("PYTHONDONTWRITEBYTECODE", "1")
+    commandLine("python3", "-m", "unittest", "discover", "-s", "scripts/tests")
+}
+
 tasks.register("qualityCheck") {
     group = "verification"
     description = "Runs formatting, Detekt, debug compilation, and unit tests"
     dependsOn(
         "detektFull",
+        "scriptTests",
         ":app:ktlintCheck",
         ":app:compileDebugKotlin",
         ":app:testDebugUnitTest",
