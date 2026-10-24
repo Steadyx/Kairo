@@ -132,19 +132,7 @@ internal object Fb2ParserEngine {
         val renderer = Fb2MarkupRenderer(resolveImage)
         val drafts = mutableListOf<Fb2ChapterDraft>()
         root.directChildrenNamed("body").forEach { body ->
-            val bodyTitle = body.firstDirectChildNamed("title")?.toFb2Title()
-            val sections = body.directChildrenNamed("section")
-            if (sections.isEmpty()) {
-                drafts += renderer.renderChapter(body, bodyTitle)
-            } else {
-                sections.forEachIndexed { index, section ->
-                    val fallbackTitle =
-                        bodyTitle?.let { title ->
-                            if (sections.size == 1) title else "$title ${index + 1}"
-                        }
-                    drafts += renderer.renderChapter(section, fallbackTitle)
-                }
-            }
+            drafts += renderer.renderBody(body)
         }
 
         return drafts
@@ -160,12 +148,6 @@ internal object Fb2ParserEngine {
                 )
             }
     }
-
-    private fun Element.toFb2Title(): String? =
-        directChildrenNamed("p")
-            .mapNotNull(Node::normalizedText)
-            .joinToString(" ")
-            .takeIf(String::isNotBlank)
 
     private fun String.toFb2FilenameTitle(): String =
         removeSuffix(".zip")
@@ -223,6 +205,32 @@ private data class Fb2ChapterDraft(val title: String?, val html: String, val pla
 
 private class Fb2MarkupRenderer(private val resolveImage: (String) -> String?,) {
     private val contentRewriter = EpubContentRewriter()
+
+    fun renderBody(body: Element): List<Fb2ChapterDraft> {
+        val drafts = mutableListOf<Fb2ChapterDraft>()
+        val bodyTitle = body.firstDirectChildNamed("title")?.toFb2Title()
+        val sections = body.directChildrenNamed("section")
+        val content = body.cloneNode(false) as Element
+        var sectionIndex = 0
+        fun flush() {
+            if (content.hasChildNodes()) drafts += renderChapter(content, bodyTitle)
+            while (content.hasChildNodes()) content.removeChild(content.firstChild)
+        }
+        val children = body.childNodes
+        for (index in 0 until children.length) {
+            val child = children.item(index)
+            if (child is Element && child.localNameValue() == "section") {
+                flush()
+                sectionIndex += 1
+                val fallbackTitle = bodyTitle?.let { if (sections.size == 1) it else "$it $sectionIndex" }
+                drafts += renderChapter(child, fallbackTitle)
+            } else {
+                content.appendChild(child.cloneNode(true))
+            }
+        }
+        flush()
+        return drafts
+    }
 
     fun renderChapter(
         element: Element,

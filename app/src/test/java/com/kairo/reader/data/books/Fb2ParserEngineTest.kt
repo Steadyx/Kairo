@@ -13,6 +13,26 @@ import org.junit.Test
 
 class Fb2ParserEngineTest {
     @Test
+    fun parsePreservesBodyContentAroundSectionsInSourceOrder() {
+        val xml = """
+            <FictionBook><body>
+            <title><p>Body title</p></title><epigraph><p>Opening epigraph.</p></epigraph>
+            <section><title><p>First section</p></title><p>First text.</p></section>
+            <epigraph><p>Middle epigraph.</p></epigraph>
+            <section><title><p>Second section</p></title><p>Second text.</p></section>
+            <p>Closing text.</p>
+            </body></FictionBook>
+        """.trimIndent()
+        val book = Fb2ParserEngine.parse(request("intro.fb2", "fb2", xml.toByteArray()))
+        val text = book.chapters.joinToString(" ") { it.plainText }.replace(Regex("\\s+"), " ")
+        assertEquals(
+            "Body title Opening epigraph. First section First text. Middle epigraph. Second section Second text. Closing text.",
+            text,
+        )
+        assertEquals(book.chapters.indices.toList(), book.chapters.map { it.index })
+    }
+
+    @Test
     fun parseReadsMetadataSectionsAndEmbeddedImages() {
         val imageBytes = byteArrayOf(1, 2, 3, 4)
         val xml = fixtureXml(Base64.Default.encode(imageBytes))
