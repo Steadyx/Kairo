@@ -45,6 +45,51 @@ class ReaderViewModelConcurrencyTest {
     }
 
     @Test
+    fun nextRequestClearsPreviousLastPageForCachedDestination() = assertNextClearsPreviousPage(cached = true)
+
+    @Test
+    fun nextRequestClearsPreviousLastPageForUncachedDestination() = assertNextClearsPreviousPage(cached = false)
+
+    private fun assertNextClearsPreviousPage(cached: Boolean) = runTest(testDispatcher) {
+        val chapters = List(4) { textChapter(it, "Chapter $it") }
+        val book = Book(BookId("navigation"), "Book", emptyList(), chapters = chapters)
+        val previousStarted = CompletableDeferred<Unit>()
+        val releasePrevious = CompletableDeferred<Unit>()
+        val repository = object : BookRepository by FakeBookRepository(book, chapters) {
+            override suspend fun getChapter(bookId: BookId, chapterIndex: Int): Chapter {
+                if (chapterIndex == 0) {
+                    previousStarted.complete(Unit)
+                    releasePrevious.await()
+                }
+                return chapters[chapterIndex]
+            }
+        }
+        val provider = object : DispatcherProvider {
+            override val default = testDispatcher
+            override val io = testDispatcher
+        }
+        val tokens = List(700) { Token("word", TokenType.WORD) }
+        val viewModel = ReaderViewModel(repository, FakeTokenRepository(tokens), provider)
+        viewModel.loadBook(book, initialChapterIndex = 1)
+        runCurrent()
+        val destination = if (cached) 1 else 3
+        viewModel.loadChapter(0, initialFocusIndex = Int.MAX_VALUE)
+        runCurrent()
+        assertTrue(previousStarted.isCompleted)
+        viewModel.loadChapter(destination, initialFocusIndex = 0)
+        runCurrent()
+        assertEquals(destination, viewModel.uiState.value.chapterIndex)
+        assertEquals(0, viewModel.uiState.value.focusIndex)
+        assertNull(viewModel.uiState.value.pageIndexOverride)
+        assertTrue(requireNotNull(viewModel.uiState.value.chapterData).pages.size > 1)
+        releasePrevious.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(destination, viewModel.uiState.value.chapterIndex)
+        assertEquals(0, viewModel.uiState.value.focusIndex)
+        assertNull(viewModel.uiState.value.pageIndexOverride)
+    }
+
+    @Test
     fun reopeningRepairedCjkBookDoesNotTokenizeEveryChapterAgain() = runTest(testDispatcher) {
         val chapters = List(20) { index ->
             Chapter(index, null, "", "中文段落", wordCount = 3, wordCountVersion = 1)

@@ -101,7 +101,7 @@ internal object BookTextDecoder {
     private const val UTF16_NULL_SPARSE_RATIO = 0.1
     private val WINDOWS_1252 = Charset.forName("windows-1252")
     private val XML_ENCODING = Regex("(?i)encoding\\s*=\\s*['\"]([^'\"]+)['\"]")
-    private val HTML_CHARSET = Regex("(?i)charset\\s*=\\s*([A-Za-z0-9_\\-]+)")
+    private val HTML_CHARSET = Regex("(?i)charset\\s*=\\s*['\"]?([A-Za-z0-9_\\-]+)")
 
     // BOM signatures are fixed protocol representations; their raw bytes are clearest here.
     @Suppress("MagicNumber")

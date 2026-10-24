@@ -10,6 +10,34 @@ class WebArticleExtractorTest {
     private val extractor = WebArticleExtractor(TestDispatchers)
 
     @Test
+    fun quotationDivisionsAndRepeatedAuthoredParagraphsStayReadable() {
+        val passage = "This deliberately repeated paragraph is part of the authored article and should remain in place."
+        val html = "<article><blockquote><div>First</div><div>second</div><p>$passage</p><p>$passage</p></blockquote></article>"
+        val text = extractor.parseHtml(html, "https://example.com/story", BookId("repeated")).chapters.single().plainText
+        assertEquals(listOf("First second", passage, passage), text.split("\n\n"))
+    }
+
+    @Test
+    fun nestedBlocksKeepEveryPassageOnceInSourceOrder() {
+        val passages = listOf(
+            "He said.",
+            "First paragraph contains a distinct and useful quoted passage.",
+            "Nested quotation has its own distinct paragraph of readable text.",
+            "The end.",
+            "List introduction directly owned by the list item.",
+            "A paragraph inside the list item contains more readable words.",
+            "List ending directly owned by the list item.",
+        )
+        val html = """
+            <article><blockquote>${passages[0]}<p>${passages[1]}</p>
+            <blockquote><p>${passages[2]}</p></blockquote>${passages[3]}</blockquote>
+            <ul><li>${passages[4]}<p>${passages[5]}</p>${passages[6]}</li></ul></article>
+        """.trimIndent()
+        val text = extractor.parseHtml(html, "https://example.com/story", BookId("nested")).chapters.single().plainText
+        assertEquals(passages, text.split("\n\n"))
+    }
+
+    @Test
     fun parseHtmlExtractsReadableArticleText() {
         val book =
             extractor.parseHtml(

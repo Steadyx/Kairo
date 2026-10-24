@@ -1,14 +1,24 @@
 package com.kairo.reader.data.search
 
 import com.kairo.reader.core.model.BookId
+import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.LibrarySearchResult
 import com.kairo.reader.core.model.LibrarySearchResultKind
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.tokenization.Tokenizer
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class SearchTextTest {
+    @Test
+    fun searchRangeUsesOriginalOffsetsAroundNormalizedRepeatedWords() {
+        val text = "co\u00ADoperate alpha cooperate beta"
+        val tokens = Tokenizer().tokenize(Chapter(0, null, "", text))
+        assertEquals(1..1, resolveSearchTokenRange(text, tokens, text.indexOf("alpha"), "alpha".length))
+        assertEquals(2..2, resolveSearchTokenRange(text, tokens, text.indexOf("cooperate"), "cooperate".length))
+    }
+
     @Test
     fun findsRepeatedMatchesCaseInsensitivelyWithinLimit() {
         val offsets = findSearchMatchOffsets("Flow then flow then FLOW", "flow", limit = 2)

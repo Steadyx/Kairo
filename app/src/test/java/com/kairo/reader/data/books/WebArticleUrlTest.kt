@@ -7,6 +7,15 @@ import org.junit.Test
 
 class WebArticleUrlTest {
     @Test
+    fun normalizePreservesBalancedParenthesesInsideSharedLinks() {
+        val url = "https://en.wikipedia.org/wiki/Function_(mathematics)"
+        listOf(url, "Read ($url).", "[$url]", "$url!", "<$url>").forEach { source ->
+            assertEquals(url, WebArticleUrl.normalize(source))
+        }
+        assertEquals("https://example.com/a_(b_(c))", WebArticleUrl.normalize("https://example.com/a_(b_(c))"))
+    }
+
+    @Test
     fun normalizeAddsHttpsAndStableSlash() {
         assertEquals(
             "https://example.com/story",

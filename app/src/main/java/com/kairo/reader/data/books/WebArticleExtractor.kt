@@ -13,6 +13,9 @@ import org.jsoup.Connection
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import org.jsoup.nodes.Node
+import org.jsoup.nodes.TextNode
+import org.jsoup.select.NodeVisitor
 
 class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
     suspend fun extract(
@@ -218,25 +221,47 @@ class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
     }
 
     private fun Element.extractBlockText(): String {
-        val seen = mutableSetOf<String>()
         val blocks =
-            select(BLOCK_SELECTOR)
+            nonOverlappingBlockText()
                 .asSequence()
-                .map { block -> block.text().normalizeText() }
-                .filter { text -> text.length >= MIN_BLOCK_CHARS || text.endsLikeHeading() }
+                .map { it.normalizeText() }
+                .filter { it.isNotBlank() }
                 .filterNot { text -> text.looksLikeBoilerplate() }
-                .filter { text ->
-                    val key = text.lowercase(Locale.ROOT)
-                    if (seen.contains(key)) {
-                        false
-                    } else {
-                        seen += key
-                        true
-                    }
-                }
                 .toList()
 
         return blocks.joinToString("\n\n")
+    }
+
+    private fun Element.nonOverlappingBlockText(): List<String> {
+        val blocks = mutableListOf<String>()
+        val text = StringBuilder()
+        var blockDepth = 0
+        fun flush() {
+            if (text.isNotBlank()) blocks += text.toString()
+            text.clear()
+        }
+        traverse(object : NodeVisitor {
+            override fun head(node: Node, depth: Int) {
+                if (node is Element && node.`is`(BLOCK_SELECTOR)) {
+                    flush()
+                    blockDepth += 1
+                }
+                if (blockDepth > 0) {
+                    if (node is TextNode) text.append(node.wholeText)
+                    if (node is Element && (node.tagName() == "br" || node.isBlock)) text.append(' ')
+                }
+            }
+
+            override fun tail(node: Node, depth: Int) {
+                if (node is Element && node.`is`(BLOCK_SELECTOR)) {
+                    flush()
+                    blockDepth -= 1
+                } else if (blockDepth > 0 && node is Element && node.isBlock) {
+                    text.append(' ')
+                }
+            }
+        })
+        return blocks
     }
 
     private fun String.toSimpleHtml(): String =
@@ -268,9 +293,6 @@ class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
         }
     }
 
-    private fun String.endsLikeHeading(): Boolean =
-        length >= MIN_HEADING_CHARS && !contains(".") && !contains("?") && !contains("!")
-
     private fun String.looksLikeBoilerplate(): Boolean {
         val normalized = lowercase(Locale.ROOT)
         return BOILERPLATE_MARKERS.any { marker -> normalized.contains(marker) }
@@ -293,8 +315,6 @@ class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
         private const val FALLBACK_REQUEST_TIMEOUT_MS = 7_000
         private const val MAX_BODY_SIZE_BYTES = 2 * 1024 * 1024
         private const val MIN_ARTICLE_CHARS = 120
-        private const val MIN_BLOCK_CHARS = 24
-        private const val MIN_HEADING_CHARS = 4
         private const val MAX_FALLBACK_URLS = 2
         private const val MAX_PRIORITY_CANDIDATES = 4
         private const val MAX_CANDIDATES = 14

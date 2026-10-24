@@ -15,7 +15,7 @@ import androidx.room.TypeConverters
         ReadingSessionEntity::class,
         ReadingSessionCheckpointEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

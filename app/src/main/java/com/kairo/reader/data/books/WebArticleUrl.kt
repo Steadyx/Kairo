@@ -59,8 +59,22 @@ internal object WebArticleUrl {
             .orEmpty()
             .ifBlank { "Web article" }
 
-    private fun String.trimTrailingUrlPunctuation(): String =
-        trim().trimEnd('.', ',', ';', ':', '!', '?', ')', ']', '}', '"', '\'')
+    private fun String.trimTrailingUrlPunctuation(): String {
+        var value = trim()
+        while (value.isNotEmpty()) {
+            val closing = value.last()
+            val opening = when (closing) {
+                ')' -> '('
+                ']' -> '['
+                '}' -> '{'
+                else -> null
+            }
+            val unmatchedBracket = opening != null && value.count { it == closing } > value.count { it == opening }
+            if (!unmatchedBracket && closing !in ".,;:!?\"'") break
+            value = value.dropLast(1)
+        }
+        return value
+    }
 
     private fun String.withoutTrackingParameters(): String? {
         val kept =

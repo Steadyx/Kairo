@@ -85,14 +85,10 @@ restore_data() {
     [ -s "$BACKUP_FILE" ] || die "Backup file not found or empty: $BACKUP_FILE"
 
     printf 'Stopping %s before restore...\n' "$NEW_PACKAGE"
-    adb shell am force-stop "$NEW_PACKAGE" >/dev/null 2>&1 || true
+    adb shell am force-stop "$NEW_PACKAGE" >/dev/null 2>&1 || die "Could not stop $NEW_PACKAGE before restore."
 
     printf 'Restoring %s into %s private data...\n' "$BACKUP_FILE" "$NEW_PACKAGE"
-    adb exec-in run-as "$NEW_PACKAGE" sh -c '
-        cd "$HOME" || exit 1
-        rm -rf databases files shared_prefs
-        tar -xf -
-    ' < "$BACKUP_FILE"
+    python3 "$(dirname "$0")/restore-app-data.py" "$BACKUP_FILE" "$NEW_PACKAGE"
 
     printf 'Restore complete. Launch %s from Android Studio or the device launcher.\n' "$NEW_PACKAGE"
 }

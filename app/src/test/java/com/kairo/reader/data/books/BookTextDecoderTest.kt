@@ -6,6 +6,21 @@ import org.junit.Test
 
 class BookTextDecoderTest {
     @Test
+    fun decodeRecognizesQuotedAndUnquotedJapaneseCharsets() {
+        listOf("Shift_JIS", "'Shift_JIS'", "\"Shift_JIS\"").forEach { declaration ->
+            val source = "<meta charset=$declaration><p>日本語の文章です。</p>"
+            assertEquals(source, BookTextDecoder.decode(source.toByteArray(Charset.forName("Shift_JIS"))))
+        }
+    }
+
+    @Test
+    fun bomOverridesConflictingHtmlAndExplicitCharsets() {
+        val source = "<meta charset='Shift_JIS'><p>日本語</p>"
+        val bytes = byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + source.toByteArray(Charsets.UTF_16LE)
+        assertEquals(source, BookTextDecoder.decode(bytes, "windows-1252"))
+    }
+
+    @Test
     fun decodeHonoursUtf16LittleEndianBom() {
         val content = "A properly decoded chapter."
         val encoded = byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + content.toByteArray(Charsets.UTF_16LE)
