@@ -8,8 +8,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
@@ -53,10 +53,10 @@ internal fun rememberStartingTutorialCoordinator(
 ): StartingTutorialCoordinator {
     val coroutineScope = rememberCoroutineScope()
     var isReleaseTour by rememberSaveable { mutableStateOf(false) }
-    var tutorialSteps by remember {
-        mutableStateOf(startingTutorialSteps(includeReaderAndRsvp = false))
+    var tutorialLaunchContext by rememberSaveable(stateSaver = StartingTutorialLaunchContextSaver) {
+        mutableStateOf<StartingTutorialLaunchContext?>(null)
     }
-    var tutorialLaunchContext by remember { mutableStateOf<StartingTutorialLaunchContext?>(null) }
+    val tutorialSteps = startingTutorialSteps(includeReaderAndRsvp = tutorialLaunchContext != null)
     var tutorialStepIndex by rememberSaveable { mutableIntStateOf(0) }
     var tutorialActive by rememberSaveable { mutableStateOf(false) }
     var tutorialAutoStarted by rememberSaveable { mutableStateOf(false) }
@@ -168,7 +168,6 @@ internal fun rememberStartingTutorialCoordinator(
         val sessionSteps =
             startingTutorialSteps(includeReaderAndRsvp = availableTutorialLaunchContext != null)
         tutorialLaunchContext = availableTutorialLaunchContext
-        tutorialSteps = sessionSteps
         tutorialStepIndex = 0
         tutorialActive = true
         tutorialAutoStarted = true
@@ -277,7 +276,16 @@ internal fun clampTutorialStepIndex(
         index.coerceIn(0, steps.lastIndex)
     }
 
-private data class StartingTutorialLaunchContext(val bookId: String, val chapterIndex: Int, val tokenIndex: Int,)
+internal data class StartingTutorialLaunchContext(val bookId: String, val chapterIndex: Int, val tokenIndex: Int,)
+
+internal val StartingTutorialLaunchContextSaver = listSaver<StartingTutorialLaunchContext?, Any>(
+    save = { context ->
+        context?.let { listOf(it.bookId, it.chapterIndex, it.tokenIndex) }.orEmpty()
+    },
+    restore = { values ->
+        StartingTutorialLaunchContext(values[0] as String, values[1] as Int, values[2] as Int)
+    },
+)
 
 private fun resolveStartingTutorialLaunchContext(
     books: List<Book>,
