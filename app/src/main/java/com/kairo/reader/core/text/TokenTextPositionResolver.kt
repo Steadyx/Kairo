@@ -13,52 +13,61 @@ object TokenTextPositionResolver {
         if (tokens.isEmpty()) return 0
         val targetOffset = characterOffset.coerceIn(0, plainText.length)
         if (targetOffset == 0) return tokens.nearestWordIndex(0)
-
+        val source = canonicalText(plainText)
         var searchFrom = 0
         var lastWordIndex = tokens.nearestWordIndex(0)
         tokens.forEachIndexed { index, token ->
             if (token.type == TokenType.PARAGRAPH_BREAK || token.type == TokenType.PAGE_BREAK) {
                 return@forEachIndexed
             }
-            val match = findToken(plainText, token.text, searchFrom) ?: return@forEachIndexed
-            if (match.start >= targetOffset || targetOffset < match.endExclusive) {
+            val text = canonicalText(token.text).text
+            if (text.isEmpty()) return@forEachIndexed
+            val start = source.text.indexOf(text, startIndex = searchFrom)
+            if (start < 0) return@forEachIndexed
+            val endExclusive = start + text.length
+            if (source.offsets[start] >= targetOffset || targetOffset <= source.offsets[endExclusive - 1]) {
                 return tokens.nearestWordIndex(index)
             }
             if (token.type == TokenType.WORD) lastWordIndex = index
-            searchFrom = match.endExclusive
+            searchFrom = endExclusive
         }
         return tokens.nearestWordIndex(lastWordIndex)
     }
 
-    private fun findToken(
-        plainText: String,
-        tokenText: String,
-        searchFrom: Int,
-    ): TextRange? {
-        if (tokenText.isEmpty()) return null
-        var bestStart = Int.MAX_VALUE
-        var bestLength = 0
-        tokenVariants(tokenText).forEach { variant ->
-            val found = plainText.indexOf(variant, startIndex = searchFrom.coerceAtLeast(0))
-            if (found >= 0 && found < bestStart) {
-                bestStart = found
-                bestLength = variant.length
+    // Match tokenizer substitutions while retaining offsets into the unmodified source.
+    private fun canonicalText(source: String): PositionedText {
+        val text = StringBuilder(source.length)
+        val offsets = IntArray(source.length)
+        source.forEachIndexed { index, char ->
+            val canonical = canonicalChar(char)
+            val mojibake = char == 'Â' && source.getOrNull(index + 1) in DEGREE_SIGNS
+            val repeatedDot = char == '.' &&
+                source.getOrNull(index - 1) == '.' &&
+                (source.getOrNull(index - 2) == '.' || source.getOrNull(index + 1) == '.')
+            val doubleDash = char == '-' &&
+                source.getOrNull(index - 1) == '-' &&
+                source.getOrNull(index - 2) != '-' &&
+                source.getOrNull(index + 1) != '-'
+            if (canonical != null && !mojibake && !repeatedDot && !doubleDash) {
+                offsets[text.length] = index
+                text.append(canonical)
             }
         }
-        return if (bestStart == Int.MAX_VALUE) null else TextRange(bestStart, bestStart + bestLength)
+        return PositionedText(text.toString(), offsets)
     }
 
-    private fun tokenVariants(tokenText: String): Set<String> =
-        buildSet {
-            add(tokenText)
-            when (tokenText) {
-                "\u201C", "\u201D" -> add("\"")
-                "\u2018", "\u2019" -> add("'")
-                "\u2026" -> add("...")
-                "\u2014" -> add("--")
-                "\u2013" -> add("-")
-            }
+    private fun canonicalChar(char: Char): Char? =
+        when (char) {
+            '\u00AD', '\u2060', '\uFEFF', '\u200B' -> null
+            '“', '”' -> '"'
+            '‘', '’' -> '\''
+            '…' -> '.'
+            '−', '–', '—', '‐', '‑', '‒', '﹣', '－' -> '-'
+            'º' -> '°'
+            else -> char.takeUnless { it.isWhitespace() || Character.isSpaceChar(it) }
         }
 
-    private data class TextRange(val start: Int, val endExclusive: Int,)
+    private val DEGREE_SIGNS = setOf('°', 'º')
+
+    private data class PositionedText(val text: String, val offsets: IntArray,)
 }
