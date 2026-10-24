@@ -81,15 +81,12 @@ class ReaderViewModel(
         val session = ReaderBookSession(book)
         activeSession.set(session)
         chapterLoadSequence.incrementAndGet()
-        pendingFocusIndex.set(if (initialFocusIndex > 0) initialFocusIndex else null)
-        pendingPageIndex.set(null)
-        pendingCharacterOffset.set(null)
-        pendingSearchCodePointOffset.set(initialSearchCodePointOffset)
         _uiState.update { it.copy(bookWordCounts = emptyList(), bookTotalWords = 0) }
         loadBookWordCounts(session)
         loadChapter(
             session = session,
             chapterIndex = initialChapterIndex,
+            initialFocusIndex = initialFocusIndex,
             initialSearchCodePointOffset = initialSearchCodePointOffset,
         )
     }
@@ -164,16 +161,16 @@ class ReaderViewModel(
 
         pendingCharacterOffset.set(initialCharacterOffset)
         pendingSearchCodePointOffset.set(initialSearchCodePointOffset)
-        if (initialCharacterOffset != null || initialSearchCodePointOffset != null) {
-            pendingFocusIndex.set(null)
-            pendingPageIndex.set(null)
-        } else if (initialFocusIndex != null) {
-            pendingFocusIndex.set(initialFocusIndex)
-        }
-        when {
-            initialPageIndex != null -> pendingPageIndex.set(initialPageIndex)
-            initialFocusIndex == Int.MAX_VALUE -> pendingPageIndex.set(Int.MAX_VALUE)
-        }
+        val hasCharacterOffset = initialCharacterOffset != null || initialSearchCodePointOffset != null
+        pendingFocusIndex.set(initialFocusIndex.takeUnless { hasCharacterOffset })
+        pendingPageIndex.set(
+            when {
+                hasCharacterOffset -> null
+                initialPageIndex != null -> initialPageIndex
+                initialFocusIndex == Int.MAX_VALUE -> Int.MAX_VALUE
+                else -> null
+            },
+        )
 
         // Check cache first - instant load if available
         val cached = session.cache[chapterIndex]
