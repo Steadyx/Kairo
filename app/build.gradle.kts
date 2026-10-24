@@ -162,6 +162,28 @@ kotlin {
     }
 }
 
+val validateChangelog by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Requires published changelog notes for the Android release version"
+
+    // Reuse compiled Kotlin and resources instead of parsing ReleaseNotes.kt as text.
+    // A plain provider avoids depending on execution of the entire debug test suite.
+    val debugUnitTest = provider { tasks.named<Test>("testDebugUnitTest").get() }
+    dependsOn("compileDebugUnitTestKotlin")
+    classpath = files(
+        debugUnitTest.map { it.testClassesDirs },
+        debugUnitTest.map { it.classpath }
+    )
+    mainClass.set("com.kairo.reader.ui.updates.ReleaseNotesValidationKt")
+    // Use release metadata, without the debug variant's versionNameSuffix.
+    args(requireNotNull(android.defaultConfig.versionName), requireNotNull(android.defaultConfig.versionCode).toString())
+}
+
+// Covers APKs, bundles, and aggregate builds without inspecting command-line task names.
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(validateChangelog)
+}
+
 detekt {
     buildUponDefaultConfig = true
     allRules = false

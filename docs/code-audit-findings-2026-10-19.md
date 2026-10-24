@@ -189,7 +189,7 @@ Android tests were intentionally not run, as requested. The fixes and automated 
 - [x] **9 Articles:** Traverse non-overlapping text blocks; preserve short parent-owned text, block spacing, and intentional repeated paragraphs. `WebArticleExtractorTest` covers nested quotations and paragraph-containing list items.
 - [x] **10 Onboarding:** Save book/chapter/token context and derive the full step list from restored context. `StartingTutorialCoordinatorTest` verifies save/restore at Reader and RSVP steps, including adjacent steps and positions.
 
-**Final automated validation (24 October 2026):** `./gradlew qualityGate` passed, including `qualityCheck`, 933 JVM tests (zero failures or skips), ktlint, Detekt, Android Lint, and debug APK assembly. `scriptTests` passed the SQLite migration check and 18 fake-device restore scenarios. `git diff --check` passed.
+**Final automated validation (24 October 2026):** `./gradlew qualityGate` passed, including `qualityCheck`, 939 JVM tests after integrating PR #165 (zero failures or skips), ktlint, Detekt, Android Lint, debug APK assembly, and release changelog validation. `scriptTests` passed the SQLite migration check and 18 fake-device restore scenarios. `git diff --check` passed.
 
 ## Original completion criteria
 
