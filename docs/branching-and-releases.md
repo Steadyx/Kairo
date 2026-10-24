@@ -57,6 +57,22 @@ from `app/build.gradle.kts` to that entry. Keep older entries in descending orde
 When starting the next version, prepend a new Upcoming entry. A fixes-only
 release may leave its tour empty and offer just the changelog.
 
+Run `./gradlew :app:validateChangelog` to check release metadata without signing
+credentials. It requires exactly one published entry matching both Android
+`versionName` and `versionCode`; a version bump with only old or Upcoming notes
+fails with instructions to finalise the entry. The check uses the compiled
+catalogue and the version configured in `app/build.gradle.kts`, without the
+debug version suffix. It reuses debug JVM-test compilation, not an emulator.
+
+`preReleaseBuild` depends on this check, so both `assembleRelease` and
+`bundleRelease` (including aggregate builds) validate before release compilation.
+`qualityGate` also includes it, giving the existing GitHub quality workflow the
+same safeguard. Ordinary debug builds and `qualityCheck` do not enforce this
+release-readiness check, so an unfinished Upcoming entry remains valid during
+development. The configured release passes when it has a matching published
+entry, even if a separate Upcoming entry remains unpublished. Do not assign
+Upcoming an old version just to satisfy validation.
+
 Review `git log --no-merges <previous-release-tag>..HEAD` and the corresponding
 diffs. Summarise every user-facing addition and fix in the changelog, grouping
 related commits; omit internal build, test, and refactoring work. Pick only a few
