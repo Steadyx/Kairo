@@ -15,7 +15,13 @@ sealed interface LibrarySearchState {
 
     data class Loading(val query: String) : LibrarySearchState
 
-    data class Success(val query: String, val results: List<LibrarySearchResult>, val isSearching: Boolean = false,) : LibrarySearchState
+    data class Success(
+        val query: String,
+        val results: List<LibrarySearchResult>,
+        val isSearching: Boolean = false,
+        val resultPage: Int = 0,
+        val hasMoreResults: Boolean = false,
+    ) : LibrarySearchState
 
     data class Error(val query: String) : LibrarySearchState
 }
@@ -31,10 +37,24 @@ class LibrarySearchController(
 
     private var searchJob: Job? = null
     private var lastQuery = ""
+    private var resultPage = 0
 
     fun search(rawQuery: String) {
         val query = normalizeLibrarySearchQuery(rawQuery)
         lastQuery = query
+        resultPage = 0
+        searchPage()
+    }
+
+    fun changePage(page: Int) {
+        if (page < 0 || (page == resultPage && mutableState.value !is LibrarySearchState.Error)) return
+        resultPage = page
+        searchPage()
+    }
+
+    private fun searchPage() {
+        val query = lastQuery
+        val requestedPage = resultPage
         searchJob?.cancel()
         if (query.length < LibrarySearchConstraints.MIN_QUERY_LENGTH) {
             mutableState.value = LibrarySearchState.Idle
@@ -45,11 +65,13 @@ class LibrarySearchController(
             scope.launch {
                 try {
                     delay(debounceMs)
-                    repository.searchUpdates(query, bookId).collect { update ->
+                    repository.searchUpdates(query, bookId, requestedPage).collect { update ->
                         mutableState.value = LibrarySearchState.Success(
                             query,
                             update.results.take(LibrarySearchConstraints.MAX_RESULTS),
                             isSearching = !update.isComplete,
+                            resultPage = requestedPage,
+                            hasMoreResults = update.hasMoreResults,
                         )
                     }
                 } catch (cancelled: CancellationException) {
@@ -61,7 +83,7 @@ class LibrarySearchController(
     }
 
     fun retry() {
-        search(lastQuery)
+        searchPage()
     }
 
     fun cancel() {

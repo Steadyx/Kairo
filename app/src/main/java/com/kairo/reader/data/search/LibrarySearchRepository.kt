@@ -9,9 +9,9 @@ interface LibrarySearchRepository {
         query: String,
         bookId: String? = null,
     ): List<LibrarySearchResult>
-    fun searchUpdates(query: String, bookId: String? = null): Flow<LibrarySearchUpdate> = flow {
+    fun searchUpdates(query: String, bookId: String? = null, resultPage: Int = 0): Flow<LibrarySearchUpdate> = flow {
         emit(LibrarySearchUpdate(search(query, bookId), isComplete = true))
     }
 }
 
-data class LibrarySearchUpdate(val results: List<LibrarySearchResult>, val isComplete: Boolean)
+data class LibrarySearchUpdate(val results: List<LibrarySearchResult>, val isComplete: Boolean, val hasMoreResults: Boolean = false,)

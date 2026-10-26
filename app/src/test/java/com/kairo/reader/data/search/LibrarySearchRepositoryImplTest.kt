@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -186,7 +187,7 @@ class LibrarySearchRepositoryImplTest {
         }
 
     @Test
-    fun passageSearchCapsMatchingChaptersRatherThanAllCandidates() =
+    fun passageSearchFindsMatchesAcrossMoreThanThirtyTwoChapters() =
         runTest {
             val searchDao =
                 FakeSearchDao(
@@ -203,37 +204,52 @@ class LibrarySearchRepositoryImplTest {
 
             val results = repository.search("needle", bookId = "book")
 
-            assertEquals(32, results.size)
+            assertEquals(40, results.size)
             assertEquals(1, searchDao.passageBookQueryCount)
-            assertEquals(4, searchDao.passageChapterPageCallCount)
+            assertEquals(6, searchDao.passageChapterPageCallCount)
         }
 
     @Test
-    fun passageSearchPreservesPerChapterAndResultLimits() =
+    fun resultPagesReachLaterMatchesAndBooksWithoutRepeatingResults() =
         runTest {
             val searchDao =
                 FakeSearchDao(
-                    passageBooks = listOf(passageBook()),
+                    passageBooks = listOf(passageBook("a", "A"), passageBook("b", "B")),
                     passagesByBook =
                     mapOf(
-                        "book" to
-                            (0 until 32).map { chapterIndex ->
-                                passageChapter(
-                                    chapterIndex,
-                                    plainText = "needle needle needle needle",
-                                )
-                            },
+                        "a" to listOf(passageChapter(0, plainText = "needle ".repeat(65))),
+                        "b" to listOf(passageChapter(0, plainText = "later needle")),
                     ),
                 )
             val repository = repository(searchDao, FakeSavedAnnotationDao())
 
-            val results = repository.search("needle", bookId = "book")
+            val first = repository.searchUpdates("needle", resultPage = 0).toList().last()
+            val second = repository.searchUpdates("needle", resultPage = 1).toList().last()
 
-            assertEquals(60, results.size)
-            assertEquals(3, results.count { it.chapterIndex == 0 })
-            assertEquals(1, searchDao.passageBookQueryCount)
-            assertEquals(3, searchDao.passageChapterPageCallCount)
+            assertEquals(60, first.results.size)
+            assertTrue(first.hasMoreResults)
+            assertEquals(6, second.results.size)
+            assertEquals("b", second.results.last().bookId.value)
+            assertFalse(second.hasMoreResults)
+            assertTrue(first.results.map { it.id }.intersect(second.results.map { it.id }.toSet()).isEmpty())
         }
+
+    @Test
+    fun titleAndSavedResultsBeyondFirstTwentyAreReachable() = runTest {
+        val books = (0..20).map { index -> book().copy(id = "book-$index", title = "Book $index") }
+        val saved = (0..20).map { index ->
+            savedWithBook().let { it.copy(annotation = it.annotation.copy(id = "saved-$index")) }
+        }
+        val repository = repository(FakeSearchDao(bookSearch = { books }), FakeSavedAnnotationDao { saved })
+
+        val first = repository.searchUpdates("needle").toList().last()
+        val second = repository.searchUpdates("needle", resultPage = 1).toList().last()
+
+        assertEquals(40, first.results.size)
+        assertTrue(first.hasMoreResults)
+        assertEquals(setOf("book:book-20", "saved:saved-20"), second.results.map { it.id }.toSet())
+        assertFalse(second.hasMoreResults)
+    }
 
     private fun repository(
         searchDao: SearchDao,
@@ -311,7 +327,8 @@ private class FakeSearchDao(
     override suspend fun searchBooks(
         pattern: String,
         limit: Int,
-    ): List<BookEntity> = bookSearch()
+        offset: Long,
+    ): List<BookEntity> = bookSearch().drop(offset.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()).take(limit)
 }
 
 private class FakeSavedAnnotationDao(private val search: suspend () -> List<SavedAnnotationWithBookEntity> = { emptyList() },) :
@@ -331,7 +348,8 @@ private class FakeSavedAnnotationDao(private val search: suspend () -> List<Save
     override suspend fun searchWithBook(
         pattern: String,
         limit: Int,
-    ): List<SavedAnnotationWithBookEntity> = search()
+        offset: Long,
+    ): List<SavedAnnotationWithBookEntity> = search().drop(offset.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()).take(limit)
 }
 
 private object UnconfinedDispatcherProvider : DispatcherProvider {

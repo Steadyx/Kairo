@@ -45,11 +45,12 @@ interface SavedAnnotationDao {
         SAVED_ANNOTATIONS_WITH_BOOK_QUERY +
             " AND (lower(saved_annotations.selectedText) LIKE :pattern ESCAPE '\\' " +
             "OR lower(saved_annotations.note) LIKE :pattern ESCAPE '\\') " +
-            "ORDER BY saved_annotations.updatedAt DESC LIMIT :limit",
+            "ORDER BY saved_annotations.updatedAt DESC, saved_annotations.id LIMIT :limit OFFSET :offset",
     )
     suspend fun searchWithBook(
         pattern: String,
         limit: Int,
+        offset: Long = 0,
     ): List<SavedAnnotationWithBookEntity>
 }
 

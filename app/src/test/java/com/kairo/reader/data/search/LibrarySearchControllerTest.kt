@@ -5,6 +5,8 @@ import com.kairo.reader.core.model.LibrarySearchResult
 import com.kairo.reader.core.model.LibrarySearchResultKind
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -14,6 +16,54 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibrarySearchControllerTest {
+    @Test
+    fun pageChangesKeepQueryAndNewQueryResetsPage() = runTest {
+        val calls = mutableListOf<Pair<String, Int>>()
+        val repository = object : LibrarySearchRepository {
+            override suspend fun search(query: String, bookId: String?): List<LibrarySearchResult> = emptyList()
+
+            override fun searchUpdates(query: String, bookId: String?, resultPage: Int) =
+                flowOf(LibrarySearchUpdate(listOf(result("$query-$resultPage")), true, resultPage == 0)).also {
+                    calls += query to resultPage
+                }
+        }
+        val controller = LibrarySearchController(repository, this, debounceMs = 0L)
+
+        controller.search("needle")
+        advanceUntilIdle()
+        assertTrue((controller.state.value as LibrarySearchState.Success).hasMoreResults)
+        controller.changePage(1)
+        advanceUntilIdle()
+        assertEquals(1, (controller.state.value as LibrarySearchState.Success).resultPage)
+        controller.search("other")
+        advanceUntilIdle()
+
+        assertEquals(listOf("needle" to 0, "needle" to 1, "other" to 0), calls)
+    }
+
+    @Test
+    fun failedPageCanBeRequestedAgain() = runTest {
+        var failPage = true
+        val repository = object : LibrarySearchRepository {
+            override suspend fun search(query: String, bookId: String?): List<LibrarySearchResult> = emptyList()
+
+            override fun searchUpdates(query: String, bookId: String?, resultPage: Int) = flow {
+                if (resultPage == 1 && failPage) error("unavailable")
+                emit(LibrarySearchUpdate(listOf(result("$resultPage")), true, resultPage == 0))
+            }
+        }
+        val controller = LibrarySearchController(repository, this, debounceMs = 0L)
+        controller.search("needle")
+        advanceUntilIdle()
+        controller.changePage(1)
+        advanceUntilIdle()
+        assertTrue(controller.state.value is LibrarySearchState.Error)
+        failPage = false
+        controller.changePage(1)
+        advanceUntilIdle()
+        assertEquals(1, (controller.state.value as LibrarySearchState.Success).resultPage)
+    }
+
     @Test
     fun newerQueryCancelsStaleWork() =
         runTest {
