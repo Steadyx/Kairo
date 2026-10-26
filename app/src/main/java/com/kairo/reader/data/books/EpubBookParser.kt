@@ -181,7 +181,6 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                     spinePaths = chapterOrderResolution.resolvedSpinePaths,
                     navigationPath = navigationPathLower,
                 )
-            val orderedChapterPathsLower = readerChapterPlan.paths
             val navigationParseResult =
                 navigationPathLower
                     ?.let { path -> decodedTextEntry(path, zipTextEntries, decodedTextEntries) }
@@ -197,6 +196,29 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                     ?.let { path ->
                         navigationParseResult.readerHtml?.let { html -> mapOf(path to html) }
                     }.orEmpty()
+            val useDeclaredOrder = chapterOrderResolution.source == ChapterOrderSource.SPINE
+            val auxiliaryPaths =
+                if (useDeclaredOrder) {
+                    val manifestPaths = EpubChapterOrdering.resolveManifestChapterPaths(
+                        opfData.manifestItems,
+                        opfDir,
+                        zipEntryNamesLower,
+                    ).toSet()
+                    findLinkedAuxiliaryChapters(
+                        readingPaths = readerChapterPlan.paths,
+                        manifestPaths = manifestPaths,
+                        navigationHrefs = navigationReferences.mapNotNull { reference ->
+                            reference.href?.let { navigationPathLower.orEmpty().substringBeforeLast('/', "") to it }
+                        },
+                        readHtml = { path ->
+                            readerHtmlOverridesByPathLower[path] ?: decodedTextEntry(path, zipTextEntries, decodedTextEntries)
+                        },
+                        contentRewriter = contentRewriter,
+                    )
+                } else {
+                    emptyList()
+                }
+            val orderedChapterPathsLower = readerChapterPlan.paths + auxiliaryPaths
 
             // Determine which image assets we need (cover + any chapter <img> references).
             val neededImagePathsLower = mutableSetOf<String>()
@@ -249,18 +271,22 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
             var coverImage: ByteArray? = null
 
             val imageDir = File(context.filesDir, "kairo_epub_assets/${bookId.value}/images")
-            val canWriteImages = runCatching {
-                imageDir.mkdirs() || imageDir.exists()
-            }.getOrDefault(false)
 
             if (neededImagePathsLower.isNotEmpty()) {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                require(imageDir.mkdirs() || imageDir.isDirectory) {
+                    "Unable to create EPUB image directory"
+                }
+                requireNotNull(context.contentResolver.openInputStream(uri)) {
+                    "Unable to read EPUB image assets"
+                }.use { inputStream ->
                     openZip(inputStream).use { zip ->
                         var entry = zip.nextEntry
                         while (entry != null) {
                             if (!entry.isDirectory) {
                                 val nameLower = normalizeZipEntryNameLower(entry.name)
-                                if (neededImagePathsLower.contains(nameLower)) {
+                                if (neededImagePathsLower.contains(nameLower) &&
+                                    !imageRelativePathByEpubPathLower.containsKey(nameLower)
+                                ) {
                                     val maxEntrySize =
                                         if (nameLower == coverPathLower ||
                                             nameLower == fallbackCoverPathLower
@@ -269,36 +295,31 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                                         } else {
                                             MAX_IMAGE_ENTRY_SIZE
                                         }
-                                    val bytes = readEntryWithLimit(zip, maxEntrySize)
-                                    if (bytes != null) {
-                                        totalImageBytes += bytes.size
-                                        if (totalImageBytes > MAX_TOTAL_IMAGE_SIZE) break
-                                        if (nameLower == coverPathLower ||
-                                            nameLower == fallbackCoverPathLower
-                                        ) {
-                                            coverImage = bytes
-                                        }
-
-                                        if (canWriteImages) {
-                                            val fileName = buildImageFileName(nameLower)
-                                            val file = File(imageDir, fileName)
-                                            val wrote =
-                                                runCatching {
-                                                    file.outputStream().use { it.write(bytes) }
-                                                    true
-                                                }.getOrDefault(false)
-                                            if (wrote) {
-                                                imageRelativePathByEpubPathLower[nameLower] =
-                                                    "kairo_epub_assets/${bookId.value}/images/$fileName"
-                                            }
-                                        }
+                                    val bytes = requireNotNull(readEntryWithLimit(zip, maxEntrySize)) {
+                                        "Unable to read EPUB image asset"
                                     }
+                                    totalImageBytes += bytes.size
+                                    require(totalImageBytes <= MAX_TOTAL_IMAGE_SIZE) {
+                                        "EPUB images exceed the total import limit"
+                                    }
+                                    if (nameLower == coverPathLower ||
+                                        nameLower == fallbackCoverPathLower
+                                    ) {
+                                        coverImage = bytes
+                                    }
+                                    val fileName = buildImageFileName(nameLower)
+                                    File(imageDir, fileName).outputStream().use { it.write(bytes) }
+                                    imageRelativePathByEpubPathLower[nameLower] =
+                                        "kairo_epub_assets/${bookId.value}/images/$fileName"
                                 }
                             }
                             zip.closeEntry()
                             entry = zip.nextEntry
                         }
                     }
+                }
+                require(imageRelativePathByEpubPathLower.keys.containsAll(neededImagePathsLower)) {
+                    "EPUB image assets could not be read"
                 }
             }
 
@@ -309,8 +330,10 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                     preferredChapterPathsLower = orderedChapterPathsLower,
                     decodedTextEntries = decodedTextEntries,
                     chapterImageSrcsByPathLower = chapterImageSrcsByPathLower,
-                    preservedNavigationPathsLower = readerChapterPlan.preservedNavigationPaths,
+                    preservedNavigationPathsLower = readerChapterPlan.preservedNavigationPaths + auxiliaryPaths,
                     htmlOverridesByPathLower = readerHtmlOverridesByPathLower,
+                    includeZipFallback = !useDeclaredOrder,
+                    auxiliaryPathsLower = auxiliaryPaths.toSet(),
                 )
             diagnostics.navigationFilteredChapters += primaryFallbackBuild.navigationFilteredCount
             diagnostics.navigationFilterSuppressed =
@@ -332,8 +355,10 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                             preferredChapterPathsLower = orderedChapterPathsLower,
                             decodedTextEntries = emptyMap(),
                             chapterImageSrcsByPathLower = emptyMap(),
-                            preservedNavigationPathsLower = readerChapterPlan.preservedNavigationPaths,
+                            preservedNavigationPathsLower = readerChapterPlan.preservedNavigationPaths + auxiliaryPaths,
                             htmlOverridesByPathLower = readerHtmlOverridesByPathLower,
+                            includeZipFallback = !useDeclaredOrder,
+                            auxiliaryPathsLower = auxiliaryPaths.toSet(),
                         )
                     diagnostics.navigationFilteredChapters += secondaryFallbackBuild.navigationFilteredCount
                     diagnostics.navigationFilterSuppressed =
@@ -355,6 +380,7 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
 
             // Build path to final index map
             val chapterIndexByPathLower = parsedChapters.associate { it.pathLower to it.chapter.index }
+            val anchorOffsetsByPath = parsedChapters.associate { it.pathLower to it.anchorOffsets }
             val tableOfContents =
                 navigationPathLower
                     ?.let { path ->
@@ -384,6 +410,8 @@ class EpubBookParser(private val dispatcherProvider: DispatcherProvider) : BookP
                             baseDir = parsed.baseDir,
                             chapterIndexByPathLower = chapterIndexByPathLower,
                             currentChapterPath = parsed.pathLower,
+                            anchorOffsetsByPath = anchorOffsetsByPath,
+                            auxiliaryPaths = auxiliaryPaths.toSet(),
                         )
                     } else {
                         html

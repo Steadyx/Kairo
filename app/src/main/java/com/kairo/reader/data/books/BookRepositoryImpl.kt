@@ -1,8 +1,10 @@
 package com.kairo.reader.data.books
 
 import android.content.ContentResolver
+import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.core.content.edit
 import com.kairo.reader.core.dispatchers.DispatcherProvider
 import com.kairo.reader.core.language.BookLanguageResolver
 import com.kairo.reader.core.model.Book
@@ -40,6 +42,7 @@ class BookRepositoryImpl(
 ) : BookRepository {
     // Mutex to prevent concurrent import operations which can crash the app
     private val importMutex = Mutex()
+    private val epubRepairPreferences = appContext.getSharedPreferences(EPUB_REPAIR_PREFERENCES, Context.MODE_PRIVATE)
     private val persistedNavigationRepairResolver = PersistedEpubNavigationRepairResolver()
     private val persistedNavigationContentRewriter = EpubContentRewriter()
 
@@ -70,6 +73,14 @@ class BookRepositoryImpl(
                         bookDao.getBookByImportFingerprint(fingerprint)
                     }
                 if (existingByFingerprint != null) {
+                    val linearityRepaired =
+                        if (extension in BookImportFormats.epub.extensions &&
+                            !epubRepairPreferences.getBoolean(existingByFingerprint.id, false)
+                        ) {
+                            repairPersistedEpubLinearity(existingByFingerprint.id, parser, importSource)
+                        } else {
+                            false
+                        }
                     val navigationRepaired =
                         repairPersistedEpubNavigation(
                             bookId = existingByFingerprint.id,
@@ -86,7 +97,7 @@ class BookRepositoryImpl(
                     }
                     return@withLock existingBookImportResult(
                         existing = existingByFingerprint,
-                        includeChapterContent = navigationRepaired,
+                        includeChapterContent = navigationRepaired || linearityRepaired,
                     )
                 }
 
@@ -103,6 +114,9 @@ class BookRepositoryImpl(
                             sourceDisplayName = importSource.sourceDisplayName,
                         )
                     val result = persistImportedBook(parsedBook, sourceFingerprint)
+                    if (extension in BookImportFormats.epub.extensions && !result.alreadyImported) {
+                        epubRepairPreferences.edit { putBoolean(result.book.id.value, true) }
+                    }
                     importCompleted = true
                     return@withLock result
                 } finally {
@@ -146,6 +160,44 @@ class BookRepositoryImpl(
             plainText = plainText,
             wordCount = countWords(plainText),
         )
+    }
+
+    private suspend fun repairPersistedEpubLinearity(
+        bookId: String,
+        parser: BookParser,
+        importSource: PreparedImportSource,
+    ): Boolean {
+        val existing = bookDao.getChaptersWithContent(bookId).map { it.toDomain() }
+        val probeId = BookId(UUID.randomUUID().toString())
+        val probe = try {
+            parser.parse(appContext, importSource.parseUri, probeId, importSource.sourceDisplayName)
+                .withBoundedMetadata()
+        } finally {
+            deleteBookAssets(probeId.value)
+        }
+        val linearity = requireNotNull(resolveEpubLinearityRepair(existing, probe.chapters)) {
+            "Could not safely match this EPUB's chapters; the existing book was kept."
+        }
+        val expectedHtml = existing.associate { it.index to it.htmlContent }
+        val replacementHtml = requireNotNull(annotatePersistedEpubLinks(existing, linearity)) {
+            "Could not safely update this EPUB's note links; the existing book was kept."
+        }
+            .filter { (index, html) -> html != expectedHtml[index] }
+        val changed = existing.any { it.isLinear != linearity[it.index] } || replacementHtml.isNotEmpty()
+        require(
+            !changed ||
+                epubNavigationDao.updateLinearityIfCoordinatesMatch(
+                    bookId,
+                    existing.map { EpubChapterCoordinate(it.index, it.plainText) },
+                    linearity,
+                    expectedHtml,
+                    replacementHtml,
+                ),
+        ) {
+            "The EPUB changed during repair; the existing book was kept."
+        }
+        epubRepairPreferences.edit { putBoolean(bookId, true) }
+        return changed
     }
 
     private suspend fun refreshMissingEpubTableOfContents(
@@ -359,6 +411,8 @@ class BookRepositoryImpl(
         parsedBook: Book,
         sourceFingerprint: String?,
     ): Book? {
+        // A text-only comparison cannot establish that illustrations or covers are identical.
+        if (parsedBook.hasImportImages()) return null
         val candidates = bookDao.getBooksByTitleForImportDedupe(parsedBook.title)
         if (candidates.isEmpty()) return null
 
@@ -366,6 +420,7 @@ class BookRepositoryImpl(
         candidates.forEach { candidate ->
             if (candidate.id == parsedBook.id.value) return@forEach
             if (candidate.authors != parsedBook.authors) return@forEach
+            if (bookDao.hasCoverImage(candidate.id)) return@forEach
 
             val candidateChapters = bookDao.getChaptersWithContent(candidate.id)
             if (candidateChapters.size != parsedBook.chapters.size) return@forEach
@@ -375,6 +430,7 @@ class BookRepositoryImpl(
                     chapters = candidateChapters,
                     tableOfContentsEntries = bookDao.getTableOfContentsEntries(candidate.id),
                 )
+            if (candidateBook.hasImportImages()) return@forEach
             val contentFingerprint =
                 parsedFingerprint ?: ImportFingerprint.contentFingerprint(parsedBook).also {
                     parsedFingerprint = it
@@ -470,7 +526,7 @@ class BookRepositoryImpl(
     }
 
     private fun requireReadableImportContent(book: Book) {
-        require(book.chapters.any { chapter -> hasReadableImportText(chapter.plainText) }) {
+        require(book.chapters.any { chapter -> hasReadableImportText(chapter.plainText) || chapter.imagePaths.isNotEmpty() }) {
             "No readable content found in this import"
         }
     }
@@ -527,6 +583,7 @@ class BookRepositoryImpl(
         private const val IMPORT_CACHE_MAX_AGE_MS = 24L * 60L * 60L * 1000L
         private const val MAX_IMPORT_EXTENSION_LENGTH = 16
         private const val MAX_WORD_COUNT_CHARS = 120_000
+        private const val EPUB_REPAIR_PREFERENCES = "epub_reading_order_repair"
     }
 
     private data class PreparedImportSource(
@@ -561,3 +618,38 @@ class BookRepositoryImpl(
         }
     }
 }
+
+internal fun Book.hasImportImages(): Boolean =
+    coverImage?.isNotEmpty() == true || chapters.any { it.imagePaths.isNotEmpty() }
+
+internal fun resolveEpubLinearityRepair(
+    existing: List<Chapter>,
+    reparsed: List<Chapter>,
+): Map<Int, Boolean>? {
+    if (existing.isEmpty() || reparsed.none { it.isLinear }) return null
+    val oldByContent = existing.groupBy { it.title to it.plainText }
+    val newByContent = reparsed.groupBy { it.title to it.plainText }
+    if (!oldByContent.keys.containsAll(newByContent.keys)) return null
+    if (existing.map { it.index }.toSet().size != existing.size) return null
+    val matched = mutableMapOf<Int, Boolean>()
+    for ((key, newGroup) in newByContent) {
+        val oldGroup = oldByContent.getValue(key)
+        if (oldGroup.size == 1 && newGroup.size == 1) {
+            matched[oldGroup.single().index] = newGroup.single().isLinear
+            continue
+        }
+        val oldByHtml = oldGroup.groupBy { it.repairComparableHtml() }
+        val newByHtml = newGroup.groupBy { it.repairComparableHtml() }
+        if (oldByHtml.values.any { it.size != 1 } || newByHtml.values.any { it.size != 1 }) return null
+        if (!oldByHtml.keys.containsAll(newByHtml.keys)) return null
+        newByHtml.forEach { (html, chapters) ->
+            matched[oldByHtml.getValue(html).single().index] = chapters.single().isLinear
+        }
+    }
+    return existing.associate { it.index to (matched[it.index] ?: false) }
+}
+
+private fun Chapter.repairComparableHtml(): String =
+    htmlContent
+        .replace(Regex("kairo_epub_assets/[^/]+/"), "kairo_epub_assets/<book>/")
+        .replace(Regex("\\s+data-kairo-(?:aux|offset)=['\"][^'\"]*['\"]"), "")

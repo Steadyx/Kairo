@@ -46,6 +46,8 @@ internal class EpubChapterBuilder(
         chapterImageSrcsByPathLower: Map<String, List<String>>,
         preservedNavigationPathsLower: Set<String> = emptySet(),
         htmlOverridesByPathLower: Map<String, String> = emptyMap(),
+        includeZipFallback: Boolean = true,
+        auxiliaryPathsLower: Set<String> = emptySet(),
     ): FallbackChapterBuildResult {
         require(preferredChapterPathsLower.all { path -> zipTextEntries.containsKey(path.lowercase(Locale.ROOT)) }) {
             "EPUB contains a required chapter that could not be read or exceeds import limits"
@@ -67,7 +69,7 @@ internal class EpubChapterBuilder(
                 .filterNot { preferredCandidates.contains(it) }
                 .sortedWith(EpubChapterOrdering::comparePathsNaturally)
                 .toList()
-        val candidates = preferredCandidates + fallbackCandidatesBase
+        val candidates = preferredCandidates + if (includeZipFallback) fallbackCandidatesBase else emptyList()
         if (candidates.isEmpty()) {
             return FallbackChapterBuildResult(
                 chapters = emptyList(),
@@ -140,6 +142,7 @@ internal class EpubChapterBuilder(
                         plainText = plainText,
                         imagePaths = imagePaths,
                         wordCount = wordCount,
+                        isLinear = pathLower !in auxiliaryPathsLower,
                     ),
                     anchorOffsets = plainTextContent.anchorOffsets,
                 )

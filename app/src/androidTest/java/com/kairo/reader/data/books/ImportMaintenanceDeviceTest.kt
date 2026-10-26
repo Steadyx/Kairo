@@ -10,17 +10,26 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kairo.reader.core.dispatchers.DefaultDispatcherProvider
 import com.kairo.reader.core.model.BookId
+import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.tokenization.CHAPTER_WORD_COUNT_VERSION
 import com.kairo.reader.core.tokenization.needsChapterWordCountRepair
 import com.kairo.reader.data.library.LibraryRepositoryImpl
 import com.kairo.reader.data.local.KairoDatabase
+import com.kairo.reader.data.local.toEntity
 import com.kairo.reader.data.token.TokenRepositoryImpl
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,12 +45,13 @@ class ImportMaintenanceDeviceTest {
     private lateinit var directory: File
     private lateinit var database: KairoDatabase
     private lateinit var repository: BookRepositoryImpl
+    private lateinit var fixtureContext: Context
 
     @Before
     fun setUp() {
         val target = InstrumentationRegistry.getInstrumentation().targetContext
         directory = File(target.cacheDir, "import-regression-${UUID.randomUUID()}").apply { mkdirs() }
-        val context = object : ContextWrapper(target) {
+        fixtureContext = object : ContextWrapper(target) {
             override fun getFilesDir(): File = directory
             override fun getCacheDir(): File = directory
             override fun getApplicationContext(): Context = this
@@ -53,7 +63,7 @@ class ImportMaintenanceDeviceTest {
             database.epubNavigationDao(),
             listOf(EpubBookParser(dispatchers)),
             WebArticleExtractor(dispatchers),
-            context,
+            fixtureContext,
             dispatchers,
         )
     }
@@ -110,13 +120,171 @@ class ImportMaintenanceDeviceTest {
                 tokens.invalidateBook(id)
             },
             invalidateAllCaches = { error("Unrelated books must stay cached") },
-            appContext = InstrumentationRegistry.getInstrumentation().targetContext,
+            appContext = fixtureContext,
             dispatcherProvider = dispatchers,
         )
         library.delete(first.book.id.value)
         assertEquals(listOf(first.book.id), invalidated)
         assertTrue(runCatching { tokens.getTokens(first.book.id, 0) }.isFailure)
         assertTrue(secondTokens === tokens.getTokens(second.book.id, 0))
+    }
+
+    @Test
+    fun reimportWaitsForDeletedBookAssetsToBeRemoved() = runBlocking {
+        val request = TextImportRequest("An imported book with readable words.")
+        val original = repository.importText(request)
+        val deletionReachedCleanup = CountDownLatch(1)
+        val allowCleanup = CountDownLatch(1)
+        val blockDeletion = AtomicBoolean(true)
+        val dispatchers = DefaultDispatcherProvider()
+        val library = LibraryRepositoryImpl(
+            repository, database, database.bookDao(), database.readingPositionDao(),
+            database.bookmarkDao(), database.savedAnnotationDao(), database.readingSessionDao(),
+            invalidateBookCaches = {
+                if (blockDeletion.getAndSet(false)) {
+                    deletionReachedCleanup.countDown()
+                    check(allowCleanup.await(10, TimeUnit.SECONDS))
+                }
+            },
+            invalidateAllCaches = {},
+            appContext = fixtureContext,
+            dispatcherProvider = dispatchers,
+        )
+        val deletion = async(Dispatchers.IO) { library.delete(original.book.id.value) }
+        try {
+            assertTrue(withContext(Dispatchers.IO) { deletionReachedCleanup.await(10, TimeUnit.SECONDS) })
+            val reimport = async(Dispatchers.IO) { library.importText(request) }
+            delay(200)
+            assertFalse("Import must wait until deletion cleanup finishes", reimport.isCompleted)
+            allowCleanup.countDown()
+            deletion.await()
+            assertEquals(original.book.id, reimport.await().book.id)
+            assertEquals(original.book.id, repository.getBook(original.book.id).id)
+        } finally {
+            allowCleanup.countDown()
+        }
+    }
+
+    @Test
+    fun sameTextWithDifferentIllustrationsImportsAsSeparateBooks() = runBlocking {
+        fun bookFile(name: String, color: Int): File {
+            val file = File(directory, name)
+            val bitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(color)
+            val image = ByteArrayOutputStream().use { output ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                output.toByteArray()
+            }
+            bitmap.recycle()
+            ZipOutputStream(file.outputStream()).use { zip ->
+                fun entry(name: String, bytes: ByteArray) {
+                    zip.putNextEntry(ZipEntry(name))
+                    zip.write(bytes)
+                    zip.closeEntry()
+                }
+                entry(
+                    "META-INF/container.xml",
+                    """<container><rootfiles><rootfile full-path="content.opf"/></rootfiles></container>""".toByteArray()
+                )
+                entry(
+                    "content.opf",
+                    """
+                    <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+                    <metadata><title>Illustrated edition</title></metadata>
+                    <manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+                    <item id="image" href="image.png" media-type="image/png"/></manifest>
+                    <spine><itemref idref="chapter"/></spine></package>
+                    """.trimIndent().toByteArray()
+                )
+                entry("chapter.xhtml", """<html><body><p>The same readable text.</p><img src="image.png"/></body></html>""".toByteArray())
+                entry("image.png", image)
+            }
+            return file
+        }
+        val first = repository.importBook(Uri.fromFile(bookFile("red.epub", android.graphics.Color.RED)))
+        val second = repository.importBook(Uri.fromFile(bookFile("blue.epub", android.graphics.Color.BLUE)))
+        assertFalse(second.alreadyImported)
+        assertTrue(first.book.id != second.book.id)
+        assertTrue(first.book.chapters.single().imagePaths.isNotEmpty())
+        assertTrue(second.book.chapters.single().imagePaths.isNotEmpty())
+    }
+
+    @Test
+    fun reimportRepairsLegacyEpubLinearityWithoutChangingCoordinates() = runBlocking {
+        val file = File(directory, "legacy-order.epub")
+        ZipOutputStream(file.outputStream()).use { zip ->
+            fun entry(name: String, text: String) {
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(text.toByteArray())
+                zip.closeEntry()
+            }
+            entry("META-INF/container.xml", """<container><rootfiles><rootfile full-path="content.opf"/></rootfiles></container>""")
+            entry(
+                "content.opf",
+                """
+                <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+                <metadata><title>Legacy order</title></metadata>
+                <manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+                <item id="notes" href="notes.xhtml" media-type="application/xhtml+xml"/></manifest>
+                <spine><itemref idref="chapter"/><itemref idref="notes" linear="no"/></spine></package>
+                """.trimIndent()
+            )
+            entry("chapter.xhtml", """<html><body><p>Some readable text <a href="notes.xhtml#note">note</a>.</p></body></html>""")
+            entry("notes.xhtml", """<html><body><p id="note">A linked footnote.</p></body></html>""")
+        }
+        val first = repository.importBook(Uri.fromFile(file)).book
+        assertTrue(first.chapters.any { !it.isLinear })
+        val legacy = first.chapters.map { chapter ->
+            chapter.copy(
+                isLinear = true,
+                htmlContent = chapter.htmlContent.replace(Regex("\\s+data-kairo-(?:aux|offset)=\"[^\"]*\""), ""),
+            ).toEntity(first.id)
+        }
+        fixtureContext.getSharedPreferences("epub_reading_order_repair", Context.MODE_PRIVATE)
+            .edit().remove(first.id.value).commit()
+        val extra = Chapter(first.chapters.size, "Unreferenced", "<p>Extra.</p>", "Extra.")
+        database.bookDao().insertChapters(legacy + extra.toEntity(first.id))
+
+        val result = repository.importBook(Uri.fromFile(file))
+        assertTrue(result.alreadyImported)
+        val repaired = database.bookDao().getChaptersWithContent(first.id.value)
+        assertEquals(first.chapters.size + 1, repaired.size)
+        first.chapters.forEach { chapter ->
+            assertEquals(chapter.isLinear, repaired.single { it.index == chapter.index }.isLinear)
+        }
+        assertFalse(repaired.single { it.index == extra.index }.isLinear)
+        assertEquals("Extra.", repaired.single { it.index == extra.index }.plainText)
+        assertTrue(repaired.single { it.index == 0 }.htmlContent.contains("data-kairo-aux=\"1\""))
+        assertTrue(repaired.single { it.index == 0 }.htmlContent.contains("data-kairo-offset=\""))
+    }
+
+    @Test
+    fun ambiguousLegacyReimportFailsWithoutChangingTheExistingBook() = runBlocking {
+        val file = File(directory, "ambiguous.epub")
+        ZipOutputStream(file.outputStream()).use { zip ->
+            fun entry(name: String, content: String) {
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(content.toByteArray())
+                zip.closeEntry()
+            }
+            entry("META-INF/container.xml", """<container><rootfiles><rootfile full-path="content.opf"/></rootfiles></container>""")
+            entry(
+                "content.opf",
+                """
+                <package xmlns="http://www.idpf.org/2007/opf"><metadata><title>Ambiguous</title></metadata>
+                <manifest><item id="one" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest>
+                <spine><itemref idref="one"/></spine></package>
+                """.trimIndent()
+            )
+            entry("chapter.xhtml", "<html><body><p>The same chapter text.</p></body></html>")
+        }
+        val first = repository.importBook(Uri.fromFile(file)).book
+        database.bookDao().insertChapters(listOf(first.chapters.single().copy(index = 1).toEntity(first.id)))
+        fixtureContext.getSharedPreferences("epub_reading_order_repair", Context.MODE_PRIVATE)
+            .edit().remove(first.id.value).commit()
+        val before = database.bookDao().getChaptersWithContent(first.id.value)
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { repository.importBook(Uri.fromFile(file)) } }
+        assertEquals(before, database.bookDao().getChaptersWithContent(first.id.value))
     }
 
     @Test

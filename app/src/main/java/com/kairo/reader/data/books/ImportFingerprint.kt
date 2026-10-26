@@ -54,13 +54,16 @@ internal object ImportFingerprint {
         val digest = MessageDigest.getInstance("SHA-256")
         digest.updateValue(normalizeMetadata(book.title))
         digest.updateValue(book.authors.joinToString("|") { normalizeMetadata(it) })
+        digest.updateValue(book.languageTag.orEmpty())
         digest.updateValue(book.chapters.size.toString())
         book.chapters
             .sortedBy { it.index }
             .forEachIndexed { index, chapter ->
                 digest.updateValue(index.toString())
+                digest.updateValue(chapter.isLinear.toString())
                 digest.updateValue(normalizeMetadata(chapter.title.orEmpty()))
                 digest.updateValue(normalizeContent(chapter.plainText))
+                digest.updateValue(normalizeContent(chapter.htmlContent))
             }
         digest.updateValue(book.tableOfContents.size.toString())
         book.tableOfContents.forEachIndexed { index, entry ->
