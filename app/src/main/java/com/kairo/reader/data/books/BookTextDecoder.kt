@@ -4,11 +4,13 @@ import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
+import org.jsoup.Jsoup
 
 internal object BookTextDecoder {
     fun decode(
         bytes: ByteArray,
         declaredCharset: String? = null,
+        detectMarkupCharset: Boolean = true,
     ): String {
         if (bytes.isEmpty()) return ""
 
@@ -26,7 +28,7 @@ internal object BookTextDecoder {
             ?.let { charset -> return decodeLeniently(bytes, charset) }
 
         val sample = bytes.copyOf(minOf(bytes.size, CHARSET_PROBE_BYTES))
-        extractDeclaredCharset(String(sample, Charsets.ISO_8859_1))
+        (if (detectMarkupCharset) extractDeclaredCharset(String(sample, Charsets.ISO_8859_1)) else null)
             ?.let { name -> runCatching { Charset.forName(name) }.getOrNull() }
             ?.let { charset -> return decodeLeniently(bytes, charset) }
 
@@ -88,9 +90,16 @@ internal object BookTextDecoder {
         }
     }
 
-    private fun extractDeclaredCharset(sample: String): String? =
-        XML_ENCODING.find(sample)?.groupValues?.getOrNull(1)?.trim()
-            ?: HTML_CHARSET.find(sample)?.groupValues?.getOrNull(1)?.trim()
+    private fun extractDeclaredCharset(sample: String): String? {
+        XML_ENCODING.find(sample)?.groupValues?.getOrNull(1)?.trim()?.let { return it }
+        return Jsoup.parse(sample).select("meta")
+            .firstNotNullOfOrNull { meta ->
+                meta.attr("charset").takeIf(String::isNotBlank)
+                    ?: meta.attr("content")
+                        .takeIf { meta.attr("http-equiv").equals("content-type", ignoreCase = true) }
+                        ?.let { HTML_CHARSET.find(it)?.groupValues?.getOrNull(1) }
+            }
+    }
 
     private data class BomEncoding(val charset: Charset, val signature: ByteArray,)
 
@@ -100,7 +109,7 @@ internal object BookTextDecoder {
     private const val UTF16_NULL_DOMINANT_RATIO = 0.3
     private const val UTF16_NULL_SPARSE_RATIO = 0.1
     private val WINDOWS_1252 = Charset.forName("windows-1252")
-    private val XML_ENCODING = Regex("(?i)encoding\\s*=\\s*['\"]([^'\"]+)['\"]")
+    private val XML_ENCODING = Regex("(?i)^\\s*<\\?xml\\s[^>]*?\\bencoding\\s*=\\s*['\"]([^'\"]+)['\"]")
     private val HTML_CHARSET = Regex("(?i)charset\\s*=\\s*['\"]?([A-Za-z0-9_\\-]+)")
 
     // BOM signatures are fixed protocol representations; their raw bytes are clearest here.

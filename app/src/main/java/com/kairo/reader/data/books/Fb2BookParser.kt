@@ -136,7 +136,7 @@ internal object Fb2ParserEngine {
         }
 
         return drafts
-            .filter { draft -> draft.plainText.isNotBlank() }
+            .filter { draft -> draft.plainText.isNotBlank() || draft.imagePaths.isNotEmpty() }
             .mapIndexed { index, draft ->
                 Chapter(
                     index = index,

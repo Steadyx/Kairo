@@ -13,6 +13,41 @@ import org.junit.Test
 
 class Fb2ParserEngineTest {
     @Test
+    fun parsePreservesImageOnlySectionsBetweenTextChapters() {
+        val xml = """
+            <FictionBook xmlns:l="http://www.w3.org/1999/xlink"><body>
+              <section><p>Before.</p></section>
+              <section><image l:href="#figure.png"/></section>
+              <section><p>After.</p></section>
+            </body><binary id="figure.png" content-type="image/png">AQID</binary></FictionBook>
+        """.trimIndent()
+        val book = Fb2ParserEngine.parse(request("figures.fb2", "fb2", xml.toByteArray())) { name, _ ->
+            "kairo_fb2_assets/test/images/$name"
+        }
+
+        assertEquals(3, book.chapters.size)
+        assertEquals("Before.", book.chapters[0].plainText)
+        assertEquals("", book.chapters[1].plainText)
+        assertEquals(listOf("kairo_fb2_assets/test/images/figure.png"), book.chapters[1].imagePaths)
+        assertEquals("After.", book.chapters[2].plainText)
+        assertEquals(listOf(0, 1, 2), book.chapters.map { it.index })
+    }
+
+    @Test
+    fun parseRetainsImageOnlyBookWhenTheImageWasResolved() {
+        val xml = """
+            <FictionBook xmlns:l="http://www.w3.org/1999/xlink"><body>
+              <section><image l:href="#figure.png"/></section>
+            </body><binary id="figure.png" content-type="image/png">AQID</binary></FictionBook>
+        """.trimIndent()
+        val book = Fb2ParserEngine.parse(request("figures.fb2", "fb2", xml.toByteArray())) { name, _ ->
+            "kairo_fb2_assets/test/images/$name"
+        }
+
+        assertEquals(listOf("kairo_fb2_assets/test/images/figure.png"), book.chapters.single().imagePaths)
+    }
+
+    @Test
     fun parsePreservesBodyContentAroundSectionsInSourceOrder() {
         val xml = """
             <FictionBook><body>

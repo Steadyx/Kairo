@@ -6,6 +6,19 @@ import org.junit.Test
 
 class BookTextDecoderTest {
     @Test
+    fun decodeIgnoresCharsetExamplesOutsideDeclarations() {
+        val source = "<html><head><meta name='description' content='charset=windows-1252'></head>" +
+            "<body>Example charset=windows-1252. Café résumé naïve.</body></html>"
+        assertEquals(source, BookTextDecoder.decode(source.toByteArray(Charsets.UTF_8)))
+    }
+
+    @Test
+    fun decodeRecognizesHtmlContentTypeCharset() {
+        val source = "<meta http-equiv='Content-Type' content='text/html; charset=Shift_JIS'><p>日本語です。</p>"
+        assertEquals(source, BookTextDecoder.decode(source.toByteArray(Charset.forName("Shift_JIS"))))
+    }
+
+    @Test
     fun decodeRecognizesQuotedAndUnquotedJapaneseCharsets() {
         listOf("Shift_JIS", "'Shift_JIS'", "\"Shift_JIS\"").forEach { declaration ->
             val source = "<meta charset=$declaration><p>日本語の文章です。</p>"
