@@ -455,6 +455,7 @@
     <string name="update_check_title">Nach Updates suchen</string>
     <string name="update_check_subtitle">Bei Google Play nach einer neueren Version suchen</string>
     <string name="update_check_up_to_date">Kairo ist auf dem neuesten Stand.</string>
+    <string name="update_check_unavailable">Der Update-Status ist nicht verfügbar. Suche bei Google Play nach der neuesten Version.</string>
     <string name="update_check_failed">Updates konnten nicht geprüft werden. Versuche es später erneut.</string>
     <string name="accessibility_state_expanded">Ausgeklappt</string>
     <string name="accessibility_state_collapsed">Eingeklappt</string>
@@ -506,6 +507,7 @@
     <string name="note_export_no_notes">Es sind keine Notizen zum Exportieren vorhanden.</string>
     <string name="note_export_note_unavailable">Diese Notiz ist nicht mehr verfügbar.</string>
     <string name="note_export_failed">Notizen konnten nicht exportiert werden.</string>
+    <string name="note_export_destination_not_empty">Wähle eine neue, leere Datei, um das vorhandene Dokument zu schützen.</string>
     <string name="note_export_filename_all">Kairo Notizen</string>
     <string name="note_export_filename_single">Notiz</string>
     <string name="note_export_document_title_all">Notizen aus deiner Bibliothek</string>
@@ -583,6 +585,8 @@
     <string name="search_book_hint">Wörter oder Ausdrücke in diesem Buch</string>
     <string name="search_minimum_hint">Mindestens zwei Zeichen eingeben</string>
     <string name="search_no_results">Keine Ergebnisse gefunden</string>
+    <string name="search_previous_results">Vorherige Ergebnisse</string>
+    <string name="search_more_results">Weitere Ergebnisse</string>
     <string name="search_passage_label">Textstelle</string>
     <string name="search_saved_label">Gespeichert</string>
     <string name="search_book_label">Buch</string>
@@ -601,6 +605,7 @@
     <string name="highlight_green">Grün</string>
     <string name="highlight_pink">Rosa</string>
     <string name="toast_passage_saved">Textstelle gespeichert</string>
+    <string name="reader_search_match_count_more">Treffer %1$d</string>
     <string name="reader_search_match_count">%1$d von %2$d</string>
     <string name="content_desc_previous_search_match">Vorheriger Suchtreffer</string>
     <string name="content_desc_next_search_match">Nächster Suchtreffer</string>
