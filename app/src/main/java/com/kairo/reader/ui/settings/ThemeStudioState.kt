@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import com.kairo.reader.core.model.SavedTheme
 import com.kairo.reader.core.model.ThemeDesign
 import com.kairo.reader.core.model.decodeThemeDesign
@@ -41,41 +42,47 @@ internal class ThemeStudioState(initial: ThemeStudioDraft, previous: List<ThemeS
     }
 
     fun change(next: ThemeStudioDraft, resetEditor: Boolean = false) {
-        if (locked) return
-        if (next == draft) {
+        Snapshot.withMutableSnapshot {
+            if (locked) return@withMutableSnapshot
+            if (next == draft) {
+                if (resetEditor) {
+                    endEdit()
+                    revision++
+                }
+                return@withMutableSnapshot
+            }
+            if (!continuousEdit || !recordedEdit) {
+                if (history.size == MAX_UNDO) history.removeAt(0)
+                history.add(draft)
+            }
+            recordedEdit = continuousEdit
+            draft = next
             if (resetEditor) {
                 endEdit()
                 revision++
             }
-            return
-        }
-        if (!continuousEdit || !recordedEdit) {
-            if (history.size == MAX_UNDO) history.removeAt(0)
-            history.add(draft)
-        }
-        recordedEdit = continuousEdit
-        draft = next
-        if (resetEditor) {
-            endEdit()
-            revision++
         }
     }
 
     fun design(next: ThemeDesign, resetEditor: Boolean = false) = change(draft.copy(design = next), resetEditor)
 
     fun undo() {
-        if (!canUndo) return
-        draft = history.removeAt(history.lastIndex)
-        endEdit()
-        revision++
+        Snapshot.withMutableSnapshot {
+            if (!canUndo) return@withMutableSnapshot
+            draft = history.removeAt(history.lastIndex)
+            endEdit()
+            revision++
+        }
     }
 
     /** Also clears incomplete local colour input, even if the persisted draft did not change. */
     fun reset(next: ThemeStudioDraft) {
-        if (locked) return
-        change(next)
-        endEdit()
-        revision++
+        Snapshot.withMutableSnapshot {
+            if (locked) return@withMutableSnapshot
+            change(next)
+            endEdit()
+            revision++
+        }
     }
 
     companion object {

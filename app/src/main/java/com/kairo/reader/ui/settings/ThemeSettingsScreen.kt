@@ -15,11 +15,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -48,14 +45,7 @@ fun ThemeSettingsScreen(
     val applied = ThemeStudioDraft(preferences.themeDesign(), preferences.savedThemes)
     val state = rememberSaveable(saver = ThemeStudioState.Saver) { ThemeStudioState(applied) }
     val design = state.draft.design
-    var validColor by rememberSaveable { mutableStateOf(true) }
-    var validityRevision by remember { mutableIntStateOf(state.revision) }
-    LaunchedEffect(state.revision) {
-        if (validityRevision != state.revision) {
-            validColor = true
-            validityRevision = state.revision
-        }
-    }
+    var validColor by rememberSaveable(state.revision) { mutableStateOf(true) }
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     var saveFailed by rememberSaveable { mutableStateOf(false) }
     val dirty = state.draft != applied
@@ -76,7 +66,6 @@ fun ThemeSettingsScreen(
             }
         )
     }
-    val workingCustom = design.theme.copyAsCustom(design.custom)
     SettingsScaffold(
         title = stringResource(R.string.theme_settings_title),
         onBack = back,
@@ -87,7 +76,7 @@ fun ThemeSettingsScreen(
             ThemeStudioWorkspace(
                 modifier = Modifier.weight(1f),
                 section = section,
-                revision = state.revision,
+                state = state,
                 onSectionChange = {
                     focus.clearFocus()
                     state.endEdit()
@@ -98,7 +87,9 @@ fun ThemeSettingsScreen(
                         ThemeLivePreview(preferences, design)
                     }
                 },
-            ) {
+            ) { currentDraft ->
+                val design = currentDraft.design
+                val workingCustom = design.theme.copyAsCustom(design.custom)
                 when (section) {
                     ThemeStudioSection.PALETTES -> {
                         ThemePresetSelector(design.theme, design.custom) {

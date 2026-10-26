@@ -82,8 +82,10 @@ internal fun ThemePaletteEditor(
                 Modifier.semantics { stateDescription = stateLabel }.selectable(editing == role, role = Role.RadioButton, onClick = {
                     focus.clearFocus()
                     onEditFinished()
-                    editing =
-                        role
+                    if (editing != role) {
+                        onValidityChange(true)
+                        editing = role
+                    }
                 }).padding(4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),

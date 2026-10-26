@@ -21,7 +21,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
 import com.kairo.reader.core.model.parseThemeColor
@@ -52,8 +54,9 @@ internal fun ThemeColorEditor(
     onEditStart: () -> Unit = {},
     onEditFinished: () -> Unit = {},
 ) {
-    var hex by rememberSaveable { mutableStateOf(themeColorHex(initial)) }
-    LaunchedEffect(hex, automatic) { onValidityChange(automatic || parseThemeColor(hex) != null) }
+    var field by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(themeColorHex(initial))) }
+    val hex = field.text
+    SideEffect { onValidityChange(automatic || parseThemeColor(hex) != null) }
     val hsv = FloatArray(3)
     android.graphics.Color.colorToHSV(initial, hsv)
     var hue by rememberSaveable { mutableFloatStateOf(hsv[0]) }
@@ -66,7 +69,8 @@ internal fun ThemeColorEditor(
             2 -> brightness = value
         }
         val color = android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, brightness))
-        hex = themeColorHex(color)
+        field = TextFieldValue(themeColorHex(color), TextRange(7))
+        onValidityChange(true)
         onEditStart()
         onChange(color)
     }
@@ -79,6 +83,7 @@ internal fun ThemeColorEditor(
                     checked = automatic,
                     onCheckedChange = {
                         onEditFinished()
+                        onValidityChange(true)
                         onChange(if (it) null else initial)
                     },
                     modifier = Modifier.semantics { contentDescription = automaticLabel }
@@ -108,17 +113,21 @@ internal fun ThemeColorEditor(
                 onEditFinished
             ) { update(2, it) }
             OutlinedTextField(
-                value = hex,
+                value = field,
                 onValueChange = { value ->
-                    if (value.length <= 7) {
-                        hex = value
-                        parseThemeColor(value)?.let {
-                            android.graphics.Color.colorToHSV(it, hsv)
-                            hue = hsv[0]
-                            saturation = hsv[1]
-                            brightness = hsv[2]
-                            onEditFinished()
-                            onChange(it)
+                    if (value.text.length <= 7) {
+                        val textChanged = value.text != field.text
+                        field = value
+                        if (textChanged) {
+                            onValidityChange(parseThemeColor(value.text) != null)
+                            parseThemeColor(value.text)?.let {
+                                android.graphics.Color.colorToHSV(it, hsv)
+                                hue = hsv[0]
+                                saturation = hsv[1]
+                                brightness = hsv[2]
+                                onEditFinished()
+                                onChange(it)
+                            }
                         }
                     }
                 },

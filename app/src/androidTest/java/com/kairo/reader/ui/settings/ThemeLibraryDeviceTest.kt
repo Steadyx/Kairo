@@ -166,6 +166,25 @@ class ThemeLibraryDeviceTest {
         node(R.string.theme_hex).performScrollTo().assertTextContains("#F4EFE4")
     }
 
+    @Test
+    fun repeatedUndoAndRecreationPreserveCurrentInvalidDraft() {
+        val restoration = StateRestorationTester(rule)
+        restoration.setContent {
+            KairoTheme { ThemeSettingsScreen(UserPreferences(readerTheme = ReaderTheme.CUSTOM), { _, _ -> }, {}) }
+        }
+        repeat(3) {
+            node(R.string.theme_hex).performScrollTo().performTextReplacement("#172C29")
+            rule.onNodeWithContentDescription(rule.activity.getString(R.string.theme_undo)).performClick()
+            node(R.string.theme_hex).performScrollTo().assertTextContains("#F4EFE4")
+        }
+        node(R.string.theme_hex).performScrollTo().performTextReplacement("#12")
+        node(R.string.theme_tab_fonts).performClick()
+        restoration.emulateSavedInstanceStateRestore()
+        node(R.string.theme_apply).assertIsNotEnabled()
+        node(R.string.theme_tab_colours).performClick()
+        node(R.string.theme_hex).performScrollTo().assertTextContains("#12")
+    }
+
     private fun capture(name: String) {
         val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
         File(rule.activity.cacheDir, "$name.png").outputStream().use {
