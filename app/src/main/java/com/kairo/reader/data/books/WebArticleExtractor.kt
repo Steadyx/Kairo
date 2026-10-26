@@ -7,7 +7,6 @@ import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.countWords
 import java.io.IOException
 import java.net.URI
-import java.util.Locale
 import kotlinx.coroutines.withContext
 import org.jsoup.Connection
 import org.jsoup.Jsoup
@@ -185,23 +184,25 @@ class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
             .firstOrNull()
 
     private fun Document.readablePlainText(): String {
-        select(PRIORITY_CANDIDATE_SELECTOR)
-            .asSequence()
-            .distinct()
-            .take(MAX_PRIORITY_CANDIDATES)
-            .map { it.extractBlockText() }
-            .firstOrNull { it.length >= MIN_ARTICLE_CHARS }
-            ?.let { return it }
-
         val candidates =
             select(CANDIDATE_SELECTOR)
                 .asSequence()
                 .distinct()
                 .filterNot { it.tagName().equals("body", ignoreCase = true) }
+                .filterNot { it.isRelatedContent() }
                 .take(MAX_CANDIDATES)
                 .toList()
                 .ifEmpty { listOfNotNull(body()) }
-        val best = candidates.maxByOrNull { it.readabilityScore() } ?: body()
+        val mainCandidates = candidates.filter { it.`is`(MAIN_CANDIDATE_SELECTOR) }
+        val main = mainCandidates.maxByOrNull { it.readabilityScore() }
+        val articleCandidates = candidates.filter { candidate ->
+            candidate.tagName().equals("article", ignoreCase = true) &&
+                (main == null || candidate.parents().contains(main))
+        }
+        val best = articleCandidates.maxByOrNull { it.readabilityScore() }
+            ?: main
+            ?: candidates.maxByOrNull { it.readabilityScore() }
+            ?: body()
         val extracted = best.extractBlockText()
         if (extracted.length >= MIN_ARTICLE_CHARS) return extracted
 
@@ -210,6 +211,11 @@ class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
             .takeIf { it.length >= MIN_ARTICLE_CHARS }
             ?: body().text().normalizeText()
     }
+
+    private fun Element.isRelatedContent(): Boolean =
+        (sequenceOf(this) + parents().asSequence()).any { element ->
+            element.classNames().any { name -> RELATED_CONTENT_CLASS.containsMatchIn(name) }
+        }
 
     private fun Element.readabilityScore(): Int {
         val paragraphs = select("p")
@@ -226,7 +232,6 @@ class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
                 .asSequence()
                 .map { it.normalizeText() }
                 .filter { it.isNotBlank() }
-                .filterNot { text -> text.looksLikeBoilerplate() }
                 .toList()
 
         return blocks.joinToString("\n\n")
@@ -293,11 +298,6 @@ class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
         }
     }
 
-    private fun String.looksLikeBoilerplate(): Boolean {
-        val normalized = lowercase(Locale.ROOT)
-        return BOILERPLATE_MARKERS.any { marker -> normalized.contains(marker) }
-    }
-
     private fun String.escapeHtml(): String =
         replace("&", "&amp;")
             .replace("<", "&lt;")
@@ -316,7 +316,6 @@ class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
         private const val MAX_BODY_SIZE_BYTES = 2 * 1024 * 1024
         private const val MIN_ARTICLE_CHARS = 120
         private const val MAX_FALLBACK_URLS = 2
-        private const val MAX_PRIORITY_CANDIDATES = 4
         private const val MAX_CANDIDATES = 14
         private const val PARAGRAPH_SCORE = 80
         private const val HEADING_SCORE = 120
@@ -330,19 +329,9 @@ class WebArticleExtractor(private val dispatcherProvider: DispatcherProvider) {
         private const val CANDIDATE_SELECTOR =
             "article, main, [role=main], [class*=article], [class*=post], " +
                 "[class*=entry-content], [class*=story], [class*=content], body"
-        private const val PRIORITY_CANDIDATE_SELECTOR =
-            "article, main, [role=main], [class*=article], [class*=entry-content], [class*=story]"
+        private const val MAIN_CANDIDATE_SELECTOR = "main, [role=main]"
+        private val RELATED_CONTENT_CLASS = Regex("(?:^|[-_])(related|recommended|recommendations)(?:$|[-_])", RegexOption.IGNORE_CASE)
         private const val BLOCK_SELECTOR = "h1, h2, h3, p, li, blockquote, pre"
-        private val BOILERPLATE_MARKERS =
-            listOf(
-                "accept cookies",
-                "cookie settings",
-                "privacy policy",
-                "all rights reserved",
-                "subscribe to",
-                "sign up for",
-                "advertisement",
-            )
         private val REQUEST_PROFILES =
             listOf(
                 RequestProfile(
