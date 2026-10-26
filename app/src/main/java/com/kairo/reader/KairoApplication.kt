@@ -97,6 +97,8 @@ class KairoApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        val seedPreferences = getSharedPreferences("sample_seed", MODE_PRIVATE)
+        SampleSeeder.prepare(seedPreferences, getDatabasePath("kairo.db").exists())
         focusDndController = FocusDndController(AndroidFocusDndBackend(this))
         focusDndController.recover()
         database =
@@ -193,7 +195,7 @@ class KairoApplication : Application() {
                 appContext = applicationContext,
                 dispatcherProvider = dispatcherProvider,
             )
-        sampleSeeder = SampleSeeder(database.bookDao())
+        sampleSeeder = SampleSeeder(database.bookDao(), seedPreferences)
 
         applicationScope.launch { sampleSeeder.seedIfEmpty() }
     }
