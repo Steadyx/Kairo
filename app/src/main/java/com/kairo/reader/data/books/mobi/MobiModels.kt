@@ -12,11 +12,8 @@ internal object MobiLimits {
     const val MAX_COVER_IMAGE_ENTRY_SIZE = 6 * 1024 * 1024
     const val MAX_TOTAL_IMAGE_SIZE = 25 * 1024 * 1024
     const val MAX_FALLBACK_TEXT_CHARS = 250_000
-    const val MAX_CHAPTER_WORDS = 3500
-    const val MAX_CHAPTER_TEXT_CHARS = MAX_CHAPTER_WORDS * 7
     const val MAX_FILEPOS_CHAPTERS = 400
     const val MIN_FILEPOS_GAP_CHARS = 1200
-    const val TOC_ANCHOR_THRESHOLD = 12
     const val MAX_TOC_TEXT_CHARS = 200_000
     const val COVER_FALLBACK_IMAGE_SCAN = 12
     const val COVER_HTML_SCAN_CHARS = 120_000

@@ -1,11 +1,11 @@
 package com.kairo.reader.data.books.mobi
 
 import com.kairo.reader.core.model.Chapter
+import com.kairo.reader.core.model.MAX_READER_CHAPTER_LOCAL_IMAGE_CANDIDATES
 
 internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
     private companion object {
         const val INITIAL_COVER_CANDIDATE_CAPACITY = 8
-        const val MAX_COVER_CANDIDATES = 6
         const val MAX_FALLBACK_CHAPTER_WORDS = 2000
         const val BYTE_MASK = 0xFF
         const val ASCII_TAB = 0x09
@@ -101,8 +101,7 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
                 )
             }
 
-        val rewritten = rewriteInternalLinks(chapters, slices)
-        return splitLargeChapters(rewritten, fallbackTitle)
+        return rewriteInternalLinks(chapters, slices)
     }
 
     fun extractPlainText(html: String): String {
@@ -128,7 +127,7 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
             )
         val unique = LinkedHashSet<String>(INITIAL_COVER_CANDIDATE_CAPACITY)
         regex.findAll(html).forEach { match ->
-            if (unique.size >= MAX_COVER_CANDIDATES) return@forEach
+            if (unique.size >= MAX_READER_CHAPTER_LOCAL_IMAGE_CANDIDATES) return@forEach
             val src = match.groupValues[1].trim()
             if (src.isBlank()) return@forEach
             if (src.startsWith("data:", true)) return@forEach
@@ -136,6 +135,29 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
             unique.add(src)
         }
         return unique.toList()
+    }
+
+    fun requireDisplayableImages(html: String) {
+        val cleaned = html
+            .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
+        val tags = listOf(
+            Regex("<img\\b[^>]+?src\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>", RegexOption.IGNORE_CASE),
+            Regex("<image\\b[^>]*?\\b(?:xlink:href|href)\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"][^>]*>", RegexOption.IGNORE_CASE),
+        )
+        var count = 0
+        for (regex in tags) {
+            for (match in regex.findAll(cleaned)) {
+                val src = match.groupValues[1].trim()
+                if (src.startsWith("data:", true) || src.startsWith("http:", true) || src.startsWith("https:", true)) {
+                    continue
+                }
+                count++
+                require(count <= MAX_READER_CHAPTER_LOCAL_IMAGE_CANDIDATES) {
+                    "This MOBI chapter contains too many images to display."
+                }
+            }
+        }
     }
 
     fun extractCoverImageRecindices(html: String): Set<Int> {
@@ -222,22 +244,35 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
     }
 
     fun splitFallbackText(text: String): List<Chapter> {
-        val chapterPattern = Regex("(?i)(chapter|part|section|book)\\s*\\d+", RegexOption.MULTILINE)
+        val chapterPattern = Regex("(?im)^[ \\t]*(chapter|part|section|book)[ \\t]+\\d+[ \\t]*$")
         val matches = chapterPattern.findAll(text).toList()
         val chapters =
             if (matches.size >= 2) {
-                val indices = matches.map { it.range.first } + text.length
-                indices.zipWithNext()
-                    .mapIndexed { index, (start, end) ->
-                        val content = text.substring(start, end).trim()
-                        val title = matches.getOrNull(index)?.value ?: "Chapter ${index + 1}"
-                        Chapter(
-                            index = index,
-                            title = title,
-                            htmlContent = "<p>${content.replace("\n", "</p><p>")}</p>",
-                            plainText = content,
+                val starts = matches.map { it.range.first }
+                val prefix = text.substring(0, starts.first()).trim()
+                val boundaries = starts + text.length
+                val parts =
+                    boundaries
+                        .zipWithNext()
+                        .mapIndexed { index, (start, end) ->
+                            val content = text.substring(start, end).trim()
+                            val title = matches[index].value.trim()
+                            Chapter(
+                                index = index,
+                                title = title,
+                                htmlContent = fallbackHtml(content),
+                                plainText = content,
+                            )
+                        }.filter { it.plainText.hasReaderContent() }
+                val introductory =
+                    if (prefix.hasReaderContent()) {
+                        listOf(
+                            Chapter(index = 0, title = "Content", htmlContent = fallbackHtml(prefix), plainText = prefix),
                         )
-                    }.filter { it.plainText.hasReaderContent() }
+                    } else {
+                        emptyList()
+                    }
+                (introductory + parts).mapIndexed { index, chapter -> chapter.copy(index = index) }
             } else {
                 val paragraphs = text.split(Regex("\n\\s*\n")).filter(String::isNotBlank)
                 val chunks = mutableListOf<List<String>>()
@@ -261,7 +296,7 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
                     Chapter(
                         index = index,
                         title = "Chapter ${index + 1}",
-                        htmlContent = "<p>${content.replace("\n\n", "</p><p>")}</p>",
+                        htmlContent = fallbackHtml(content),
                         plainText = content,
                     )
                 }
@@ -272,7 +307,7 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
                 Chapter(
                     index = 0,
                     title = "Content",
-                    htmlContent = "<p>$text</p>",
+                    htmlContent = fallbackHtml(text),
                     plainText = text,
                 ),
             )
@@ -339,6 +374,11 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
         val matches = headingRegex.findAll(html).toList()
         if (matches.size >= 2) {
             val slices = mutableListOf<MobiChapterSlice>()
+            val prefixEnd = matches.first().range.first
+            val prefix = html.substring(0, prefixEnd).replace(Regex("(?is)<head\\b[^>]*>.*?</head>"), "")
+            if (extractPlainText(prefix).hasReaderContent() || prefix.contains("<img", ignoreCase = true)) {
+                slices.add(MobiChapterSlice(start = 0, end = prefixEnd, title = fallbackTitle, htmlContent = prefix))
+            }
             val indices = matches.map { it.range.first } + html.length
             indices.zipWithNext().forEachIndexed { index, (start, end) ->
                 val segment = html.substring(start, end).trim()
@@ -354,7 +394,7 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
                         title = title,
                     )
                 val plain = extractPlainText(cleaned)
-                if (!plain.hasReaderContent()) return@forEachIndexed
+                if (!plain.hasReaderContent() && !cleaned.contains("<img", ignoreCase = true)) return@forEachIndexed
                 slices.add(
                     MobiChapterSlice(
                         start = start,
@@ -546,39 +586,6 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
         }?.value
     }
 
-    private fun splitLargeChapters(
-        chapters: List<Chapter>,
-        fallbackTitle: String,
-    ): List<Chapter> {
-        if (chapters.isEmpty()) return chapters
-        val expanded = mutableListOf<Chapter>()
-        chapters.forEach { chapter ->
-            val isTocLike = countAnchorTags(chapter.htmlContent, MobiLimits.TOC_ANCHOR_THRESHOLD) >=
-                MobiLimits.TOC_ANCHOR_THRESHOLD
-            if (chapter.plainText.length <= MobiLimits.MAX_CHAPTER_TEXT_CHARS || isTocLike) {
-                expanded.add(chapter.copy(index = expanded.size))
-                return@forEach
-            }
-            val parts = splitFallbackText(chapter.plainText)
-            if (parts.size <= 1) {
-                expanded.add(chapter.copy(index = expanded.size))
-                return@forEach
-            }
-            val baseTitle = chapter.title?.takeIf(String::isNotBlank) ?: fallbackTitle
-            parts.forEachIndexed { partIndex, part ->
-                val title = if (parts.size > 1) "$baseTitle (${partIndex + 1})" else baseTitle
-                expanded.add(
-                    part.copy(
-                        index = expanded.size,
-                        title = title,
-                        imagePaths = if (partIndex == 0) chapter.imagePaths else emptyList(),
-                    ),
-                )
-            }
-        }
-        return expanded
-    }
-
     private fun extractRecindexFromImgTag(tag: String): Int? {
         MobiHtmlUtils.extractAttribute(tag, "recindex")?.toIntOrNull()?.let { return it }
         val src = MobiHtmlUtils.extractAttribute(tag, "src") ?: return null
@@ -637,21 +644,6 @@ internal class MobiContentProcessor(private val checkActive: () -> Unit = {}) {
         return ids.toList()
     }
 
-    private fun countAnchorTags(
-        html: String,
-        limit: Int,
-    ): Int {
-        var count = 0
-        var index = 0
-        while (true) {
-            val found = html.indexOf("<a", index, ignoreCase = true)
-            if (found == -1) return count
-            count += 1
-            if (count >= limit) return count
-            index = found + 2
-        }
-    }
-
     // Kept as class delegates because parser diagnostics/tests treat these as processor operations.
     private fun cleanMobiHtml(html: String): String = cleanMobiHtmlContent(html)
 
@@ -697,6 +689,9 @@ private fun wrapPlainTextAsHtml(text: String): String {
         it.replace("\n", " ")
     }
 }
+
+private fun fallbackHtml(text: String): String =
+    "<p>${text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "</p><p>")}</p>"
 
 private fun breakLongRuns(
     text: String,

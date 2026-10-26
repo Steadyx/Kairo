@@ -120,6 +120,7 @@ internal class MobiParserEngine(
         val chapters = contentProcessor.splitHtmlIntoChapters(textHtml, title)
         if (chapters.isEmpty()) {
             val rewrittenHtml = rewriteImages(textHtml, imageExtraction, recindexBase)
+            contentProcessor.requireDisplayableImages(rewrittenHtml)
             val plain = contentProcessor.extractPlainText(rewrittenHtml)
             return listOf(
                 Chapter(
@@ -133,6 +134,7 @@ internal class MobiParserEngine(
         }
         return chapters.map { chapter ->
             val rewrittenHtml = rewriteImages(chapter.htmlContent, imageExtraction, recindexBase)
+            contentProcessor.requireDisplayableImages(rewrittenHtml)
             chapter.copy(
                 htmlContent = rewrittenHtml,
                 imagePaths = contentProcessor.extractImagePathsFromHtml(rewrittenHtml),
