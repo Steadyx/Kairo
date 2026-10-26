@@ -23,6 +23,7 @@ import com.kairo.reader.core.export.NoteExportFormat
 import com.kairo.reader.core.export.NoteExportResolutionException
 import com.kairo.reader.core.export.NoteExportResolutionFailure
 import com.kairo.reader.core.export.NoteExportScope
+import com.kairo.reader.data.export.NoteExportDestinationNotEmptyException
 import com.kairo.reader.data.export.NoteExporter
 import com.kairo.reader.data.export.PreparedNoteExport
 import kotlinx.coroutines.CancellationException
@@ -281,12 +282,16 @@ internal class NoteExportCoordinatorViewModel(
         clearPendingDescriptor()
         _state.value = NoteExportUiState()
         val message =
-            when ((failure as? NoteExportResolutionException)?.failure) {
-                NoteExportResolutionFailure.NO_NOTES -> R.string.note_export_no_notes
-                NoteExportResolutionFailure.STALE_SINGLE,
-                NoteExportResolutionFailure.WRONG_KIND,
-                -> R.string.note_export_note_unavailable
-                null -> R.string.note_export_failed
+            if (failure is NoteExportDestinationNotEmptyException) {
+                R.string.note_export_destination_not_empty
+            } else {
+                when ((failure as? NoteExportResolutionException)?.failure) {
+                    NoteExportResolutionFailure.NO_NOTES -> R.string.note_export_no_notes
+                    NoteExportResolutionFailure.STALE_SINGLE,
+                    NoteExportResolutionFailure.WRONG_KIND,
+                    -> R.string.note_export_note_unavailable
+                    null -> R.string.note_export_failed
+                }
             }
         emitFailureMessage(message)
     }

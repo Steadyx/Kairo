@@ -57,6 +57,8 @@ internal fun interface NoteExportDestinationWriter {
     )
 }
 
+internal class NoteExportDestinationNotEmptyException : IllegalArgumentException()
+
 internal class NoteExportService(
     context: Context,
     private val annotationRepository: SavedAnnotationRepository,
@@ -74,6 +76,13 @@ internal class NoteExportService(
     private val destinationWriter =
         destinationWriter ?: NoteExportDestinationWriter { source, destination ->
             FileInputStream(source).use { input ->
+                currentCoroutineContext().ensureActive()
+                val existing =
+                    appContext.contentResolver.openInputStream(destination)
+                        ?: error("The document destination could not be checked")
+                existing.use {
+                    if (it.read() != -1) throw NoteExportDestinationNotEmptyException()
+                }
                 currentCoroutineContext().ensureActive()
                 val output =
                     appContext.contentResolver.openOutputStream(destination, WRITE_MODE)
