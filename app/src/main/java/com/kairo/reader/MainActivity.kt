@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.core.content.IntentCompat
 import com.kairo.reader.core.model.ReaderTheme
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.data.books.SharedTextImport
@@ -193,11 +194,12 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-private fun Intent.bookImportUri(): Uri? =
-    if (action == Intent.ACTION_VIEW) {
-        data
-    } else {
-        null
+internal fun Intent.bookImportUri(): Uri? =
+    when {
+        action == Intent.ACTION_VIEW -> data
+        action == Intent.ACTION_SEND && type?.startsWith("text/", ignoreCase = true) == true ->
+            IntentCompat.getParcelableExtra(this, Intent.EXTRA_STREAM, Uri::class.java)
+        else -> null
     }
 
 private sealed interface SharedImport {

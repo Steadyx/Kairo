@@ -77,11 +77,11 @@ internal class PlayInAppUpdateCoordinator(activity: Activity, private val onProm
                     )
                 publishPrompt(prompt)
                 onResult?.invoke(
-                    if (prompt == null) {
-                        InAppUpdateCheckResult.UP_TO_DATE
-                    } else {
-                        InAppUpdateCheckResult.AVAILABLE
-                    }
+                    selectInAppUpdateCheckResult(
+                        prompt = prompt,
+                        updateNotAvailable =
+                        updateInfo.updateAvailability() == UpdateAvailability.UPDATE_NOT_AVAILABLE,
+                    )
                 )
             }.addOnFailureListener {
                 onResult?.invoke(InAppUpdateCheckResult.FAILED)

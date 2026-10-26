@@ -43,6 +43,7 @@ internal fun KairoNavHost(
         )
     val upToDateMessage = stringResource(R.string.update_check_up_to_date)
     val updateCheckFailedMessage = stringResource(R.string.update_check_failed)
+    val updateUnavailableMessage = stringResource(R.string.update_check_unavailable)
 
     val importCoordinator =
         rememberImportCoordinator(
@@ -139,6 +140,9 @@ internal fun KairoNavHost(
                                     InAppUpdateCheckResult.AVAILABLE -> Unit
                                     InAppUpdateCheckResult.UP_TO_DATE -> {
                                         messageController.show(upToDateMessage)
+                                    }
+                                    InAppUpdateCheckResult.UNAVAILABLE -> {
+                                        messageController.show(updateUnavailableMessage)
                                     }
                                     InAppUpdateCheckResult.FAILED -> {
                                         messageController.show(updateCheckFailedMessage)
