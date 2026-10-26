@@ -49,6 +49,7 @@ import com.kairo.reader.R
 import com.kairo.reader.core.model.RsvpConfigConstraints
 import com.kairo.reader.core.model.TimedReadingMode
 import com.kairo.reader.core.model.Token
+import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.model.nearestWordIndex
 import kotlinx.coroutines.launch
 
@@ -162,12 +163,7 @@ internal fun ReaderTimedReadingLauncher(
                             val effectiveDirection =
                                 if (currentInvertedScroll) -rawDirection else rawDirection
                             val next =
-                                latestTokens.nearestWordIndex(
-                                    (gestureFocusIndex + effectiveDirection).coerceIn(
-                                        0,
-                                        latestTokens.lastIndex,
-                                    ),
-                                )
+                                latestTokens.moveFocusByWords(gestureFocusIndex, effectiveDirection)
                             gestureFocusIndex = next
                             currentOnFocusChange(next)
                             dragAccumulator -= steps * thresholdPx
@@ -315,6 +311,20 @@ internal fun ReaderTimedReadingLauncher(
             }
         }
     }
+}
+
+internal fun List<Token>.moveFocusByWords(fromIndex: Int, steps: Int): Int {
+    if (isEmpty()) return 0
+    var current = nearestWordIndex(fromIndex)
+    val direction = steps.compareTo(0)
+    val count = kotlin.math.abs(steps.toLong()).coerceAtMost(size.toLong()).toInt()
+    repeat(count) {
+        var next = current + direction
+        while (next in indices && this[next].type != TokenType.WORD) next += direction
+        if (next !in indices) return current
+        current = next
+    }
+    return current
 }
 
 @Composable
