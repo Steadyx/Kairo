@@ -208,8 +208,11 @@ internal fun ReaderNoteDialog(
 
 @Composable
 internal fun ReaderSearchMatchBar(
-    currentIndex: Int,
-    total: Int,
+    currentIndex: Long,
+    total: Long,
+    hasMore: Boolean,
+    previousEnabled: Boolean,
+    nextEnabled: Boolean,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onClose: () -> Unit,
@@ -224,7 +227,7 @@ internal fun ReaderSearchMatchBar(
         shadowElevation = 6.dp,
     ) {
         Row(modifier = Modifier.padding(horizontal = 8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            IconButton(onClick = onPrevious) {
+            IconButton(onClick = onPrevious, enabled = previousEnabled) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.content_desc_previous_search_match),
@@ -232,11 +235,15 @@ internal fun ReaderSearchMatchBar(
             }
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = stringResource(R.string.reader_search_match_count, currentIndex + 1, total),
+                text = if (hasMore) {
+                    stringResource(R.string.reader_search_match_count_more, currentIndex + 1)
+                } else {
+                    stringResource(R.string.reader_search_match_count, currentIndex + 1, total)
+                },
                 style = MaterialTheme.typography.labelLarge,
             )
             Spacer(modifier = Modifier.width(4.dp))
-            IconButton(onClick = onNext) {
+            IconButton(onClick = onNext, enabled = nextEnabled) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = stringResource(R.string.content_desc_next_search_match),

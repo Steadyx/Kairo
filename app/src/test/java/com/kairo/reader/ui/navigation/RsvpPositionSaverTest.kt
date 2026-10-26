@@ -1,7 +1,9 @@
 package com.kairo.reader.ui.navigation
 
+import androidx.lifecycle.SavedStateHandle
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.ReadingPosition
+import com.kairo.reader.ui.rsvp.RsvpResumePoint
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,6 +19,23 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RsvpPositionSaverTest {
+    @Test
+    fun pendingCompletionSurvivesSavedStateRestoration() {
+        val state = SavedStateHandle()
+        assertFalse(state.hasPendingRsvpCompletion())
+        state.setPendingRsvpCompletion(RsvpResumePoint(tokenIndex = 44, chapterIndex = 2, tempoMsPerWord = 150))
+        val restored = SavedStateHandle(state.keys().associateWith { key -> state.get<Any>(key) })
+        assertTrue(restored.hasPendingRsvpCompletion())
+        assertEquals(RsvpResumePoint(tokenIndex = 44, chapterIndex = 2, tempoMsPerWord = 150), restored.pendingRsvpCompletion(2))
+    }
+
+    @Test
+    fun auxiliaryTimedReadingDoesNotReplaceLinearProgress() {
+        assertFalse(shouldPersistTimedChapter(0, null))
+        assertTrue(shouldPersistTimedChapter(2, listOf(0, 2)))
+        assertFalse(shouldPersistTimedChapter(3, listOf(0, 2)))
+    }
+
     @Test
     fun finalSaveWaitsForOlderWritesBeforeDestinationIsDestroyed() = runTest {
         val destinationScope = CoroutineScope(coroutineContext + Job(coroutineContext[Job]))

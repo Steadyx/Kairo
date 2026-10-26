@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavHostController
 import com.kairo.reader.KairoApplication
+import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.LibrarySearchResult
 import com.kairo.reader.core.model.LibrarySearchResultKind
@@ -125,7 +126,8 @@ internal fun LibraryRoute(input: LibraryRouteInput) =
         fun openSearchResult(result: LibrarySearchResult) {
             if (
                 result.kind != LibrarySearchResultKind.BOOK &&
-                result.matchStartCodePointOffset == null
+                result.matchStartCodePointOffset == null &&
+                isLinearLibraryTarget(books, result.bookId, result.chapterIndex)
             ) {
                 coroutineScope.launch(dispatcherProvider.io) {
                     container.readingPositionRepository.savePosition(
@@ -166,10 +168,12 @@ internal fun LibraryRoute(input: LibraryRouteInput) =
                 navController.navigate(KairoRoutes.reader(book.id.value))
             },
             onOpenBookmark = { bookId, chapterIndex, tokenIndex ->
-                coroutineScope.launch(dispatcherProvider.io) {
-                    container.readingPositionRepository.savePosition(
-                        ReadingPosition(BookId(bookId), chapterIndex, tokenIndex),
-                    )
+                if (isLinearLibraryTarget(books, BookId(bookId), chapterIndex)) {
+                    coroutineScope.launch(dispatcherProvider.io) {
+                        container.readingPositionRepository.savePosition(
+                            ReadingPosition(BookId(bookId), chapterIndex, tokenIndex),
+                        )
+                    }
                 }
                 navController.navigate(KairoRoutes.reader(bookId, chapterIndex, tokenIndex))
             },
@@ -196,6 +200,7 @@ internal fun LibraryRoute(input: LibraryRouteInput) =
                 }
             },
             onSearchQuery = searchController::search,
+            onSearchPageChange = searchController::changePage,
             onRetrySearch = searchController::retry,
             onOpenSearchResult = ::openSearchResult,
             onWeeklyGoalChange = { minutes ->
@@ -236,3 +241,9 @@ internal fun LibraryRoute(input: LibraryRouteInput) =
             onSave = noteExportUi.save,
         )
     }
+
+internal fun isLinearLibraryTarget(books: List<Book>, bookId: BookId, chapterIndex: Int): Boolean =
+    books.firstOrNull { it.id == bookId }
+        ?.chapters
+        ?.firstOrNull { it.index == chapterIndex }
+        ?.isLinear == true

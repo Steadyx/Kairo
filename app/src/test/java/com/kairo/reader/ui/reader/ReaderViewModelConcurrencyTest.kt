@@ -50,6 +50,20 @@ class ReaderViewModelConcurrencyTest {
     @Test
     fun nextRequestClearsPreviousLastPageForUncachedDestination() = assertNextClearsPreviousPage(cached = false)
 
+    @Test
+    fun loadBookRestoresImagePageIndex() = runTest(testDispatcher) {
+        val chapters = listOf(imageChapter(0, "kairo_epub_assets/book/images/a.png"))
+        val book = Book(BookId("book"), "Book", emptyList(), chapters = chapters)
+        val provider = object : DispatcherProvider {
+            override val default = testDispatcher
+            override val io = testDispatcher
+        }
+        val viewModel = ReaderViewModel(FakeBookRepository(book, chapters), FakeTokenRepository(), provider)
+        viewModel.loadBook(book, initialPageIndex = 2)
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.pageIndexOverride)
+    }
+
     private fun assertNextClearsPreviousPage(cached: Boolean) = runTest(testDispatcher) {
         val chapters = List(4) { textChapter(it, "Chapter $it") }
         val book = Book(BookId("navigation"), "Book", emptyList(), chapters = chapters)

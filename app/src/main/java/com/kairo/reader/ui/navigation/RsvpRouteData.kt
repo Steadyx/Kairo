@@ -20,6 +20,7 @@ internal data class RsvpRouteData(
     val tokensResolved: Boolean,
     val languageResolved: Boolean,
     val metadataResolved: Boolean = false,
+    val linearChapterIndices: List<Int>? = null,
 ) {
     val isReady: Boolean get() = tokensResolved && languageResolved && metadataResolved
 }
@@ -69,11 +70,11 @@ internal fun rememberRsvpRouteData(
                 } else {
                     null
                 }
-            val chapterCountDeferred =
+            val chaptersDeferred =
                 async {
                     runCatching {
-                        container.bookRepository.getBook(bookIdValue).chapters.size
-                    }.getOrDefault(chapterIndex + 1)
+                        container.bookRepository.getBook(bookIdValue).chapters
+                    }.getOrNull()
                 }
             val savedResumePositionDeferred =
                 async {
@@ -98,9 +99,11 @@ internal fun rememberRsvpRouteData(
                 value = value.withResolvedContent(loadedTokens, loadedLanguageTag)
             }
 
+            val chapters = chaptersDeferred.await()
             value =
                 value.copy(
-                    chapterCount = chapterCountDeferred.await(),
+                    chapterCount = chapters?.size ?: (chapterIndex + 1),
+                    linearChapterIndices = chapters?.filter { it.isLinear }?.map { it.index },
                     savedResumePosition = savedResumePositionDeferred.await(),
                     metadataResolved = true,
                 )

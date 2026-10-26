@@ -178,9 +178,10 @@ internal fun ParagraphText(
                         ).firstOrNull()
                         val chapterSelected = currentActions.onChapterSelected
                         if (linkHit != null && chapterSelected != null) {
-                            val chapterIndex = linkHit.item.toIntOrNull()
+                            val chapterIndex = linkHit.item.substringBefore(':').toIntOrNull()
+                            val characterOffset = linkHit.item.substringAfter(':', "").toIntOrNull()
                             if (chapterIndex != null) {
-                                chapterSelected(chapterIndex)
+                                chapterSelected(chapterIndex, characterOffset)
                                 return@detectTapGestures
                             }
                         }
@@ -316,7 +317,7 @@ internal data class ParagraphTextState(
 internal data class ParagraphTextActions(
     val onFocusChange: (Int) -> Unit,
     val onStartTimedReading: (Int) -> Unit,
-    val onChapterSelected: ((Int) -> Unit)? = null,
+    val onChapterSelected: ((Int, Int?) -> Unit)? = null,
     val onSelectionStart: (Int) -> Unit = {},
     val onSelectionExtend: (Int) -> Unit = {},
     val onSelectionCancel: () -> Unit = {},

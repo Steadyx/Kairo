@@ -29,6 +29,8 @@ internal data class ReaderProgressInput(
     val bookWordCounts: List<Int>,
     val chapterIndex: Int,
     val chapterCount: Int,
+    val isLinearChapter: Boolean = true,
+    val auxiliaryReturn: ReaderReturnPosition? = null,
 )
 
 @Composable
@@ -68,20 +70,20 @@ internal fun rememberReaderProgressState(
             (input.totalChapterWords - chapterProgress.currentWord).coerceAtLeast(0)
         }
     val adjustedBookWordCounts =
-        remember(input.bookWordCounts, input.chapterIndex, input.totalChapterWords, input.chapterCount) {
+        remember(input.bookWordCounts, input.chapterIndex, input.totalChapterWords, input.chapterCount, input.isLinearChapter) {
             adjustedBookWordCounts(input)
         }
     val wordsBeforeChapter =
-        remember(adjustedBookWordCounts, input.chapterIndex) {
-            adjustedBookWordCounts.take(input.chapterIndex).sum()
+        remember(adjustedBookWordCounts, input.chapterIndex, input.auxiliaryReturn) {
+            adjustedBookWordCounts.take(input.auxiliaryReturn?.chapterIndex ?: input.chapterIndex).sum()
         }
     val totalBookWords =
         remember(adjustedBookWordCounts) {
             adjustedBookWordCounts.sum()
         }
     val wordsReadOverall =
-        remember(wordsBeforeChapter, chapterProgress.currentWord) {
-            wordsBeforeChapter + chapterProgress.currentWord
+        remember(wordsBeforeChapter, chapterProgress.currentWord, input.isLinearChapter, input.auxiliaryReturn) {
+            wordsBeforeChapter + if (input.isLinearChapter) chapterProgress.currentWord else (input.auxiliaryReturn?.wordIndex ?: 0)
         }
     val remainingBookWords =
         remember(totalBookWords, wordsReadOverall) {
@@ -131,7 +133,7 @@ private fun adjustedBookWordCounts(input: ReaderProgressInput): List<Int> {
         } else {
             input.bookWordCounts.toMutableList()
         }
-    if (input.chapterIndex in counts.indices && input.totalChapterWords > 0) {
+    if (input.isLinearChapter && input.chapterIndex in counts.indices && input.totalChapterWords > 0) {
         counts[input.chapterIndex] = input.totalChapterWords
     }
     return counts

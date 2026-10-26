@@ -92,4 +92,6 @@ internal object KairoSavedStateKeys {
     const val RSVP_PLAYBACK_IS_PLAYING = "rsvp_playback_is_playing"
     const val RSVP_CURRENT_TOKEN_INDEX = "rsvp_current_token_index"
     const val RSVP_CURRENT_RESUME_CURSOR = "rsvp_current_resume_cursor"
+    const val RSVP_PENDING_FINISH_INDEX = "rsvp_pending_finish_index"
+    const val RSVP_PENDING_FINISH_TEMPO_MS = "rsvp_pending_finish_tempo_ms"
 }

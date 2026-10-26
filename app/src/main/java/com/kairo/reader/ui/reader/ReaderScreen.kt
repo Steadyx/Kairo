@@ -131,6 +131,7 @@ fun ReaderScreen(
     bookSearchState: LibrarySearchState = LibrarySearchState.Idle,
     onSearchBook: (String) -> Unit = {},
     onRetryBookSearch: () -> Unit = {},
+    onBookSearchPageChange: (Int) -> Unit = {},
     onSearchResultSelected: (LibrarySearchResult) -> Unit = {},
     onSaveAnnotation: (SaveAnnotationRequest) -> Unit = {},
     tutorialState: StartingTutorialOverlayState? = null,
@@ -225,6 +226,8 @@ fun ReaderScreen(
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var searchInitialQuery by rememberSaveable { mutableStateOf("") }
     var activeSearchResultId by rememberSaveable { mutableStateOf<String?>(null) }
+    var lastCompletedSearch by remember { mutableStateOf<LibrarySearchState.Success?>(null) }
+    var pendingSearchPage by remember { mutableStateOf<PendingReaderSearchPage?>(null) }
     var selectionAnchor by rememberSaveable(chapterIndex) { mutableStateOf<Int?>(null) }
     var selectionEnd by rememberSaveable(chapterIndex) { mutableStateOf<Int?>(null) }
     var showNoteDialog by rememberSaveable { mutableStateOf(false) }
@@ -239,7 +242,36 @@ fun ReaderScreen(
             buildReaderSelectionText(renderState.tokens, selectionRange)
         }
     val selectionLimitState = readerSelectionLimitState(selectedText, selectionRange)
-    val bookSearchResults = (bookSearchState as? LibrarySearchState.Success)?.results.orEmpty()
+    LaunchedEffect(bookSearchState, pendingSearchPage) {
+        val completed = (bookSearchState as? LibrarySearchState.Success)?.takeUnless { it.isSearching }
+        if (completed != null) {
+            lastCompletedSearch = completed
+            val pending = pendingSearchPage
+            if (pending != null && completed.query != pending.query) {
+                pendingSearchPage = null
+            } else if (pending != null && completed.resultPage == pending.target.page) {
+                val result = if (pending.target.index < 0) {
+                    completed.results.lastOrNull()
+                } else {
+                    completed.results.getOrNull(pending.target.index)
+                }
+                pendingSearchPage = null
+                if (result != null) {
+                    activeSearchResultId = result.id
+                    onSearchResultSelected(result)
+                }
+            }
+        } else if (bookSearchState is LibrarySearchState.Error) {
+            pendingSearchPage = null
+        }
+    }
+    val visibleSearchState =
+        if (pendingSearchPage != null || bookSearchState is LibrarySearchState.Error) {
+            lastCompletedSearch
+        } else {
+            bookSearchState as? LibrarySearchState.Success
+        }
+    val bookSearchResults = visibleSearchState?.results.orEmpty()
     val activeSearchResult = activeSearchResultId?.let { id -> bookSearchResults.firstOrNull { it.id == id } }
     val searchMatchRange =
         remember(activeSearchResult, chapterIndex, uiState.chapterData) {
@@ -271,7 +303,10 @@ fun ReaderScreen(
                 selectionAnchor = null
                 selectionEnd = null
             }
-            ReaderBackTarget.SEARCH_MATCH -> activeSearchResultId = null
+            ReaderBackTarget.SEARCH_MATCH -> {
+                activeSearchResultId = null
+                pendingSearchPage = null
+            }
             ReaderBackTarget.FULL_SCREEN_IMAGE -> fullScreenImagePath = null
             ReaderBackTarget.NONE -> Unit
         }
@@ -319,6 +354,8 @@ fun ReaderScreen(
                 bookWordCounts = uiState.bookWordCounts,
                 chapterIndex = chapterIndex,
                 chapterCount = book.chapters.size,
+                isLinearChapter = book.chapters.getOrNull(chapterIndex)?.isLinear != false,
+                auxiliaryReturn = uiState.auxiliaryReturn,
             ),
         )
     val navigationState =
@@ -328,6 +365,8 @@ fun ReaderScreen(
             resolvedPageIndex = renderState.resolvedPageIndex,
             chapterIndex = chapterIndex,
             lastChapterIndex = book.chapters.lastIndex,
+            linearChapterIndices = book.chapters.filter { it.isLinear }.map { it.index },
+            auxiliaryReturn = uiState.auxiliaryReturn,
             onPageChange = { page -> onPageChange(page.index, page.focusTokenIndex) },
             onChapterChange = onChapterChange,
         )
@@ -491,15 +530,16 @@ fun ReaderScreen(
                             selectionAnchor = tokenIndex
                             selectionEnd = tokenIndex
                             activeSearchResultId = null
+                            pendingSearchPage = null
                         },
                         onSelectionExtend = { tokenIndex -> selectionEnd = tokenIndex },
                         onSelectionCancel = {
                             selectionAnchor = null
                             selectionEnd = null
                         },
-                        onChapterSelected = { index ->
+                        onChapterSelected = { index, characterOffset ->
                             onTableOfContentsTargetSelected(
-                                TableOfContentsTarget(chapterIndex = index)
+                                TableOfContentsTarget(chapterIndex = index, characterOffset = characterOffset ?: 0)
                             )
                         },
                     ),
@@ -613,22 +653,34 @@ fun ReaderScreen(
 
         activeSearchResult?.let {
             val activeIndex = bookSearchResults.indexOfFirst { result -> result.id == it.id }.coerceAtLeast(0)
+            val page = visibleSearchState?.resultPage ?: 0
+            val hasMore = visibleSearchState?.hasMoreResults == true
+            val previous = readerSearchPageTarget(activeIndex, bookSearchResults.size, page, hasMore, forward = false)
+            val next = readerSearchPageTarget(activeIndex, bookSearchResults.size, page, hasMore, forward = true)
+            fun moveTo(target: ReaderSearchPageTarget?) {
+                if (target == null || pendingSearchPage != null) return
+                if (target.page == page) {
+                    val result = bookSearchResults[target.index]
+                    activeSearchResultId = result.id
+                    onSearchResultSelected(result)
+                } else {
+                    lastCompletedSearch = visibleSearchState
+                    pendingSearchPage = PendingReaderSearchPage(visibleSearchState?.query.orEmpty(), target)
+                    onBookSearchPageChange(target.page)
+                }
+            }
             ReaderSearchMatchBar(
-                currentIndex = activeIndex,
-                total = bookSearchResults.size,
-                onPrevious = {
-                    val nextIndex = (activeIndex - 1).floorMod(bookSearchResults.size)
-                    val result = bookSearchResults[nextIndex]
-                    activeSearchResultId = result.id
-                    onSearchResultSelected(result)
+                currentIndex = page.toLong() * LibrarySearchConstraints.PASSAGE_RESULTS_PER_PAGE + activeIndex,
+                total = page.toLong() * LibrarySearchConstraints.PASSAGE_RESULTS_PER_PAGE + bookSearchResults.size,
+                hasMore = hasMore,
+                previousEnabled = previous != null && pendingSearchPage == null,
+                nextEnabled = next != null && pendingSearchPage == null,
+                onPrevious = { moveTo(previous) },
+                onNext = { moveTo(next) },
+                onClose = {
+                    activeSearchResultId = null
+                    pendingSearchPage = null
                 },
-                onNext = {
-                    val nextIndex = (activeIndex + 1).floorMod(bookSearchResults.size)
-                    val result = bookSearchResults[nextIndex]
-                    activeSearchResultId = result.id
-                    onSearchResultSelected(result)
-                },
-                onClose = { activeSearchResultId = null },
                 modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
@@ -713,6 +765,7 @@ fun ReaderScreen(
             initialQuery = searchInitialQuery,
             onQuery = onSearchBook,
             onRetry = onRetryBookSearch,
+            onPageChange = onBookSearchPageChange,
             onOpenResult = { result ->
                 activeSearchResultId = result.id
                 selectionAnchor = null
@@ -746,8 +799,6 @@ fun ReaderScreen(
         )
     }
 }
-
-private fun Int.floorMod(modulus: Int): Int = if (modulus <= 0) 0 else Math.floorMod(this, modulus)
 
 internal enum class ReaderBackTarget {
     NOTE,

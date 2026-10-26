@@ -21,6 +21,7 @@ internal data class ReaderSavedBindings(
     val searchState: LibrarySearchState,
     val onSearch: (String) -> Unit,
     val onRetrySearch: () -> Unit,
+    val onSearchPageChange: (Int) -> Unit,
     val onSaveAnnotation: (SaveAnnotationRequest) -> Unit,
 )
 
@@ -46,6 +47,7 @@ internal fun rememberReaderSavedBindings(
         searchState = searchState,
         onSearch = searchController::search,
         onRetrySearch = searchController::retry,
+        onSearchPageChange = searchController::changePage,
         onSaveAnnotation = { request ->
             coroutineScope.launch {
                 val now = System.currentTimeMillis()

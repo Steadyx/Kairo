@@ -6,6 +6,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -71,11 +72,12 @@ class ReaderPositionDeviceTest {
             }
             compose.onNodeWithText("Open regression book").performClick()
             compose.waitUntil(15_000) { nav.currentBackStackEntry?.destination?.route == KairoRoutes.READER }
+            val next = compose.activity.getString(R.string.content_desc_next_page)
+            compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription(next).fetchSemanticsNodes().isNotEmpty() }
             val viewModel = compose.runOnIdle {
                 ViewModelProvider(requireNotNull(nav.currentBackStackEntry))[ReaderViewModel::class.java]
             }
             compose.waitUntil(15_000) { viewModel.uiState.value.chapterData != null }
-            val next = compose.activity.getString(R.string.content_desc_next_page)
             var pageTurns = 0
             while (viewModel.uiState.value.chapterIndex == 0 && pageTurns < 30) {
                 compose.onNodeWithContentDescription(next).performClick()
@@ -96,6 +98,7 @@ class ReaderPositionDeviceTest {
             assertEquals(expected, saved.tokenIndex)
             compose.onNodeWithText("Open regression book").performClick()
             compose.waitUntil(15_000) { nav.currentBackStackEntry?.destination?.route == KairoRoutes.READER }
+            compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription(next).fetchSemanticsNodes().isNotEmpty() }
             val reopened = compose.runOnIdle {
                 ViewModelProvider(requireNotNull(nav.currentBackStackEntry))[ReaderViewModel::class.java]
             }

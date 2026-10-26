@@ -106,13 +106,13 @@ internal fun ChapterListSheet(
     val hasAuthoredTableOfContents = book.tableOfContents.isNotEmpty()
     val entries =
         book.tableOfContents.ifEmpty {
-            book.chapters.mapIndexed { index, chapter ->
+            book.chapters.filter { it.isLinear }.map { chapter ->
                 TableOfContentsEntry(
                     label =
                     sanitizeChapterTitleForDisplay(chapter.title)
                         .orEmpty(),
                     depth = 0,
-                    target = TableOfContentsTarget(chapterIndex = index),
+                    target = TableOfContentsTarget(chapterIndex = chapter.index),
                 )
             }
         }

@@ -77,38 +77,49 @@ class ReaderViewModel(
         initialChapterIndex: Int = 0,
         initialFocusIndex: Int = 0,
         initialSearchCodePointOffset: Int? = null,
+        initialPageIndex: Int? = null,
     ) {
         val session = ReaderBookSession(book)
         activeSession.set(session)
         chapterLoadSequence.incrementAndGet()
-        _uiState.update { it.copy(bookWordCounts = emptyList(), bookTotalWords = 0) }
+        _uiState.update {
+            it.copy(
+                bookWordCounts = emptyList(),
+                bookTotalWords = 0,
+                isLinearChapter = book.chapters.getOrNull(initialChapterIndex)?.isLinear != false,
+                auxiliaryReturn = null,
+            )
+        }
         loadBookWordCounts(session)
         loadChapter(
             session = session,
             chapterIndex = initialChapterIndex,
             initialFocusIndex = initialFocusIndex,
             initialSearchCodePointOffset = initialSearchCodePointOffset,
+            initialPageIndex = initialPageIndex,
         )
     }
 
     private fun loadBookWordCounts(session: ReaderBookSession) {
         val book = session.book
         val bookId = book.id
-        val initialCounts = book.chapters.map { it.wordCount }
+        val initialCounts = book.chapters.map { if (it.isLinear) it.wordCount else 0 }
         _uiState.update {
             it.copy(
                 bookWordCounts = initialCounts,
                 bookTotalWords = initialCounts.sum(),
             )
         }
-        if (book.chapters.none { needsChapterWordCountRepair(it, book.languageTag) }) return
+        if (book.chapters.none { it.isLinear && needsChapterWordCountRepair(it, book.languageTag) }) return
 
         viewModelScope.launch {
             val counts =
                 runCatchingPreservingCancellation {
                     withContext(dispatcherProvider.io) {
                         book.chapters.map { chapter ->
-                            if (!needsChapterWordCountRepair(chapter, book.languageTag)) {
+                            if (!chapter.isLinear) {
+                                0
+                            } else if (!needsChapterWordCountRepair(chapter, book.languageTag)) {
                                 chapter.wordCount
                             } else {
                                 countWords(tokenRepository.getTokens(bookId, chapter.index))
@@ -135,6 +146,23 @@ class ReaderViewModel(
         initialSearchCodePointOffset: Int? = null,
     ) {
         val session = activeSession.get() ?: return
+        val targetChapter = session.book.chapters.getOrNull(chapterIndex) ?: return
+        _uiState.update { state ->
+            val returnPosition =
+                if (!targetChapter.isLinear && state.isLinearChapter && state.chapterData != null) {
+                    ReaderReturnPosition(
+                        state.chapterIndex,
+                        state.focusIndex,
+                        state.pageIndexOverride,
+                        state.chapterData.wordCountByToken.getOrElse(state.focusIndex) { 0 },
+                    )
+                } else if (targetChapter.isLinear) {
+                    null
+                } else {
+                    state.auxiliaryReturn
+                }
+            state.copy(isLinearChapter = targetChapter.isLinear, auxiliaryReturn = returnPosition)
+        }
         loadChapter(
             session = session,
             chapterIndex = chapterIndex,
@@ -431,8 +459,8 @@ class ReaderViewModel(
     fun nextChapter() {
         val session = activeSession.get() ?: return
         val book = session.book
-        val nextIndex = (_uiState.value.chapterIndex + 1).coerceAtMost(book.chapters.lastIndex)
-        if (nextIndex != _uiState.value.chapterIndex) {
+        val nextIndex = book.chapters.firstOrNull { it.isLinear && it.index > _uiState.value.chapterIndex }?.index
+        if (nextIndex != null) {
             loadChapter(session = session, chapterIndex = nextIndex)
         }
     }
@@ -440,8 +468,8 @@ class ReaderViewModel(
     @Suppress("unused")
     fun previousChapter() {
         val session = activeSession.get() ?: return
-        val prevIndex = (_uiState.value.chapterIndex - 1).coerceAtLeast(0)
-        if (prevIndex != _uiState.value.chapterIndex) {
+        val prevIndex = session.book.chapters.lastOrNull { it.isLinear && it.index < _uiState.value.chapterIndex }?.index
+        if (prevIndex != null) {
             loadChapter(session = session, chapterIndex = prevIndex)
         }
     }

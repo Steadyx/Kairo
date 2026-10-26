@@ -123,6 +123,29 @@ class RsvpPlaybackStateTest {
     }
 
     @Test
+    fun lifecycleAndExitDoNotSaveLastFrameAfterCompletion() {
+        val saved = mutableListOf<RsvpResumePoint>()
+        var finished: RsvpResumePoint? = null
+        val base = createContext(
+            frames = listOf(RsvpFrame(tokens = listOf(Token("Hello", TokenType.WORD)), durationMs = 120L, originalTokenIndex = 0)),
+            onFinished = { finished = it },
+        )
+        val context = base.copy(
+            callbacks = base.callbacks.copy(
+                playback = base.callbacks.playback.copy(onPositionChanged = { saved += it }),
+            ),
+        )
+        saveRsvpLifecyclePosition(context)
+        assertEquals(1, saved.size)
+        completePlayback(context)
+        assertEquals(1, finished?.tokenIndex)
+        saveRsvpLifecyclePosition(context)
+        exitAndSavePosition(context)
+        openLibraryAndSavePosition(context)
+        assertEquals(1, saved.size)
+    }
+
+    @Test
     fun completePlaybackReturnsOverflowIndexAtChapterEnd() {
         var finishedPoint = RsvpResumePoint(tokenIndex = -1, resumeCursor = -1)
         val context =
