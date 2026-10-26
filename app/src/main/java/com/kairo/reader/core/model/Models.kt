@@ -68,6 +68,7 @@ data class Chapter(
     /** Links extracted from HTML with positions relative to plainText */
     val links: List<ChapterLink> = emptyList(),
     val wordCountVersion: Int = 0,
+    val isLinear: Boolean = true,
 )
 
 data class ReadingPosition(
@@ -76,6 +77,7 @@ data class ReadingPosition(
     val tokenIndex: Int,
     val wordIndex: Int = -1,
     val rsvpResumeCursor: Int = -1,
+    val imagePageIndex: Int = -1,
 )
 
 data class Bookmark(
@@ -109,6 +111,7 @@ data class Token(
     val linkChapterIndex: Int? = null,
     /** Local semantic emphasis from source markup; independent of difficulty and display styling. */
     val authorEmphasis: Boolean = false,
+    val linkCharacterOffset: Int? = null,
 )
 
 data class RsvpConfig(

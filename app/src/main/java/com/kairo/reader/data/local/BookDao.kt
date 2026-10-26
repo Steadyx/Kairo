@@ -64,7 +64,7 @@ interface BookDao : ChapterContentQueries {
 
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount, wordCountVersion
+        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount, wordCountVersion, isLinear
         FROM chapters
         ORDER BY bookId, `index`
         """,
@@ -135,6 +135,9 @@ interface BookDao : ChapterContentQueries {
         """,
     )
     suspend fun getBooksByTitleForImportDedupe(title: String): List<BookEntity>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM books WHERE id = :bookId AND length(coverImage) > 0)")
+    suspend fun hasCoverImage(bookId: String): Boolean
 
     @Query(
         """

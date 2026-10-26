@@ -49,6 +49,7 @@ fun Chapter.toEntity(bookId: BookId): ChapterEntity =
         imagePaths = encodeImagePaths(imagePaths),
         wordCount = wordCount,
         wordCountVersion = wordCountVersion,
+        isLinear = isLinear,
     )
 
 fun BookEntity.toDomain(
@@ -115,6 +116,7 @@ fun ChapterEntity.toDomain(): Chapter =
         imagePaths = decodeImagePaths(imagePaths),
         wordCount = wordCount,
         wordCountVersion = wordCountVersion,
+        isLinear = isLinear,
     )
 
 fun ReadingPositionEntity.toDomain(): com.kairo.reader.core.model.ReadingPosition =
@@ -124,6 +126,7 @@ fun ReadingPositionEntity.toDomain(): com.kairo.reader.core.model.ReadingPositio
         tokenIndex = tokenIndex,
         wordIndex = wordIndex,
         rsvpResumeCursor = rsvpResumeCursor,
+        imagePageIndex = imagePageIndex,
     )
 
 fun com.kairo.reader.core.model.ReadingPosition.toEntity(): ReadingPositionEntity =
@@ -133,6 +136,7 @@ fun com.kairo.reader.core.model.ReadingPosition.toEntity(): ReadingPositionEntit
         tokenIndex = tokenIndex,
         wordIndex = wordIndex,
         rsvpResumeCursor = rsvpResumeCursor,
+        imagePageIndex = imagePageIndex,
     )
 
 fun BookmarkEntity.toDomain(): Bookmark =

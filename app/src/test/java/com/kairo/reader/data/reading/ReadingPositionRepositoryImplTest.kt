@@ -8,6 +8,14 @@ import org.junit.Test
 
 class ReadingPositionRepositoryImplTest {
     @Test
+    fun imagePageZeroIsAQualifiedPosition() {
+        val current = ReadingPosition(BookId("book"), 3, 0, imagePageIndex = 2)
+        val next = ReadingPosition(BookId("book"), 0, 0, imagePageIndex = 0)
+        assertFalse(shouldIgnoreUnqualifiedStartOverwrite(current, next))
+        assertTrue(shouldIgnoreUnqualifiedStartOverwrite(current, ReadingPosition(BookId("book"), 0, 0)))
+    }
+
+    @Test
     fun unqualifiedBookStartDoesNotOverwriteExistingProgress() {
         val current =
             ReadingPosition(

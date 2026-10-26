@@ -58,6 +58,35 @@ interface EpubNavigationDao : ChapterTextQueries {
             chapter.copy(plainText = requireNotNull(readChapterPlainText(bookId, chapter.chapterIndex)))
         }
 
+    @Query("UPDATE chapters SET isLinear = :isLinear WHERE bookId = :bookId AND `index` = :chapterIndex")
+    suspend fun updateChapterLinearity(bookId: String, chapterIndex: Int, isLinear: Boolean): Int
+
+    @Query("UPDATE chapters SET htmlContent = :html WHERE bookId = :bookId AND `index` = :chapterIndex")
+    suspend fun updateChapterHtml(bookId: String, chapterIndex: Int, html: String): Int
+
+    @Transaction
+    suspend fun updateLinearityIfCoordinatesMatch(
+        bookId: String,
+        expectedCoordinates: List<EpubChapterCoordinate>,
+        linearity: Map<Int, Boolean>,
+        expectedHtml: Map<Int, String>,
+        replacementHtml: Map<Int, String>,
+    ): Boolean {
+        val current = getChapterCoordinates(bookId)
+        if (current != expectedCoordinates || current.map { it.chapterIndex }.toSet() != linearity.keys) return false
+        if (replacementHtml.keys.any { index ->
+                expectedHtml[index] == null || getChapterHtmlContent(bookId, index) != expectedHtml[index]
+            }
+        ) {
+            return false
+        }
+        linearity.forEach { (index, isLinear) ->
+            check(updateChapterLinearity(bookId, index, isLinear) == 1)
+        }
+        replacementHtml.forEach { (index, html) -> check(updateChapterHtml(bookId, index, html) == 1) }
+        return true
+    }
+
     @Transaction
     suspend fun getChapterHtmlContent(
         bookId: String,
@@ -117,7 +146,8 @@ interface EpubNavigationDao : ChapterTextQueries {
         UPDATE reading_positions
         SET tokenIndex = 0,
             wordIndex = 0,
-            rsvpResumeCursor = -1
+            rsvpResumeCursor = -1,
+            imagePageIndex = -1
         WHERE bookId = :bookId AND chapterIndex = :chapterIndex
         """,
     )

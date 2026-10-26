@@ -33,10 +33,12 @@ internal fun shouldIgnoreUnqualifiedStartOverwrite(
         next.chapterIndex == 0 &&
             next.tokenIndex == 0 &&
             next.wordIndex < 0 &&
-            next.rsvpResumeCursor < 0
+            next.rsvpResumeCursor < 0 &&
+            next.imagePageIndex < 0
     if (!nextIsUnqualifiedBookStart) return false
     return current.chapterIndex > 0 ||
         current.tokenIndex > 0 ||
         current.wordIndex > 0 ||
-        current.rsvpResumeCursor > 0
+        current.rsvpResumeCursor > 0 ||
+        current.imagePageIndex > 0
 }

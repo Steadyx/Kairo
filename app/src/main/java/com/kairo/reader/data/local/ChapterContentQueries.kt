@@ -7,7 +7,7 @@ import androidx.room.Transaction
 interface ChapterContentQueries : ChapterTextQueries {
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount, wordCountVersion
+        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount, wordCountVersion, isLinear
         FROM chapters
         WHERE bookId = :bookId
         ORDER BY `index`
@@ -17,7 +17,7 @@ interface ChapterContentQueries : ChapterTextQueries {
 
     @Query(
         """
-        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount, wordCountVersion
+        SELECT bookId, `index`, title, '' AS htmlContent, '' AS plainText, imagePaths, wordCount, wordCountVersion, isLinear
         FROM chapters
         WHERE bookId = :bookId AND `index` = :index
         LIMIT 1
