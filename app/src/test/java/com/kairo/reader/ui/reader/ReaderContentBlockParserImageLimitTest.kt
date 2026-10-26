@@ -1,5 +1,6 @@
 package com.kairo.reader.ui.reader
 
+import com.kairo.reader.core.model.MAX_READER_CHAPTER_LOCAL_IMAGE_CANDIDATES
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows

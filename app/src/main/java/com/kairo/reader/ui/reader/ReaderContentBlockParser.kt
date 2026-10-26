@@ -1,9 +1,9 @@
 package com.kairo.reader.ui.reader
 
+import com.kairo.reader.core.model.MAX_READER_CHAPTER_LOCAL_IMAGE_CANDIDATES
 import java.util.Locale
 
 private const val HEX_RADIX = 16
-internal const val MAX_READER_CHAPTER_LOCAL_IMAGE_CANDIDATES = 256
 internal const val READER_CHAPTER_IMAGE_LIMIT_MESSAGE =
     "This chapter contains too many images to display."
 
@@ -304,6 +304,7 @@ private fun resolveInlineImagePath(
         src.startsWith("data:", ignoreCase = true) -> null
         src.startsWith("http://", ignoreCase = true) -> null
         src.startsWith("https://", ignoreCase = true) -> null
+        src in imagePaths -> src to fallbackIndex
         src.startsWith("kairo_epub_assets/") -> src to fallbackIndex
         else -> imagePaths.getOrNull(fallbackIndex)?.let { it to (fallbackIndex + 1) }
     }
