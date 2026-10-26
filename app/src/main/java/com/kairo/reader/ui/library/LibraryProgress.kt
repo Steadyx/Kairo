@@ -53,6 +53,7 @@ suspend fun buildLibraryProgress(
         val chapterWordCounts =
             book.chapters.map { chapter ->
                 when {
+                    !chapter.isLinear -> 0
                     chapter.wordCount > 0 -> chapter.wordCount
                     chapter.plainText.isNotBlank() -> countWords(chapter.plainText)
                     else -> 0
@@ -60,6 +61,8 @@ suspend fun buildLibraryProgress(
             }
         val totalWords = chapterWordCounts.sum().coerceAtLeast(0)
         val position = positionsByBook[book.id.value]
+        // A legacy position in an auxiliary note does not identify the linear reading position.
+        if (position != null && book.chapters.getOrNull(position.chapterIndex)?.isLinear == false) continue
 
         val wordsRead =
             if (position == null || totalWords == 0 || book.chapters.isEmpty()) {
@@ -68,7 +71,7 @@ suspend fun buildLibraryProgress(
                 val chapterIndex = position.chapterIndex.coerceIn(0, book.chapters.lastIndex)
                 val baseWords = chapterWordCounts.take(chapterIndex).sum()
                 val chapterWordCount = chapterWordCounts.getOrNull(chapterIndex) ?: 0
-                val chapterWordIndex = position.wordIndex.coerceAtLeast(0)
+                val chapterWordIndex = if (book.chapters[chapterIndex].isLinear) position.wordIndex.coerceAtLeast(0) else 0
                 val cappedChapterWordIndex =
                     if (chapterWordCount > 0) {
                         chapterWordIndex.coerceAtMost(chapterWordCount)

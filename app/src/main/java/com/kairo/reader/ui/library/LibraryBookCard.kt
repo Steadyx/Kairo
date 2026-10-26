@@ -127,8 +127,8 @@ internal fun LibraryCard(
                     text =
                     pluralStringResource(
                         R.plurals.library_chapter_count,
-                        book.chapters.size,
-                        book.chapters.size,
+                        book.chapters.count { it.isLinear },
+                        book.chapters.count { it.isLinear },
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary,

@@ -237,7 +237,7 @@ internal class ImportCoordinatorViewModel(private val container: KairoApplicatio
                     onImported(importResult)
                     return@onSuccess
                 }
-                val chapterCount = book.chapters.size
+                val chapterCount = book.chapters.count { it.isLinear }
                 emitEvent(
                     ImportCoordinatorEvent.UserMessage(
                         resources.getQuantityString(

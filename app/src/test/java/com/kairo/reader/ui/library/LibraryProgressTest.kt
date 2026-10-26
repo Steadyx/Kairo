@@ -3,6 +3,7 @@ package com.kairo.reader.ui.library
 import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.Chapter
+import com.kairo.reader.core.model.ReadingPosition
 import com.kairo.reader.core.model.RsvpConfig
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -67,6 +68,18 @@ class LibraryProgressTest {
             assertEquals(1, progress.getValue("fast").remainingMinutes)
             assertEquals(2, progress.getValue("slow").remainingMinutes)
         }
+
+    @Test
+    fun legacyAuxiliaryPositionDoesNotPretendTheBookIsComplete() = runTest {
+        val original = book(id = "book", wordCount = 600)
+        val note = Chapter(index = 1, title = "Notes", htmlContent = "", plainText = "Note", isLinear = false)
+        val result = buildLibraryProgress(
+            books = listOf(original.copy(chapters = original.chapters + note)),
+            positions = listOf(ReadingPosition(BookId("book"), 1, 0)),
+            estimatedWpmByBookId = mapOf("book" to 300),
+        )
+        assertEquals(null, result["book"])
+    }
 
     private fun book(
         id: String,
