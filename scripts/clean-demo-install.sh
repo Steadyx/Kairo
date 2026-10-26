@@ -65,24 +65,12 @@ adb shell run-as "$PACKAGE" sh -c "pwd >/dev/null" >/dev/null 2>&1 ||
     die "run-as failed for $PACKAGE. Install a debuggable build first."
 
 mkdir -p "$BACKUP_ROOT"
-TMP_BACKUP="$BACKUP_FILE.tmp"
 
 printf 'Stopping %s before backup...\n' "$PACKAGE"
-adb shell am force-stop "$PACKAGE" >/dev/null 2>&1 || true
+adb shell am force-stop "$PACKAGE" >/dev/null 2>&1 || die "Could not stop $PACKAGE before backup."
 
 printf 'Backing up %s private data to %s...\n' "$PACKAGE" "$BACKUP_FILE"
-adb exec-out run-as "$PACKAGE" sh -c '
-    cd "$HOME" || exit 1
-    set --
-    for path in databases files shared_prefs; do
-        [ -e "$path" ] && set -- "$@" "$path"
-    done
-    [ "$#" -gt 0 ] || exit 3
-    tar -cf - "$@"
-' > "$TMP_BACKUP"
-
-[ -s "$TMP_BACKUP" ] || die "Backup produced an empty file: $TMP_BACKUP"
-mv "$TMP_BACKUP" "$BACKUP_FILE"
+python3 "$(dirname "$0")/backup-app-data.py" "$BACKUP_FILE" "$PACKAGE"
 printf '%s\n' "$BACKUP_FILE" > "$BACKUP_ROOT/latest-$PACKAGE.txt"
 
 printf 'Uninstalling %s for a fresh next install...\n' "$PACKAGE"

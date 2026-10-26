@@ -60,20 +60,10 @@ export_data() {
     mkdir -p "$BACKUP_DIR"
 
     printf 'Stopping %s before export...\n' "$OLD_PACKAGE"
-    adb shell am force-stop "$OLD_PACKAGE" >/dev/null 2>&1 || true
+    adb shell am force-stop "$OLD_PACKAGE" >/dev/null 2>&1 || die "Could not stop $OLD_PACKAGE before export."
 
     printf 'Exporting %s private data to %s...\n' "$OLD_PACKAGE" "$BACKUP_FILE"
-    adb exec-out run-as "$OLD_PACKAGE" sh -c '
-        cd "$HOME" || exit 1
-        set --
-        for path in databases files shared_prefs; do
-            [ -e "$path" ] && set -- "$@" "$path"
-        done
-        [ "$#" -gt 0 ] || exit 3
-        tar -cf - "$@"
-    ' > "$BACKUP_FILE"
-
-    [ -s "$BACKUP_FILE" ] || die "Export produced an empty backup: $BACKUP_FILE"
+    python3 "$(dirname "$0")/backup-app-data.py" "$BACKUP_FILE" "$OLD_PACKAGE"
     printf 'Export complete: %s\n' "$BACKUP_FILE"
 }
 
