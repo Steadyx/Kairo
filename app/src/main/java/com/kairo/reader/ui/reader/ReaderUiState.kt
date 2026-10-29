@@ -11,7 +11,11 @@ data class ReaderUiState(
     val chapterLoadError: String? = null,
     val bookWordCounts: List<Int> = emptyList(),
     val bookTotalWords: Int = 0,
+    val isLinearChapter: Boolean = true,
+    val auxiliaryReturn: ReaderReturnPosition? = null,
 )
+
+data class ReaderReturnPosition(val chapterIndex: Int, val focusIndex: Int, val pageIndex: Int?, val wordIndex: Int = 0,)
 
 data class ChapterData(
     val tokens: List<Token>,

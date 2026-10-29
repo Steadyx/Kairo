@@ -13,41 +13,45 @@ internal fun buildReaderNavigationState(
     resolvedPageIndex: Int,
     chapterIndex: Int,
     lastChapterIndex: Int,
+    linearChapterIndices: List<Int> = (0..lastChapterIndex).toList(),
+    auxiliaryReturn: ReaderReturnPosition? = null,
     onPageChange: (ChapterPage) -> Unit,
     onChapterChange: (Int, Int?) -> Unit,
 ): ReaderNavigationState {
+    val previousChapter = auxiliaryReturn?.chapterIndex ?: linearChapterIndices.lastOrNull { it < chapterIndex }
+    val nextChapter = linearChapterIndices.firstOrNull { it > chapterIndex }
     val canGoPrevPage =
         if (isPagedChapter && pages.isNotEmpty()) {
-            resolvedPageIndex > 0 || chapterIndex > 0
+            resolvedPageIndex > 0 || previousChapter != null
         } else {
-            chapterIndex > 0
+            previousChapter != null
         }
     val canGoNextPage =
         if (isPagedChapter && pages.isNotEmpty()) {
-            resolvedPageIndex < pages.lastIndex || chapterIndex < lastChapterIndex
+            resolvedPageIndex < pages.lastIndex || nextChapter != null
         } else {
-            chapterIndex < lastChapterIndex
+            nextChapter != null
         }
     val onPrevPage = {
         if (pages.isNotEmpty()) {
             if (resolvedPageIndex > 0) {
                 onPageChange(pages[resolvedPageIndex - 1])
-            } else if (chapterIndex > 0) {
-                onChapterChange(chapterIndex - 1, Int.MAX_VALUE)
+            } else if (previousChapter != null) {
+                onChapterChange(previousChapter, auxiliaryReturn?.focusIndex ?: Int.MAX_VALUE)
             }
-        } else if (chapterIndex > 0) {
-            onChapterChange(chapterIndex - 1, Int.MAX_VALUE)
+        } else if (previousChapter != null) {
+            onChapterChange(previousChapter, auxiliaryReturn?.focusIndex ?: Int.MAX_VALUE)
         }
     }
     val onNextPage = {
         if (pages.isNotEmpty()) {
             if (resolvedPageIndex < pages.lastIndex) {
                 onPageChange(pages[resolvedPageIndex + 1])
-            } else if (chapterIndex < lastChapterIndex) {
-                onChapterChange(chapterIndex + 1, 0)
+            } else if (nextChapter != null) {
+                onChapterChange(nextChapter, 0)
             }
-        } else if (chapterIndex < lastChapterIndex) {
-            onChapterChange(chapterIndex + 1, 0)
+        } else if (nextChapter != null) {
+            onChapterChange(nextChapter, 0)
         }
     }
 

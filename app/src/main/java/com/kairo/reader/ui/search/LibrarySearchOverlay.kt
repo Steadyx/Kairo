@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +59,7 @@ fun LibrarySearchOverlay(
     initialQuery: String = "",
     onQuery: (String) -> Unit,
     onRetry: () -> Unit,
+    onPageChange: (Int) -> Unit = {},
     onOpenResult: (LibrarySearchResult) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -111,6 +113,7 @@ fun LibrarySearchOverlay(
                     query = query,
                     state = state,
                     onRetry = onRetry,
+                    onPageChange = onPageChange,
                     onOpenResult = onOpenResult,
                 )
             }
@@ -123,6 +126,7 @@ private fun SearchResults(
     query: String,
     state: LibrarySearchState,
     onRetry: () -> Unit,
+    onPageChange: (Int) -> Unit,
     onOpenResult: (LibrarySearchResult) -> Unit,
 ) {
     val normalizedQuery = normalizeLibrarySearchQuery(query)
@@ -136,11 +140,23 @@ private fun SearchResults(
             }
         state is LibrarySearchState.Error && state.query == normalizedQuery ->
             SearchError(onRetry)
-        state is LibrarySearchState.Success && state.query == normalizedQuery && state.results.isEmpty() ->
+        state is LibrarySearchState.Success && state.query == normalizedQuery && state.results.isEmpty() && state.resultPage == 0 ->
             SearchMessage(stringResource(R.string.search_no_results))
         state is LibrarySearchState.Success && state.query == normalizedQuery ->
             Column {
                 if (state.isSearching) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                if (!state.isSearching && (state.resultPage > 0 || state.hasMoreResults)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        TextButton(
+                            onClick = { onPageChange(state.resultPage - 1) },
+                            enabled = state.resultPage > 0,
+                        ) { Text(stringResource(R.string.search_previous_results)) }
+                        TextButton(
+                            onClick = { onPageChange(state.resultPage + 1) },
+                            enabled = state.hasMoreResults,
+                        ) { Text(stringResource(R.string.search_more_results)) }
+                    }
+                }
                 SearchResultList(state.results, onOpenResult)
             }
         else -> SearchMessage(stringResource(R.string.search_minimum_hint))

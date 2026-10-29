@@ -36,7 +36,7 @@ internal object TextFileParserEngine {
         }
 
     private fun parseLooseText(request: BinaryBookParseRequest): Book {
-        val content = BookTextDecoder.decode(request.bytes)
+        val content = BookTextDecoder.decode(request.bytes, detectMarkupCharset = false)
         val parsed = TextImportParser.parse(TextImportRequest(content = content))
         return parsed.toBook(request.bookId).withFallbackTitle(request.sourceDisplayName)
     }

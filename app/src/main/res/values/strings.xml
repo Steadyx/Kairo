@@ -444,6 +444,7 @@
     <string name="update_check_title">Check for updates</string>
     <string name="update_check_subtitle">Look for a newer version on Google Play</string>
     <string name="update_check_up_to_date">Kairo is up to date.</string>
+    <string name="update_check_unavailable">Update status is unavailable. Check Google Play for the latest version.</string>
     <string name="update_check_failed">Couldn’t check for updates. Try again later.</string>
 
     <plurals name="library_chapter_count">
@@ -511,6 +512,7 @@
     <string name="note_export_no_notes">There are no notes to export.</string>
     <string name="note_export_note_unavailable">That note is no longer available.</string>
     <string name="note_export_failed">Notes could not be exported.</string>
+    <string name="note_export_destination_not_empty">Choose a new, empty file to protect the existing document.</string>
     <string name="note_export_filename_all">Kairo notes</string>
     <string name="note_export_filename_single">note</string>
     <string name="note_export_document_title_all">Notes from your library</string>
@@ -597,6 +599,8 @@
     <string name="search_book_hint">Words or phrases in this book</string>
     <string name="search_minimum_hint">Enter at least two characters</string>
     <string name="search_no_results">No results found</string>
+    <string name="search_previous_results">Previous results</string>
+    <string name="search_more_results">More results</string>
     <string name="search_passage_label">Passage</string>
     <string name="search_saved_label">Saved</string>
     <string name="search_book_label">Book</string>
@@ -615,6 +619,7 @@
     <string name="highlight_green">Green</string>
     <string name="highlight_pink">Pink</string>
     <string name="toast_passage_saved">Passage saved</string>
+    <string name="reader_search_match_count_more">Match %1$d</string>
     <string name="reader_search_match_count">%1$d of %2$d</string>
     <string name="content_desc_previous_search_match">Previous search match</string>
     <string name="content_desc_next_search_match">Next search match</string>

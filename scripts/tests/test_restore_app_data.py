@@ -13,11 +13,14 @@ import os, shlex, subprocess, sys
 args = sys.argv[1:]
 if args == ['devices']:
     print('List of devices attached\nfake\tdevice')
-elif args[0] == 'exec-in':
-    command = args[1:] if len(args) > 2 else shlex.split(args[1])
+elif args[:2] == ['shell', '-T']:
+    command = shlex.split(args[2])
     assert command[:2] == ['run-as', 'com.kairo.reader.debug']
     command[-1] = command[-1].replace('cd "$HOME"', 'cd "$FAKE_APP"')
     sys.exit(subprocess.call(command[2:], cwd=os.environ['FAKE_APP']))
+elif args[0] in ('exec-in', 'exec-out'):
+    # Real exec transports do not report the remote command's status.
+    sys.exit(0)
 '''
 
 
@@ -66,6 +69,8 @@ class RestoreTest(unittest.TestCase):
                     condition = 'true'
                 elif failure == 'move_original':
                     condition = '[ "$1" = shared_prefs ]'
+                elif failure == 'rollback':
+                    condition = 'case "$1" in */incoming/shared_prefs|*/previous/files) true;; *) false;; esac'
                 else:
                     condition = 'case "$1" in */incoming/shared_prefs) true;; *) false;; esac'
                 wrapper = '#!/bin/sh\nif ' + condition + '; then exit 1; fi\nexec ' + real_tool + ' "$@"\n'
@@ -78,22 +83,30 @@ class RestoreTest(unittest.TestCase):
                                     capture_output=True, text=True)
             if failure or invalid:
                 self.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
-                for name in ('databases', 'files', 'shared_prefs'):
-                    self.assertEqual(name, (app / name / 'original').read_text())
+                if failure == 'rollback':
+                    self.assertIn('Rollback incomplete', result.stderr)
+                    stage, = app.glob('.kairo-restore.*')
+                    self.assertEqual('shared_prefs', (app / 'shared_prefs/original').read_text())
+                    for name in ('databases', 'files'):
+                        self.assertEqual(name, (stage / 'previous' / name / 'original').read_text())
+                else:
+                    for name in ('databases', 'files', 'shared_prefs'):
+                        self.assertEqual(name, (app / name / 'original').read_text())
             else:
                 self.assertEqual(0, result.returncode, result.stdout + result.stderr)
                 self.assertEqual(data, (app / 'files/restored').read_bytes())
                 self.assertEqual(data, (app / 'databases/restored').read_bytes())
                 self.assertEqual(data, (app / 'shared_prefs/restored').read_bytes())
                 self.assertFalse(list(app.glob('*/original')))
-            self.assertEqual([], list(app.glob('.kairo-restore.*')))
+            if failure != 'rollback':
+                self.assertEqual([], list(app.glob('.kairo-restore.*')))
 
     def test_both_restore_paths(self):
         for entry in ('reimport-demo-data.sh', 'migrate-app-id-data.sh'):
             for invalid in ('invalid', 'truncated', 'traversal', 'symlink', 'permissions'):
                 with self.subTest(entry=entry, invalid=invalid):
                     self.run_restore(entry, invalid=invalid)
-            for failure in ('extract', 'replace', 'move_original', None):
+            for failure in ('extract', 'replace', 'move_original', 'rollback', None):
                 with self.subTest(entry=entry, failure=failure):
                     self.run_restore(entry, failure=failure)
 

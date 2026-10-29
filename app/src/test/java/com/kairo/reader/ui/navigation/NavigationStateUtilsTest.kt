@@ -8,6 +8,26 @@ import org.junit.Test
 
 class NavigationStateUtilsTest {
     @Test
+    fun completedTimedReadingSkipsAuxiliaryChapters() {
+        val target = resolveRsvpReturnTarget(
+            resumePoint = RsvpResumePoint(tokenIndex = 2),
+            currentChapterIndex = 0,
+            chapterCount = 4,
+            currentChapterTokens = listOf(word("Last")),
+            linearChapterIndices = listOf(0, 2),
+        )
+        assertEquals(RsvpReturnTarget(chapterIndex = 2, tokenIndex = 0, resumeCursor = -1), target)
+        val final = resolveRsvpReturnTarget(
+            resumePoint = RsvpResumePoint(tokenIndex = 2),
+            currentChapterIndex = 2,
+            chapterCount = 4,
+            currentChapterTokens = listOf(word("Last")),
+            linearChapterIndices = listOf(0, 2),
+        )
+        assertEquals(2, final.chapterIndex)
+    }
+
+    @Test
     fun resolveWordIndex_returnsSentinelWhenMappingMissing() {
         assertEquals(-1, resolveWordIndex(wordCountByToken = null, tokenIndex = 4))
         assertEquals(-1, resolveWordIndex(wordCountByToken = IntArray(0), tokenIndex = 4))

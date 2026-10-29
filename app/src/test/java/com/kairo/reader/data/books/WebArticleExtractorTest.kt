@@ -10,6 +10,42 @@ class WebArticleExtractorTest {
     private val extractor = WebArticleExtractor(TestDispatchers)
 
     @Test
+    fun relatedTeaserBeforeMainDoesNotReplaceArticle() {
+        val teaser = "Related teaser text. ".repeat(15)
+        val article = "The real article text explains this important subject. ".repeat(5)
+        val html = "<div class='article-related'><p>$teaser</p></div><main><p>$article</p></main>"
+
+        val text = extractor.parseHtml(html, "https://example.com/story", BookId("main")).chapters.single().plainText
+
+        assertTrue(text.contains("real article text"))
+        assertFalse(text.contains("Related teaser"))
+    }
+
+    @Test
+    fun longerUnrelatedArticleBeforeMainDoesNotReplaceMainContent() {
+        val teaser = "A long unrelated teaser. ".repeat(30)
+        val main = "The requested article is inside the main area. ".repeat(4)
+        val html = "<article><p>$teaser</p></article><main><p>$main</p></main>"
+
+        val text = extractor.parseHtml(html, "https://example.com/story", BookId("main")).chapters.single().plainText
+
+        assertTrue(text.contains("requested article"))
+        assertFalse(text.contains("unrelated teaser"))
+    }
+
+    @Test
+    fun articleParagraphsContainingBoilerplatePhrasesArePreserved() {
+        val paragraph = "The court examined the privacy policy and whether readers should subscribe to a service."
+        val following = "Another paragraph contains the rest of this authored article. ".repeat(3)
+        val html = "<article><p>$paragraph</p><p>$following</p></article>"
+
+        val text = extractor.parseHtml(html, "https://example.com/story", BookId("phrases")).chapters.single().plainText
+
+        assertTrue(text.contains(paragraph))
+        assertTrue(text.contains("rest of this authored article"))
+    }
+
+    @Test
     fun quotationDivisionsAndRepeatedAuthoredParagraphsStayReadable() {
         val passage = "This deliberately repeated paragraph is part of the authored article and should remain in place."
         val html = "<article><blockquote><div>First</div><div>second</div><p>$passage</p><p>$passage</p></blockquote></article>"

@@ -70,13 +70,15 @@ internal object HtmlChapterLinkApplier {
             return LinkScanCandidate(nextScanIndex, countsTowardBudget = true)
         }
         val linkText = extractLinkText(html.substring(contentStart, closeIndex))
-        if (linkText.isBlank() || isPageNumberText(linkText, minimumRomanPageNumberLength)) {
+        val isAuxiliary = AUXILIARY_ATTRIBUTE.containsMatchIn(match.value)
+        val targetOffset = OFFSET_ATTRIBUTE.find(match.value)?.groupValues?.get(1)?.toIntOrNull()
+        if (linkText.isBlank() || (!isAuxiliary && isPageNumberText(linkText, minimumRomanPageNumberLength))) {
             return LinkScanCandidate(nextScanIndex, countsTowardBudget = true)
         }
         val linkTokens = tokenizeInlineText(normalizeInlineText(linkText))
         return LinkScanCandidate(
             nextScanIndex = nextScanIndex,
-            link = linkTokens.takeIf { it.isNotEmpty() }?.let { ChapterHtmlLink(chapterIndex, it) },
+            link = linkTokens.takeIf { it.isNotEmpty() }?.let { ChapterHtmlLink(chapterIndex, it, targetOffset) },
             countsTowardBudget = true,
         )
     }
@@ -89,8 +91,11 @@ internal object HtmlChapterLinkApplier {
     ) {
         for (offset in link.tokens.indices) {
             val tokenIndex = matchable[matchIndex + offset].first
-            if (tokens[tokenIndex].linkChapterIndex == null) {
-                tokens[tokenIndex] = tokens[tokenIndex].copy(linkChapterIndex = link.chapterIndex)
+            if (tokens[tokenIndex].linkChapterIndex == null || tokens[tokenIndex].linkChapterIndex == link.chapterIndex) {
+                tokens[tokenIndex] = tokens[tokenIndex].copy(
+                    linkChapterIndex = link.chapterIndex,
+                    linkCharacterOffset = link.characterOffset,
+                )
             }
         }
     }
@@ -129,7 +134,7 @@ internal object HtmlChapterLinkApplier {
                 )
     }
 
-    private data class ChapterHtmlLink(val chapterIndex: Int, val tokens: List<String>)
+    private data class ChapterHtmlLink(val chapterIndex: Int, val tokens: List<String>, val characterOffset: Int?)
 
     private data class LinkScanCandidate(
         val nextScanIndex: Int,
@@ -146,6 +151,8 @@ internal object HtmlChapterLinkApplier {
             "<a\\b[^>]*href\\s*=\\s*['\"]kairo://chapter/(\\d+)(?:#[^'\"]*)?['\"][^>]*>",
             RegexOption.IGNORE_CASE,
         )
+    private val AUXILIARY_ATTRIBUTE = Regex("\\bdata-kairo-aux\\s*=\\s*['\"]1['\"]", RegexOption.IGNORE_CASE)
+    private val OFFSET_ATTRIBUTE = Regex("\\bdata-kairo-offset\\s*=\\s*['\"](\\d+)['\"]", RegexOption.IGNORE_CASE)
     private val HTML_TAG_REGEX = Regex("<[^>]+>")
     private val WHITESPACE_REGEX = Regex("\\s+")
     private val ROMAN_NUMERAL_REGEX = Regex("^[ivxlcdm]+$", RegexOption.IGNORE_CASE)

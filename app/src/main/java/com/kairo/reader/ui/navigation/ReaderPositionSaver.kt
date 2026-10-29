@@ -36,6 +36,10 @@ internal class ReaderPositionSaver(
         }
     }
 
+    suspend fun flush() {
+        pendingSaveJob?.join()
+    }
+
     private fun queueSave(
         position: ReadingPosition,
         debounce: Boolean,

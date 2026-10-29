@@ -54,7 +54,9 @@ internal object DocxParserEngine {
         val body = document.documentElement.descendantsNamed("body").firstOrNull()
             ?: throw IllegalArgumentException("DOCX document body is missing")
         val blocks = readBodyBlocks(body, styles, ::resolveImage)
-        require(blocks.any { block -> block.plainText.isNotBlank() }) { "No readable text found in DOCX file" }
+        require(blocks.any { block -> block.plainText.isNotBlank() || block.imagePaths.isNotEmpty() }) {
+            "No readable content found in DOCX file"
+        }
         require(blocks.sumOf { block -> block.plainText.length.toLong() } <= MAX_EXTRACTED_TEXT_CHARS) {
             "DOCX document contains too much extracted text"
         }
@@ -146,7 +148,7 @@ internal object DocxParserEngine {
         resolveImage: (relationshipId: String) -> String?,
     ): List<DocxBlock> {
         val renderer = DocxMarkupRenderer(resolveImage)
-        return body.directChildElements().mapNotNull { child ->
+        return body.visibleWordChildren(setOf("p", "tbl")).mapNotNull { child ->
             when (child.localNameValue().lowercase(Locale.ROOT)) {
                 "p" -> renderer.renderParagraph(child, styles)
                 "tbl" -> renderer.renderTable(child)
@@ -262,19 +264,26 @@ private class DocxMarkupRenderer(private val resolveImage: (relationshipId: Stri
 
     fun renderTable(table: Element): DocxBlock? {
         val imagePaths = mutableListOf<String>()
-        val rows = table.directChildrenNamed("tr").map { row ->
-            val cells = row.directChildrenNamed("tc").map { cell ->
-                val contents = cell.directChildrenNamed("p").joinToString("<br>") { paragraph ->
-                    renderInlineChildren(paragraph, imagePaths)
-                }
-                "<td>$contents</td>"
-            }
-            "<tr>${cells.joinToString("")}</tr>"
-        }
-        val html = "<table>${rows.joinToString("")}</table>"
+        val html = renderTableHtml(table, imagePaths)
         val plainText = contentRewriter.extractPlainText(html)
         if (plainText.isBlank() && imagePaths.isEmpty()) return null
         return DocxBlock(html, plainText, imagePaths, DocxBlockKind.CONTENT)
+    }
+
+    private fun renderTableHtml(table: Element, imagePaths: MutableList<String>): String {
+        val rows = table.visibleWordChildren(setOf("tr")).joinToString("") { row ->
+            val cells = row.visibleWordChildren(setOf("tc")).joinToString("") { cell ->
+                val contents = cell.visibleWordChildren(setOf("p", "tbl")).joinToString("") { child ->
+                    when (child.localNameValue().lowercase(Locale.ROOT)) {
+                        "p" -> "<p>${renderInlineChildren(child, imagePaths)}</p>"
+                        else -> renderTableHtml(child, imagePaths)
+                    }
+                }
+                "<td>$contents</td>"
+            }
+            "<tr>$cells</tr>"
+        }
+        return "<table>$rows</table>"
     }
 
     private fun renderInlineChildren(
@@ -336,6 +345,15 @@ private class DocxMarkupRenderer(private val resolveImage: (relationshipId: Stri
     }
 }
 
+private fun Element.visibleWordChildren(names: Set<String>): List<Element> =
+    directChildElements().flatMap { child ->
+        when (val name = child.localNameValue().lowercase(Locale.ROOT)) {
+            in names -> listOf(child)
+            "sdt", "sdtcontent", "customxml", "ins", "moveto", "smarttag" -> child.visibleWordChildren(names)
+            else -> emptyList()
+        }
+    }
+
 private class DocxChapterBuilder(var title: String?,) {
     private val blocks = mutableListOf<DocxBlock>()
     val imagePaths = mutableListOf<String>()
@@ -345,7 +363,7 @@ private class DocxChapterBuilder(var title: String?,) {
         imagePaths += block.imagePaths
     }
 
-    fun hasReadableContent(): Boolean = blocks.any { block -> block.plainText.isNotBlank() }
+    fun hasReadableContent(): Boolean = blocks.any { block -> block.plainText.isNotBlank() || block.imagePaths.isNotEmpty() }
 
     fun html(): String = blocks.joinToString("\n", transform = DocxBlock::html)
 

@@ -58,11 +58,16 @@ internal fun resolveRsvpReturnTarget(
     currentChapterIndex: Int,
     chapterCount: Int,
     currentChapterTokens: List<Token>,
+    linearChapterIndices: List<Int>? = null,
 ): RsvpReturnTarget {
     val lastTokenIndex = currentChapterTokens.lastIndex
     val nextChapterIndex =
-        if (resumePoint.tokenIndex > lastTokenIndex && currentChapterIndex < chapterCount - 1) {
-            currentChapterIndex + 1
+        if (resumePoint.tokenIndex > lastTokenIndex) {
+            if (linearChapterIndices == null) {
+                (currentChapterIndex + 1).takeIf { it < chapterCount } ?: currentChapterIndex
+            } else {
+                linearChapterIndices.firstOrNull { it > currentChapterIndex } ?: currentChapterIndex
+            }
         } else {
             currentChapterIndex
         }

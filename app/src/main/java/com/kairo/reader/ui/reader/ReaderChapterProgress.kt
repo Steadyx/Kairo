@@ -8,14 +8,15 @@ internal fun resolveReaderChapterProgress(
     chapters: List<Chapter>,
     chapterIndex: Int,
 ): ReaderChapterProgress {
-    val fallbackCurrent = (chapterIndex + 1).coerceAtLeast(1)
-    val fallbackTotal = chapters.size.coerceAtLeast(fallbackCurrent)
+    val linearChapters = chapters.filter { it.isLinear }
+    val fallbackCurrent = linearChapters.count { it.index <= chapterIndex }.coerceAtLeast(1)
+    val fallbackTotal = linearChapters.size.coerceAtLeast(fallbackCurrent)
     val currentChapter = chapters.getOrNull(chapterIndex) ?: return ReaderChapterProgress(
         currentNumber = fallbackCurrent,
         totalNumber = fallbackTotal,
     )
 
-    val numberedChapterNumbers = chapters.mapNotNull { extractReaderChapterNumber(it.title) }
+    val numberedChapterNumbers = linearChapters.mapNotNull { extractReaderChapterNumber(it.title) }
     val currentNumber = extractReaderChapterNumber(currentChapter.title)
     if (currentNumber == null || numberedChapterNumbers.isEmpty()) {
         return ReaderChapterProgress(

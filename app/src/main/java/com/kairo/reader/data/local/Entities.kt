@@ -63,6 +63,7 @@ data class ChapterEntity(
     val imagePaths: String = "",
     val wordCount: Int = 0,
     @ColumnInfo(defaultValue = "0") val wordCountVersion: Int = 0,
+    @ColumnInfo(defaultValue = "1") val isLinear: Boolean = true,
 )
 
 @Entity(
@@ -86,6 +87,7 @@ data class ReadingPositionEntity(
     val tokenIndex: Int,
     val wordIndex: Int = -1,
     val rsvpResumeCursor: Int = -1,
+    @ColumnInfo(defaultValue = "-1") val imagePageIndex: Int = -1,
 )
 
 @Entity(

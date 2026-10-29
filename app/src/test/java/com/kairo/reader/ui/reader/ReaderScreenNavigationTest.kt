@@ -5,6 +5,54 @@ import org.junit.Test
 
 class ReaderScreenNavigationTest {
     @Test
+    fun sequentialNavigationSkipsAuxiliaryChapters() {
+        var chapterChange: Int? = null
+        val navigation = buildReaderNavigationState(
+            pages = emptyList(),
+            isPagedChapter = false,
+            resolvedPageIndex = -1,
+            chapterIndex = 0,
+            lastChapterIndex = 3,
+            linearChapterIndices = listOf(0, 2),
+            onPageChange = {},
+            onChapterChange = { chapter, _ -> chapterChange = chapter },
+        )
+        navigation.onNextPage()
+        assertEquals(2, chapterChange)
+        val last = buildReaderNavigationState(
+            pages = emptyList(),
+            isPagedChapter = false,
+            resolvedPageIndex = -1,
+            chapterIndex = 2,
+            lastChapterIndex = 3,
+            linearChapterIndices = listOf(0, 2),
+            onPageChange = {},
+            onChapterChange = { chapter, _ -> chapterChange = chapter },
+        )
+        assertEquals(false, last.canGoNextPage)
+        last.onNextPage()
+        assertEquals(2, chapterChange)
+    }
+
+    @Test
+    fun previousFromLinkedNoteReturnsToSourceFocus() {
+        var destination: Pair<Int, Int?>? = null
+        val navigation = buildReaderNavigationState(
+            pages = emptyList(),
+            isPagedChapter = false,
+            resolvedPageIndex = -1,
+            chapterIndex = 5,
+            lastChapterIndex = 5,
+            linearChapterIndices = listOf(0, 1, 2, 3),
+            auxiliaryReturn = ReaderReturnPosition(1, 42, null),
+            onPageChange = {},
+            onChapterChange = { chapter, focus -> destination = chapter to focus },
+        )
+        navigation.onPrevPage()
+        assertEquals(1 to 42, destination)
+    }
+
+    @Test
     fun nextPage_advancesWithinCurrentChapterBeforeChangingChapter() {
         var pageChanged: ChapterPage? = null
         var chapterChange: Pair<Int, Int?>? = null

@@ -3,10 +3,18 @@ package com.kairo.reader.ui.settings
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -26,7 +34,9 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kairo.reader.R
 import com.kairo.reader.TestActivity
@@ -184,6 +194,96 @@ class ThemeSettingsDeviceTest {
         node(R.string.theme_reset_colours).performClick()
         node(R.string.theme_hex).performScrollTo().assertTextContains("#F4EFE4")
         node(R.string.theme_apply).assertIsEnabled()
+    }
+
+    @Test
+    fun hexValidityChangesInTheSameInputEvent() {
+        var valid = true
+        rule.setContent {
+            KairoTheme {
+                ThemeColorEditor(
+                    role = ThemeColorRole.BACKGROUND,
+                    initial = 0xFFF4EFE4.toInt(),
+                    automatic = false,
+                    onChange = {},
+                    onValidityChange = { valid = it },
+                )
+            }
+        }
+        node(R.string.theme_hex).performSemanticsAction(SemanticsActions.SetText) { setText ->
+            assertTrue(setText(AnnotatedString("#12")))
+            assertFalse("Incomplete input must disable Apply immediately", valid)
+        }
+        node(R.string.theme_hex).performSemanticsAction(SemanticsActions.SetText) { setText ->
+            assertTrue(setText(AnnotatedString("#123456")))
+            assertTrue("Complete input must restore validity immediately", valid)
+        }
+    }
+
+    @Test
+    fun replacingFocusedHexThenClearingFocusKeepsTheEditedColor() {
+        var color: Int? = null
+        lateinit var focusManager: FocusManager
+        rule.setContent {
+            focusManager = LocalFocusManager.current
+            KairoTheme {
+                ThemeColorEditor(
+                    role = ThemeColorRole.BACKGROUND,
+                    initial = 0xFFF4EFE4.toInt(),
+                    automatic = false,
+                    onChange = { color = it },
+                )
+            }
+        }
+        node(R.string.theme_hex).performClick()
+        node(R.string.theme_hex).performSemanticsAction(SemanticsActions.SetText) { setText ->
+            assertTrue(setText(AnnotatedString("#172C29")))
+            focusManager.clearFocus(force = true)
+        }
+        node(R.string.theme_hex).assertTextContains("#172C29")
+        rule.runOnIdle { assertEquals(0xFF172C29.toInt(), color) }
+    }
+
+    @Test
+    fun inactiveInvalidColorDraftSurvivesResponsiveWidthChanges() {
+        val wide = mutableStateOf(false)
+        rule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(density.density * if (wide.value) 0.5f else 1f, density.fontScale)
+            ) {
+                KairoTheme {
+                    Box(Modifier.fillMaxWidth().height(600.dp)) {
+                        ThemeSettingsScreen(UserPreferences(readerTheme = ReaderTheme.CUSTOM), { _, _ -> }, {})
+                    }
+                }
+            }
+        }
+        node(R.string.theme_hex).performScrollTo().performTextReplacement("#12")
+        val scrollBefore = rule.onNodeWithTag("theme-controls").fetchSemanticsNode()
+            .config[SemanticsProperties.VerticalScrollAxisRange].value()
+        assertTrue("Fixture must scroll the colour tab", scrollBefore > 0f)
+        node(R.string.theme_tab_fonts).performClick()
+        rule.runOnIdle { wide.value = true }
+        val preview = rule.onNodeWithTag("theme-live-preview").getUnclippedBoundsInRoot()
+        val controls = rule.onNodeWithTag("theme-controls").getUnclippedBoundsInRoot()
+        assertTrue("Fixture must use the wide layout", preview.right <= controls.left)
+        node(R.string.theme_apply).assertIsNotEnabled()
+        rule.runOnIdle { wide.value = false }
+        node(R.string.theme_tab_colours).performClick()
+        val scrollAfter = rule.onNodeWithTag("theme-controls").fetchSemanticsNode()
+            .config[SemanticsProperties.VerticalScrollAxisRange].value()
+        assertEquals(scrollBefore, scrollAfter, 1f)
+        node(R.string.theme_hex).performScrollTo().assertTextContains("#12")
+        node(R.string.theme_tab_fonts).performClick()
+        rule.runOnIdle { wide.value = true }
+        node(R.string.theme_tab_colours).performClick()
+        node(R.string.theme_hex).performScrollTo().assertTextContains("#12")
+        node(R.string.theme_tab_fonts).performClick()
+        rule.runOnIdle { wide.value = false }
+        node(R.string.theme_apply).assertIsNotEnabled()
+        node(R.string.theme_tab_colours).performClick()
+        node(R.string.theme_hex).performScrollTo().assertTextContains("#12")
     }
 
     @After

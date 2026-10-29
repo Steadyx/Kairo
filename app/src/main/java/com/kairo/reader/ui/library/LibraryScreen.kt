@@ -60,6 +60,7 @@ fun LibraryScreen(
     onDeleteBookmarksForBook: (bookId: String) -> Unit,
     onSearchQuery: (String) -> Unit = {},
     onRetrySearch: () -> Unit = {},
+    onSearchPageChange: (Int) -> Unit = {},
     onOpenSearchResult: (LibrarySearchResult) -> Unit = {},
     onWeeklyGoalChange: (Int) -> Unit = {},
     onResetMomentum: () -> Unit = {},
@@ -330,6 +331,7 @@ fun LibraryScreen(
             state = searchState,
             onQuery = onSearchQuery,
             onRetry = onRetrySearch,
+            onPageChange = onSearchPageChange,
             onOpenResult = { result ->
                 showSearch = false
                 onOpenSearchResult(result)

@@ -9,6 +9,15 @@ import org.junit.Test
 
 class TextFileParserEngineTest {
     @Test
+    fun looseTextDoesNotTreatCharsetExamplesAsDeclarations() {
+        val text = "Use charset=windows-1252 or <meta charset='windows-1252'> as an example. Café résumé naïve."
+        listOf("txt", "md", "markdown").forEach { extension ->
+            val book = parse(extension, "example.$extension", text)
+            assertEquals(text, book.chapters.single().plainText)
+        }
+    }
+
+    @Test
     fun markdownImportUsesHeadingAndPreservesParagraphs() {
         val book = parse(
             extension = "md",

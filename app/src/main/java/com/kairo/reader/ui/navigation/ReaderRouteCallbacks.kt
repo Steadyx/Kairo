@@ -13,6 +13,7 @@ import com.kairo.reader.core.model.TableOfContentsTarget
 import com.kairo.reader.core.model.TimedReadingMode
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.core.model.nearestWordIndex
+import com.kairo.reader.ui.reader.ReaderImageBlock
 import com.kairo.reader.ui.reader.ReaderUiState
 import com.kairo.reader.ui.reader.ReaderViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -129,14 +130,16 @@ internal fun buildReaderRouteCallbacks(
                     dependencies.uiState.chapterData?.wordCountByToken,
                     newFocusIndex,
                 )
-            dependencies.readerPositionSaver.saveDebounced(
-                ReadingPosition(
-                    dependencies.bookIdValue,
-                    dependencies.uiState.chapterIndex,
-                    newFocusIndex,
-                    wordIndex,
-                ),
-            )
+            if (dependencies.uiState.isLinearChapter) {
+                dependencies.readerPositionSaver.saveDebounced(
+                    ReadingPosition(
+                        dependencies.bookIdValue,
+                        dependencies.uiState.chapterIndex,
+                        newFocusIndex,
+                        wordIndex,
+                    ),
+                )
+            }
         },
         onPageChange = { pageIndex, focusTokenIndex ->
             val tokens = dependencies.uiState.chapterData?.tokens.orEmpty()
@@ -152,14 +155,17 @@ internal fun buildReaderRouteCallbacks(
                     dependencies.uiState.chapterData?.wordCountByToken,
                     safeIndex,
                 )
-            dependencies.readerPositionSaver.saveDebounced(
-                ReadingPosition(
-                    dependencies.bookIdValue,
-                    dependencies.uiState.chapterIndex,
-                    safeIndex,
-                    wordIndex,
-                ),
-            )
+            if (dependencies.uiState.isLinearChapter) {
+                dependencies.readerPositionSaver.saveDebounced(
+                    ReadingPosition(
+                        dependencies.bookIdValue,
+                        dependencies.uiState.chapterIndex,
+                        safeIndex,
+                        wordIndex,
+                        imagePageIndex = if (dependencies.uiState.isImageOnlyChapter()) pageIndex else -1,
+                    ),
+                )
+            }
         },
         onStartTimedReading = { mode, start ->
             dependencies.startTimedReading(mode, start, rememberMode = false)
@@ -168,9 +174,15 @@ internal fun buildReaderRouteCallbacks(
             dependencies.startTimedReading(mode, start, rememberMode = true)
         },
         onChapterChange = { newIndex, focusIndex ->
-            dependencies.readerViewModel.loadChapter(newIndex, focusIndex)
+            val returnPosition = dependencies.uiState.auxiliaryReturn
+            dependencies.readerViewModel.loadChapter(
+                newIndex,
+                focusIndex,
+                initialPageIndex = returnPosition?.pageIndex.takeIf { returnPosition?.chapterIndex == newIndex },
+            )
         },
         onTableOfContentsTargetSelected = { target ->
+            dependencies.saveCurrentReaderPosition()
             dependencies.container.readingSessionCoordinator.rebaseReader(dependencies.bookIdValue)
             dependencies.readerViewModel.loadTableOfContentsTarget(target)
         },
@@ -187,16 +199,42 @@ private fun ReaderRouteCallbackDependencies.buildCurrentReaderPosition(): Readin
     // location together, retaining a pending RSVP result only until the model catches up.
     val liveState = readerViewModel.uiState.value
     val currentState = if (liveState == uiState) effectiveUiState else liveState
-    val chapterData = currentState.chapterData ?: return null
+    return buildReaderPosition(bookIdValue, currentState)
+}
+
+internal fun ReaderUiState.isImageOnlyChapter(): Boolean =
+    chapterData?.let { it.pages.isEmpty() && it.blocks.any { block -> block is ReaderImageBlock } } == true
+
+internal fun buildReaderPosition(bookId: BookId, state: ReaderUiState): ReadingPosition? {
+    if (!state.isLinearChapter) return null
+    val chapterData = state.chapterData ?: return null
     val tokens = chapterData.tokens
-    if (tokens.isEmpty()) return null
-    val safeIndex = tokens.nearestWordIndex(currentState.focusIndex).coerceIn(0, tokens.lastIndex)
+    val imageOnly = state.isImageOnlyChapter()
+    if (tokens.isEmpty() && !imageOnly) return null
+    val safeIndex = if (tokens.isEmpty()) 0 else tokens.nearestWordIndex(state.focusIndex).coerceIn(0, tokens.lastIndex)
     val wordIndex = resolveWordIndex(chapterData.wordCountByToken, safeIndex)
     return ReadingPosition(
-        bookIdValue,
-        currentState.chapterIndex,
+        bookId,
+        state.chapterIndex,
         safeIndex,
         wordIndex,
+        imagePageIndex = if (imageOnly) (state.pageIndexOverride ?: 0).coerceAtLeast(0) else -1,
+    )
+}
+
+internal fun buildTimedReaderPosition(
+    bookId: BookId,
+    state: ReaderUiState,
+    tokenIndex: Int,
+    resumeCursor: Int,
+): ReadingPosition? {
+    if (!state.isLinearChapter) return null
+    return ReadingPosition(
+        bookId,
+        state.chapterIndex,
+        tokenIndex,
+        resolveWordIndex(state.chapterData?.wordCountByToken, tokenIndex),
+        rsvpResumeCursor = resumeCursor,
     )
 }
 
@@ -232,7 +270,6 @@ private fun ReaderRouteCallbackDependencies.startTimedReading(
         tokens = uiState.chapterData?.tokens.orEmpty(),
         languageTag = languageTag,
     )
-    val wordIndex = resolveWordIndex(uiState.chapterData?.wordCountByToken, start)
     val launchTempoMsPerWord =
         getPendingRsvpLaunchTempoMsPerWord()
             .takeIf { it > 0L }
@@ -247,15 +284,12 @@ private fun ReaderRouteCallbackDependencies.startTimedReading(
                     it.chapterIndex == uiState.chapterIndex &&
                         it.tokenIndex == start
                 }?.rsvpResumeCursor ?: -1
-        readerPositionSaver.saveImmediateAndJoin(
-            ReadingPosition(
-                bookIdValue,
-                uiState.chapterIndex,
-                start,
-                wordIndex,
-                rsvpResumeCursor = resumeCursor,
-            ),
-        )
+        val position = buildTimedReaderPosition(bookIdValue, uiState, start, resumeCursor)
+        if (position == null) {
+            readerPositionSaver.flush()
+        } else {
+            readerPositionSaver.saveImmediateAndJoin(position)
+        }
         withContext(Dispatchers.Main) {
             navController.navigate(
                 KairoRoutes.timedReading(

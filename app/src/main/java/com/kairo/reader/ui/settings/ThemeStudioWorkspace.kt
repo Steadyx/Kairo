@@ -18,7 +18,13 @@ import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -37,25 +43,42 @@ internal enum class ThemeStudioSection(val titleRes: Int) {
 internal fun ThemeStudioWorkspace(
     modifier: Modifier,
     section: ThemeStudioSection,
-    revision: Int,
+    state: ThemeStudioState,
     onSectionChange: (ThemeStudioSection) -> Unit,
     preview: @Composable () -> Unit,
-    controls: @Composable ColumnScope.() -> Unit,
+    controls: @Composable ColumnScope.(ThemeStudioDraft) -> Unit,
 ) {
+    val stateHolder = rememberSaveableStateHolder()
+    val revision = state.revision
+    LaunchedEffect(stateHolder, revision) {
+        val currentKeys = ThemeStudioSection.entries.map { section -> "${section.name}-$revision" }.toSet()
+        stateHolder.keys.filterNot { it in currentKeys }.forEach(stateHolder::removeState)
+    }
+    val currentSection by rememberUpdatedState(section)
+    val currentState by rememberUpdatedState(state)
+    val currentOnSectionChange by rememberUpdatedState(onSectionChange)
+    val currentControls by rememberUpdatedState(controls)
+    val movableControls = remember(stateHolder) {
+        movableContentOf<ColumnScope> { scope ->
+            with(scope) {
+                StudioControls(currentSection, currentState, stateHolder, currentOnSectionChange, currentControls)
+            }
+        }
+    }
     BoxWithConstraints(modifier) {
         val previewWidth = maxWidth * 0.4f
         val previewHeight = minOf(maxHeight * 0.40f, 244.dp)
         if (maxWidth >= 640.dp) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(16.dp)) {
                 Column(Modifier.width(previewWidth).verticalScroll(rememberScrollState())) { preview() }
-                Column(Modifier.weight(1f)) { StudioControls(section, revision, onSectionChange, controls) }
+                Column(Modifier.weight(1f)) { movableControls(this) }
             }
         } else {
             Column {
                 Column(Modifier.fillMaxWidth().height(previewHeight).verticalScroll(rememberScrollState()).padding(12.dp)) {
                     preview()
                 }
-                StudioControls(section, revision, onSectionChange, controls)
+                movableControls(this)
             }
         }
     }
@@ -64,12 +87,14 @@ internal fun ThemeStudioWorkspace(
 @Composable
 private fun ColumnScope.StudioControls(
     section: ThemeStudioSection,
-    revision: Int,
+    state: ThemeStudioState,
+    stateHolder: SaveableStateHolder,
     onSectionChange: (ThemeStudioSection) -> Unit,
-    controls: @Composable ColumnScope.() -> Unit,
+    controls: @Composable ColumnScope.(ThemeStudioDraft) -> Unit,
 ) {
+    val revision = state.revision
+    val draft = state.draft
     key(revision) {
-        val stateHolder = rememberSaveableStateHolder()
         SecondaryScrollableTabRow(
             selectedTabIndex = section.ordinal,
             edgePadding = 12.dp,
@@ -79,12 +104,11 @@ private fun ColumnScope.StudioControls(
                 Tab(selected = section == item, onClick = { onSectionChange(item) }, text = { Text(stringResource(item.titleRes)) })
             }
         }
-        stateHolder.SaveableStateProvider(section.name) {
+        stateHolder.SaveableStateProvider("${section.name}-$revision") {
             Column(
                 Modifier.weight(1f).fillMaxWidth().testTag("theme-controls").verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                content = controls,
-            )
+            ) { controls(draft) }
         }
     }
 }

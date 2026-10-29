@@ -398,6 +398,8 @@ internal class EpubContentRewriter {
         baseDir: String,
         chapterIndexByPathLower: Map<String, Int>,
         currentChapterPath: String? = null,
+        anchorOffsetsByPath: Map<String, Map<String, Int>> = emptyMap(),
+        auxiliaryPaths: Set<String> = emptySet(),
     ): String {
         return ANCHOR_HREF_REGEX.replace(html) { match ->
             val prefix = match.groupValues[1]
@@ -435,7 +437,11 @@ internal class EpubContentRewriter {
                     .takeIf { it.isNotBlank() }
                     ?.let { "#${EpubPathResolver.encodeUrlPath(it)}" }
                     .orEmpty()
-            "${prefix}kairo://chapter/$chapterIndex$fragmentSuffix$suffix"
+            val offset = anchorOffsetsByPath[targetPath]?.let { anchors ->
+                anchors[fragment] ?: anchors.entries.firstOrNull { it.key.equals(fragment, ignoreCase = true) }?.value
+            }
+            val rewritten = "${prefix}kairo://chapter/$chapterIndex$fragmentSuffix$suffix"
+            addEpubLinkAttributes(rewritten, targetPath in auxiliaryPaths, offset)
         }
     }
 
@@ -446,6 +452,9 @@ internal class EpubContentRewriter {
             .take(MAX_LINKS_PER_CHAPTER + 1)
             .count()
     }
+
+    fun extractAnchorHrefs(html: String): List<String> =
+        ANCHOR_HREF_REGEX.findAll(html).map { it.groupValues[2] }.toList()
 
     fun parseMarkupDocument(html: String): EpubMarkupDocument {
         val sanitized =

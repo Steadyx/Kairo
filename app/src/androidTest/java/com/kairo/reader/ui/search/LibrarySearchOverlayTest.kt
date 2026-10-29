@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.kairo.reader.R
 import com.kairo.reader.TestActivity
 import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.LibrarySearchResult
@@ -21,6 +22,29 @@ import org.junit.runner.RunWith
 class LibrarySearchOverlayTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<TestActivity>()
+
+    @Test
+    fun moreResultsButtonRequestsNextPassagePage() {
+        var requestedPage = -1
+        val more = composeRule.activity.getString(R.string.search_more_results)
+        composeRule.setContent {
+            KairoTheme {
+                LibrarySearchOverlay(
+                    title = "Search this book",
+                    hint = "Find text",
+                    state = LibrarySearchState.Success("needle", listOf(passageResult()), hasMoreResults = true),
+                    initialQuery = "needle",
+                    onQuery = {},
+                    onRetry = {},
+                    onPageChange = { requestedPage = it },
+                    onOpenResult = {},
+                    onDismiss = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText(more).assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertEquals(1, requestedPage) }
+    }
 
     @Test
     fun selectingResultDoesNotClearSuccessfulResultSet() {

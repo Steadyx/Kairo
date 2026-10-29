@@ -58,7 +58,8 @@ internal fun buildReaderParagraphVisualContent(
             if (interactiveChapterLinkTarget != null) {
                 addStringAnnotation(
                     tag = "chapterLink",
-                    annotation = interactiveChapterLinkTarget.toString(),
+                    annotation = token.linkCharacterOffset?.let { "$interactiveChapterLinkTarget:$it" }
+                        ?: interactiveChapterLinkTarget.toString(),
                     start = start,
                     end = end
                 )

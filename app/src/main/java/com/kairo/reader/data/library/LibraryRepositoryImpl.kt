@@ -18,6 +18,8 @@ import com.kairo.reader.data.local.ReadingSessionDao
 import com.kairo.reader.data.local.SavedAnnotationDao
 import java.io.File
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 @Suppress("LongParameterList")
@@ -34,30 +36,38 @@ class LibraryRepositoryImpl(
     private val appContext: Context,
     private val dispatcherProvider: DispatcherProvider,
 ) : LibraryRepository {
+    private val mutationMutex = Mutex()
+
     override fun observeLibrary(): Flow<List<Book>> = bookRepository.observeBooks()
 
     override suspend fun import(uri: Uri): BookImportResult {
         // Don't silently swallow errors - let them propagate so UI can show error message
-        return importAndInvalidateCaches(
-            importBook = { bookRepository.importBook(uri) },
-            invalidateBookCaches = invalidateBookCaches,
-            invalidateAllCaches = invalidateAllCaches,
-        )
+        return mutationMutex.withLock {
+            importAndInvalidateCaches(
+                importBook = { bookRepository.importBook(uri) },
+                invalidateBookCaches = invalidateBookCaches,
+                invalidateAllCaches = invalidateAllCaches,
+            )
+        }
     }
 
     override suspend fun importUrl(rawUrl: String): BookImportResult =
-        importAndInvalidateCaches(
-            importBook = { bookRepository.importUrl(rawUrl) },
-            invalidateBookCaches = invalidateBookCaches,
-            invalidateAllCaches = invalidateAllCaches,
-        )
+        mutationMutex.withLock {
+            importAndInvalidateCaches(
+                importBook = { bookRepository.importUrl(rawUrl) },
+                invalidateBookCaches = invalidateBookCaches,
+                invalidateAllCaches = invalidateAllCaches,
+            )
+        }
 
     override suspend fun importText(request: TextImportRequest): BookImportResult =
-        importAndInvalidateCaches(
-            importBook = { bookRepository.importText(request) },
-            invalidateBookCaches = invalidateBookCaches,
-            invalidateAllCaches = invalidateAllCaches,
-        )
+        mutationMutex.withLock {
+            importAndInvalidateCaches(
+                importBook = { bookRepository.importText(request) },
+                invalidateBookCaches = invalidateBookCaches,
+                invalidateAllCaches = invalidateAllCaches,
+            )
+        }
 
     override suspend fun setCompleted(
         bookId: String,
@@ -69,18 +79,20 @@ class LibraryRepositoryImpl(
     }
 
     override suspend fun delete(bookId: String) {
-        withContext(dispatcherProvider.io) {
-            database.withTransaction {
-                positionDao.deleteForBook(bookId)
-                bookmarkDao.deleteForBook(bookId)
-                annotationDao.deleteForBook(bookId)
-                sessionDao.deleteForBook(bookId)
-                bookDao.deleteChaptersForBook(bookId)
-                bookDao.deleteTableOfContentsForBook(bookId)
-                bookDao.deleteBook(bookId)
+        mutationMutex.withLock {
+            withContext(dispatcherProvider.io) {
+                database.withTransaction {
+                    positionDao.deleteForBook(bookId)
+                    bookmarkDao.deleteForBook(bookId)
+                    annotationDao.deleteForBook(bookId)
+                    sessionDao.deleteForBook(bookId)
+                    bookDao.deleteChaptersForBook(bookId)
+                    bookDao.deleteTableOfContentsForBook(bookId)
+                    bookDao.deleteBook(bookId)
+                }
+                invalidateBookCaches(BookId(bookId))
+                deleteBookAssets(bookId)
             }
-            invalidateBookCaches(BookId(bookId))
-            deleteBookAssets(bookId)
         }
     }
 

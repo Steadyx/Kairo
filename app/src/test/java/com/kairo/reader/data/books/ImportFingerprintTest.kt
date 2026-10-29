@@ -91,6 +91,59 @@ class ImportFingerprintTest {
         )
     }
 
+    @Test
+    fun contentFingerprintIncludesMarkupAndLanguage() {
+        val original = book("A book", listOf("Ada"), "Some text")
+        val formatted = original.copy(
+            chapters = original.chapters.map { it.copy(htmlContent = "<p><em>Some text</em></p>") },
+        )
+        assertNotEquals(ImportFingerprint.contentFingerprint(original), ImportFingerprint.contentFingerprint(formatted))
+        assertNotEquals(
+            ImportFingerprint.contentFingerprint(original),
+            ImportFingerprint.contentFingerprint(original.copy(languageTag = "fr")),
+        )
+        assertNotEquals(
+            ImportFingerprint.contentFingerprint(original),
+            ImportFingerprint.contentFingerprint(original.copy(chapters = original.chapters.map { it.copy(isLinear = false) })),
+        )
+    }
+
+    @Test
+    fun illustratedBooksAreNotComparedAsTextOnly() {
+        val original = book("A book", listOf("Ada"), "Some text")
+        assertTrue(!original.hasImportImages())
+        assertTrue(original.copy(coverImage = byteArrayOf(1)).hasImportImages())
+        assertTrue(
+            original.copy(chapters = original.chapters.map { it.copy(imagePaths = listOf("image.png")) })
+                .hasImportImages(),
+        )
+    }
+
+    @Test
+    fun epubReimportRepairsLegacyExtrasWithoutChangingChapterIndices() {
+        val chapter = book("Book", emptyList(), "First").chapters.single()
+        val first = chapter.copy(index = 0, title = "First")
+        val second = chapter.copy(index = 1, title = "Second", plainText = "Second")
+        val notes = chapter.copy(index = 2, title = "Notes", plainText = "Note")
+        val unused = chapter.copy(index = 3, title = "Extra", plainText = "Extra")
+        assertEquals(
+            mapOf(0 to true, 1 to true, 2 to false, 3 to false),
+            resolveEpubLinearityRepair(listOf(first, second, notes, unused), listOf(first, second, notes.copy(isLinear = false))),
+        )
+        assertEquals(null, resolveEpubLinearityRepair(listOf(first, second), listOf(first, notes)))
+        assertEquals(null, resolveEpubLinearityRepair(listOf(first, first.copy(index = 1)), listOf(first)))
+        val imageA = chapter.copy(
+            index = 4,
+            title = "Image",
+            plainText = "",
+            htmlContent = "<img src=\"kairo_epub_assets/old/images/a.png\">"
+        )
+        val imageB = imageA.copy(index = 5, htmlContent = "<img src=\"kairo_epub_assets/old/images/b.png\">")
+        val probeA = imageA.copy(index = 0, isLinear = true, htmlContent = imageA.htmlContent.replace("/old/", "/probe/"))
+        val probeB = imageB.copy(index = 1, isLinear = false, htmlContent = imageB.htmlContent.replace("/old/", "/probe/"))
+        assertEquals(mapOf(4 to true, 5 to false), resolveEpubLinearityRepair(listOf(imageA, imageB), listOf(probeA, probeB)))
+    }
+
     private fun book(
         title: String,
         authors: List<String>,

@@ -72,12 +72,12 @@ internal fun currentResumePoint(context: RsvpUiContext): RsvpResumePoint {
 
 internal fun exitAndSavePosition(context: RsvpUiContext) {
     val runtime = context.runtime
+    if (runtime.completed) return
     val frames = context.frameState.frames
     val book = context.state.book
 
     runtime.isExiting = true
     runtime.isPlaying = false
-    runtime.completed = true
 
     val resumePoint = currentResumePoint(context)
     context.callbacks.playback.onPositionChanged(resumePoint)
@@ -86,6 +86,7 @@ internal fun exitAndSavePosition(context: RsvpUiContext) {
 
 internal fun openLibraryAndSavePosition(context: RsvpUiContext) {
     val runtime = context.runtime
+    if (runtime.completed) return
 
     runtime.isExiting = true
     runtime.isPlaying = false

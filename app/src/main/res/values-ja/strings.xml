@@ -452,6 +452,7 @@
     <string name="update_check_title">アップデートを確認</string>
     <string name="update_check_subtitle">Google Playで新しいバージョンを確認します</string>
     <string name="update_check_up_to_date">Kairoは最新です。</string>
+    <string name="update_check_unavailable">更新状況を確認できません。Google Playで最新バージョンを確認してください。</string>
     <string name="update_check_failed">アップデートを確認できませんでした。後でもう一度お試しください。</string>
     <string name="accessibility_state_expanded">展開済み</string>
     <string name="accessibility_state_collapsed">折りたたみ済み</string>
@@ -503,6 +504,7 @@
     <string name="note_export_no_notes">エクスポートできるメモがありません。</string>
     <string name="note_export_note_unavailable">このメモは利用できません。</string>
     <string name="note_export_failed">メモをエクスポートできませんでした。</string>
+    <string name="note_export_destination_not_empty">既存の文書を保護するため、新しい空のファイルを選択してください。</string>
     <string name="note_export_filename_all">Kairo メモ</string>
     <string name="note_export_filename_single">メモ</string>
     <string name="note_export_document_title_all">ライブラリのメモ</string>
@@ -577,6 +579,8 @@
     <string name="search_book_hint">この本の単語やフレーズ</string>
     <string name="search_minimum_hint">2文字以上入力してください</string>
     <string name="search_no_results">結果が見つかりません</string>
+    <string name="search_previous_results">前の結果</string>
+    <string name="search_more_results">その他の結果</string>
     <string name="search_passage_label">文章</string>
     <string name="search_saved_label">保存済み</string>
     <string name="search_book_label">本</string>
@@ -595,6 +599,7 @@
     <string name="highlight_green">緑</string>
     <string name="highlight_pink">ピンク</string>
     <string name="toast_passage_saved">文章を保存しました</string>
+    <string name="reader_search_match_count_more">%1$d件目</string>
     <string name="reader_search_match_count">%2$d件中%1$d件</string>
     <string name="content_desc_previous_search_match">前の検索結果</string>
     <string name="content_desc_next_search_match">次の検索結果</string>

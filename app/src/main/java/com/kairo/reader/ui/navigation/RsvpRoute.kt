@@ -1,6 +1,7 @@
 package com.kairo.reader.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -20,15 +21,18 @@ import com.kairo.reader.core.rsvp.RsvpGenerationOptions
 import com.kairo.reader.data.sessions.ReadingSessionLocation
 import com.kairo.reader.ui.rsvp.ReadingPresentationMode
 import com.kairo.reader.ui.rsvp.RsvpBookContext
+import com.kairo.reader.ui.rsvp.RsvpFrameLoadFailedState
 import com.kairo.reader.ui.rsvp.RsvpLayoutBias
 import com.kairo.reader.ui.rsvp.RsvpLoadingState
 import com.kairo.reader.ui.rsvp.RsvpProfileContext
+import com.kairo.reader.ui.rsvp.RsvpResumePoint
 import com.kairo.reader.ui.rsvp.RsvpScreen
 import com.kairo.reader.ui.rsvp.RsvpScreenDependencies
 import com.kairo.reader.ui.rsvp.RsvpScreenState
 import com.kairo.reader.ui.rsvp.RsvpTextStyle
 import com.kairo.reader.ui.rsvp.RsvpUiPreferences
 import com.kairo.reader.ui.tutorial.StartingTutorialOverlayState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -52,7 +56,6 @@ internal fun RsvpRoute(
             ?.getLong(KairoRoutes.ARG_TEMPO_MS)
             ?.takeIf { it > 0L }
     val coroutineScope = rememberCoroutineScope()
-    val dispatcherProvider = container.dispatcherProvider
     val resources = LocalResources.current
 
     val focusEnabledInRsvp = prefs.focusModeEnabled && prefs.focusApplyInRsvp
@@ -79,6 +82,10 @@ internal fun RsvpRoute(
         )
     if (!routeData.isReady) {
         RsvpLoadingState(presentationMode)
+        return
+    }
+    if (routeData.linearChapterIndices == null) {
+        RsvpFrameLoadFailedState(presentationMode) { navController.popBackStack() }
         return
     }
     val tokens = routeData.tokens
@@ -128,13 +135,7 @@ internal fun RsvpRoute(
         remember(routeData.languageTag) {
             RsvpGenerationOptions.fromLanguageTag(routeData.languageTag)
         }
-    val positionSaver = remember(bookId, coroutineScope) {
-        RsvpPositionSaver(coroutineScope) { position ->
-            withContext(dispatcherProvider.io) {
-                container.readingPositionRepository.savePosition(position)
-            }
-        }
-    }
+    val positionSaver = rememberRsvpPositionSaver(bookId, container, coroutineScope)
     val rsvpState =
         RsvpScreenState(
             book =
@@ -178,6 +179,7 @@ internal fun RsvpRoute(
                 sessionMode = sessionMode,
                 chapterIndex = chapterIndex,
                 chapterCount = routeData.chapterCount,
+                linearChapterIndices = routeData.linearChapterIndices,
                 tokens = tokens,
                 wordCountByToken = wordCountByToken,
                 languageTag = routeData.languageTag,
@@ -201,6 +203,7 @@ internal fun RsvpRoute(
                 positionSaver = positionSaver,
             )
         )
+    RestorePendingRsvpCompletion(backStackEntry, chapterIndex, rsvpCallbacks.playback.onFinished)
     val rsvpDependencies =
         RsvpScreenDependencies(
             frameRepository = container.rsvpFrameRepository,
@@ -217,6 +220,35 @@ internal fun RsvpRoute(
         onTutorialPrevious = onTutorialPrevious,
         onTutorialSkip = onTutorialSkip,
     )
+}
+
+@Composable
+private fun rememberRsvpPositionSaver(
+    bookId: String,
+    container: KairoApplication,
+    scope: CoroutineScope,
+): RsvpPositionSaver = remember(bookId, scope) {
+    RsvpPositionSaver(scope) { position ->
+        withContext(container.dispatcherProvider.io) {
+            container.readingPositionRepository.savePosition(position)
+        }
+    }
+}
+
+@Composable
+// Compose effects use PascalCase to make their side effects explicit at the call site.
+@Suppress("FunctionNaming")
+private fun RestorePendingRsvpCompletion(
+    backStackEntry: NavBackStackEntry,
+    chapterIndex: Int,
+    onFinished: (RsvpResumePoint) -> Unit,
+) {
+    val pendingCompletion = remember(backStackEntry) {
+        backStackEntry.savedStateHandle.pendingRsvpCompletion(chapterIndex)
+    }
+    LaunchedEffect(backStackEntry) {
+        pendingCompletion?.let(onFinished)
+    }
 }
 
 private fun resolveRsvpTextStyle(

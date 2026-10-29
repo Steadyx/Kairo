@@ -350,3 +350,11 @@ val MIGRATION_14_15: Migration =
             )
         }
     }
+
+val MIGRATION_15_16: Migration =
+    object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE reading_positions ADD COLUMN imagePageIndex INTEGER NOT NULL DEFAULT -1")
+            db.execSQL("ALTER TABLE chapters ADD COLUMN isLinear INTEGER NOT NULL DEFAULT 1")
+        }
+    }

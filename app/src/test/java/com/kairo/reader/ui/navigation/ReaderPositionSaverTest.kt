@@ -4,6 +4,7 @@ import com.kairo.reader.core.model.BookId
 import com.kairo.reader.core.model.ReadingPosition
 import com.kairo.reader.data.reading.ReadingPositionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -56,6 +57,19 @@ class ReaderPositionSaverTest {
             advanceUntilIdle()
 
             assertEquals(listOf(currentPosition), repository.savedPositions)
+        }
+
+    @Test
+    fun flushWaitsForQueuedLinearPositionBeforeOpeningAuxiliaryTimedReading() =
+        runTest {
+            val repository = FakeReadingPositionRepository()
+            val saver = ReaderPositionSaver(this, repository, StandardTestDispatcher(testScheduler))
+            val position = readingPosition(tokenIndex = 10)
+            saver.saveDebounced(position)
+            val flush = async { saver.flush() }
+            advanceUntilIdle()
+            flush.await()
+            assertEquals(listOf(position), repository.savedPositions)
         }
 
     private fun readingPosition(tokenIndex: Int): ReadingPosition =

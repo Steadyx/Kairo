@@ -88,10 +88,58 @@ class NoteExportServiceTest {
         assertEquals(0, writeCalls)
     }
 
+    @Test
+    fun defaultWriterProtectsExistingDocumentsAndRejectsUnreadableDestinations() = runBlocking {
+        val book = book()
+        val service = service(MutableStateFlow(listOf(note(book, "Observation"))), MutableStateFlow(listOf(book)))
+        val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        val authority = InstrumentationRegistry.getInstrumentation().context.packageName + ".noteexportfixture"
+        val existing = Uri.parse("content://$authority/existing")
+        val unreadable = Uri.parse("content://$authority/unreadable")
+        try {
+            resolver.openOutputStream(existing, "wt")!!.use { it.write("Existing document".toByteArray()) }
+            val prepared = service.prepare(NoteExportScope.Single("note-1"), NoteExportFormat.MARKDOWN)
+            assertFails<NoteExportDestinationNotEmptyException> {
+                service.write(prepared.requestId, prepared.scope, prepared.format, existing)
+            }
+            assertEquals("Existing document", resolver.openInputStream(existing)!!.bufferedReader().use { it.readText() })
+            val next = service.prepare(NoteExportScope.Single("note-1"), NoteExportFormat.MARKDOWN)
+            assertFails<java.io.FileNotFoundException> {
+                service.write(next.requestId, next.scope, next.format, unreadable)
+            }
+        } finally {
+            resolver.delete(existing, null, null)
+            resolver.delete(unreadable, null, null)
+        }
+    }
+
+    @Test
+    fun defaultWriterWritesNewEmptyDocumentsAndReportsWriteFailure() = runBlocking {
+        val book = book()
+        val service = service(MutableStateFlow(listOf(note(book, "Observation"))), MutableStateFlow(listOf(book)))
+        val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        val authority = InstrumentationRegistry.getInstrumentation().context.packageName + ".noteexportfixture"
+        val empty = Uri.parse("content://$authority/empty")
+        val writeFailure = Uri.parse("content://$authority/writefailure")
+        try {
+            resolver.openOutputStream(empty, "wt")!!.close()
+            val prepared = service.prepare(NoteExportScope.Single("note-1"), NoteExportFormat.MARKDOWN)
+            service.write(prepared.requestId, prepared.scope, prepared.format, empty)
+            assertTrue(resolver.openInputStream(empty)!!.bufferedReader().use { it.readText() }.contains("Observation"))
+            val next = service.prepare(NoteExportScope.Single("note-1"), NoteExportFormat.MARKDOWN)
+            assertFails<java.io.IOException> {
+                service.write(next.requestId, next.scope, next.format, writeFailure)
+            }
+        } finally {
+            resolver.delete(empty, null, null)
+            resolver.delete(writeFailure, null, null)
+        }
+    }
+
     private fun service(
         annotations: Flow<List<SavedAnnotationItem>>,
         books: Flow<List<Book>>,
-        writer: suspend (java.io.File, Uri) -> Unit,
+        writer: (suspend (java.io.File, Uri) -> Unit)? = null,
     ) =
         NoteExportService(
             context = InstrumentationRegistry.getInstrumentation().targetContext,
@@ -100,7 +148,7 @@ class NoteExportServiceTest {
             dispatcherProvider = DefaultDispatcherProvider(),
             clock = { 1_788_451_200_000L },
             requestIdFactory = { "prepared-request" },
-            destinationWriter = NoteExportDestinationWriter(writer),
+            destinationWriter = writer?.let { callback -> NoteExportDestinationWriter(callback) },
         )
 
     private fun book() =

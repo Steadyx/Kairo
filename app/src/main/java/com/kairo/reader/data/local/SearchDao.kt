@@ -57,12 +57,13 @@ interface SearchDao : ChapterTextQueries {
         FROM books
         WHERE lower(title) LIKE :pattern ESCAPE '\'
            OR lower(authors) LIKE :pattern ESCAPE '\'
-        ORDER BY lower(title)
-        LIMIT :limit
+        ORDER BY lower(title), id
+        LIMIT :limit OFFSET :offset
         """,
     )
     suspend fun searchBooks(
         pattern: String,
         limit: Int,
+        offset: Long = 0,
     ): List<BookEntity>
 }

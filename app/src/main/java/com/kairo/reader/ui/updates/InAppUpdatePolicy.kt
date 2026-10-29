@@ -8,8 +8,19 @@ internal enum class InAppUpdatePrompt {
 internal enum class InAppUpdateCheckResult {
     AVAILABLE,
     UP_TO_DATE,
+    UNAVAILABLE,
     FAILED,
 }
+
+internal fun selectInAppUpdateCheckResult(
+    prompt: InAppUpdatePrompt?,
+    updateNotAvailable: Boolean,
+): InAppUpdateCheckResult =
+    when {
+        prompt != null -> InAppUpdateCheckResult.AVAILABLE
+        updateNotAvailable -> InAppUpdateCheckResult.UP_TO_DATE
+        else -> InAppUpdateCheckResult.UNAVAILABLE
+    }
 
 internal data class InAppUpdateSnapshot(val updateAvailable: Boolean, val flexibleUpdateAllowed: Boolean, val updateDownloaded: Boolean,)
 

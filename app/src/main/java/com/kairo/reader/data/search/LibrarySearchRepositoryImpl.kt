@@ -26,46 +26,56 @@ class LibrarySearchRepositoryImpl(
     override suspend fun search(query: String, bookId: String?): List<LibrarySearchResult> =
         searchUpdates(query, bookId).last().results
 
-    override fun searchUpdates(query: String, bookId: String?): Flow<LibrarySearchUpdate> = channelFlow {
+    override fun searchUpdates(query: String, bookId: String?, resultPage: Int): Flow<LibrarySearchUpdate> = channelFlow {
         val normalized = normalizeLibrarySearchQuery(query)
         if (normalized.length < LibrarySearchConstraints.MIN_QUERY_LENGTH) {
             send(LibrarySearchUpdate(emptyList(), isComplete = true))
             return@channelFlow
         }
         if (bookId != null) {
-            val results = searchPassages(normalized, bookId) { partial ->
+            val results = searchPassages(normalized, bookId, resultPage) { partial ->
                 send(LibrarySearchUpdate(partial, isComplete = false))
             }
-            send(LibrarySearchUpdate(results, isComplete = true))
+            send(LibrarySearchUpdate(results.items, isComplete = true, hasMoreResults = results.hasMore))
             return@channelFlow
         }
         val groups = MutableList(SEARCH_GROUP_COUNT) { emptyList<LibrarySearchResult>() }
         val completed = mutableSetOf<Int>()
         val publicationMutex = Mutex()
-        suspend fun publish(index: Int, results: List<LibrarySearchResult>, complete: Boolean) {
+        val hasMoreByGroup = BooleanArray(SEARCH_GROUP_COUNT)
+        suspend fun publish(index: Int, results: List<LibrarySearchResult>, complete: Boolean, hasMore: Boolean = false) {
             publicationMutex.withLock {
                 groups[index] = results
                 if (complete) completed += index
+                if (complete) hasMoreByGroup[index] = hasMore
                 send(
                     LibrarySearchUpdate(
                         fairMergeSearchResults(groups, LibrarySearchConstraints.MAX_RESULTS),
                         isComplete = completed.size == SEARCH_GROUP_COUNT,
+                        hasMoreResults = hasMoreByGroup.any { it },
                     )
                 )
             }
         }
-        launch { publish(BOOK_GROUP, searchBookTitles(normalized.toSqlLikePattern()), complete = true) }
-        launch { publish(SAVED_GROUP, searchSaved(normalized.toSqlLikePattern()), complete = true) }
         launch {
-            val results = searchPassages(normalized, bookId = null) { partial ->
+            val results = searchBookTitles(normalized.toSqlLikePattern(), resultPage)
+            publish(BOOK_GROUP, results.items, complete = true, hasMore = results.hasMore)
+        }
+        launch {
+            val results = searchSaved(normalized.toSqlLikePattern(), resultPage)
+            publish(SAVED_GROUP, results.items, complete = true, hasMore = results.hasMore)
+        }
+        launch {
+            val results = searchPassages(normalized, bookId = null, resultPage = resultPage) { partial ->
                 publish(PASSAGE_GROUP, partial, complete = false)
             }
-            publish(PASSAGE_GROUP, results, complete = true)
+            publish(PASSAGE_GROUP, results.items, complete = true, hasMore = results.hasMore)
         }
     }.flowOn(dispatcherProvider.io)
 
-    private suspend fun searchBookTitles(pattern: String): List<LibrarySearchResult> =
-        searchDao.searchBooks(pattern, BOOK_RESULT_LIMIT).map { book ->
+    private suspend fun searchBookTitles(pattern: String, page: Int): SearchResultPage {
+        val books = searchDao.searchBooks(pattern, BOOK_RESULT_LIMIT + 1, pageOffset(page, BOOK_RESULT_LIMIT))
+        val results = books.take(BOOK_RESULT_LIMIT).map { book ->
             LibrarySearchResult(
                 id = "book:${book.id}",
                 kind = LibrarySearchResultKind.BOOK,
@@ -79,14 +89,17 @@ class LibrarySearchRepositoryImpl(
                 snippet = book.authors.joinToString(", "),
             )
         }
+        return SearchResultPage(results, hasMore = books.size > BOOK_RESULT_LIMIT)
+    }
 
     private suspend fun searchPassages(
         query: String,
         bookId: String?,
+        resultPage: Int,
         onResults: suspend (List<LibrarySearchResult>) -> Unit,
-    ): List<LibrarySearchResult> {
+    ): SearchResultPage {
         val results = mutableListOf<LibrarySearchResult>()
-        var matchingChapterCount = 0
+        val scan = PassageScan(resultPage.coerceAtLeast(0).toLong() * LibrarySearchConstraints.PASSAGE_RESULTS_PER_PAGE)
         val books = searchDao.searchPassageBooks(bookId)
         for (book in books) {
             currentCoroutineContext().ensureActive()
@@ -104,12 +117,8 @@ class LibrarySearchRepositoryImpl(
                 val previousResultCount = results.size
                 for (chapter in page) {
                     currentCoroutineContext().ensureActive()
-                    if (appendChapterMatches(results, book, chapter, query)) matchingChapterCount += 1
-                    if (
-                        results.size >= PASSAGE_RESULT_LIMIT ||
-                        matchingChapterCount >= PASSAGE_MATCHING_CHAPTER_LIMIT
-                    ) {
-                        return results
+                    if (appendChapterMatches(results, book, chapter, query, scan)) {
+                        return SearchResultPage(results, hasMore = true)
                     }
                 }
                 if (results.size != previousResultCount) onResults(results.toList())
@@ -117,7 +126,7 @@ class LibrarySearchRepositoryImpl(
                 afterChapterIndex = page.last().chapterIndex
             }
         }
-        return results
+        return SearchResultPage(results, hasMore = false)
     }
 
     private suspend fun appendChapterMatches(
@@ -125,16 +134,21 @@ class LibrarySearchRepositoryImpl(
         book: SearchPassageBookEntity,
         chapter: SearchPassageChapterPageEntity,
         query: String,
+        scan: PassageScan,
     ): Boolean {
-        val matchOffsets =
-            findSearchMatchOffsets(chapter.plainText, query, MATCHES_PER_CHAPTER)
-        if (matchOffsets.isEmpty()) return false
-        for (matchOffset in matchOffsets) {
+        var searchFrom = 0
+        while (searchFrom <= chapter.plainText.length - query.length) {
             currentCoroutineContext().ensureActive()
-            results += chapter.toSearchResult(book, query, matchOffset)
-            if (results.size >= PASSAGE_RESULT_LIMIT) break
+            val match = chapter.plainText.indexOf(query, startIndex = searchFrom, ignoreCase = true)
+            if (match < 0) break
+            if (scan.seenMatches >= scan.startOffset) {
+                if (results.size == LibrarySearchConstraints.PASSAGE_RESULTS_PER_PAGE) return true
+                results += chapter.toSearchResult(book, query, match)
+            }
+            scan.seenMatches += 1
+            searchFrom = match + query.length
         }
-        return true
+        return false
     }
 
     private fun SearchPassageChapterPageEntity.toSearchResult(
@@ -171,8 +185,9 @@ class LibrarySearchRepositoryImpl(
         )
     }
 
-    private suspend fun searchSaved(pattern: String): List<LibrarySearchResult> =
-        annotationDao.searchWithBook(pattern, SAVED_RESULT_LIMIT).map { item ->
+    private suspend fun searchSaved(pattern: String, page: Int): SearchResultPage {
+        val saved = annotationDao.searchWithBook(pattern, SAVED_RESULT_LIMIT + 1, pageOffset(page, SAVED_RESULT_LIMIT))
+        val results = saved.take(SAVED_RESULT_LIMIT).map { item ->
             val annotation = item.annotation
             LibrarySearchResult(
                 id = "saved:${annotation.id}",
@@ -187,6 +202,10 @@ class LibrarySearchRepositoryImpl(
                 snippet = annotation.selectedText,
             )
         }
+        return SearchResultPage(results, hasMore = saved.size > SAVED_RESULT_LIMIT)
+    }
+
+    private fun pageOffset(page: Int, pageSize: Int): Long = page.coerceAtLeast(0).toLong() * pageSize
 
     private companion object {
         const val SEARCH_GROUP_COUNT = 3
@@ -194,12 +213,13 @@ class LibrarySearchRepositoryImpl(
         const val PASSAGE_GROUP = 1
         const val SAVED_GROUP = 2
         const val BOOK_RESULT_LIMIT = 20
-        const val PASSAGE_RESULT_LIMIT = 60
-        const val PASSAGE_MATCHING_CHAPTER_LIMIT = 32
         const val PASSAGE_PAGE_SIZE = 8
         const val SAVED_RESULT_LIMIT = 20
-        const val MATCHES_PER_CHAPTER = 3
         const val SNIPPET_CONTEXT_CHARS = 56
         const val INITIAL_CHAPTER_INDEX_CURSOR = -1
     }
 }
+
+private data class SearchResultPage(val items: List<LibrarySearchResult>, val hasMore: Boolean)
+
+private class PassageScan(val startOffset: Long, var seenMatches: Long = 0)

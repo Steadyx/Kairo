@@ -458,6 +458,7 @@
     <string name="update_check_title">Verificar atualizações</string>
     <string name="update_check_subtitle">Procurar uma versão mais recente no Google Play</string>
     <string name="update_check_up_to_date">O Kairo está atualizado.</string>
+    <string name="update_check_unavailable">O status da atualização está indisponível. Procure a versão mais recente no Google Play.</string>
     <string name="update_check_failed">Não foi possível verificar atualizações. Tente novamente mais tarde.</string>
     <string name="accessibility_state_expanded">Expandido</string>
     <string name="accessibility_state_collapsed">Recolhido</string>
@@ -509,6 +510,7 @@
     <string name="note_export_no_notes">Não há notas para exportar.</string>
     <string name="note_export_note_unavailable">Essa nota não está mais disponível.</string>
     <string name="note_export_failed">Não foi possível exportar as notas.</string>
+    <string name="note_export_destination_not_empty">Escolha um arquivo novo e vazio para proteger o documento existente.</string>
     <string name="note_export_filename_all">Notas do Kairo</string>
     <string name="note_export_filename_single">nota</string>
     <string name="note_export_document_title_all">Notas da sua biblioteca</string>
@@ -589,6 +591,8 @@
     <string name="search_book_hint">Palavras ou frases neste livro</string>
     <string name="search_minimum_hint">Digite pelo menos dois caracteres</string>
     <string name="search_no_results">Nenhum resultado encontrado</string>
+    <string name="search_previous_results">Resultados anteriores</string>
+    <string name="search_more_results">Mais resultados</string>
     <string name="search_passage_label">Trecho</string>
     <string name="search_saved_label">Salvo</string>
     <string name="search_book_label">Livro</string>
@@ -607,6 +611,7 @@
     <string name="highlight_green">Verde</string>
     <string name="highlight_pink">Rosa</string>
     <string name="toast_passage_saved">Trecho salvo</string>
+    <string name="reader_search_match_count_more">Resultado %1$d</string>
     <string name="reader_search_match_count">%1$d de %2$d</string>
     <string name="content_desc_previous_search_match">Resultado anterior</string>
     <string name="content_desc_next_search_match">Próximo resultado</string>

@@ -94,7 +94,7 @@ internal data class ReaderContentActions(
     val onSelectionStart: (Int) -> Unit,
     val onSelectionExtend: (Int) -> Unit,
     val onSelectionCancel: () -> Unit,
-    val onChapterSelected: ((Int) -> Unit)? = null,
+    val onChapterSelected: ((Int, Int?) -> Unit)? = null,
 )
 
 @Composable

@@ -6,6 +6,22 @@ import org.junit.Test
 
 class InAppUpdatePolicyTest {
     @Test
+    fun updateCheckDoesNotSayUpToDateWhenPlayCannotOfferTheUpdate() {
+        assertEquals(
+            InAppUpdateCheckResult.UNAVAILABLE,
+            selectInAppUpdateCheckResult(prompt = null, updateNotAvailable = false),
+        )
+        assertEquals(
+            InAppUpdateCheckResult.UP_TO_DATE,
+            selectInAppUpdateCheckResult(prompt = null, updateNotAvailable = true),
+        )
+        assertEquals(
+            InAppUpdateCheckResult.AVAILABLE,
+            selectInAppUpdateCheckResult(InAppUpdatePrompt.READY_TO_RESTART, updateNotAvailable = false),
+        )
+    }
+
+    @Test
     fun selectInAppUpdatePrompt_offersFlexibleAvailableUpdate() {
         val prompt =
             selectInAppUpdatePrompt(

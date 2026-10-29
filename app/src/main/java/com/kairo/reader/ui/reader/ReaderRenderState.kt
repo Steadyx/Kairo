@@ -78,7 +78,7 @@ internal fun rememberReaderRenderState(
                 source.tokens.nearestWordIndex(focusIndex).coerceIn(0, source.tokens.lastIndex)
             }
         }
-    val images = remember(source) { buildReaderImagePresentation(chapterIndex, source) }
+    val images = remember(source) { buildReaderImagePresentation(source) }
     val pagePresentation =
         remember(source, images, safeFocusIndex, pageIndexOverride, focusIndex, chapterIndex, chapterData) {
             buildReaderPagePresentation(
@@ -134,43 +134,23 @@ private fun buildReaderChapterSource(
     )
 
 private fun buildReaderImagePresentation(
-    chapterIndex: Int,
     source: ReaderChapterSource,
 ): ReaderImagePresentation {
-    val titlePage = resolveTitlePageImage(chapterIndex, source)
-    val headerImages =
-        when {
-            source.imagePaths.isEmpty() -> emptyList()
-            chapterIndex == 0 && source.isCoverChapter -> {
-                val skip = if (titlePage == null || source.imagePaths.size < 2) 1 else 2
-                source.imagePaths.drop(skip)
-            }
-            titlePage != null -> source.imagePaths.drop(1)
-            else -> source.imagePaths
-        }
-    val excludedImages = buildSet {
-        if (source.isCoverChapter) source.imagePaths.firstOrNull()?.let(::add)
-        titlePage?.let(::add)
-    }
+    val titlePage = resolveTitlePageImage(source)
+    val inlineImages = source.blocks.filterIsInstance<ReaderImageBlock>().mapTo(mutableSetOf()) { it.imagePath }
+    val headerImages = source.imagePaths.filterNot { it == titlePage || it in inlineImages }
     val visibleBlocks =
         source.blocks.filterNot { block ->
-            block is ReaderImageBlock && block.imagePath in excludedImages
+            block is ReaderImageBlock && block.imagePath == titlePage
         }
     return ReaderImagePresentation(titlePage, headerImages, visibleBlocks)
 }
 
 private fun resolveTitlePageImage(
-    chapterIndex: Int,
     source: ReaderChapterSource,
 ): String? {
-    if (source.imagePaths.isEmpty()) return null
-    return when {
-        chapterIndex == 0 && source.isCoverChapter -> source.imagePaths.getOrNull(1)
-        chapterIndex == 1 && source.imagePaths.size == 1 -> source.imagePaths.first()
-        chapterIndex == 0 -> source.imagePaths.first()
-        source.imagePaths.size == 1 && source.totalChapterWords == 0 -> source.imagePaths.first()
-        else -> null
-    }
+    if (source.totalChapterWords != 0 || source.blocks.count { it is ReaderImageBlock } != 1) return null
+    return source.imagePaths.singleOrNull()
 }
 
 private fun buildReaderPagePresentation(

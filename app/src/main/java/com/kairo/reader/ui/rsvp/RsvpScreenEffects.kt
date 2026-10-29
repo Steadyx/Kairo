@@ -35,6 +35,7 @@ internal fun RsvpPositionSaveEffect(context: RsvpUiContext) {
         context.frameState.isComplete,
         frames,
     ) {
+        if (runtime.completed || runtime.isExiting) return@LaunchedEffect
         if (!shouldSyncPositionFromFrameState(context.frameState)) return@LaunchedEffect
         syncRuntimePositionFromVisibleFrame(runtime, frames, book)
         val now = SystemClock.elapsedRealtime()
@@ -55,10 +56,7 @@ internal fun RsvpLifecyclePositionSaveEffect(context: RsvpUiContext) {
 
     DisposableEffect(lifecycleOwner) {
         fun saveLatestVisiblePosition() {
-            val current = latestContext
-            if (current.runtime.isExiting || current.frameState.frames.isEmpty()) return
-            current.callbacks.playback.onPlaybackStateChanged(current.runtime.isPlaying)
-            current.callbacks.playback.onPositionChanged(currentResumePoint(current))
+            saveRsvpLifecyclePosition(latestContext)
         }
 
         val observer =
@@ -74,6 +72,12 @@ internal fun RsvpLifecyclePositionSaveEffect(context: RsvpUiContext) {
             saveLatestVisiblePosition()
         }
     }
+}
+
+internal fun saveRsvpLifecyclePosition(context: RsvpUiContext) {
+    if (context.runtime.isExiting || context.runtime.completed || context.frameState.frames.isEmpty()) return
+    context.callbacks.playback.onPlaybackStateChanged(context.runtime.isPlaying)
+    context.callbacks.playback.onPositionChanged(currentResumePoint(context))
 }
 
 internal fun shouldSyncPositionFromFrameState(frameState: RsvpFrameLoadState): Boolean =

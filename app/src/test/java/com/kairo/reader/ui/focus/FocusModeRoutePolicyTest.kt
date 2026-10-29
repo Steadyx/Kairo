@@ -30,6 +30,18 @@ class FocusModeRoutePolicyTest {
         assertTrue(shouldApplyFocusMode(KairoRoutes.SETTINGS_LANGUAGE, preferences))
         assertTrue(shouldApplyFocusMode(KairoRoutes.SETTINGS_INFO, preferences))
         assertTrue(shouldApplyFocusMode(KairoRoutes.SETTINGS_BIONIC, preferences))
+        listOf(
+            KairoRoutes.SETTINGS_LANGUAGE,
+            KairoRoutes.SETTINGS_INFO,
+            KairoRoutes.SETTINGS_RSVP,
+            KairoRoutes.SETTINGS_BIONIC,
+            KairoRoutes.SETTINGS_THEME,
+            KairoRoutes.SETTINGS_READER,
+            KairoRoutes.SETTINGS_FOCUS,
+            KairoRoutes.SETTINGS_CHANGELOG,
+        ).forEach { route ->
+            assertTrue(shouldApplyFocusMode("$route?setting={setting}", preferences))
+        }
     }
 
     @Test

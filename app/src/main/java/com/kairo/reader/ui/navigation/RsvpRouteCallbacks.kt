@@ -3,6 +3,7 @@
 package com.kairo.reader.ui.navigation
 
 import android.content.res.Resources
+import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import com.kairo.reader.KairoApplication
@@ -20,6 +21,7 @@ import com.kairo.reader.ui.rsvp.BionicReadingCallbacks
 import com.kairo.reader.ui.rsvp.RsvpBookmarkCallbacks
 import com.kairo.reader.ui.rsvp.RsvpPlaybackCallbacks
 import com.kairo.reader.ui.rsvp.RsvpPreferenceCallbacks
+import com.kairo.reader.ui.rsvp.RsvpResumePoint
 import com.kairo.reader.ui.rsvp.RsvpScreenCallbacks
 import com.kairo.reader.ui.rsvp.RsvpThemeCallbacks
 import com.kairo.reader.ui.rsvp.RsvpUiCallbacks
@@ -36,6 +38,7 @@ internal data class RsvpRouteCallbackDependencies(
     val sessionMode: ReadingSessionMode,
     val chapterIndex: Int,
     val chapterCount: Int,
+    val linearChapterIndices: List<Int>?,
     val tokens: List<Token>,
     val wordCountByToken: IntArray,
     val languageTag: String?,
@@ -110,7 +113,8 @@ private fun buildRsvpBookmarkCallbacks(
                 )
             }
         },
-        onOpenBookmarks = {
+        onOpenBookmarks = openBookmarks@{
+            if (dependencies.backStackEntry.savedStateHandle.hasPendingRsvpCompletion()) return@openBookmarks
             dependencies.coroutineScope.launch {
                 dependencies.positionSaver.flush()
                 dependencies.container.readingSessionCoordinator.finalizeTimed(
@@ -129,6 +133,7 @@ private fun buildRsvpPlaybackCallbacks(
 ): RsvpPlaybackCallbacks =
     RsvpPlaybackCallbacks(
         onFinished = { resumePoint ->
+            dependencies.backStackEntry.savedStateHandle.setPendingRsvpCompletion(resumePoint)
             dependencies.coroutineScope.launch {
                 dependencies.onSessionFinished(resumePoint.tokenIndex)
                 val returnTarget =
@@ -136,6 +141,7 @@ private fun buildRsvpPlaybackCallbacks(
                         resumePoint = resumePoint,
                         currentChapterIndex = dependencies.chapterIndex,
                         chapterCount = dependencies.chapterCount,
+                        linearChapterIndices = dependencies.linearChapterIndices,
                         currentChapterTokens = dependencies.tokens,
                     )
                 val wordIndex =
@@ -178,7 +184,8 @@ private fun buildRsvpPlaybackCallbacks(
                 dependencies.navController.popBackStack()
             }
         },
-        onPositionChanged = { resumePoint ->
+        onPositionChanged = positionChanged@{ resumePoint ->
+            if (dependencies.backStackEntry.savedStateHandle.hasPendingRsvpCompletion()) return@positionChanged
             val safeIndex =
                 if (dependencies.tokens.isNotEmpty()) {
                     resumePoint.tokenIndex.coerceIn(0, dependencies.tokens.lastIndex)
@@ -211,7 +218,8 @@ private fun buildRsvpPlaybackCallbacks(
                 dependencies.container.preferencesRepository.updateRsvpTempoMsPerWord(baseTempoMs)
             }
         },
-        onExit = { resumePoint ->
+        onExit = exit@{ resumePoint ->
+            if (dependencies.backStackEntry.savedStateHandle.hasPendingRsvpCompletion()) return@exit
             dependencies.coroutineScope.launch {
                 dependencies.onSessionFinished(resumePoint.tokenIndex)
                 val resumeIndex = dependencies.safeResumeIndex(resumePoint.tokenIndex)
@@ -244,7 +252,8 @@ private fun buildRsvpPlaybackCallbacks(
                 dependencies.navController.popBackStack()
             }
         },
-        onOpenLibrary = { resumePoint ->
+        onOpenLibrary = openLibrary@{ resumePoint ->
+            if (dependencies.backStackEntry.savedStateHandle.hasPendingRsvpCompletion()) return@openLibrary
             dependencies.coroutineScope.launch {
                 dependencies.onSessionFinished(resumePoint.tokenIndex)
                 val resumeIndex = dependencies.safeResumeIndex(resumePoint.tokenIndex)
@@ -415,12 +424,36 @@ private fun RsvpRouteCallbackDependencies.saveRsvpPosition(
     targetTokenIndex: Int,
     targetWordIndex: Int,
     targetResumeCursor: Int,
-) = positionSaver.save(
-    ReadingPosition(
-        bookIdValue,
-        targetChapterIndex,
-        targetTokenIndex,
-        targetWordIndex,
-        rsvpResumeCursor = targetResumeCursor,
-    ),
-)
+) = if (!shouldPersistTimedChapter(chapterIndex, linearChapterIndices)) {
+    coroutineScope.launch { positionSaver.flush() }
+} else {
+    positionSaver.save(
+        ReadingPosition(
+            bookIdValue,
+            targetChapterIndex,
+            targetTokenIndex,
+            targetWordIndex,
+            rsvpResumeCursor = targetResumeCursor,
+        ),
+    )
+}
+
+internal fun shouldPersistTimedChapter(chapterIndex: Int, linearChapterIndices: List<Int>?): Boolean =
+    linearChapterIndices != null && chapterIndex in linearChapterIndices
+
+internal fun SavedStateHandle.setPendingRsvpCompletion(resumePoint: RsvpResumePoint) {
+    this[KairoSavedStateKeys.RSVP_PENDING_FINISH_TEMPO_MS] = resumePoint.tempoMsPerWord
+    this[KairoSavedStateKeys.RSVP_PENDING_FINISH_INDEX] = resumePoint.tokenIndex
+}
+
+internal fun SavedStateHandle.hasPendingRsvpCompletion(): Boolean =
+    contains(KairoSavedStateKeys.RSVP_PENDING_FINISH_INDEX)
+
+internal fun SavedStateHandle.pendingRsvpCompletion(chapterIndex: Int): RsvpResumePoint? {
+    val tokenIndex = get<Int>(KairoSavedStateKeys.RSVP_PENDING_FINISH_INDEX) ?: return null
+    return RsvpResumePoint(
+        tokenIndex = tokenIndex,
+        chapterIndex = chapterIndex,
+        tempoMsPerWord = get<Long>(KairoSavedStateKeys.RSVP_PENDING_FINISH_TEMPO_MS) ?: -1L,
+    )
+}

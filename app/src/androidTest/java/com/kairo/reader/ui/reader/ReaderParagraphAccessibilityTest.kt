@@ -103,6 +103,7 @@ class ReaderParagraphAccessibilityTest {
     @Test
     fun physicalTapUsesTouchedChapterLinkBeforeParagraphActions() {
         var selectedChapter: Int? = null
+        var selectedOffset: Int? = null
         var focusChanges = 0
         var timedReadingStarts = 0
         composeRule.setContent {
@@ -118,6 +119,7 @@ class ReaderParagraphAccessibilityTest {
                                     text = "Chapter",
                                     type = TokenType.WORD,
                                     linkChapterIndex = 3,
+                                    linkCharacterOffset = 23,
                                 ),
                                 Token("One", TokenType.WORD),
                             ),
@@ -132,7 +134,10 @@ class ReaderParagraphAccessibilityTest {
                     ParagraphTextActions(
                         onFocusChange = { focusChanges += 1 },
                         onStartTimedReading = { timedReadingStarts += 1 },
-                        onChapterSelected = { selectedChapter = it },
+                        onChapterSelected = { chapter, offset ->
+                            selectedChapter = chapter
+                            selectedOffset = offset
+                        },
                     ),
                 )
             }
@@ -142,6 +147,7 @@ class ReaderParagraphAccessibilityTest {
 
         composeRule.runOnIdle {
             assertEquals(3, selectedChapter)
+            assertEquals(23, selectedOffset)
             assertEquals(0, focusChanges)
             assertEquals(0, timedReadingStarts)
         }

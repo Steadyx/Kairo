@@ -11,6 +11,84 @@ import org.junit.Test
 
 class DocxParserEngineTest {
     @Test
+    fun parseKeepsImageOnlyContentBeforeNextChapter() {
+        val document = """
+            <w:document xmlns:w="word" xmlns:r="rels" xmlns:a="drawing"><w:body>
+              <w:p><w:r><w:drawing><a:blip r:embed="rId1"/></w:drawing></w:r></w:p>
+              <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Next chapter</w:t></w:r></w:p>
+              <w:p><w:r><w:t>Text follows.</w:t></w:r></w:p>
+            </w:body></w:document>
+        """.trimIndent()
+        val book = DocxParserEngine.parse(request(imageDocx(document))) { name, _ -> "kairo_docx_assets/test/images/$name" }
+
+        assertEquals(2, book.chapters.size)
+        assertEquals("", book.chapters.first().plainText)
+        assertEquals(listOf("kairo_docx_assets/test/images/figure.png"), book.chapters.first().imagePaths)
+        assertTrue(book.chapters[1].plainText.contains("Text follows."))
+    }
+
+    @Test
+    fun parseKeepsImageOnlyDocument() {
+        val document = """
+            <w:document xmlns:w="word" xmlns:r="rels" xmlns:a="drawing"><w:body>
+              <w:p><w:r><w:drawing><a:blip r:embed="rId1"/></w:drawing></w:r></w:p>
+            </w:body></w:document>
+        """.trimIndent()
+        val book = DocxParserEngine.parse(request(imageDocx(document))) { name, _ -> "kairo_docx_assets/test/images/$name" }
+
+        assertEquals(listOf("kairo_docx_assets/test/images/figure.png"), book.chapters.single().imagePaths)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun parseRejectsDocumentWithoutTextOrResolvedImages() {
+        val document = "<w:document xmlns:w='word'><w:body><w:p/></w:body></w:document>"
+        val archive = zip(mapOf("[Content_Types].xml" to "<Types/>".toByteArray(), "word/document.xml" to document.toByteArray()))
+        DocxParserEngine.parse(request(archive))
+    }
+
+    @Test
+    fun parsePreservesContentControlsAndNestedTablesInOrder() {
+        val document = """
+            <w:document xmlns:w="word"><w:body>
+              <w:p><w:r><w:t>Before.</w:t></w:r></w:p>
+              <w:sdt><w:sdtPr><w:alias w:val="not content"/></w:sdtPr><w:sdtContent>
+                <w:p><w:r><w:t>Control.</w:t></w:r></w:p>
+                <w:customXml><w:p><w:r><w:t>Custom.</w:t></w:r></w:p></w:customXml>
+                <w:tbl><w:tr><w:tc>
+                  <w:p><w:r><w:t>Outer before.</w:t></w:r></w:p>
+                  <w:tbl><w:tr><w:tc><w:sdt><w:sdtContent>
+                    <w:p><w:r><w:t>Nested.</w:t></w:r></w:p>
+                  </w:sdtContent></w:sdt></w:tc></w:tr></w:tbl>
+                  <w:p><w:r><w:t>Outer after.</w:t></w:r></w:p>
+                </w:tc></w:tr></w:tbl>
+              </w:sdtContent></w:sdt>
+              <w:del><w:p><w:r><w:t>Deleted.</w:t></w:r></w:p></w:del>
+              <w:p><w:r><w:t>After.</w:t></w:r></w:p>
+            </w:body></w:document>
+        """.trimIndent()
+        val archive = zip(mapOf("[Content_Types].xml" to "<Types/>".toByteArray(), "word/document.xml" to document.toByteArray()))
+        val chapter = DocxParserEngine.parse(request(archive)).chapters.single()
+
+        assertEquals(
+            "Before. Control. Custom. Outer before. Nested. Outer after. After.",
+            chapter.plainText.replace(Regex("\\s+"), " ").trim(),
+        )
+        assertTrue(chapter.htmlContent.contains("<table><tr><td><p>Nested.</p></td></tr></table>"))
+    }
+
+    @Test
+    fun parseAcceptsDocumentWhoseOnlyTextIsInsideContentControl() {
+        val document = """
+            <w:document xmlns:w="word"><w:body><w:sdt><w:sdtContent>
+              <w:p><w:r><w:t>Controlled content.</w:t></w:r></w:p>
+            </w:sdtContent></w:sdt></w:body></w:document>
+        """.trimIndent()
+        val archive = zip(mapOf("[Content_Types].xml" to "<Types/>".toByteArray(), "word/document.xml" to document.toByteArray()))
+
+        assertEquals("Controlled content.", DocxParserEngine.parse(request(archive)).chapters.single().plainText)
+    }
+
+    @Test
     fun parseReadsMetadataHeadingsTablesAndImages() {
         val imageBytes = byteArrayOf(9, 8, 7)
         val archive = fixtureDocx(imageBytes)
@@ -90,6 +168,19 @@ class DocxParserEngineTest {
             bytes = bytes,
             sourceDisplayName = "notes.docx",
             sourceExtension = "docx",
+        )
+
+    private fun imageDocx(document: String): ByteArray =
+        zip(
+            mapOf(
+                "[Content_Types].xml" to "<Types/>".toByteArray(),
+                "word/document.xml" to document.toByteArray(),
+                "word/_rels/document.xml.rels" to
+                    """
+                    <Relationships><Relationship Id="rId1" Type="http://example.com/image" Target="media/figure.png"/></Relationships>
+                    """.trimIndent().toByteArray(),
+                "word/media/figure.png" to byteArrayOf(1, 2, 3),
+            ),
         )
 
     private fun fixtureDocx(imageBytes: ByteArray): ByteArray =

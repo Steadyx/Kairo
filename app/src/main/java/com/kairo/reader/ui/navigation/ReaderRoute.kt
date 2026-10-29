@@ -39,7 +39,6 @@ import com.kairo.reader.KairoApplication
 import com.kairo.reader.R
 import com.kairo.reader.core.model.Book
 import com.kairo.reader.core.model.BookId
-import com.kairo.reader.core.model.ReadingPosition
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.UserPreferences
 import com.kairo.reader.core.model.nearestWordIndex
@@ -197,7 +196,9 @@ internal fun ReaderRoute(input: ReaderRouteInput) {
             lifecycleOwner = lifecycleOwner,
         )
 
-        BackHandler(enabled = !tutorialActive, onBack = readerCallbacks.onOpenLibrary)
+        BackHandler(enabled = !tutorialActive) {
+            if (!returnFromAuxiliaryChapter(uiState, readerViewModel)) readerCallbacks.onOpenLibrary()
+        }
 
         ReaderScreen(
             book = book,
@@ -228,8 +229,10 @@ internal fun ReaderRoute(input: ReaderRouteInput) {
             bookSearchState = savedBindings.searchState,
             onSearchBook = savedBindings.onSearch,
             onRetryBookSearch = savedBindings.onRetrySearch,
+            onBookSearchPageChange = savedBindings.onSearchPageChange,
             onSearchResultSelected = { result ->
                 container.readingSessionCoordinator.rebaseReader(BookId(bookId))
+                buildReaderPosition(BookId(bookId), readerViewModel.uiState.value)?.let(readerPositionSaver::saveImmediate)
                 readerViewModel.loadChapter(
                     chapterIndex = result.chapterIndex,
                     initialFocusIndex =
@@ -244,6 +247,13 @@ internal fun ReaderRoute(input: ReaderRouteInput) {
             onTutorialSkip = onTutorialSkip,
         )
     }
+}
+
+private fun returnFromAuxiliaryChapter(state: ReaderUiState, viewModel: ReaderViewModel): Boolean {
+    val target = state.auxiliaryReturn ?: return false
+    if (state.isLinearChapter) return false
+    viewModel.loadChapter(target.chapterIndex, target.focusIndex, target.pageIndex)
+    return true
 }
 
 @Composable
@@ -314,6 +324,7 @@ private fun rememberReaderInitialization(
                 savedPosition?.tokenIndex ?: initialTokenIndex ?: 0,
                 initialSearchCodePointOffset =
                 if (savedPosition == null) initialSearchCodePointOffset else null,
+                initialPageIndex = savedPosition?.imagePageIndex?.takeIf { it >= 0 },
             )
             hasInitialized = true
         }
@@ -344,20 +355,17 @@ private fun ReaderPositionEffects(
         ) {
             readerViewModel.applyFocusIndex(savedPosition.tokenIndex.coerceIn(0, tokens.lastIndex))
         }
+        if (savedPosition?.chapterIndex == uiState.chapterIndex &&
+            savedPosition.imagePageIndex >= 0 &&
+            uiState.isImageOnlyChapter() &&
+            savedPosition.imagePageIndex != uiState.pageIndexOverride
+        ) {
+            readerViewModel.setPageIndex(savedPosition.imagePageIndex, savedPosition.tokenIndex)
+        }
     }
     LaunchedEffect(uiState.chapterIndex, uiState.chapterData) {
         if (!hasInitialized) return@LaunchedEffect
-        val chapterData = uiState.chapterData ?: return@LaunchedEffect
-        val tokens = chapterData.tokens.takeIf { it.isNotEmpty() } ?: return@LaunchedEffect
-        val safeIndex = tokens.nearestWordIndex(uiState.focusIndex).coerceIn(0, tokens.lastIndex)
-        readerPositionSaver.saveDebounced(
-            ReadingPosition(
-                BookId(bookId),
-                uiState.chapterIndex,
-                safeIndex,
-                resolveWordIndex(chapterData.wordCountByToken, safeIndex),
-            ),
-        )
+        buildReaderPosition(BookId(bookId), uiState)?.let(readerPositionSaver::saveDebounced)
     }
 }
 
@@ -476,6 +484,7 @@ private fun ApplyReaderRsvpResult(
         result.resumeCursor,
         uiState.chapterIndex,
         uiState.chapterData,
+        uiState.isLinearChapter,
     ) {
         if (result.chapterIndex < 0 || result.safeTokenIndex < 0) return@LaunchedEffect
         if (result.chapterIndex != uiState.chapterIndex) {
@@ -490,15 +499,8 @@ private fun ApplyReaderRsvpResult(
                 result.safeTokenIndex
             }
         if (safeTargetIndex != uiState.focusIndex) readerViewModel.applyFocusIndex(safeTargetIndex)
-        readerPositionSaver.saveImmediate(
-            ReadingPosition(
-                BookId(bookId),
-                result.chapterIndex,
-                safeTargetIndex,
-                resolveWordIndex(chapterData.wordCountByToken, safeTargetIndex),
-                rsvpResumeCursor = result.resumeCursor,
-            ),
-        )
+        buildTimedReaderPosition(BookId(bookId), uiState, safeTargetIndex, result.resumeCursor)
+            ?.let(readerPositionSaver::saveImmediate)
         backStackEntry.savedStateHandle[KairoSavedStateKeys.RSVP_RESULT_CHAPTER_INDEX] = -1
         backStackEntry.savedStateHandle[KairoSavedStateKeys.RSVP_RESULT_TOKEN_INDEX] = -1
         backStackEntry.savedStateHandle[KairoSavedStateKeys.RSVP_RESULT_RESUME_CURSOR] = -1

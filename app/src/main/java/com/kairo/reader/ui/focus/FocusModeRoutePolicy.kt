@@ -8,12 +8,14 @@ internal fun shouldApplyFocusMode(
     preferences: UserPreferences,
 ): Boolean =
     preferences.focusModeEnabled &&
-        when (route) {
+        when (if (route?.startsWith("settings/") == true) route.substringBefore('?') else route) {
             KairoRoutes.SETTINGS,
             KairoRoutes.SETTINGS_LANGUAGE,
             KairoRoutes.SETTINGS_INFO,
+            KairoRoutes.SETTINGS_CHANGELOG,
             KairoRoutes.SETTINGS_RSVP,
             KairoRoutes.SETTINGS_BIONIC,
+            KairoRoutes.SETTINGS_THEME,
             KairoRoutes.SETTINGS_READER,
             KairoRoutes.SETTINGS_FOCUS,
             -> true
