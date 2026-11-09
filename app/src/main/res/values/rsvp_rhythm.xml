@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">Replay sentence</string>
+    <string name="rsvp_rhythm_calibration_title">Find your rhythm</string>
+    <string name="rsvp_rhythm_subtitle">Compare short previews and choose the timing that feels natural.</string>
+    <string name="rsvp_rhythm_instructions">Play A and B, then choose your preference. These English samples use your current speed. A is gentler; B is more pronounced. Nothing changes until you apply.</string>
+    <string name="rsvp_rhythm_ready">Your choices are ready. Applying changes only these rhythm settings; your selected speed and reading support stay the same.</string>
+    <string name="rsvp_rhythm_apply">Apply rhythm</string>
+    <string name="rsvp_rhythm_play_a">Play A</string>
+    <string name="rsvp_rhythm_play_b">Play B</string>
+    <string name="rsvp_rhythm_prefer_a">Prefer A</string>
+    <string name="rsvp_rhythm_prefer_b">Prefer B</string>
+    <string name="rsvp_rhythm_keep">Keep current</string>
+    <string name="rsvp_rhythm_stop">Stop preview</string>
+    <string name="rsvp_rhythm_preview_hint">Play both previews to compare.</string>
+    <string name="rsvp_rhythm_preview_error">Preview could not start. Tap Play to retry.</string>
+    <string name="rsvp_rhythm_landings">Phrase endings</string>
+    <string name="rsvp_rhythm_variation">Word emphasis</string>
+    <string name="rsvp_rhythm_restart">Restart easing</string>
+    <string name="rsvp_rhythm_sample_one" translatable="false">The rain stopped before Sarah arrived. She left her coat beside the door, then sat near the window. For a moment, the quiet room felt like home.</string>
+    <string name="rsvp_rhythm_sample_two" translatable="false">The detailed report that the editor revised was accepted. Its main finding was simple, but the evidence needed care. We read the conclusion again before making our decision.</string>
+    <string name="rsvp_rhythm_playing">Playing %1$s</string>
+</resources>

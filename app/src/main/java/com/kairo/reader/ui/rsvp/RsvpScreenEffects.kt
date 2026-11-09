@@ -8,6 +8,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -184,6 +185,7 @@ internal fun RsvpPlaybackLoopEffect(
 ) {
     val runtime = context.runtime
     val frames = context.frameState.frames
+    val wordProgress = remember(frames) { RsvpSessionTimingPolicy.sourceWordProgress(frames) }
     val latestTempoScale by rememberUpdatedState(context.timing.tempoScale)
     val latestBaseTempoMs by rememberUpdatedState(context.frameState.baseTempoMs)
     val latestConfig by rememberUpdatedState(context.state.profile.config)
@@ -220,6 +222,7 @@ internal fun RsvpPlaybackLoopEffect(
                 config,
                 runtime.frameIndex,
                 runtime.rampStartFrameIndex,
+                wordProgress,
                 runtime.resumePreparationScale,
                 initialRampStartIndex = context.frameState.initialRampStartFrameIndex,
             )
@@ -228,6 +231,7 @@ internal fun RsvpPlaybackLoopEffect(
                 config,
                 runtime.frameIndex,
                 runtime.rampStartFrameIndex,
+                wordProgress,
                 runtime.resumePreparationScale,
                 initialRampStartIndex = context.frameState.initialRampStartFrameIndex,
             )

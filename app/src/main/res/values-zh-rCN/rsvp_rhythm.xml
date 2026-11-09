@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">重读句子</string>
+    <string name="rsvp_rhythm_calibration_title">找到你的节奏</string>
+    <string name="rsvp_rhythm_subtitle">比较简短预览，选择感觉自然的节奏。</string>
+    <string name="rsvp_rhythm_instructions">播放A和B，然后选择偏好。这些英文示例使用你当前的速度。A更柔和，B更明显。应用前不会更改设置。</string>
+    <string name="rsvp_rhythm_ready">选择已就绪。仅更改这些节奏设置，你选择的速度和阅读支持保持不变。</string>
+    <string name="rsvp_rhythm_apply">应用节奏</string>
+    <string name="rsvp_rhythm_play_a">播放A</string>
+    <string name="rsvp_rhythm_play_b">播放B</string>
+    <string name="rsvp_rhythm_prefer_a">偏好A</string>
+    <string name="rsvp_rhythm_prefer_b">偏好B</string>
+    <string name="rsvp_rhythm_keep">保留当前设置</string>
+    <string name="rsvp_rhythm_stop">停止预览</string>
+    <string name="rsvp_rhythm_preview_hint">播放两个预览进行比较。</string>
+    <string name="rsvp_rhythm_preview_error">无法开始预览。点击播放重试。</string>
+    <string name="rsvp_rhythm_landings">短语结尾</string>
+    <string name="rsvp_rhythm_variation">单词重音</string>
+    <string name="rsvp_rhythm_restart">恢复阅读时的缓冲</string>
+    <string name="rsvp_rhythm_playing">正在播放%1$s</string>
+</resources>

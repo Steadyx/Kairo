@@ -135,7 +135,11 @@ internal fun addBookmarkNow(context: RsvpUiContext) {
     runtime.showQuickSettings = false
 }
 
-internal fun replayPreviousPhrase(initialContext: RsvpUiContext) {
+internal fun replayPreviousPhrase(context: RsvpUiContext) = replayReadingContext(context, sentence = false)
+
+internal fun replaySentence(context: RsvpUiContext) = replayReadingContext(context, sentence = true)
+
+private fun replayReadingContext(initialContext: RsvpUiContext, sentence: Boolean) {
     val context = prepareRsvpNavigation(initialContext)
     val runtime = context.runtime
     val tokens = context.state.book.tokens
@@ -148,14 +152,18 @@ internal fun replayPreviousPhrase(initialContext: RsvpUiContext) {
             frameIndex = runtime.frameIndex,
             fallbackIndex = context.state.book.startIndex,
         )
-    val replayTokenIndex = findReplayPhraseStartTokenIndex(tokens, currentTokenIndex)
-    val targetFrameIndex = findPlannedReplayFrameIndex(frames, runtime.frameIndex)
+    val replayTokenIndex = if (sentence) {
+        findReplaySentenceStartTokenIndex(tokens, currentTokenIndex)
+    } else {
+        findReplayPhraseStartTokenIndex(tokens, currentTokenIndex)
+    }
+    val targetFrameIndex = (if (sentence) null else findPlannedReplayFrameIndex(frames, runtime.frameIndex))
         ?: alignFrameIndex(
             frames = frames,
             tokenIndex = replayTokenIndex,
             frameIndexMap = context.frameState.frameIndexMap,
         )
-    if (targetFrameIndex >= runtime.frameIndex && runtime.frameIndex > 0) {
+    if (!sentence && targetFrameIndex >= runtime.frameIndex && runtime.frameIndex > 0) {
         runtime.frameIndex = (runtime.frameIndex - 1).coerceAtLeast(0)
     } else {
         runtime.frameIndex = targetFrameIndex

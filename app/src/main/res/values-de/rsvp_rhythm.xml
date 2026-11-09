@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">Satz wiederholen</string>
+    <string name="rsvp_rhythm_calibration_title">Finde deinen Rhythmus</string>
+    <string name="rsvp_rhythm_subtitle">Vergleiche kurze Vorschauen und wähle das Tempo, das sich natürlich anfühlt.</string>
+    <string name="rsvp_rhythm_instructions">Spiele A und B ab und wähle deinen Favoriten. Die englischen Beispiele verwenden deine aktuelle Geschwindigkeit. A ist sanfter, B ausgeprägter. Änderungen werden erst beim Anwenden gespeichert.</string>
+    <string name="rsvp_rhythm_ready">Deine Auswahl ist bereit. Nur diese Rhythmuseinstellungen werden geändert. Geschwindigkeit und Leseunterstützung bleiben gleich.</string>
+    <string name="rsvp_rhythm_apply">Rhythmus anwenden</string>
+    <string name="rsvp_rhythm_play_a">A abspielen</string>
+    <string name="rsvp_rhythm_play_b">B abspielen</string>
+    <string name="rsvp_rhythm_prefer_a">A bevorzugen</string>
+    <string name="rsvp_rhythm_prefer_b">B bevorzugen</string>
+    <string name="rsvp_rhythm_keep">Aktuell beibehalten</string>
+    <string name="rsvp_rhythm_stop">Vorschau stoppen</string>
+    <string name="rsvp_rhythm_preview_hint">Spiele beide Vorschauen zum Vergleich ab.</string>
+    <string name="rsvp_rhythm_preview_error">Vorschau konnte nicht starten. Tippe zum Wiederholen auf Abspielen.</string>
+    <string name="rsvp_rhythm_landings">Phrasenenden</string>
+    <string name="rsvp_rhythm_variation">Wortbetonung</string>
+    <string name="rsvp_rhythm_restart">Sanfter Neustart</string>
+    <string name="rsvp_rhythm_playing">%1$s wird abgespielt</string>
+</resources>

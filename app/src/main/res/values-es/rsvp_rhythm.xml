@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">Repetir oración</string>
+    <string name="rsvp_rhythm_calibration_title">Encuentra tu ritmo</string>
+    <string name="rsvp_rhythm_subtitle">Compara vistas previas breves y elige el ritmo que te resulte natural.</string>
+    <string name="rsvp_rhythm_instructions">Reproduce A y B y elige tu preferencia. Estos ejemplos en inglés usan tu velocidad actual. A es más suave; B es más marcado. Nada cambia hasta que lo apliques.</string>
+    <string name="rsvp_rhythm_ready">Tu selección está lista. Solo cambiarán estos ajustes de ritmo; la velocidad y el apoyo de lectura seguirán igual.</string>
+    <string name="rsvp_rhythm_apply">Aplicar ritmo</string>
+    <string name="rsvp_rhythm_play_a">Reproducir A</string>
+    <string name="rsvp_rhythm_play_b">Reproducir B</string>
+    <string name="rsvp_rhythm_prefer_a">Prefiero A</string>
+    <string name="rsvp_rhythm_prefer_b">Prefiero B</string>
+    <string name="rsvp_rhythm_keep">Mantener actual</string>
+    <string name="rsvp_rhythm_stop">Detener vista previa</string>
+    <string name="rsvp_rhythm_preview_hint">Reproduce ambas vistas previas para comparar.</string>
+    <string name="rsvp_rhythm_preview_error">No se pudo iniciar la vista previa. Pulsa Reproducir para reintentarlo.</string>
+    <string name="rsvp_rhythm_landings">Finales de frases</string>
+    <string name="rsvp_rhythm_variation">Énfasis de palabras</string>
+    <string name="rsvp_rhythm_restart">Inicio gradual</string>
+    <string name="rsvp_rhythm_playing">Reproduciendo %1$s</string>
+</resources>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">Relire la phrase</string>
+    <string name="rsvp_rhythm_calibration_title">Trouvez votre rythme</string>
+    <string name="rsvp_rhythm_subtitle">Comparez de courts aperçus et choisissez le rythme qui vous semble naturel.</string>
+    <string name="rsvp_rhythm_instructions">Lisez A et B, puis choisissez votre préférence. Ces exemples en anglais utilisent votre vitesse actuelle. A est plus doux, B plus marqué. Rien ne change avant validation.</string>
+    <string name="rsvp_rhythm_ready">Votre sélection est prête. Seuls ces réglages de rythme changeront ; votre vitesse et votre aide à la lecture resteront identiques.</string>
+    <string name="rsvp_rhythm_apply">Appliquer le rythme</string>
+    <string name="rsvp_rhythm_play_a">Lire A</string>
+    <string name="rsvp_rhythm_play_b">Lire B</string>
+    <string name="rsvp_rhythm_prefer_a">Je préfère A</string>
+    <string name="rsvp_rhythm_prefer_b">Je préfère B</string>
+    <string name="rsvp_rhythm_keep">Conserver le réglage</string>
+    <string name="rsvp_rhythm_stop">Arrêter l’aperçu</string>
+    <string name="rsvp_rhythm_preview_hint">Lisez les deux aperçus pour comparer.</string>
+    <string name="rsvp_rhythm_preview_error">Impossible de démarrer l’aperçu. Appuyez sur Lire pour réessayer.</string>
+    <string name="rsvp_rhythm_landings">Fins de groupes de mots</string>
+    <string name="rsvp_rhythm_variation">Accentuation des mots</string>
+    <string name="rsvp_rhythm_restart">Reprise progressive</string>
+    <string name="rsvp_rhythm_playing">Lecture de %1$s</string>
+</resources>

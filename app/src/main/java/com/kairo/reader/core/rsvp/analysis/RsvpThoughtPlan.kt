@@ -28,6 +28,12 @@ internal object RsvpThoughtPlan {
         val words = ArrayList<ExpandedToken>()
         val english = languagePolicy == RsvpLanguagePolicy.ENGLISH
         var previousModals = emptySet<String>()
+        val source = expanded.distinctBy { it.originalIndex }
+        val resolutions = if (english && config.useProsodyPacing) {
+            RsvpEnglishSyntax.relativeClauseResolutions(source.map { it.token }).map { source[it].originalIndex }.toSet()
+        } else {
+            emptySet()
+        }
 
         fun finish(endExclusive: Int) {
             if (words.isEmpty()) return
@@ -36,6 +42,8 @@ internal object RsvpThoughtPlan {
             val sourceWords = words.distinctBy { it.originalIndex }
             val processingShare = if (sourceWords.size > 1) PROCESSING_SHARE else 0.0
             val lastChunks = words.associateBy { it.originalIndex }
+            val resolutionWords = sourceWords.filter { it.originalIndex in resolutions }
+            val processingWords = resolutionWords.ifEmpty { sourceWords }.map { it.originalIndex }.toSet()
             val start = words.first().originalIndex
             words.forEachIndexed { index, word ->
                 cues[word.expandedIndex] = RsvpThoughtCue(
@@ -44,8 +52,8 @@ internal object RsvpThoughtPlan {
                     isLastWord = index == words.lastIndex,
                     protectedEmphasis = word.expandedIndex in protected,
                     integrationHoldMs = if (index == words.lastIndex) hold * (1.0 - processingShare) else 0.0,
-                    processingHoldMs = if (lastChunks[word.originalIndex] == word) {
-                        hold * processingShare / sourceWords.size
+                    processingHoldMs = if (lastChunks[word.originalIndex] == word && word.originalIndex in processingWords) {
+                        hold * processingShare / processingWords.size
                     } else {
                         0.0
                     },
