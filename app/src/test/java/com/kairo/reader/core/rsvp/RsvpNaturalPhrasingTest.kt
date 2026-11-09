@@ -19,6 +19,9 @@ class RsvpNaturalPhrasingTest {
             "We waited until she arrived.",
             "We waited until Sarah arrived.",
             "We waited until the train arrived.",
+            "We waited until Sarah arrived in London.",
+            "We waited until the train had arrived in London.",
+            "We waited until the train went to London.",
             "We waited until the late train had arrived.",
             "We waited until Mary Jane arrived."
         )) {
@@ -26,6 +29,27 @@ class RsvpNaturalPhrasingTest {
             val index = tokens.indexOfFirst { it.text == "until" }
             assertTrue(text, RsvpPhraseBoundaries.isBoundary(tokens, index, RsvpLanguagePolicy.ENGLISH))
             assertFalse(text, RsvpPhraseBoundaries.isBoundary(tokens, index, RsvpLanguagePolicy.UNKNOWN))
+        }
+    }
+
+    @Test
+    fun pastParticipleNounDescriptionsStayInsideTheirThought() {
+        for (text in listOf(
+            "She reached for the key and the note left on the table.",
+            "She packed her boots and the coat covered in mud.",
+            "We chose that sculpture made by Sarah.",
+            "We spoke about the paint before the gate built by Sarah."
+        )) {
+            val tokens = tokenize(text)
+            val boundary = tokens.indexOfFirst { it.text in setOf("and", "that", "before") }
+            assertFalse(text, RsvpPhraseBoundaries.isBoundary(tokens, boundary, RsvpLanguagePolicy.ENGLISH))
+            val frames = ComprehensionRsvpEngine().generateFrames(
+                tokens,
+                0,
+                RsvpConfig(),
+                RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH),
+            )
+            assertFalse(text, frames.any { it.phraseStartTokenIndex == boundary })
         }
     }
 

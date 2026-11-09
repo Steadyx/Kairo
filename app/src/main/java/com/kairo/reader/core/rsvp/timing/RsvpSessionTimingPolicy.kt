@@ -95,25 +95,26 @@ internal object RsvpSessionTimingPolicy {
 
     /** Split parts share one source word; presentation gaps and structural pauses consume none. */
     fun sourceWordProgress(frames: List<RsvpFrame>): DoubleArray {
-        val parts = frames.filter { !it.isWordSeparation && it.tokens.any { token -> token.isSubwordChunk } }
-            .groupingBy { it.originalTokenIndex }.eachCount()
-        val progress = DoubleArray(frames.size + 1)
-        frames.forEachIndexed { index, frame ->
-            val words = if (frame.isWordSeparation) {
-                0.0
+        val sourceWords = frames.map { frame ->
+            val firstWord = frame.tokens.indexOfFirst { it.type == TokenType.WORD }
+            if (frame.isWordSeparation || firstWord < 0) {
+                emptyList()
             } else {
-                frame.tokens.sumOf { token ->
-                    when {
-                        token.type != TokenType.WORD -> 0.0
-                        token.isSubwordChunk -> 1.0 / parts.getValue(frame.originalTokenIndex)
-                        else -> 1.0
-                    }
+                // A frame never groups parts of the same word; later tokens retain source order.
+                frame.tokens.mapIndexedNotNull { index, token ->
+                    (frame.originalTokenIndex + index - firstWord).takeIf { token.type == TokenType.WORD }
                 }
             }
-            progress[index + 1] = progress[index] + words
-            val splitWord = frame.tokens.any { it.isSubwordChunk }
-            val next = frames.getOrNull(index + 1)
-            if (splitWord && (next?.originalTokenIndex != frame.originalTokenIndex || next.tokens.none { it.isSubwordChunk })) {
+        }
+        val parts = sourceWords.flatten().groupingBy { it }.eachCount()
+        val remaining = parts.toMutableMap()
+        val progress = DoubleArray(frames.size + 1)
+        sourceWords.forEachIndexed { index, words ->
+            progress[index + 1] = progress[index] + words.sumOf { source ->
+                remaining[source] = remaining.getValue(source) - 1
+                1.0 / parts.getValue(source)
+            }
+            if (words.lastOrNull()?.let { remaining.getValue(it) == 0 } == true) {
                 // Six one-sixth parts must finish at exactly one word, including at the ramp boundary.
                 progress[index + 1] = round(progress[index + 1])
             }

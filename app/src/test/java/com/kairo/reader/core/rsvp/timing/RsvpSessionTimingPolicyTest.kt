@@ -11,7 +11,7 @@ import org.junit.Test
 class RsvpSessionTimingPolicyTest {
     @Test
     fun initialTimingStartsAtSelectedPositionWithoutSlowingEarlierNavigation() {
-        val frames = MutableList(20) { RsvpFrame(listOf(Token("word", TokenType.WORD)), 100L) }
+        val frames = MutableList(20) { RsvpFrame(listOf(Token("word", TokenType.WORD)), 100L, originalTokenIndex = it) }
         val config = RsvpConfig(startDelayMs = 200L, endDelayMs = 50L, rampUpFrames = 2, rampDownFrames = 2)
         RsvpSessionTimingPolicy.applyInitialSessionRamps(frames, config, startFrameIndex = 10)
         assertEquals(100L, frames[0].durationMs)

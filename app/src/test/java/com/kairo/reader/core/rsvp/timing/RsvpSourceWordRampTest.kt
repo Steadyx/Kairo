@@ -1,9 +1,15 @@
 package com.kairo.reader.core.rsvp.timing
 
+import com.kairo.reader.core.model.BlinkMode
+import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.rsvp.ComprehensionRsvpEngine
+import com.kairo.reader.core.rsvp.RsvpGenerationOptions
+import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
+import com.kairo.reader.core.tokenization.Tokenizer
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -33,6 +39,39 @@ class RsvpSourceWordRampTest {
         val progress = RsvpSessionTimingPolicy.sourceWordProgress(frames)
         assertEquals(listOf(0.0, 0.5, 1.0, 1.0, 2.0), progress.toList())
         assertEquals(1.0, RsvpSessionTimingPolicy.resumeRampMultiplier(config, 2, 0, progress, initialRampStartIndex = -1), 0.0)
+    }
+
+    @Test
+    fun hyphenatedSourceWordsCountOnceAcrossGroupingAndSeparation() {
+        for (compound in listOf("well-known", "ha-ha-ha", "environmentally-friendly")) {
+            val tokens = Tokenizer().tokenize(Chapter(0, null, "", "We read $compound books with a quiet mind."))
+            for (width in 1..3) {
+                for (blink in BlinkMode.entries) {
+                    val frames = ComprehensionRsvpEngine().generateFrames(
+                        tokens,
+                        0,
+                        config.copy(enablePhraseChunking = width > 1, maxWordsPerUnit = width, maxCharsPerUnit = 64, blinkMode = blink),
+                        RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH),
+                    )
+                    assertEquals(
+                        "$compound, width=$width, blink=$blink",
+                        tokens.count { it.type == TokenType.WORD }.toDouble(),
+                        RsvpSessionTimingPolicy.sourceWordProgress(frames).last(),
+                        0.00001,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun groupedCompoundFragmentsShareProgressWithTheirOwnSourceWord() {
+        val frames = listOf(
+            RsvpFrame(listOf(word, word.copy(text = "well-")), 150, originalTokenIndex = 0),
+            RsvpFrame(emptyList(), 20, originalTokenIndex = 0, isWordSeparation = true),
+            RsvpFrame(listOf(word.copy(text = "known"), word), 150, originalTokenIndex = 1),
+        )
+        assertEquals(listOf(0.0, 1.5, 1.5, 3.0), RsvpSessionTimingPolicy.sourceWordProgress(frames).toList())
     }
 
     @Test
