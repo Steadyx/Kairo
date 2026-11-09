@@ -24,6 +24,7 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.keepScreenOn
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -112,6 +113,7 @@ internal fun RsvpPlaybackSurface(
         modifier =
         Modifier
             .fillMaxSize()
+            .keepScreenOn()
             .background(MaterialTheme.colorScheme.background)
             .rsvpTutorialTarget(tutorialTargetsEnabled, StartingTutorialTargetIds.RSVP_SURFACE) {
                     targetId,
