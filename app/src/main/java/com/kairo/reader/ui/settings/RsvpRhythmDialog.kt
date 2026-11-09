@@ -2,22 +2,22 @@ package com.kairo.reader.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +26,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -40,7 +43,6 @@ import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import com.kairo.reader.core.rsvp.RsvpRhythmAspect
 import com.kairo.reader.core.rsvp.RsvpRhythmChoice
 import com.kairo.reader.core.rsvp.applyRsvpRhythmChoices
-import com.kairo.reader.core.rsvp.rhythmCandidate
 import com.kairo.reader.core.rsvp.scaledFrameDurationMs
 import com.kairo.reader.core.tokenization.Tokenizer
 import com.kairo.reader.ui.rsvp.OrpAlignedText
@@ -55,15 +57,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @Composable
-internal fun RsvpRhythmCalibrationDialog(
+internal fun RsvpRhythmDialog(
     state: RsvpSettingsState,
     onApply: (List<RsvpRhythmChoice>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val baseline = remember { state.config.withLiveTempo(state.tempoMsPerWord) }
-    var savedChoices by rememberSaveable { mutableStateOf(emptyList<String>()) }
-    val choices = savedChoices.map(RsvpRhythmChoice::valueOf)
-    val aspect = RsvpRhythmAspect.entries.getOrNull(choices.size)
+    var savedChoices by rememberSaveable { mutableStateOf(List(RsvpRhythmAspect.entries.size) { RsvpRhythmChoice.KEEP.name }) }
+    val choices = RsvpRhythmAspect.entries.map { aspect ->
+        savedChoices.getOrNull(aspect.ordinal)?.let(RsvpRhythmChoice::valueOf) ?: RsvpRhythmChoice.KEEP
+    }
+    val config = applyRsvpRhythmChoices(state.config.withLiveTempo(state.tempoMsPerWord), choices)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.rsvp_rhythm_calibration_title)) },
@@ -72,102 +75,90 @@ internal fun RsvpRhythmCalibrationDialog(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (aspect == null) {
-                    Text(stringResource(R.string.rsvp_rhythm_ready))
-                    choices.forEachIndexed { index, choice ->
-                        Text(stringResource(aspectTitle(RsvpRhythmAspect.entries[index])) + ": " + stringResource(choiceTitle(choice)))
-                    }
-                } else {
-                    Text(stringResource(R.string.rsvp_rhythm_instructions))
-                    Text(stringResource(aspectTitle(aspect)), style = MaterialTheme.typography.titleMedium)
-                    key(aspect) {
-                        RsvpRhythmComparison(
-                            state = state,
-                            config = applyRsvpRhythmChoices(baseline, choices),
-                            aspect = aspect,
-                            onChoose = { savedChoices = savedChoices + it.name },
-                        )
+                Text(stringResource(R.string.rsvp_rhythm_instructions), style = MaterialTheme.typography.bodySmall)
+                RsvpRhythmAspect.entries.forEach { aspect ->
+                    RsvpRhythmChoiceRow(aspect, choices[aspect.ordinal]) { choice ->
+                        savedChoices = choices.mapIndexed { index, current -> (if (index == aspect.ordinal) choice else current).name }
                     }
                 }
+                RsvpRhythmPreviewControls(state, config)
             }
         },
         confirmButton = {
-            if (aspect == null) {
-                Button(onClick = { onApply(choices) }) { Text(stringResource(R.string.rsvp_rhythm_apply)) }
-            }
+            Button(onClick = { onApply(choices) }) { Text(stringResource(R.string.rsvp_rhythm_apply)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
 
 @Composable
-private fun RsvpRhythmComparison(
-    state: RsvpSettingsState,
-    config: RsvpConfig,
+private fun RsvpRhythmChoiceRow(
     aspect: RsvpRhythmAspect,
+    selected: RsvpRhythmChoice,
     onChoose: (RsvpRhythmChoice) -> Unit,
 ) {
-    var playing by remember(aspect) { mutableStateOf<RsvpRhythmChoice?>(null) }
-    var heardA by remember(aspect) { mutableStateOf(false) }
-    var heardB by remember(aspect) { mutableStateOf(false) }
-    var request by remember(aspect) { mutableIntStateOf(0) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(stringResource(aspectTitle(aspect)), style = MaterialTheme.typography.titleSmall)
+        Text(
+            stringResource(aspectDescription(aspect)),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RsvpRhythmChoice.entries.forEach { choice ->
+                FilterChip(
+                    selected = selected == choice,
+                    onClick = { onChoose(choice) },
+                    label = { Text(stringResource(choiceTitle(aspect, choice))) },
+                    modifier = Modifier.semantics { role = Role.RadioButton },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RsvpRhythmPreviewControls(
+    state: RsvpSettingsState,
+    config: RsvpConfig,
+) {
+    var previewVisible by remember { mutableStateOf(false) }
+    var playing by remember { mutableStateOf(false) }
+    var request by remember { mutableIntStateOf(0) }
     val owner = LocalLifecycleOwner.current
-    DisposableEffect(owner, aspect) {
+    DisposableEffect(owner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) playing = null
+            if (event == Lifecycle.Event.ON_PAUSE) playing = false
         }
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
-    val sample = stringResource(
-        if (aspect ==
-            RsvpRhythmAspect.VARIATION
-        ) {
-            R.string.rsvp_rhythm_sample_two
+    if (previewVisible) {
+        Text(
+            stringResource(R.string.rsvp_rhythm_preview_caption),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        RsvpRhythmPreview(
+            state = state,
+            config = config,
+            sample = stringResource(R.string.rsvp_rhythm_sample),
+            playing = playing,
+            request = request,
+            onFinished = { playing = false },
+        )
+    }
+    TextButton(onClick = {
+        if (playing) {
+            playing = false
         } else {
-            R.string.rsvp_rhythm_sample_one
-        }
-    )
-    RsvpRhythmPreview(
-        state = state,
-        config = rhythmCandidate(config, aspect, playing ?: RsvpRhythmChoice.KEEP),
-        sample = sample,
-        playing = playing != null,
-        request = request,
-        onFinished = { completed ->
-            if (completed && playing == RsvpRhythmChoice.GENTLE) heardA = true
-            if (completed && playing == RsvpRhythmChoice.EXPRESSIVE) heardB = true
-            playing = null
-        },
-    )
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(modifier = Modifier.weight(1f), onClick = {
-            playing = RsvpRhythmChoice.GENTLE
+            previewVisible = true
+            playing = true
             request++
-        }) {
-            Text(stringResource(R.string.rsvp_rhythm_play_a))
         }
-        OutlinedButton(modifier = Modifier.weight(1f), onClick = {
-            playing = RsvpRhythmChoice.EXPRESSIVE
-            request++
-        }) {
-            Text(stringResource(R.string.rsvp_rhythm_play_b))
-        }
+    }) {
+        Text(stringResource(if (playing) R.string.rsvp_rhythm_stop else R.string.rsvp_rhythm_preview))
     }
-    if (playing != null) {
-        Text(stringResource(R.string.rsvp_rhythm_playing, if (playing == RsvpRhythmChoice.GENTLE) "A" else "B"))
-        TextButton(onClick = { playing = null }) { Text(stringResource(R.string.rsvp_rhythm_stop)) }
-    }
-    val ready = heardA && heardB && playing == null
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(modifier = Modifier.weight(1f), enabled = ready, onClick = { onChoose(RsvpRhythmChoice.GENTLE) }) {
-            Text(stringResource(R.string.rsvp_rhythm_prefer_a))
-        }
-        Button(modifier = Modifier.weight(1f), enabled = ready, onClick = { onChoose(RsvpRhythmChoice.EXPRESSIVE) }) {
-            Text(stringResource(R.string.rsvp_rhythm_prefer_b))
-        }
-    }
-    TextButton(onClick = { onChoose(RsvpRhythmChoice.KEEP) }) { Text(stringResource(R.string.rsvp_rhythm_keep)) }
 }
 
 @Composable
@@ -177,7 +168,7 @@ private fun RsvpRhythmPreview(
     sample: String,
     playing: Boolean,
     request: Int,
-    onFinished: (Boolean) -> Unit,
+    onFinished: () -> Unit,
 ) {
     var frame by remember { mutableStateOf<RsvpFrame?>(null) }
     var failed by remember { mutableStateOf(false) }
@@ -190,26 +181,25 @@ private fun RsvpRhythmPreview(
                 val tokens = Tokenizer().tokenize(Chapter(0, null, "", sample))
                 ComprehensionRsvpEngine().generateFrames(tokens, 0, config, RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH))
             }
+            check(frames.isNotEmpty())
             for (next in frames) {
                 frame = next
                 withFrameNanos { }
                 delay(scaledFrameDurationMs(next, config, config.tempoMsPerWord, 1.0))
             }
-            onFinished(frames.isNotEmpty())
+            onFinished()
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
             failed = true
-            onFinished(false)
+            onFinished()
         }
     }
     Column(Modifier.fillMaxWidth().heightIn(min = 100.dp), verticalArrangement = Arrangement.Center) {
         val visible = frame
         if (failed) {
             Text(stringResource(R.string.rsvp_rhythm_preview_error), color = MaterialTheme.colorScheme.error)
-        } else if (visible == null) {
-            Text(stringResource(R.string.rsvp_rhythm_preview_hint))
-        } else {
+        } else if (visible != null) {
             OrpAlignedText(
                 tokens = visible.tokens,
                 typography = OrpTypography(state.fontSizeSp, state.fontFamily.composeFontFamily(), resolveFontWeight(state.fontWeight)),
@@ -235,8 +225,21 @@ private fun aspectTitle(aspect: RsvpRhythmAspect): Int = when (aspect) {
     RsvpRhythmAspect.RESTART -> R.string.rsvp_rhythm_restart
 }
 
-private fun choiceTitle(choice: RsvpRhythmChoice): Int = when (choice) {
-    RsvpRhythmChoice.KEEP -> R.string.rsvp_rhythm_keep
-    RsvpRhythmChoice.GENTLE -> R.string.rsvp_rhythm_prefer_a
-    RsvpRhythmChoice.EXPRESSIVE -> R.string.rsvp_rhythm_prefer_b
+private fun aspectDescription(aspect: RsvpRhythmAspect): Int = when (aspect) {
+    RsvpRhythmAspect.LANDINGS -> R.string.rsvp_rhythm_landings_description
+    RsvpRhythmAspect.VARIATION -> R.string.rsvp_rhythm_variation_description
+    RsvpRhythmAspect.RESTART -> R.string.rsvp_rhythm_restart_description
+}
+
+private fun choiceTitle(aspect: RsvpRhythmAspect, choice: RsvpRhythmChoice): Int = when (choice) {
+    RsvpRhythmChoice.KEEP -> R.string.rsvp_rhythm_current
+    RsvpRhythmChoice.GENTLE -> when (aspect) {
+        RsvpRhythmAspect.LANDINGS -> R.string.rsvp_rhythm_light
+        RsvpRhythmAspect.VARIATION -> R.string.rsvp_rhythm_subtle
+        RsvpRhythmAspect.RESTART -> R.string.rsvp_rhythm_quick
+    }
+    RsvpRhythmChoice.EXPRESSIVE -> when (aspect) {
+        RsvpRhythmAspect.LANDINGS, RsvpRhythmAspect.VARIATION -> R.string.rsvp_rhythm_strong
+        RsvpRhythmAspect.RESTART -> R.string.rsvp_rhythm_gradual
+    }
 }

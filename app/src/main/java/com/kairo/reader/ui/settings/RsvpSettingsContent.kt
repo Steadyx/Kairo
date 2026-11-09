@@ -63,21 +63,21 @@ fun RsvpSettingsContent(
     Spacer(modifier = Modifier.height(10.dp))
 
     RsvpEssentialSettingsContent(state, actions)
-    var showCalibration by rememberSaveable { mutableStateOf(false) }
+    var showRhythm by rememberSaveable { mutableStateOf(false) }
     SettingsNavRow(
         title = stringResource(R.string.rsvp_rhythm_calibration_title),
         subtitle = stringResource(R.string.rsvp_rhythm_subtitle),
         icon = Icons.Default.Tune,
-        onClick = { showCalibration = true },
+        onClick = { showRhythm = true },
     )
-    if (showCalibration) {
-        RsvpRhythmCalibrationDialog(
+    if (showRhythm) {
+        RsvpRhythmDialog(
             state = state,
             onApply = { choices ->
                 actions.onConfigChange { current -> applyRsvpRhythmChoices(current, choices) }
-                showCalibration = false
+                showRhythm = false
             },
-            onDismiss = { showCalibration = false },
+            onDismiss = { showRhythm = false },
         )
     }
 

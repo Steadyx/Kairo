@@ -179,13 +179,16 @@ the current sentence from its first word, respects paragraph/page boundaries and
 the shared punctuation policy, and preserves paused/playing state and selected
 speed. Existing recovery pacing also applies to this deliberate replay.
 
-**Find your rhythm** in RSVP settings offers three A/B comparisons: phrase endings,
-word emphasis and restart easing. The previews use the real engine, current speed,
-font and reading-support settings, and explicitly labelled English sample text.
-Each comparison can be skipped to keep its current settings. Preferences change
-only after Apply; cancellation changes nothing, and backgrounding stops playback.
+**Reading rhythm** in RSVP settings puts phrase endings, word emphasis and restart
+easing in one panel. Each has direct choices, including Current to preserve its
+saved setting. Any choice can be changed in any order and Apply is always available;
+there are no required comparisons or preview-completion steps. One optional preview
+uses the real engine, current speed, font and reading-support settings, and explicitly
+labelled English sample text. Changing choices during playback restarts the preview
+with the new combination. Preferences change only after Apply; cancellation changes
+nothing, and backgrounding stops playback.
 The selected rhythm fields use existing preference and custom-profile storage.
-Applying a comparison does not overwrite unrelated changes or infer comprehension
+Applying rhythm choices does not overwrite unrelated changes or infer comprehension
 from replay frequency. There is no automatic speed increase or learned model.
 
 These are conservative heuristics and preference controls, not validated gains in

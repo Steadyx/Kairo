@@ -1,21 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="rsvp_replay_sentence">Satz wiederholen</string>
-    <string name="rsvp_rhythm_calibration_title">Finde deinen Rhythmus</string>
-    <string name="rsvp_rhythm_subtitle">Vergleiche kurze Vorschauen und wähle das Tempo, das sich natürlich anfühlt.</string>
-    <string name="rsvp_rhythm_instructions">Spiele A und B ab und wähle deinen Favoriten. Die englischen Beispiele verwenden deine aktuelle Geschwindigkeit. A ist sanfter, B ausgeprägter. Änderungen werden erst beim Anwenden gespeichert.</string>
-    <string name="rsvp_rhythm_ready">Deine Auswahl ist bereit. Nur diese Rhythmuseinstellungen werden geändert. Geschwindigkeit und Leseunterstützung bleiben gleich.</string>
-    <string name="rsvp_rhythm_apply">Rhythmus anwenden</string>
-    <string name="rsvp_rhythm_play_a">A abspielen</string>
-    <string name="rsvp_rhythm_play_b">B abspielen</string>
-    <string name="rsvp_rhythm_prefer_a">A bevorzugen</string>
-    <string name="rsvp_rhythm_prefer_b">B bevorzugen</string>
-    <string name="rsvp_rhythm_keep">Aktuell beibehalten</string>
+    <string name="rsvp_rhythm_calibration_title">Leserhythmus</string>
+    <string name="rsvp_rhythm_subtitle">Phrasenenden, Wortbetonung und sanften Neustart anpassen.</string>
+    <string name="rsvp_rhythm_instructions">Einstellungen ändern und Anwenden wählen. Die Vorschau ist optional.</string>
+    <string name="rsvp_rhythm_apply">Anwenden</string>
+    <string name="rsvp_rhythm_current">Aktuell</string>
+    <string name="rsvp_rhythm_light">Leicht</string>
+    <string name="rsvp_rhythm_strong">Stark</string>
+    <string name="rsvp_rhythm_subtle">Dezent</string>
+    <string name="rsvp_rhythm_quick">Schnell</string>
+    <string name="rsvp_rhythm_gradual">Allmählich</string>
+    <string name="rsvp_rhythm_preview">Vorschau</string>
+    <string name="rsvp_rhythm_preview_caption">Englischer Beispieltext bei deiner aktuellen Geschwindigkeit.</string>
+    <string name="rsvp_rhythm_preview_error">Vorschau konnte nicht starten. Tippe zum Wiederholen auf Vorschau.</string>
+    <string name="rsvp_rhythm_landings_description">Wie viel Zeit jede Phrase zum Ausklingen erhält.</string>
+    <string name="rsvp_rhythm_variation_description">Wie stark der Rhythmus zwischen Wörtern variiert.</string>
+    <string name="rsvp_rhythm_restart_description">Wie sanft das Lesen beginnt und fortgesetzt wird.</string>
     <string name="rsvp_rhythm_stop">Vorschau stoppen</string>
-    <string name="rsvp_rhythm_preview_hint">Spiele beide Vorschauen zum Vergleich ab.</string>
-    <string name="rsvp_rhythm_preview_error">Vorschau konnte nicht starten. Tippe zum Wiederholen auf Abspielen.</string>
     <string name="rsvp_rhythm_landings">Phrasenenden</string>
     <string name="rsvp_rhythm_variation">Wortbetonung</string>
     <string name="rsvp_rhythm_restart">Sanfter Neustart</string>
-    <string name="rsvp_rhythm_playing">%1$s wird abgespielt</string>
 </resources>
