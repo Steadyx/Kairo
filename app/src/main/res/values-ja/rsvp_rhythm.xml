@@ -2,10 +2,8 @@
 <resources>
     <string name="rsvp_replay_sentence">文を読み直す</string>
     <string name="rsvp_rhythm_calibration_title">読書リズム</string>
-    <string name="rsvp_rhythm_subtitle">フレーズの終わり、単語の強調、再開時の緩やかさを調整します。</string>
-    <string name="rsvp_rhythm_instructions">設定を変更して「適用」をタップしてください。プレビューは任意です。</string>
-    <string name="rsvp_rhythm_apply">適用</string>
-    <string name="rsvp_rhythm_current">現在</string>
+    <string name="rsvp_rhythm_subtitle">間の取り方や強調の度合いを調整し、今の速度で例文を試せます。</string>
+    <string name="rsvp_rhythm_instructions">「保存」で変更を反映します。「戻る」または「キャンセル」で変更を破棄します。</string>
     <string name="rsvp_rhythm_light">軽め</string>
     <string name="rsvp_rhythm_strong">強め</string>
     <string name="rsvp_rhythm_subtle">控えめ</string>

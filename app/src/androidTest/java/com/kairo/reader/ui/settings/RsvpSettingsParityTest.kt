@@ -6,10 +6,14 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -18,6 +22,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kairo.reader.R
 import com.kairo.reader.TestActivity
@@ -160,6 +165,37 @@ class RsvpSettingsParityTest {
         profile.assertIsDisplayed().performClick()
         save.performScrollTo().performClick()
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_profile_save_title)).assertIsDisplayed()
+    }
+
+    @Test
+    fun rhythmReopensWithSavedPhraseEndingsAndBackDiscardsAnEdit() {
+        val prefs = mutableStateOf(UserPreferences())
+        composeRule.setContent {
+            KairoTheme {
+                SettingsFixture(
+                    prefs.value,
+                    onConfigChange = { update -> prefs.value = prefs.value.copy(rsvpConfig = update(prefs.value.rsvpConfig)) },
+                    onBack = {},
+                )
+            }
+        }
+        fun text(id: Int) = composeRule.activity.getString(id)
+        fun openRhythm() = composeRule.onNodeWithText(text(R.string.rsvp_rhythm_calibration_title)).performScrollTo().performClick()
+        val light = text(R.string.rsvp_rhythm_light)
+        val strong = composeRule.onNode(hasText(text(R.string.rsvp_rhythm_strong)) and hasAnySibling(hasText(light)))
+        val save = composeRule.onNodeWithText(text(R.string.action_save))
+
+        openRhythm()
+        save.assertIsNotEnabled()
+        strong.performScrollTo().performClick()
+        save.performClick()
+        openRhythm()
+        strong.assertIsSelected()
+        save.assertIsNotEnabled()
+        composeRule.onNodeWithText(light).performScrollTo().performClick()
+        pressBack()
+        openRhythm()
+        strong.assertIsSelected()
     }
 
     @androidx.compose.runtime.Composable

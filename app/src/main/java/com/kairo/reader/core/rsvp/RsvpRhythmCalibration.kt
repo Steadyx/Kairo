@@ -6,6 +6,11 @@ import com.kairo.reader.core.model.RsvpConfigConstraints
 internal enum class RsvpRhythmAspect { LANDINGS, VARIATION, RESTART }
 internal enum class RsvpRhythmChoice { KEEP, GENTLE, EXPRESSIVE }
 
+internal fun savedRhythmChoice(config: RsvpConfig, aspect: RsvpRhythmAspect): RsvpRhythmChoice =
+    RsvpRhythmChoice.entries.firstOrNull { choice ->
+        choice != RsvpRhythmChoice.KEEP && rhythmCandidate(config, aspect, choice) == config
+    } ?: RsvpRhythmChoice.KEEP
+
 /** Applies only explicitly chosen rhythm fields, leaving speed, readability and other preferences intact. */
 internal fun applyRsvpRhythmChoices(config: RsvpConfig, choices: List<RsvpRhythmChoice>): RsvpConfig =
     choices.take(RsvpRhythmAspect.entries.size).foldIndexed(config) { index, current, choice ->

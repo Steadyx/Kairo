@@ -2,10 +2,8 @@
 <resources>
     <string name="rsvp_replay_sentence">Relire la phrase</string>
     <string name="rsvp_rhythm_calibration_title">Rythme de lecture</string>
-    <string name="rsvp_rhythm_subtitle">Ajustez les fins de phrase, l’accentuation et la reprise.</string>
-    <string name="rsvp_rhythm_instructions">Modifiez les réglages, puis touchez Appliquer. L’aperçu est facultatif.</string>
-    <string name="rsvp_rhythm_apply">Appliquer</string>
-    <string name="rsvp_rhythm_current">Actuel</string>
+    <string name="rsvp_rhythm_subtitle">Réglez les pauses et les accents, puis essayez un extrait à votre vitesse de lecture.</string>
+    <string name="rsvp_rhythm_instructions">Touchez Enregistrer pour garder vos modifications. Si vous revenez en arrière ou touchez Annuler, elles seront perdues.</string>
     <string name="rsvp_rhythm_light">Léger</string>
     <string name="rsvp_rhythm_strong">Fort</string>
     <string name="rsvp_rhythm_subtle">Subtil</string>

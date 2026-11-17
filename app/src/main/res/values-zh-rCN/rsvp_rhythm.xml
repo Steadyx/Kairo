@@ -2,10 +2,8 @@
 <resources>
     <string name="rsvp_replay_sentence">重读句子</string>
     <string name="rsvp_rhythm_calibration_title">阅读节奏</string>
-    <string name="rsvp_rhythm_subtitle">调整短语结尾、词语强调和重新开始时的缓冲。</string>
-    <string name="rsvp_rhythm_instructions">更改设置后点按“应用”。预览是可选的。</string>
-    <string name="rsvp_rhythm_apply">应用</string>
-    <string name="rsvp_rhythm_current">当前</string>
+    <string name="rsvp_rhythm_subtitle">调整停顿和重音，再用当前的阅读速度预览一段文字。</string>
+    <string name="rsvp_rhythm_instructions">点按“保存”即可保留更改。返回或点按“取消”会放弃更改。</string>
     <string name="rsvp_rhythm_light">轻微</string>
     <string name="rsvp_rhythm_strong">明显</string>
     <string name="rsvp_rhythm_subtle">柔和</string>

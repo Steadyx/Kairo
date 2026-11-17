@@ -2,10 +2,8 @@
 <resources>
     <string name="rsvp_replay_sentence">Repetir oración</string>
     <string name="rsvp_rhythm_calibration_title">Ritmo de lectura</string>
-    <string name="rsvp_rhythm_subtitle">Ajusta los finales de frase, el énfasis y el reinicio.</string>
-    <string name="rsvp_rhythm_instructions">Cambia cualquier ajuste y pulsa Aplicar. La vista previa es opcional.</string>
-    <string name="rsvp_rhythm_apply">Aplicar</string>
-    <string name="rsvp_rhythm_current">Actual</string>
+    <string name="rsvp_rhythm_subtitle">Ajusta las pausas y el énfasis y prueba un fragmento a tu velocidad.</string>
+    <string name="rsvp_rhythm_instructions">Pulsa Guardar para conservar los cambios. Si vuelves atrás o pulsas Cancelar, se descartarán.</string>
     <string name="rsvp_rhythm_light">Leve</string>
     <string name="rsvp_rhythm_strong">Fuerte</string>
     <string name="rsvp_rhythm_subtle">Sutil</string>

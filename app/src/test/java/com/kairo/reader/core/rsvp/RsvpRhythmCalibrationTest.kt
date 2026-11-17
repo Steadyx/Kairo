@@ -1,13 +1,40 @@
 package com.kairo.reader.core.rsvp
 
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpCustomProfile
+import com.kairo.reader.data.preferences.PrefKeys
+import com.kairo.reader.data.preferences.RsvpConfigPreferenceCodec
 import com.kairo.reader.data.preferences.RsvpProfileJsonCodec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RsvpRhythmCalibrationTest {
+    @Test
+    fun savedRhythmRecognizesBothPresetsAfterPreferencesReload() {
+        val codec = RsvpConfigPreferenceCodec(PrefKeys, RsvpProfileJsonCodec())
+        val prefs = mutablePreferencesOf()
+        val gentle = RsvpRhythmChoice.GENTLE
+        val strong = RsvpRhythmChoice.EXPRESSIVE
+        for (choices in listOf(listOf(strong, gentle, strong), listOf(gentle, strong, gentle))) {
+            codec.writeRsvpConfig(prefs, applyRsvpRhythmChoices(RsvpConfig(), choices))
+            val restored = codec.readRsvpConfig(prefs)
+            assertEquals(choices, RsvpRhythmAspect.entries.map { savedRhythmChoice(restored, it) })
+        }
+    }
+
+    @Test
+    fun fineTuningOnlyMarksTheAffectedAspectAsCustom() {
+        val strong = RsvpRhythmChoice.EXPRESSIVE
+        val preset = applyRsvpRhythmChoices(RsvpConfig(), RsvpRhythmAspect.entries.map { strong })
+        val keep = RsvpRhythmChoice.KEEP
+        assertEquals(keep, savedRhythmChoice(preset.copy(clausePauseFactor = 1.25), RsvpRhythmAspect.LANDINGS))
+        assertEquals(keep, savedRhythmChoice(preset.copy(useFocalStress = false), RsvpRhythmAspect.VARIATION))
+        val customRestart = preset.copy(rampUpFrames = 4, tempoMsPerWord = 312)
+        assertEquals(listOf(strong, strong, keep), RsvpRhythmAspect.entries.map { savedRhythmChoice(customRestart, it) })
+    }
+
     @Test
     fun keepingAllChoicesIsLossless() {
         val config = RsvpConfig(tempoMsPerWord = 312, difficultWordSupport = 1.7)

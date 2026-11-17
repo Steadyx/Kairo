@@ -2,10 +2,8 @@
 <resources>
     <string name="rsvp_replay_sentence">Satz wiederholen</string>
     <string name="rsvp_rhythm_calibration_title">Leserhythmus</string>
-    <string name="rsvp_rhythm_subtitle">Phrasenenden, Wortbetonung und sanften Neustart anpassen.</string>
-    <string name="rsvp_rhythm_instructions">Einstellungen ändern und Anwenden wählen. Die Vorschau ist optional.</string>
-    <string name="rsvp_rhythm_apply">Anwenden</string>
-    <string name="rsvp_rhythm_current">Aktuell</string>
+    <string name="rsvp_rhythm_subtitle">Passe Pausen und Betonung an und probiere einen Text in deinem Lesetempo aus.</string>
+    <string name="rsvp_rhythm_instructions">Mit „Speichern“ übernimmst du deine Änderungen. Mit „Zurück“ oder „Abbrechen“ verwirfst du sie.</string>
     <string name="rsvp_rhythm_light">Leicht</string>
     <string name="rsvp_rhythm_strong">Stark</string>
     <string name="rsvp_rhythm_subtle">Dezent</string>

@@ -2,10 +2,8 @@
 <resources>
     <string name="rsvp_replay_sentence">Replay sentence</string>
     <string name="rsvp_rhythm_calibration_title">Reading rhythm</string>
-    <string name="rsvp_rhythm_subtitle">Adjust phrase endings, word emphasis and restart easing.</string>
-    <string name="rsvp_rhythm_instructions">Change any setting, then Apply. Preview is optional.</string>
-    <string name="rsvp_rhythm_apply">Apply</string>
-    <string name="rsvp_rhythm_current">Current</string>
+    <string name="rsvp_rhythm_subtitle">Adjust pauses and emphasis, then preview a passage at your speed.</string>
+    <string name="rsvp_rhythm_instructions">Save keeps your changes. Back or Cancel discards them.</string>
     <string name="rsvp_rhythm_light">Light</string>
     <string name="rsvp_rhythm_strong">Strong</string>
     <string name="rsvp_rhythm_subtle">Subtle</string>

@@ -5,12 +5,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +50,7 @@ import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import com.kairo.reader.core.rsvp.RsvpRhythmAspect
 import com.kairo.reader.core.rsvp.RsvpRhythmChoice
 import com.kairo.reader.core.rsvp.applyRsvpRhythmChoices
+import com.kairo.reader.core.rsvp.savedRhythmChoice
 import com.kairo.reader.core.rsvp.scaledFrameDurationMs
 import com.kairo.reader.core.tokenization.Tokenizer
 import com.kairo.reader.ui.rsvp.DEFAULT_SEPARATION_REFRESH_RATE
@@ -69,11 +75,12 @@ internal fun RsvpRhythmDialog(
     onApply: (List<RsvpRhythmChoice>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var savedChoices by rememberSaveable { mutableStateOf(List(RsvpRhythmAspect.entries.size) { RsvpRhythmChoice.KEEP.name }) }
+    var draftNames by rememberSaveable { mutableStateOf(List(RsvpRhythmAspect.entries.size) { RsvpRhythmChoice.KEEP.name }) }
     val choices = RsvpRhythmAspect.entries.map { aspect ->
-        savedChoices.getOrNull(aspect.ordinal)?.let(RsvpRhythmChoice::valueOf) ?: RsvpRhythmChoice.KEEP
+        draftNames.getOrNull(aspect.ordinal)?.let(RsvpRhythmChoice::valueOf) ?: RsvpRhythmChoice.KEEP
     }
-    val config = applyRsvpRhythmChoices(state.config.withLiveTempo(state.tempoMsPerWord), choices)
+    val baseConfig = state.config.withLiveTempo(state.tempoMsPerWord)
+    val config = applyRsvpRhythmChoices(baseConfig, choices)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.rsvp_rhythm_calibration_title)) },
@@ -84,15 +91,17 @@ internal fun RsvpRhythmDialog(
             ) {
                 Text(stringResource(R.string.rsvp_rhythm_instructions), style = MaterialTheme.typography.bodySmall)
                 RsvpRhythmAspect.entries.forEach { aspect ->
-                    RsvpRhythmChoiceRow(aspect, choices[aspect.ordinal]) { choice ->
-                        savedChoices = choices.mapIndexed { index, current -> (if (index == aspect.ordinal) choice else current).name }
+                    val saved = remember(state.config, aspect) { savedRhythmChoice(state.config, aspect) }
+                    RsvpRhythmChoiceRow(aspect, saved, choices[aspect.ordinal]) { choice ->
+                        val edit = if (choice == saved) RsvpRhythmChoice.KEEP else choice
+                        draftNames = choices.mapIndexed { index, current -> (if (index == aspect.ordinal) edit else current).name }
                     }
                 }
                 RsvpRhythmPreviewControls(state, config)
             }
         },
         confirmButton = {
-            Button(onClick = { onApply(choices) }) { Text(stringResource(R.string.rsvp_rhythm_apply)) }
+            Button(enabled = config != baseConfig, onClick = { onApply(choices) }) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
@@ -101,9 +110,11 @@ internal fun RsvpRhythmDialog(
 @Composable
 private fun RsvpRhythmChoiceRow(
     aspect: RsvpRhythmAspect,
-    selected: RsvpRhythmChoice,
+    saved: RsvpRhythmChoice,
+    draft: RsvpRhythmChoice,
     onChoose: (RsvpRhythmChoice) -> Unit,
 ) {
+    val selected = if (draft == RsvpRhythmChoice.KEEP) saved else draft
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(stringResource(aspectTitle(aspect)), style = MaterialTheme.typography.titleSmall)
         Text(
@@ -112,11 +123,17 @@ private fun RsvpRhythmChoiceRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         FlowRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RsvpRhythmChoice.entries.forEach { choice ->
+            for (choice in RsvpRhythmChoice.entries) {
+                if (choice == RsvpRhythmChoice.KEEP && saved != RsvpRhythmChoice.KEEP) continue
                 FilterChip(
                     selected = selected == choice,
                     onClick = { onChoose(choice) },
                     label = { Text(stringResource(choiceTitle(aspect, choice))) },
+                    leadingIcon = if (selected == choice) {
+                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                    } else {
+                        null
+                    },
                     modifier = Modifier.semantics { role = Role.RadioButton },
                 )
             }
@@ -247,7 +264,7 @@ private fun aspectDescription(aspect: RsvpRhythmAspect): Int = when (aspect) {
 }
 
 private fun choiceTitle(aspect: RsvpRhythmAspect, choice: RsvpRhythmChoice): Int = when (choice) {
-    RsvpRhythmChoice.KEEP -> R.string.rsvp_rhythm_current
+    RsvpRhythmChoice.KEEP -> R.string.rsvp_profile_custom
     RsvpRhythmChoice.GENTLE -> when (aspect) {
         RsvpRhythmAspect.LANDINGS -> R.string.rsvp_rhythm_light
         RsvpRhythmAspect.VARIATION -> R.string.rsvp_rhythm_subtle
