@@ -7,6 +7,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.isDialog
@@ -137,6 +138,21 @@ class RsvpSettingsParityTest {
         composeRule.runOnIdle { assertTrue(!prefs.value.rsvpConfig.showDifficultWordParts) }
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_min_word_time_title)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_long_word_min_title)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun profileSelectorAppearsAboveReadingBasicsAndOpensOnDemand() {
+        val prefs = UserPreferences()
+        composeRule.setContent { KairoTheme { SettingsFixture(prefs, onBack = {}) } }
+        val resources = composeRule.activity.resources
+        val save = composeRule.onNodeWithText(resources.getString(R.string.rsvp_profile_save_current))
+        save.assertDoesNotExist()
+        val profile = composeRule.onNodeWithText(resources.getString(R.string.rsvp_profile_title))
+        val basics = composeRule.onNodeWithText(resources.getString(R.string.rsvp_quick_tune_title))
+        assertTrue(profile.getUnclippedBoundsInRoot().bottom <= basics.getUnclippedBoundsInRoot().top)
+        profile.assertIsDisplayed().performClick()
+        save.performScrollTo().performClick()
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_profile_save_title)).assertIsDisplayed()
     }
 
     @androidx.compose.runtime.Composable

@@ -2,10 +2,7 @@ package com.kairo.reader.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -13,8 +10,8 @@ import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -90,21 +87,18 @@ internal fun RsvpProfileSelector(
             else -> stringResource(R.string.rsvp_profile_unsaved_tweaks)
         }
 
-    Text(
-        stringResource(R.string.rsvp_profile_title),
-        modifier = Modifier.settingsSearchTarget(stringResource(R.string.rsvp_profile_title)),
-        style = MaterialTheme.typography.titleMedium
-    )
+    val title = stringResource(R.string.rsvp_profile_title)
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.settingsSearchTarget(title),
     ) {
         OutlinedTextField(
             value = selectedLabel,
             onValueChange = {},
             readOnly = true,
             singleLine = true,
-            label = { Text(stringResource(R.string.rsvp_profile_label)) },
+            label = { Text(title) },
             supportingText = { Text(selectedDescription) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier =
@@ -180,35 +174,26 @@ internal fun RsvpProfileSelector(
                     )
                 }
             }
-        }
-    }
-
-    Spacer(modifier = Modifier.height(6.dp))
-    androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedButton(
-            onClick = {
-                saveName = if (isUserProfileSelected) selectedCustom.name else ""
-                showSaveDialog = true
-            },
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                stringResource(
-                    if (isCustomSelected) {
-                        R.string.rsvp_profile_save_as
-                    } else {
-                        R.string.rsvp_profile_save_current
-                    },
-                ),
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = {
+                    val label = if (isCustomSelected) R.string.rsvp_profile_save_as else R.string.rsvp_profile_save_current
+                    Text(stringResource(label))
+                },
+                onClick = {
+                    expanded = false
+                    saveName = selectedCustom?.name.orEmpty()
+                    showSaveDialog = true
+                },
             )
-        }
-
-        if (isUserProfileSelected) {
-            OutlinedButton(
-                onClick = { showDeleteDialog = true },
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(stringResource(R.string.action_delete))
+            if (isUserProfileSelected) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_delete)) },
+                    onClick = {
+                        expanded = false
+                        showDeleteDialog = true
+                    },
+                )
             }
         }
     }

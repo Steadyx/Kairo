@@ -186,7 +186,6 @@
     <string name="rsvp_vertical_position_title">縦位置</string>
     <string name="rsvp_left_bias_title">左寄せ</string>
     <string name="rsvp_profile_title">速読プロファイル</string>
-    <string name="rsvp_profile_label">プロファイル</string>
     <string name="rsvp_profile_custom">カスタム</string>
     <string name="rsvp_profile_unsaved_tweaks">未保存の調整</string>
     <string name="rsvp_profile_saved_profile">保存済みプロファイル</string>

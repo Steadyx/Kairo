@@ -186,7 +186,6 @@
     <string name="rsvp_vertical_position_title">垂直位置</string>
     <string name="rsvp_left_bias_title">左侧偏置</string>
     <string name="rsvp_profile_title">速读配置</string>
-    <string name="rsvp_profile_label">配置</string>
     <string name="rsvp_profile_custom">自定义</string>
     <string name="rsvp_profile_unsaved_tweaks">未保存的调整</string>
     <string name="rsvp_profile_saved_profile">已保存的配置</string>

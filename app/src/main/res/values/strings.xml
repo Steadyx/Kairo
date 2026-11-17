@@ -311,7 +311,6 @@
     <string name="rsvp_vertical_position_title">Vertical position</string>
     <string name="rsvp_left_bias_title">Left bias</string>
     <string name="rsvp_profile_title">RSVP profile</string>
-    <string name="rsvp_profile_label">Profile</string>
     <string name="rsvp_profile_custom">Custom</string>
     <string name="rsvp_profile_unsaved_tweaks">Unsaved tweaks</string>
     <string name="rsvp_profile_saved_profile">Saved profile</string>

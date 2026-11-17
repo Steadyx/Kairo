@@ -186,7 +186,6 @@
     <string name="rsvp_vertical_position_title">Vertikale Position</string>
     <string name="rsvp_left_bias_title">Linksneigung</string>
     <string name="rsvp_profile_title">Schnelllesen-Profil</string>
-    <string name="rsvp_profile_label">Profil</string>
     <string name="rsvp_profile_custom">Benutzerdefiniert</string>
     <string name="rsvp_profile_unsaved_tweaks">Ungespeicherte Anpassungen</string>
     <string name="rsvp_profile_saved_profile">Gespeichertes Profil</string>

@@ -186,7 +186,6 @@
     <string name="rsvp_vertical_position_title">Position verticale</string>
     <string name="rsvp_left_bias_title">Biais à gauche</string>
     <string name="rsvp_profile_title">Profil de lecture rapide</string>
-    <string name="rsvp_profile_label">Profil</string>
     <string name="rsvp_profile_custom">Personnalisé</string>
     <string name="rsvp_profile_unsaved_tweaks">Ajustements non enregistrés</string>
     <string name="rsvp_profile_saved_profile">Profil enregistré</string>
