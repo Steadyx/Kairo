@@ -121,7 +121,8 @@ class RsvpSettingsParityTest {
         // The essential sliders are speed and reading support.
         composeRule.onAllNodes(sliders).assertCountEquals(2)
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_difficult_word_support_title)).performScrollTo().assertIsDisplayed()
-        composeRule.onAllNodes(sliders)[1].performSemanticsAction(SemanticsActions.SetProgress) { it(150f) }
+        composeRule.onNodeWithContentDescription(resources.getString(R.string.rsvp_difficult_word_support_title))
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(150f) }
         composeRule.runOnIdle { assertEquals(1.5, prefs.value.rsvpConfig.difficultWordSupport, 0.0) }
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_adaptive_pacing_title)).assertDoesNotExist()
         val screenshot = composeRule.onRoot().captureToImage().asAndroidBitmap()
