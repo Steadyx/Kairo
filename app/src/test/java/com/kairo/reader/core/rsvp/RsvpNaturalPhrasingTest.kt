@@ -20,6 +20,7 @@ class RsvpNaturalPhrasingTest {
             "We waited until Sarah arrived.",
             "We waited until the train arrived.",
             "We waited until Sarah arrived in London.",
+            "We waited until the train arrived in London.",
             "We waited until the train had arrived in London.",
             "We waited until the train went to London.",
             "We waited until the late train had arrived.",
@@ -73,14 +74,25 @@ class RsvpNaturalPhrasingTest {
         val tokens = tokenize("The detailed scientific report that the careful editor revised was rejected.")
         val expanded = tokens.mapIndexed { index, token -> ExpandedToken(token, index, index, 0, token.text.length) }
         val config = RsvpConfig()
-        val before = RsvpThoughtPlan.analyze(expanded, config.copy(useProsodyPacing = false), RsvpLanguagePolicy.ENGLISH)
-        val after = RsvpThoughtPlan.analyze(expanded, config, RsvpLanguagePolicy.ENGLISH)
+        val before = RsvpThoughtPlan.analyze(expanded, tokens, config.copy(useProsodyPacing = false), RsvpLanguagePolicy.ENGLISH)
+        val after = RsvpThoughtPlan.analyze(expanded, tokens, config, RsvpLanguagePolicy.ENGLISH)
         val resolution = tokens.indexOfFirst { it.text == "was" }
+        val splitPredicate = expanded.flatMap { entry ->
+            if (entry.token.text == "revised") {
+                listOf("rev", "ised").map { entry.copy(token = entry.token.copy(text = it, isSubwordChunk = true)) }
+            } else {
+                listOf(entry)
+            }
+        }.mapIndexed { index, entry -> entry.copy(expandedIndex = index) }
+        val splitCues = RsvpThoughtPlan.analyze(splitPredicate, tokens, config, RsvpLanguagePolicy.ENGLISH)
+        val resolutionFrame = splitPredicate.first { it.originalIndex == resolution }.expandedIndex
+        assertTrue(splitCues.getValue(resolutionFrame).processingHoldMs > 0.0)
+        assertEquals(splitCues.values.sumOf { it.processingHoldMs }, splitCues.getValue(resolutionFrame).processingHoldMs, 0.00001)
         assertEquals(setOf(resolution), RsvpEnglishSyntax.relativeClauseResolutions(tokens))
         assertTrue(after.getValue(resolution).processingHoldMs > before.getValue(resolution).processingHoldMs)
         assertEquals(before.values.sumOf { it.processingHoldMs }, after.values.sumOf { it.processingHoldMs }, 0.00001)
         assertEquals(before.values.sumOf { it.integrationHoldMs }, after.values.sumOf { it.integrationHoldMs }, 0.00001)
-        val off = RsvpThoughtPlan.analyze(expanded, config.copy(difficultWordSupport = 0.0), RsvpLanguagePolicy.ENGLISH)
+        val off = RsvpThoughtPlan.analyze(expanded, tokens, config.copy(difficultWordSupport = 0.0), RsvpLanguagePolicy.ENGLISH)
         assertEquals(0.0, off.values.sumOf { it.processingHoldMs + it.integrationHoldMs }, 0.0)
     }
 

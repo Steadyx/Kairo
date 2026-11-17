@@ -97,6 +97,12 @@ class RsvpSourceWordRampTest {
     }
 
     @Test
+    fun resumeBeforeTheOpeningDoesNotStackRampsOnTheOriginalStartingWord() {
+        val progress = DoubleArray(21) { it.toDouble() }
+        assertEquals(1.0, RsvpSessionTimingPolicy.resumeRampMultiplier(config, 10, 9, progress, initialRampStartIndex = 10), 0.0)
+    }
+
+    @Test
     fun resumeUsesWordsAndDoesNotDoubleTheEmbeddedOpeningRamp() {
         val frames = List(10) { RsvpFrame(listOf(word, word), 200, originalTokenIndex = it * 2) }
         val progress = RsvpSessionTimingPolicy.sourceWordProgress(frames)

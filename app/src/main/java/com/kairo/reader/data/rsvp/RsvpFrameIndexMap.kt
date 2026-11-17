@@ -3,8 +3,10 @@ package com.kairo.reader.data.rsvp
 import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.RsvpResumeCursor
 import com.kairo.reader.core.model.TokenType
+import com.kairo.reader.core.rsvp.timing.RsvpSessionTimingPolicy
 
 class RsvpFrameIndexMap private constructor(
+    internal val sourceWordProgress: DoubleArray,
     private val wordFrameByResumeCursor: Map<Pair<Int, Int>, Int>,
     private val frameByResumeCursor: Map<Pair<Int, Int>, Int>,
     private val wordFramesByCharacterOffset: Map<Int, SortedFrameIndex>,
@@ -42,6 +44,7 @@ class RsvpFrameIndexMap private constructor(
     companion object {
         val EMPTY: RsvpFrameIndexMap =
             RsvpFrameIndexMap(
+                sourceWordProgress = doubleArrayOf(0.0),
                 wordFrameByResumeCursor = emptyMap(),
                 frameByResumeCursor = emptyMap(),
                 wordFramesByCharacterOffset = emptyMap(),
@@ -84,6 +87,7 @@ class RsvpFrameIndexMap private constructor(
             }
 
             return RsvpFrameIndexMap(
+                sourceWordProgress = RsvpSessionTimingPolicy.sourceWordProgress(frames),
                 wordFrameByResumeCursor = wordFrameByResumeCursor,
                 frameByResumeCursor = frameByResumeCursor,
                 wordFramesByCharacterOffset = wordFramesByCharacterOffset.mapValues { (_, offsets) ->

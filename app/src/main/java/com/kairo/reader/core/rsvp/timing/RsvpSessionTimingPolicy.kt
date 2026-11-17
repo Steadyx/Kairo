@@ -5,7 +5,6 @@ import com.kairo.reader.core.model.RsvpFrame
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.rsvp.engine.MIN_FRAME_MS
 import kotlin.math.min
-import kotlin.math.round
 
 internal object RsvpSessionTimingPolicy {
     fun applyInitialSessionRamps(
@@ -16,22 +15,7 @@ internal object RsvpSessionTimingPolicy {
         if (frames.isEmpty()) return
 
         val safeStart = startFrameIndex.coerceIn(frames.indices)
-        val progress = sourceWordProgress(frames)
-        val total = progress.last() - progress[safeStart]
-        val rampUp = min(config.rampUpFrames.coerceAtLeast(0).toDouble(), total / 2)
-        val rampDown = min(config.rampDownFrames.coerceAtLeast(0).toDouble(), total / 2)
-        for (index in safeStart until frames.size) {
-            val opening = descendingRampWeight(progress[index] - progress[safeStart], progress[index + 1] - progress[safeStart], rampUp)
-            val closing = descendingRampWeight(
-                progress.last() - progress[index + 1],
-                progress.last() - progress[index],
-                rampDown,
-            )
-            val multiplier = 1.0 + RAMP_UP_REDUCTION * opening + RAMP_DOWN_INCREASE * closing
-            if (multiplier > 1.0) {
-                frames[index] = frames[index].copy(durationMs = (frames[index].durationMs * multiplier).toLong())
-            }
-        }
+        applyWordRamps(frames, config, safeStart)
 
         frames[safeStart] =
             frames[safeStart].copy(
@@ -46,6 +30,26 @@ internal object RsvpSessionTimingPolicy {
             )
     }
 
+    private fun applyWordRamps(frames: MutableList<RsvpFrame>, config: RsvpConfig, start: Int) {
+        if (config.rampUpFrames <= 0 && config.rampDownFrames <= 0) return
+        val progress = sourceWordProgress(frames)
+        val total = progress.last() - progress[start]
+        val rampUp = min(config.rampUpFrames.coerceAtLeast(0).toDouble(), total / 2)
+        val rampDown = min(config.rampDownFrames.coerceAtLeast(0).toDouble(), total / 2)
+        for (index in start until frames.size) {
+            val opening = descendingRampWeight(progress[index] - progress[start], progress[index + 1] - progress[start], rampUp)
+            val closing = descendingRampWeight(
+                progress.last() - progress[index + 1],
+                progress.last() - progress[index],
+                rampDown,
+            )
+            val multiplier = 1.0 + RAMP_UP_REDUCTION * opening + RAMP_DOWN_INCREASE * closing
+            if (multiplier > 1.0) {
+                frames[index] = frames[index].copy(durationMs = (frames[index].durationMs * multiplier).toLong())
+            }
+        }
+    }
+
     fun resumeRampMultiplier(
         config: RsvpConfig,
         frameIndex: Int,
@@ -55,6 +59,8 @@ internal object RsvpSessionTimingPolicy {
         initialRampStartIndex: Int = 0,
     ): Double {
         if (hasInitialRamp(config, rampStartIndex, initialRampStartIndex, wordProgress)) return 1.0
+        // A rewind can reach the baked-in opening before its resume ramp has finished.
+        if (rampStartIndex < initialRampStartIndex && frameIndex >= initialRampStartIndex) return 1.0
         val start = wordProgress.getOrNull(rampStartIndex) ?: return 1.0
         if (frameIndex !in 0 until wordProgress.lastIndex) return 1.0
         val weight = descendingRampWeight(
@@ -95,32 +101,40 @@ internal object RsvpSessionTimingPolicy {
 
     /** Split parts share one source word; presentation gaps and structural pauses consume none. */
     fun sourceWordProgress(frames: List<RsvpFrame>): DoubleArray {
-        val sourceWords = frames.map { frame ->
-            val firstWord = frame.tokens.indexOfFirst { it.type == TokenType.WORD }
-            if (frame.isWordSeparation || firstWord < 0) {
-                emptyList()
-            } else {
-                // A frame never groups parts of the same word; later tokens retain source order.
-                frame.tokens.mapIndexedNotNull { index, token ->
-                    (frame.originalTokenIndex + index - firstWord).takeIf { token.type == TokenType.WORD }
-                }
+        val splitParts = mutableMapOf<Int, Int>()
+        var lastSource = -1
+        for (frame in frames) {
+            val words = frame.readingWordCount()
+            if (words == 0) continue
+            if (frame.originalTokenIndex == lastSource) {
+                splitParts[lastSource] = (splitParts[lastSource] ?: 1) + 1
             }
+            lastSource = frame.originalTokenIndex + words - 1
         }
-        val parts = sourceWords.flatten().groupingBy { it }.eachCount()
-        val remaining = parts.toMutableMap()
+
         val progress = DoubleArray(frames.size + 1)
-        sourceWords.forEachIndexed { index, words ->
-            progress[index + 1] = progress[index] + words.sumOf { source ->
-                remaining[source] = remaining.getValue(source) - 1
-                1.0 / parts.getValue(source)
-            }
-            if (words.lastOrNull()?.let { remaining.getValue(it) == 0 } == true) {
-                // Six one-sixth parts must finish at exactly one word, including at the ramp boundary.
-                progress[index + 1] = round(progress[index + 1])
+        var wordsStarted = 0
+        var part = 0
+        lastSource = -1
+        frames.forEachIndexed { index, frame ->
+            progress[index + 1] = progress[index]
+            repeat(frame.readingWordCount()) { offset ->
+                val source = frame.originalTokenIndex + offset
+                if (source != lastSource) {
+                    wordsStarted++
+                    part = 0
+                    lastSource = source
+                }
+                part++
+                progress[index + 1] = wordsStarted - 1 + part.toDouble() / (splitParts[source] ?: 1)
             }
         }
         return progress
     }
+
+    // The unit builder groups only adjacent words and never puts two parts of one word in a frame.
+    private fun RsvpFrame.readingWordCount(): Int =
+        if (isWordSeparation) 0 else tokens.count { it.type == TokenType.WORD }
 
     /** Average the linear easing over the source span, independent of display grouping. */
     private fun descendingRampWeight(from: Double, to: Double, length: Double): Double {

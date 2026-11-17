@@ -1,6 +1,7 @@
 package com.kairo.reader.core.rsvp
 
 import com.kairo.reader.core.model.RsvpConfig
+import com.kairo.reader.core.model.RsvpConfigConstraints
 
 internal enum class RsvpRhythmAspect { LANDINGS, VARIATION, RESTART }
 internal enum class RsvpRhythmChoice { KEEP, GENTLE, EXPRESSIVE }
@@ -18,7 +19,7 @@ internal fun rhythmCandidate(config: RsvpConfig, aspect: RsvpRhythmAspect, choic
         RsvpRhythmAspect.LANDINGS -> config.copy(
             useAnticipatoryLanding = true,
             anticipatoryLandingBoost = if (expressive) EXPRESSIVE_LANDING else GENTLE_LANDING,
-            clausePauseFactor = if (expressive) EXPRESSIVE_CLAUSE else GENTLE_CLAUSE,
+            clausePauseFactor = if (expressive) EXPRESSIVE_CLAUSE else RsvpConfigConstraints.MIN_CLAUSE_PAUSE_FACTOR,
         )
         RsvpRhythmAspect.VARIATION -> config.copy(
             useProsodyPacing = true,
@@ -35,7 +36,6 @@ internal fun rhythmCandidate(config: RsvpConfig, aspect: RsvpRhythmAspect, choic
 
 private const val GENTLE_LANDING = 1.02
 private const val EXPRESSIVE_LANDING = 1.12
-private const val GENTLE_CLAUSE = 0.9
 private const val EXPRESSIVE_CLAUSE = 1.4
 private const val GENTLE_PROSODY = 0.45
 private const val EXPRESSIVE_PROSODY = 1.1

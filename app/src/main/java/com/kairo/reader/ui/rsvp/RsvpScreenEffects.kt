@@ -8,7 +8,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -185,14 +184,14 @@ internal fun RsvpPlaybackLoopEffect(
 ) {
     val runtime = context.runtime
     val frames = context.frameState.frames
-    val wordProgress = remember(frames) { RsvpSessionTimingPolicy.sourceWordProgress(frames) }
+    val wordProgress = context.frameState.frameIndexMap.sourceWordProgress
     val latestTempoScale by rememberUpdatedState(context.timing.tempoScale)
     val latestBaseTempoMs by rememberUpdatedState(context.frameState.baseTempoMs)
     val latestConfig by rememberUpdatedState(context.state.profile.config)
 
     val refreshRate = LocalView.current.display?.refreshRate ?: DEFAULT_SEPARATION_REFRESH_RATE
 
-    LaunchedEffect(enabled, runtime.isPlaying, runtime.frameIndex, runtime.completed, frames) {
+    LaunchedEffect(enabled, runtime.isPlaying, runtime.frameIndex, runtime.completed, runtime.replayRequest, frames) {
         if (!enabled) return@LaunchedEffect
         if (!runtime.isPlaying || runtime.completed) return@LaunchedEffect
         if (hasConsumedLoadedFrames(runtime, frames)) return@LaunchedEffect

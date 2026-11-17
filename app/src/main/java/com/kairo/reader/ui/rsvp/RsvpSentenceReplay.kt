@@ -8,7 +8,8 @@ import com.kairo.reader.core.rsvp.timing.RsvpPunctuationTimingPolicy
 
 internal fun findReplaySentenceStartTokenIndex(tokens: List<Token>, currentTokenIndex: Int): Int {
     if (tokens.isEmpty()) return 0
-    val current = currentTokenIndex.coerceIn(tokens.indices)
+    val current = findWordAtOrBefore(tokens, currentTokenIndex.coerceIn(tokens.indices))
+    if (current < 0) return tokens.indexOfFirst { it.type == TokenType.WORD }.coerceAtLeast(0)
     var start = current
     while (start > 0 && !isSentenceBoundary(tokens, start - 1)) start--
     return (start..current).firstOrNull { tokens[it].type == TokenType.WORD } ?: current
@@ -25,7 +26,7 @@ private fun isSentenceBoundary(tokens: List<Token>, index: Int): Boolean {
         // A lowercase continuation is a hesitation, even when the ellipsis carries a strong pause.
         return next?.type != TokenType.WORD || next.text.firstOrNull(Char::isLetter)?.isUpperCase() == true
     }
-    val previousWord = (index - 1 downTo 0).firstOrNull { tokens[it].type == TokenType.WORD }?.let(tokens::get)
+    val previousWord = tokens.getOrNull(index - 1)?.takeIf { it.type == TokenType.WORD }
     return RsvpPunctuationTimingPolicy.resolveTier(token, previousWord, tokens.getOrNull(index + 1)) ==
         RsvpPunctuationTier.SENTENCE_END
 }

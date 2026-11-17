@@ -26,10 +26,12 @@ class RsvpRhythmCalibrationTest {
 
     @Test
     fun choicesRoundTripThroughExistingProfileStorage() {
-        val config = applyRsvpRhythmChoices(RsvpConfig(), List(3) { RsvpRhythmChoice.EXPRESSIVE })
         val codec = RsvpProfileJsonCodec()
-        val profile = RsvpCustomProfile("user:rhythm", "My rhythm", config, 1L)
-        assertEquals(listOf(profile), codec.parseCustomProfiles(codec.encodeCustomProfiles(listOf(profile))))
+        for (choice in RsvpRhythmChoice.entries) {
+            val config = applyRsvpRhythmChoices(RsvpConfig(), List(3) { choice })
+            val profile = RsvpCustomProfile("user:rhythm", "My rhythm", config, 1L)
+            assertEquals(listOf(profile), codec.parseCustomProfiles(codec.encodeCustomProfiles(listOf(profile))))
+        }
     }
 
     @Test

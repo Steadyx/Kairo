@@ -45,6 +45,13 @@ class RsvpSentenceReplayTest {
     }
 
     @Test
+    fun replayDuringAParagraphPauseReturnsToTheSentenceJustRead() {
+        val tokens = tokenize("Earlier sentence. We stayed.\n\nThey left.")
+        val pause = tokens.indexOfFirst { it.type == TokenType.PARAGRAPH_BREAK }
+        assertEquals(tokens.indexOfFirst { it.text == "We" }, findReplaySentenceStartTokenIndex(tokens, pause))
+    }
+
+    @Test
     fun decimalsDoNotEndTheSentenceAndParagraphsDo() {
         val tokens = tokenize("Earlier paragraph\n\nThe price was 3.14 pounds today.")
         assertEquals(tokens.indexOfFirst { it.text == "The" }, findReplaySentenceStartTokenIndex(tokens, tokens.lastIndex - 1))

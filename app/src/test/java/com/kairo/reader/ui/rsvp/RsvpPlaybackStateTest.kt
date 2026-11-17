@@ -643,6 +643,23 @@ class RsvpPlaybackStateTest {
         assertTrue(context.runtime.comprehensionPaceScale > 1f)
     }
 
+    @Test
+    fun replayWhilePlayingRequestsANewExposureAtTheSameSentenceStart() {
+        val token = Token("Hello", TokenType.WORD)
+        val context = createContext(frames = listOf(RsvpFrame(listOf(token), 100)), tokens = listOf(token))
+        context.runtime.isPlaying = true
+        holdAtLoadingFrameBoundary(context)
+        assertTrue(hasConsumedLoadedFrames(context.runtime, context.frameState.frames))
+        repeat(2) {
+            val previousRequest = context.runtime.replayRequest
+            replaySentence(context)
+            assertEquals(0, context.runtime.frameIndex)
+            assertTrue(context.runtime.isPlaying)
+            assertTrue(context.runtime.replayRequest != previousRequest)
+            assertFalse(hasConsumedLoadedFrames(context.runtime, context.frameState.frames))
+        }
+    }
+
     private fun createContext(
         frames: List<RsvpFrame> = emptyList(),
         tokens: List<Token> = listOf(Token(text = "Hello", type = TokenType.WORD)),

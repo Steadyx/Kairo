@@ -143,7 +143,7 @@ private fun generateFramesWithNormalizedConfig(
                 useDialogueDetection = config.useDialogueDetection,
                 useParentheticalAside = config.useParentheticalAside,
             ),
-            analysis = analyzeExpandedTokens(expanded, config, options.languagePolicy),
+            analysis = analyzeExpandedTokens(expanded, tokens, config, options.languagePolicy),
             frames = mutableListOf(),
             state = createContextState(tokens, expanded[cursor].originalIndex),
             rhythm = createRhythmState(config),

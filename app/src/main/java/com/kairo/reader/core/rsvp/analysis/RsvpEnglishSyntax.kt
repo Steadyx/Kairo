@@ -21,18 +21,18 @@ internal object RsvpEnglishSyntax {
         return null
     }
 
-    fun relativeClauseResolutions(tokens: List<Token>): Set<Int> = buildSet {
-        tokens.forEachIndexed { index, token ->
-            if (token.type != TokenType.WORD || normalizeWord(token.text) !in RELATIVE_LEADS) return@forEachIndexed
-            val previous = tokens.wordAt(index - 1) ?: return@forEachIndexed
-            if (previous in COMPLEMENT_LEADS &&
-                (previous !in COMPLEMENT_NOUNS || tokens.wordAt(index - 2) in SUBJECT_PRONOUNS)
-            ) {
-                return@forEachIndexed
-            }
-            val predicate = predicateAfterSubject(tokens, index + 1) ?: return@forEachIndexed
-            findResolution(tokens, predicate)?.let(::add)
+    fun relativeClauseResolutions(tokens: List<Token>, start: Int = 0): Set<Int> = buildSet {
+        for (index in start until tokens.size) {
+            relativeClauseResolutionAt(tokens, index)?.let(::add)
         }
+    }
+
+    private fun relativeClauseResolutionAt(tokens: List<Token>, index: Int): Int? {
+        if (tokens.wordAt(index) !in RELATIVE_LEADS) return null
+        val previous = tokens.wordAt(index - 1) ?: return null
+        if (previous in COMPLEMENT_LEADS && (previous !in COMPLEMENT_NOUNS || tokens.wordAt(index - 2) in SUBJECT_PRONOUNS)) return null
+        val predicate = predicateAfterSubject(tokens, index + 1) ?: return null
+        return findResolution(tokens, predicate)
     }
 
     private fun findResolution(tokens: List<Token>, predicate: Int): Int? {
@@ -53,6 +53,7 @@ internal object RsvpEnglishSyntax {
         if (word in FINITE_AUXILIARIES) return true
         val next = tokens.getOrNull(index + 1) ?: return true
         val nextWord = normalizeWord(next.text)
+        if (word in UNAMBIGUOUS_INTRANSITIVE_PAST) return true
         // "The note left on the table" can describe a noun rather than introduce a predicate.
         if (!namedSubject && (word.endsWith("ed") || word in PAST_PARTICIPLES) && nextWord in PARTICIPLE_MODIFIERS) return false
         if (word in INTRANSITIVE_PAST) return true
@@ -77,7 +78,8 @@ internal object RsvpEnglishSyntax {
     private val DETERMINERS = setOf("a", "an", "the", "my", "your", "his", "her", "our", "their", "this", "that")
     private val FINITE_AUXILIARIES =
         setOf("is", "are", "was", "were", "has", "have", "had", "can", "could", "will", "would", "must", "should")
-    private val INTRANSITIVE_PAST = setOf("arrived", "left", "came", "went", "returned", "stopped", "slept", "fell", "began")
+    private val UNAMBIGUOUS_INTRANSITIVE_PAST = setOf("arrived", "came", "went", "slept", "fell", "began")
+    private val INTRANSITIVE_PAST = UNAMBIGUOUS_INTRANSITIVE_PAST + setOf("left", "returned", "stopped")
     private val TRANSITIVE_PAST = setOf("read", "wrote", "made", "took", "found", "bought", "sent", "built", "chose")
     private val PAST_PARTICIPLES = setOf("left", "read", "made", "found", "bought", "sent", "built")
     private val PARTICIPLE_MODIFIERS =

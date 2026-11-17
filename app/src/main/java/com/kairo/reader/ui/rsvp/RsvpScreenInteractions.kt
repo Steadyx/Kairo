@@ -171,6 +171,8 @@ private fun replayReadingContext(initialContext: RsvpUiContext, sentence: Boolea
     runtime.completed = false
     runtime.rampStartFrameIndex = runtime.frameIndex
     runtime.resumePreparationScale = 1.0
+    syncRuntimePositionFromVisibleFrame(runtime, frames, context.state.book)
+    runtime.replayRequest++
     runtime.replayPreparationPending = !runtime.isPlaying
     runtime.scheduledFrameIndex = -1
     runtime.nextFrameAtMs = 0L
@@ -225,7 +227,7 @@ private fun findPhraseStart(tokens: List<Token>, wordIndex: Int): Int {
     return earliestWord
 }
 
-private fun findWordAtOrBefore(tokens: List<Token>, startIndex: Int): Int {
+internal fun findWordAtOrBefore(tokens: List<Token>, startIndex: Int): Int {
     for (index in startIndex.coerceAtMost(tokens.lastIndex) downTo 0) {
         if (tokens[index].type == TokenType.WORD) return index
     }

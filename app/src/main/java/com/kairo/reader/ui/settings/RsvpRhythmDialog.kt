@@ -18,13 +18,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -37,6 +38,7 @@ import com.kairo.reader.R
 import com.kairo.reader.core.model.Chapter
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpFrame
+import com.kairo.reader.core.model.prefersOrpWindowing
 import com.kairo.reader.core.rsvp.ComprehensionRsvpEngine
 import com.kairo.reader.core.rsvp.RsvpGenerationOptions
 import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
@@ -45,11 +47,16 @@ import com.kairo.reader.core.rsvp.RsvpRhythmChoice
 import com.kairo.reader.core.rsvp.applyRsvpRhythmChoices
 import com.kairo.reader.core.rsvp.scaledFrameDurationMs
 import com.kairo.reader.core.tokenization.Tokenizer
+import com.kairo.reader.ui.rsvp.DEFAULT_SEPARATION_REFRESH_RATE
+import com.kairo.reader.ui.rsvp.ORP_LOCK_PIVOT_WORDS
 import com.kairo.reader.ui.rsvp.OrpAlignedText
 import com.kairo.reader.ui.rsvp.OrpTextLayout
 import com.kairo.reader.ui.rsvp.OrpTypography
+import com.kairo.reader.ui.rsvp.awaitWordSeparationPulse
 import com.kairo.reader.ui.rsvp.rememberRsvpTextColors
 import com.kairo.reader.ui.rsvp.resolveFontWeight
+import com.kairo.reader.ui.rsvp.resolveRsvpDisplayFrame
+import com.kairo.reader.ui.rsvp.wordSeparationAlpha
 import com.kairo.reader.ui.theme.composeFontFamily
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -171,6 +178,8 @@ private fun RsvpRhythmPreview(
     onFinished: () -> Unit,
 ) {
     var frame by remember { mutableStateOf<RsvpFrame?>(null) }
+    var wordAlpha by remember { mutableFloatStateOf(1f) }
+    val refreshRate = LocalView.current.display?.refreshRate ?: DEFAULT_SEPARATION_REFRESH_RATE
     var failed by remember { mutableStateOf(false) }
     LaunchedEffect(playing, request, sample, config) {
         if (!playing) return@LaunchedEffect
@@ -182,10 +191,15 @@ private fun RsvpRhythmPreview(
                 ComprehensionRsvpEngine().generateFrames(tokens, 0, config, RsvpGenerationOptions(RsvpLanguagePolicy.ENGLISH))
             }
             check(frames.isNotEmpty())
-            for (next in frames) {
-                frame = next
-                withFrameNanos { }
-                delay(scaledFrameDurationMs(next, config, config.tempoMsPerWord, 1.0))
+            for ((index, next) in frames.withIndex()) {
+                frame = resolveRsvpDisplayFrame(frames, index, config.contextAssistMode)
+                wordAlpha = wordSeparationAlpha(next, true, config)
+                val duration = scaledFrameDurationMs(next, config, config.tempoMsPerWord, 1.0)
+                if (next.isWordSeparation) {
+                    awaitWordSeparationPulse(duration, refreshRate)
+                } else {
+                    delay(duration)
+                }
             }
             onFinished()
         } catch (error: CancellationException) {
@@ -206,9 +220,10 @@ private fun RsvpRhythmPreview(
                 colors = rememberRsvpTextColors(state.textBrightness, config),
                 layout = OrpTextLayout(
                     horizontalBias = 0f,
-                    lockPivot = config.orpEnabled,
+                    wordAlpha = if (playing) wordAlpha else 1f,
+                    lockPivot = config.enablePhraseChunking && config.maxWordsPerUnit > ORP_LOCK_PIVOT_WORDS,
                     smoothTranslation = false,
-                    preferWindowing = false,
+                    preferWindowing = config.prefersOrpWindowing(),
                     simplifyPunctuation = false,
                     guideVisible = config.orpGuideEnabled,
                     pivotHighlightVisible = config.orpHighlightEnabled,
