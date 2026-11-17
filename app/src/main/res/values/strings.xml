@@ -165,7 +165,7 @@
     <string name="focus_settings_subtitle">Minimal mode and Do Not Disturb options</string>
 
     <string name="rsvp_settings_title">RSVP settings</string>
-    <string name="rsvp_settings_subtitle">Timing profile, readability, display</string>
+    <string name="rsvp_settings_subtitle">Word groups, reading rhythm and profiles</string>
     <string name="rsvp_preparing">Preparing RSVP…</string>
     <string name="rsvp_frame_load_failed">RSVP could not be prepared. Tap to return to the reader.</string>
     <string name="rsvp_empty_state">No content to display.\nTap to go back.</string>
@@ -173,9 +173,7 @@
     <string name="bionic_quick_settings_title">Bionic Reading</string>
     <string name="rsvp_quick_settings_hints">Swipe left/right to scrub position\nDouble tap or use replay to revisit a phrase\nSwipe up/down to adjust speed\nLong press to exit</string>
     <string name="rsvp_reading_speed_title">Reading speed</string>
-    <string name="rsvp_reading_speed_subtitle">Slower on the left, faster on the right.</string>
     <string name="rsvp_reading_speed_details_subtitle">Overall pace only. Profiles still shape pauses and cadence.</string>
-    <string name="rsvp_reading_speed_summary">Reading speed: %1$s • %2$d/100</string>
     <string name="rsvp_reading_speed_indicator">%1$s • %2$d/100</string>
     <string name="rsvp_speed_band_very_slow">Very slow</string>
     <string name="rsvp_speed_band_slow">Slow</string>
@@ -208,6 +206,8 @@
     <string name="rsvp_words_at_once_title">Words at once</string>
     <string name="rsvp_one_word">1 word</string>
     <string name="rsvp_up_to_words">Up to %1$d</string>
+    <string name="rsvp_quick_appearance_title">Appearance and position</string>
+    <string name="rsvp_quick_appearance_subtitle">Theme, focus mode and where the words appear.</string>
     <string name="rsvp_quick_tune_title">Reading basics</string>
     <string name="rsvp_min_word_time_title">Minimum word time</string>
     <string name="rsvp_min_word_time_subtitle">Hard floor for any displayed word.</string>
@@ -413,7 +413,7 @@
     <string name="starting_tutorial_rsvp_playback_title">Pause and step through RSVP</string>
     <string name="starting_tutorial_rsvp_playback_body">Tap the RSVP screen to pause or resume. When playback controls are open, use the center button for play or pause and the side buttons to move backward or forward frame by frame.</string>
     <string name="starting_tutorial_rsvp_topbar_title">Open RSVP tools</string>
-    <string name="starting_tutorial_rsvp_topbar_body">When RSVP is paused, this settings button opens quick controls for theme, focus mode, tempo, text size, and the full RSVP tuning panel.</string>
+    <string name="starting_tutorial_rsvp_topbar_body">Pause reading and open quick settings to change speed or text size.</string>
     <string name="starting_tutorial_rsvp_gestures_title">Use RSVP gestures</string>
     <string name="starting_tutorial_rsvp_gestures_body">Use gestures directly in the RSVP view. Swipe up or down to change WPM, and swipe left or right to sweep backward or forward through the session.</string>
     <string name="starting_tutorial_rsvp_exit_title">Exit RSVP mode</string>

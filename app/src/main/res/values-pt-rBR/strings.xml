@@ -108,7 +108,7 @@
     <string name="focus_settings_subtitle">Modo minimalista e opções de Não perturbe</string>
 
     <string name="rsvp_settings_title">Configurações de leitura rápida</string>
-    <string name="rsvp_settings_subtitle">Perfil de tempo, legibilidade, exibição</string>
+    <string name="rsvp_settings_subtitle">Grupos de palavras, ritmo de leitura e perfis</string>
     <string name="rsvp_preparing">Preparando leitura rápida…</string>
     <string name="rsvp_empty_state">Sem conteúdo para exibir.\nToque para voltar.</string>
     <string name="rsvp_quick_settings_title">Configurações rápidas</string>
@@ -123,6 +123,8 @@
     <string name="rsvp_words_at_once_title">Palavras por vez</string>
     <string name="rsvp_one_word">1 palavra</string>
     <string name="rsvp_up_to_words">Até %1$d</string>
+    <string name="rsvp_quick_appearance_title">Aparência e posição</string>
+    <string name="rsvp_quick_appearance_subtitle">Tema, modo de foco e posição das palavras.</string>
     <string name="rsvp_quick_tune_title">Ajustes básicos de leitura</string>
     <string name="rsvp_min_word_time_title">Tempo mínimo por palavra</string>
     <string name="rsvp_min_word_time_subtitle">Limite mínimo para qualquer palavra exibida.</string>
@@ -274,9 +276,7 @@
     <string name="reader_image_hold_to_view">Segure para ver</string>
     <string name="reader_image_viewer_hint">Faça pinça para ampliar. Arraste para mover. Toque duas vezes para redefinir.</string>
     <string name="rsvp_reading_speed_title">Velocidade de leitura</string>
-    <string name="rsvp_reading_speed_subtitle">Mais lento à esquerda, mais rápido à direita.</string>
     <string name="rsvp_reading_speed_details_subtitle">Apenas ritmo geral. Os perfis ainda moldam pausas e cadência.</string>
-    <string name="rsvp_reading_speed_summary">Velocidade de leitura: %1$s • %2$d/100</string>
     <string name="rsvp_reading_speed_indicator">%1$s • %2$d/100</string>
     <string name="rsvp_speed_band_very_slow">Muito lenta</string>
     <string name="rsvp_speed_band_slow">Lenta</string>
@@ -368,7 +368,7 @@
     <string name="starting_tutorial_rsvp_playback_title">Pausar e avançar no RSVP</string>
     <string name="starting_tutorial_rsvp_playback_body">Toque na tela RSVP para pausar ou retomar. Quando os controles estiverem abertos, use o botão central para reproduzir ou pausar e os laterais para mover quadro a quadro.</string>
     <string name="starting_tutorial_rsvp_topbar_title">Abrir ferramentas RSVP</string>
-    <string name="starting_tutorial_rsvp_topbar_body">Quando RSVP estiver pausado, este botão de configurações abre controles rápidos para tema, modo foco, tempo, tamanho do texto e painel completo de ajustes RSVP.</string>
+    <string name="starting_tutorial_rsvp_topbar_body">Pause a leitura e abra as configurações rápidas para mudar a velocidade ou o tamanho do texto.</string>
     <string name="starting_tutorial_rsvp_gestures_title">Usar gestos RSVP</string>
     <string name="starting_tutorial_rsvp_gestures_body">Use gestos diretamente na visualização RSVP. Deslize para cima ou para baixo para alterar WPM, e para esquerda ou direita para percorrer a sessão.</string>
     <string name="starting_tutorial_rsvp_exit_title">Sair do modo RSVP</string>

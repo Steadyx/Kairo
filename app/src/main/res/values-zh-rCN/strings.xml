@@ -108,7 +108,7 @@
     <string name="focus_settings_subtitle">极简模式和勿扰选项</string>
 
     <string name="rsvp_settings_title">速读设置</string>
-    <string name="rsvp_settings_subtitle">时间配置、可读性、显示</string>
+    <string name="rsvp_settings_subtitle">词组、阅读节奏和配置方案</string>
     <string name="rsvp_preparing">正在准备速读…</string>
     <string name="rsvp_empty_state">没有可显示的内容。\n点击返回。</string>
     <string name="rsvp_quick_settings_title">快速设置</string>
@@ -123,6 +123,8 @@
     <string name="rsvp_words_at_once_title">每次显示的词数</string>
     <string name="rsvp_one_word">1 个词</string>
     <string name="rsvp_up_to_words">最多 %1$d 个词</string>
+    <string name="rsvp_quick_appearance_title">外观与位置</string>
+    <string name="rsvp_quick_appearance_subtitle">主题、专注模式和词语的显示位置。</string>
     <string name="rsvp_quick_tune_title">基本阅读设置</string>
     <string name="rsvp_min_word_time_title">最短单词时间</string>
     <string name="rsvp_min_word_time_subtitle">任何显示单词的硬性下限。</string>
@@ -274,9 +276,7 @@
     <string name="reader_image_hold_to_view">长按查看</string>
     <string name="reader_image_viewer_hint">双指缩放。拖动平移。双击重置。</string>
     <string name="rsvp_reading_speed_title">阅读速度</string>
-    <string name="rsvp_reading_speed_subtitle">左侧更慢，右侧更快。</string>
     <string name="rsvp_reading_speed_details_subtitle">仅调整整体节奏。配置仍会影响停顿和韵律。</string>
-    <string name="rsvp_reading_speed_summary">阅读速度：%1$s • %2$d/100</string>
     <string name="rsvp_reading_speed_indicator">%1$s • %2$d/100</string>
     <string name="rsvp_speed_band_very_slow">非常慢</string>
     <string name="rsvp_speed_band_slow">慢</string>
@@ -368,7 +368,7 @@
     <string name="starting_tutorial_rsvp_playback_title">暂停并逐步查看 RSVP</string>
     <string name="starting_tutorial_rsvp_playback_body">点按 RSVP 屏幕暂停或继续。播放控制打开时，使用中间按钮播放或暂停，用两侧按钮逐帧前进或后退。</string>
     <string name="starting_tutorial_rsvp_topbar_title">打开 RSVP 工具</string>
-    <string name="starting_tutorial_rsvp_topbar_body">RSVP 暂停时，此设置按钮会打开主题、专注模式、节奏、文字大小和完整 RSVP 调整面板的快捷控制。</string>
+    <string name="starting_tutorial_rsvp_topbar_body">暂停阅读后打开快速设置，即可调整速度或字号。</string>
     <string name="starting_tutorial_rsvp_gestures_title">使用 RSVP 手势</string>
     <string name="starting_tutorial_rsvp_gestures_body">在 RSVP 视图中直接使用手势。上下滑动更改 WPM，左右滑动在会话中前后浏览。</string>
     <string name="starting_tutorial_rsvp_exit_title">退出 RSVP 模式</string>

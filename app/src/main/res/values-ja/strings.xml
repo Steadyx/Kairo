@@ -108,7 +108,7 @@
     <string name="focus_settings_subtitle">最小表示とおやすみモードの設定</string>
 
     <string name="rsvp_settings_title">速読設定</string>
-    <string name="rsvp_settings_subtitle">タイミングプロファイル、可読性、表示</string>
+    <string name="rsvp_settings_subtitle">単語のまとまり、読書リズム、プロファイル</string>
     <string name="rsvp_preparing">速読を準備中…</string>
     <string name="rsvp_empty_state">表示する内容がありません。\nタップして戻ります。</string>
     <string name="rsvp_quick_settings_title">クイック設定</string>
@@ -123,6 +123,8 @@
     <string name="rsvp_words_at_once_title">一度に表示する語数</string>
     <string name="rsvp_one_word">1 語</string>
     <string name="rsvp_up_to_words">最大 %1$d 語</string>
+    <string name="rsvp_quick_appearance_title">外観と表示位置</string>
+    <string name="rsvp_quick_appearance_subtitle">テーマ、集中モード、単語の表示位置。</string>
     <string name="rsvp_quick_tune_title">読み方の基本設定</string>
     <string name="rsvp_min_word_time_title">最小表示時間</string>
     <string name="rsvp_min_word_time_subtitle">表示される単語の最低時間。</string>
@@ -274,9 +276,7 @@
     <string name="reader_image_hold_to_view">長押しで表示</string>
     <string name="reader_image_viewer_hint">ピンチでズーム。ドラッグで移動。ダブルタップでリセット。</string>
     <string name="rsvp_reading_speed_title">読書速度</string>
-    <string name="rsvp_reading_speed_subtitle">左ほど遅く、右ほど速くなります。</string>
     <string name="rsvp_reading_speed_details_subtitle">全体のペースのみです。プロファイルは引き続き一時停止とリズムを調整します。</string>
-    <string name="rsvp_reading_speed_summary">読書速度: %1$s • %2$d/100</string>
     <string name="rsvp_reading_speed_indicator">%1$s • %2$d/100</string>
     <string name="rsvp_speed_band_very_slow">とても遅い</string>
     <string name="rsvp_speed_band_slow">遅い</string>
@@ -368,7 +368,7 @@
     <string name="starting_tutorial_rsvp_playback_title">RSVPを一時停止して進める</string>
     <string name="starting_tutorial_rsvp_playback_body">RSVP画面をタップして一時停止または再開します。操作ボタンが開いているときは中央ボタンで再生/一時停止、左右のボタンでフレームごとに前後へ移動します。</string>
     <string name="starting_tutorial_rsvp_topbar_title">RSVPツールを開く</string>
-    <string name="starting_tutorial_rsvp_topbar_body">RSVPが一時停止中のとき、この設定ボタンでテーマ、フォーカスモード、テンポ、文字サイズ、完全なRSVP調整パネルを開けます。</string>
+    <string name="starting_tutorial_rsvp_topbar_body">読書を一時停止し、クイック設定を開くと、速度や文字サイズを変更できます。</string>
     <string name="starting_tutorial_rsvp_gestures_title">RSVPジェスチャを使う</string>
     <string name="starting_tutorial_rsvp_gestures_body">RSVPビューで直接ジェスチャを使います。上下スワイプでWPMを変更し、左右スワイプでセッション内を前後に移動します。</string>
     <string name="starting_tutorial_rsvp_exit_title">RSVPモードを終了</string>

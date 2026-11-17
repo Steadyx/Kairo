@@ -46,7 +46,7 @@ import com.kairo.reader.R
 import com.kairo.reader.core.rsvp.RsvpSpeedControl
 import com.kairo.reader.ui.rememberWindowContainerMetrics
 import com.kairo.reader.ui.settings.BionicSettingsContent
-import com.kairo.reader.ui.settings.ContextAssistModeSelector
+import com.kairo.reader.ui.settings.ExpandableSettingsSection
 import com.kairo.reader.ui.settings.RsvpSettingsActions
 import com.kairo.reader.ui.settings.RsvpSettingsDialog
 import com.kairo.reader.ui.settings.RsvpSettingsState
@@ -135,27 +135,22 @@ private fun RsvpQuickSettingsMain(
 ) {
     RsvpQuickSettingsTempoControls(context, speedPercent)
     RsvpQuickSettingsTextSizeControls(context)
-    RsvpQuickSettingsThemeAndFocus(context)
-    if (context.presentationMode != ReadingPresentationMode.BIONIC) {
-        RsvpQuickSettingsPositioningToggle(context)
-        RsvpQuickSettingsContextAssist(context)
+    if (context.presentationMode == ReadingPresentationMode.BIONIC) {
+        RsvpQuickSettingsThemeAndFocus(context)
+        RsvpQuickSettingsBookmarks(context)
+        RsvpQuickSettingsModeLink(context, onOpenModeSettings, settingsRowModifier)
+    } else {
+        RsvpQuickSettingsModeLink(context, onOpenModeSettings, settingsRowModifier)
+        ExpandableSettingsSection(
+            title = stringResource(R.string.rsvp_quick_appearance_title),
+            summary = stringResource(R.string.rsvp_quick_appearance_subtitle),
+        ) {
+            RsvpQuickSettingsThemeAndFocus(context)
+            RsvpQuickSettingsPositioningToggle(context)
+        }
+        RsvpQuickSettingsBookmarks(context)
     }
-    RsvpQuickSettingsBookmarks(
-        context = context,
-        onOpenModeSettings = onOpenModeSettings,
-        settingsRowModifier = settingsRowModifier,
-    )
     RsvpQuickSettingsHints()
-}
-
-@Composable
-private fun RsvpQuickSettingsContextAssist(context: RsvpUiContext) {
-    ContextAssistModeSelector(
-        selected = context.state.profile.config.contextAssistMode,
-        onSelect = { mode ->
-            context.callbacks.preferences.onRsvpConfigChange { config -> config.copy(contextAssistMode = mode) }
-        },
-    )
 }
 
 @Composable
@@ -173,14 +168,8 @@ private fun RsvpQuickSettingsHeader(context: RsvpUiContext) {
     )
 }
 
-/** [settingsRowModifier] targets only the mode-settings navigation row. */
-@Suppress("ModifierParameter")
 @Composable
-private fun RsvpQuickSettingsBookmarks(
-    context: RsvpUiContext,
-    onOpenModeSettings: () -> Unit,
-    settingsRowModifier: Modifier = Modifier,
-) {
+private fun RsvpQuickSettingsBookmarks(context: RsvpUiContext) {
     val runtime = context.runtime
 
     SettingsNavRow(
@@ -200,8 +189,16 @@ private fun RsvpQuickSettingsBookmarks(
         showChevron = false,
         onClick = { addBookmarkNow(context) },
     )
+}
+
+@Composable
+private fun RsvpQuickSettingsModeLink(
+    context: RsvpUiContext,
+    onOpenModeSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     SettingsNavRow(
-        modifier = settingsRowModifier,
+        modifier = modifier,
         title =
         stringResource(
             if (context.presentationMode == ReadingPresentationMode.BIONIC) {
@@ -306,14 +303,8 @@ private fun RsvpQuickSettingsTempoControls(
     val speedValueLabel =
         stringResource(R.string.rsvp_reading_speed_indicator, speedLabel, speedPercent)
 
-    Text(
-        stringResource(R.string.rsvp_reading_speed_summary, speedLabel, speedPercent),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
     SettingsSliderRow(
         title = stringResource(R.string.rsvp_reading_speed_title),
-        subtitle = stringResource(R.string.rsvp_reading_speed_subtitle),
         valueLabel = speedValueLabel,
         value = speedPercent.toFloat(),
         onValueChange = { newValue ->
@@ -329,22 +320,24 @@ private fun RsvpQuickSettingsTempoControls(
         },
         valueRange = RsvpSpeedControl.MIN_SPEED..RsvpSpeedControl.MAX_SPEED,
     )
-    SettingsSwitchRow(
-        title = stringResource(R.string.rsvp_unlock_extreme_speeds_title),
-        subtitle =
-        stringResource(
-            R.string.rsvp_unlock_extreme_speeds_subtitle,
-            EXTREME_MIN_TEMPO_MS_PER_WORD,
-        ),
-        checked = context.state.uiPrefs.extremeSpeedUnlocked,
-        onCheckedChange = { enabled ->
-            context.callbacks.preferences.onExtremeSpeedUnlockedChange(enabled)
-            if (!enabled && runtime.currentTempoMsPerWord < SAFE_MIN_TEMPO_MS_PER_WORD) {
-                runtime.currentTempoMsPerWord = SAFE_MIN_TEMPO_MS_PER_WORD
-                context.callbacks.playback.onTempoChange(runtime.currentTempoMsPerWord)
-            }
-        },
-    )
+    if (context.presentationMode == ReadingPresentationMode.BIONIC) {
+        SettingsSwitchRow(
+            title = stringResource(R.string.rsvp_unlock_extreme_speeds_title),
+            subtitle =
+            stringResource(
+                R.string.rsvp_unlock_extreme_speeds_subtitle,
+                EXTREME_MIN_TEMPO_MS_PER_WORD,
+            ),
+            checked = context.state.uiPrefs.extremeSpeedUnlocked,
+            onCheckedChange = { enabled ->
+                context.callbacks.preferences.onExtremeSpeedUnlockedChange(enabled)
+                if (!enabled && runtime.currentTempoMsPerWord < SAFE_MIN_TEMPO_MS_PER_WORD) {
+                    runtime.currentTempoMsPerWord = SAFE_MIN_TEMPO_MS_PER_WORD
+                    context.callbacks.playback.onTempoChange(runtime.currentTempoMsPerWord)
+                }
+            },
+        )
+    }
 }
 
 @Composable

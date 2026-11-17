@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kairo.reader.R
@@ -38,6 +39,27 @@ import org.junit.runner.RunWith
 class RsvpDeviceSmokeTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<TestActivity>()
+
+    @Test
+    fun quickSettingsExposeSpeedAndSizeAndOpenTheFullReadingControls() {
+        val fixture = RsvpDeviceFixture(listOf(word("One"), word("two")), config())
+        fixture.state = fixture.state.copy(initialIsPlaying = false)
+        show(fixture)
+        awaitLoaded(fixture)
+        click(R.string.content_desc_settings)
+        val resources = composeRule.activity.resources
+        fun row(id: Int) = composeRule.onNodeWithText(resources.getString(id))
+
+        row(R.string.rsvp_reading_speed_title).performScrollTo().assertIsDisplayed()
+        row(R.string.rsvp_text_size_title).performScrollTo().assertIsDisplayed()
+        row(R.string.rsvp_positioning_mode_title).assertDoesNotExist()
+        row(R.string.rsvp_quick_appearance_title).performScrollTo().performClick()
+        row(R.string.rsvp_positioning_mode_title).performScrollTo().assertIsDisplayed()
+        row(R.string.rsvp_settings_title).performScrollTo().performClick()
+        row(R.string.rsvp_words_at_once_title).performScrollTo().assertIsDisplayed()
+        click(R.string.action_back)
+        row(R.string.rsvp_quick_settings_title).assertIsDisplayed()
+    }
 
     @Test
     fun hyphenatedWordStartsAtBeginningAndResumesAtSavedPart() {
