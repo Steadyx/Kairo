@@ -1,15 +1,9 @@
 package com.kairo.reader.ui.settings
 
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
 import com.kairo.reader.core.model.RsvpConfig
 import com.kairo.reader.core.model.RsvpConfigConstraints as Constraints
@@ -22,24 +16,16 @@ import com.kairo.reader.ui.rsvp.MIN_FONT_SIZE_SP
 import com.kairo.reader.ui.rsvp.rsvpSpeedBandLabelRes
 import kotlin.math.roundToInt
 
-// This is a declarative settings form whose repeated rows already delegate their behavior.
-@Suppress("LongMethod")
 @Composable
-internal fun RsvpEssentialSettingsContent(
+internal fun RsvpReadingBasics(
     state: RsvpSettingsState,
     actions: RsvpSettingsActions,
+    estimatedPace: String,
 ) {
     val resources = LocalResources.current
     val config = state.config
     val tempoMsPerWord = state.tempoMsPerWord
     val unlockExtremeSpeed = state.unlockExtremeSpeed
-    val rsvpFontSizeSp = state.fontSizeSp
-    val rsvpTextBrightness = state.textBrightness
-    val onTempoMsPerWordChange = actions.onTempoMsPerWordChange
-    val onUnlockExtremeSpeedChange = actions.onUnlockExtremeSpeedChange
-    val onRsvpFontSizeChange = actions.onFontSizeChange
-    val onRsvpTextBrightnessChange = actions.onTextBrightnessChange
-    fun updateConfig(updater: (RsvpConfig) -> RsvpConfig) = actions.onConfigChange(updater)
     val minTempoMs = if (unlockExtremeSpeed) EXTREME_MIN_TEMPO_MS_PER_WORD else SAFE_MIN_TEMPO_MS_PER_WORD
     val speedPercent =
         remember(tempoMsPerWord, minTempoMs) {
@@ -51,13 +37,10 @@ internal fun RsvpEssentialSettingsContent(
                 ),
             )
         }
-    SettingsCard(
-        title = stringResource(R.string.rsvp_quick_tune_title),
-        subtitle = stringResource(R.string.rsvp_quick_tune_subtitle),
-    ) {
+    SettingsCard(title = stringResource(R.string.rsvp_quick_tune_title)) {
         DeferredSliderRow(
             title = stringResource(R.string.rsvp_reading_speed_title),
-            subtitle = stringResource(R.string.rsvp_reading_speed_details_subtitle),
+            subtitle = estimatedPace,
             valueLabel = {
                 resources.getString(
                     R.string.rsvp_reading_speed_indicator,
@@ -77,7 +60,7 @@ internal fun RsvpEssentialSettingsContent(
             },
             rawValue = speedPercent.toFloat(),
             onCommit = { newValue ->
-                onTempoMsPerWordChange(
+                actions.onTempoMsPerWordChange(
                     RsvpSpeedControl.tempoForSpeed(
                         speed = newValue,
                         minTempoMsPerWord = minTempoMs,
@@ -99,7 +82,7 @@ internal fun RsvpEssentialSettingsContent(
             },
             rawValue = (config.difficultWordSupport * Constraints.PERCENT_SCALE).toFloat(),
             onCommit = { value ->
-                updateConfig {
+                actions.onConfigChange {
                     it.copy(
                         difficultWordSupport = (value / Constraints.PERCENT_SCALE)
                             .coerceIn(0.0, Constraints.MAX_DIFFICULT_WORD_SUPPORT)
@@ -108,74 +91,46 @@ internal fun RsvpEssentialSettingsContent(
             },
             valueRange = 0f..(Constraints.MAX_DIFFICULT_WORD_SUPPORT * Constraints.PERCENT_SCALE).toFloat(),
         )
+        RsvpWordsAtOnceSelector(config, actions.onConfigChange)
+        DeferredSliderRow(
+            title = stringResource(R.string.rsvp_text_size_title),
+            valueLabel = { resources.getString(R.string.format_sp, it.toInt()) },
+            rawValue = state.fontSizeSp,
+            onCommit = { actions.onFontSizeChange(it.coerceIn(MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP)) },
+            valueRange = MIN_FONT_SIZE_SP..MAX_FONT_SIZE_SP,
+        )
     }
+}
 
-    Spacer(modifier = Modifier.height(12.dp))
-
+@Composable
+internal fun RsvpReadingAids(config: RsvpConfig, actions: RsvpSettingsActions) {
     ExpandableSettingsSection(
         title = stringResource(R.string.rsvp_comprehension_title),
         summary = stringResource(R.string.rsvp_comprehension_subtitle),
     ) {
         ContextAssistModeSelector(
             selected = config.contextAssistMode,
-            onSelect = { mode -> updateConfig { it.copy(contextAssistMode = mode) } },
+            onSelect = { mode -> actions.onConfigChange { it.copy(contextAssistMode = mode) } },
         )
-        SettingsSwitchRow(
-            title = stringResource(R.string.rsvp_phrase_chunking_title),
-            subtitle = stringResource(R.string.rsvp_phrase_chunking_subtitle),
-            checked = config.enablePhraseChunking,
-            onCheckedChange = { enabled ->
-                updateConfig {
-                    it.copy(
-                        enablePhraseChunking = enabled,
-                        maxWordsPerUnit =
-                        if (enabled) {
-                            coercePhraseChunkWordLimit(it.maxWordsPerUnit)
-                        } else {
-                            it.maxWordsPerUnit
-                        },
-                    )
-                }
-            },
-        )
-        if (config.enablePhraseChunking) {
-            DeferredIntegerSliderRow(
-                title = stringResource(R.string.rsvp_phrase_chunk_size_title),
-                subtitle = stringResource(R.string.rsvp_phrase_chunk_size_subtitle),
-                valueLabel = { resources.getString(R.string.format_words, it) },
-                rawValue = config.maxWordsPerUnit,
-                onCommit = { wordLimit ->
-                    updateConfig {
-                        it.copy(maxWordsPerUnit = coercePhraseChunkWordLimit(wordLimit))
-                    }
-                },
-                valueRange = PHRASE_CHUNK_MIN_WORDS..PHRASE_CHUNK_MAX_WORDS,
-            )
-        }
         SettingsSwitchRow(
             title = stringResource(R.string.rsvp_regression_pacing_title),
             subtitle = stringResource(R.string.rsvp_regression_pacing_subtitle),
             checked = config.useRegressionAdaptivePacing,
             onCheckedChange = { enabled ->
-                updateConfig { it.copy(useRegressionAdaptivePacing = enabled) }
+                actions.onConfigChange { it.copy(useRegressionAdaptivePacing = enabled) }
             },
         )
     }
+}
 
-    Spacer(modifier = Modifier.height(12.dp))
-
+@Composable
+internal fun RsvpDisplaySettings(state: RsvpSettingsState, actions: RsvpSettingsActions) {
+    val config = state.config
+    val resources = LocalResources.current
     ExpandableSettingsSection(
         title = stringResource(R.string.rsvp_display_title),
         summary = stringResource(R.string.rsvp_display_subtitle),
     ) {
-        DeferredSliderRow(
-            title = stringResource(R.string.reader_font_size_title),
-            valueLabel = { resources.getString(R.string.format_sp, it.toInt()) },
-            rawValue = rsvpFontSizeSp,
-            onCommit = { onRsvpFontSizeChange(it.coerceIn(MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP)) },
-            valueRange = MIN_FONT_SIZE_SP..MAX_FONT_SIZE_SP,
-        )
-
         DeferredSliderRow(
             title = stringResource(R.string.reader_text_brightness_title),
             subtitle = stringResource(R.string.rsvp_text_brightness_subtitle),
@@ -191,12 +146,12 @@ internal fun RsvpEssentialSettingsContent(
                 )
             },
             rawValue =
-            rsvpTextBrightness.coerceIn(
+            state.textBrightness.coerceIn(
                 Constraints.MIN_TEXT_BRIGHTNESS.toFloat(),
                 Constraints.MAX_TEXT_BRIGHTNESS.toFloat(),
             ),
             onCommit = {
-                onRsvpTextBrightnessChange(
+                actions.onTextBrightnessChange(
                     it.coerceIn(
                         Constraints.MIN_TEXT_BRIGHTNESS.toFloat(),
                         Constraints.MAX_TEXT_BRIGHTNESS.toFloat(),
@@ -212,7 +167,7 @@ internal fun RsvpEssentialSettingsContent(
             subtitle = stringResource(R.string.rsvp_orp_guide_subtitle),
             checked = config.orpGuideEnabled,
             onCheckedChange = { enabled ->
-                updateConfig { it.copy(orpGuideEnabled = enabled) }
+                actions.onConfigChange { it.copy(orpGuideEnabled = enabled) }
             },
         )
 
@@ -221,7 +176,7 @@ internal fun RsvpEssentialSettingsContent(
             subtitle = stringResource(R.string.rsvp_orp_highlight_subtitle),
             checked = config.orpHighlightEnabled,
             onCheckedChange = { enabled ->
-                updateConfig { it.copy(orpHighlightEnabled = enabled) }
+                actions.onConfigChange { it.copy(orpHighlightEnabled = enabled) }
             },
         )
 
@@ -240,7 +195,7 @@ internal fun RsvpEssentialSettingsContent(
                 },
                 rawValue = (config.orpGuideBrightness * Constraints.PERCENT_SCALE).toFloat(),
                 onCommit = { newValue ->
-                    updateConfig {
+                    actions.onConfigChange {
                         it.copy(
                             orpGuideBrightness =
                             (newValue / Constraints.PERCENT_SCALE).coerceIn(
@@ -260,7 +215,7 @@ internal fun RsvpEssentialSettingsContent(
                 valueLabel = { resources.getString(R.string.format_multiplier, it) },
                 rawValue = config.orpGuideThickness.toFloat(),
                 onCommit = { newValue ->
-                    updateConfig {
+                    actions.onConfigChange {
                         it.copy(
                             orpGuideThickness =
                             newValue.toDouble().coerceIn(
@@ -275,6 +230,4 @@ internal fun RsvpEssentialSettingsContent(
             )
         }
     }
-
-    Spacer(modifier = Modifier.height(12.dp))
 }

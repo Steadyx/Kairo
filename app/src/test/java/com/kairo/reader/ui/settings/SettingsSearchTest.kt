@@ -1,10 +1,19 @@
 package com.kairo.reader.ui.settings
 
+import com.kairo.reader.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SettingsSearchTest {
+    @Test
+    fun formerPhraseControlRoutesOpenTheSameBasicSetting() {
+        val target = requireNotNull(settingsSearchEntryForId("rsvp.rsvp_phrase_chunk_size_title"))
+        assertEquals(settingsSearchEntryForId("rsvp.rsvp_phrase_chunking_title"), target)
+        assertEquals(R.string.rsvp_words_at_once_title, target.titleRes)
+        assertEquals(R.string.rsvp_quick_tune_title, target.sectionRes)
+    }
+
     @Test
     fun exactTitleRanksAbovePrefixAndDescription() {
         val index = listOf(document("Other", "Theme controls"), document("Theme options"), document("Theme"))

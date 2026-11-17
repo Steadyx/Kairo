@@ -27,9 +27,6 @@ internal fun RsvpFontFamilySelector(
     ThemeFontSelector(stringResource(R.string.rsvp_font_title), selected, onFontFamilyChange)
 }
 
-internal const val PHRASE_CHUNK_MIN_WORDS = 2
-internal const val PHRASE_CHUNK_MAX_WORDS = 3
-
 @Composable
 internal fun RsvpFontWeightSelector(
     selected: RsvpFontWeight,

@@ -314,9 +314,6 @@ internal fun RsvpConfig.withLiveTempo(tempoMsPerWord: Long): RsvpConfig {
 
 internal fun RsvpConfig.asProfileIdentityConfig(): RsvpConfig = profileCadenceIdentity()
 
-internal fun coercePhraseChunkWordLimit(value: Int): Int =
-    value.coerceIn(PHRASE_CHUNK_MIN_WORDS, PHRASE_CHUNK_MAX_WORDS)
-
 internal fun percentToMultiplier(
     percent: Float,
     minValue: Double,

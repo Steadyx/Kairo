@@ -205,8 +205,10 @@
     <string name="rsvp_orp_guide_brightness_subtitle">Controls how visible the ORP guide lines are.</string>
     <string name="rsvp_orp_guide_thickness_title">Guide thickness</string>
     <string name="rsvp_orp_guide_thickness_subtitle">Adjusts the guide line and pivot marker weight.</string>
-    <string name="rsvp_quick_tune_title">Quick tune</string>
-    <string name="rsvp_quick_tune_subtitle">Start here. Advanced controls are below.</string>
+    <string name="rsvp_words_at_once_title">Words at once</string>
+    <string name="rsvp_one_word">1 word</string>
+    <string name="rsvp_up_to_words">Up to %1$d</string>
+    <string name="rsvp_quick_tune_title">Reading basics</string>
     <string name="rsvp_min_word_time_title">Minimum word time</string>
     <string name="rsvp_min_word_time_subtitle">Hard floor for any displayed word.</string>
     <string name="rsvp_long_word_min_title">Long-word minimum</string>
@@ -215,8 +217,8 @@
     <string name="rsvp_sentence_end_pause_subtitle">Breathing room at sentence boundaries.</string>
     <string name="rsvp_adaptive_pacing_title">Automatic cadence</string>
     <string name="rsvp_adaptive_pacing_subtitle">Shape clause transitions and sentence endings. Reading support works independently.</string>
-    <string name="rsvp_comprehension_title">Comprehension</string>
-    <string name="rsvp_comprehension_subtitle">Peripheral context, natural phrase units and easier rereading.</string>
+    <string name="rsvp_comprehension_title">Rereading and context</string>
+    <string name="rsvp_comprehension_subtitle">Show nearby words or slow down when you replay a phrase.</string>
     <string name="rsvp_context_assist_title">Context assist</string>
     <string name="rsvp_context_assist_off">Off</string>
     <string name="rsvp_context_assist_previous">Previous words</string>
@@ -226,7 +228,7 @@
     <string name="rsvp_regression_pacing_title">Ease after rereading</string>
     <string name="rsvp_regression_pacing_subtitle">Eases replayed text, then gently returns to your pace over the following phrases.</string>
     <string name="rsvp_display_title">Display</string>
-    <string name="rsvp_display_subtitle">Only affects the RSVP screen.</string>
+    <string name="rsvp_display_subtitle">Text brightness, guide lines and letter highlighting.</string>
     <string name="rsvp_speed_limits_title">Speed limits</string>
     <string name="rsvp_speed_limits_enabled">Extreme speeds enabled</string>
     <string name="rsvp_speed_limits_disabled">Extreme speeds off</string>
@@ -296,9 +298,7 @@
     <string name="rsvp_phrase_chunking_title">Phrase chunking</string>
     <string name="rsvp_phrase_chunking_subtitle">Groups natural short phrases to reduce flicker.</string>
     <string name="rsvp_phrase_chunk_size_title">Max chunk words</string>
-    <string name="rsvp_phrase_chunk_size_subtitle">Caps phrase chunks at 2 or 3 words when the text reads naturally.</string>
     <!-- PHRASE_CHUNK_MIN_WORDS and PHRASE_CHUNK_MAX_WORDS constrain this value to 2–3. -->
-    <string name="format_words" tools:ignore="PluralsCandidate">%1$d words</string>
     <string name="rsvp_display_details_title">Display details</string>
     <string name="rsvp_display_details_summary">%1$s | %2$s | Bias %3$s/%4$s</string>
     <string name="rsvp_font_title">Font</string>
@@ -347,7 +347,7 @@
     <string name="settings_title">Settings</string>
     <string name="settings_language_title">Language</string>
     <string name="settings_language_system_default">System default</string>
-    <string name="settings_rsvp_subtitle">Speed, timing, readability shaping, RSVP typography</string>
+    <string name="settings_rsvp_subtitle">Speed, words at once and reading rhythm</string>
     <string name="bionic_settings_title">Bionic Reading</string>
     <string name="settings_bionic_subtitle">Reading pane, fixation, and moving focus</string>
     <string name="bionic_experimental_label">EXPERIMENTAL</string>
@@ -418,8 +418,8 @@
     <string name="starting_tutorial_rsvp_gestures_body">Use gestures directly in the RSVP view. Swipe up or down to change WPM, and swipe left or right to sweep backward or forward through the session.</string>
     <string name="starting_tutorial_rsvp_exit_title">Exit RSVP mode</string>
     <string name="starting_tutorial_rsvp_exit_body">To leave RSVP, long hold the screen or tap the X in the top-right corner. A long hold should feel like a brief press-and-release, not a drag.</string>
-    <string name="starting_tutorial_rsvp_settings_title">Open advanced RSVP settings</string>
-    <string name="starting_tutorial_rsvp_settings_body">This opens the deeper RSVP settings screen where you can fine-tune timing, typography, profiles, and readability behavior for the playback engine.</string>
+    <string name="starting_tutorial_rsvp_settings_title">Open RSVP settings</string>
+    <string name="starting_tutorial_rsvp_settings_body">Choose how many words appear at once, adjust reading support or try a rhythm preview.</string>
     <string name="starting_tutorial_hint_scrub">Left / right sweep</string>
     <string name="starting_tutorial_hint_tempo">Up / down WPM</string>
     <string name="starting_tutorial_hint_hold_exit">Long hold to exit</string>
@@ -652,7 +652,7 @@
     <string name="rsvp_context_assist_clause_description">Shows surrounding words from the current clause where space allows, keeping the main word fixed. Pause to review the clause.</string>
     <string name="rsvp_context_assist_off_description">Shows only the main reading text.</string>
     <string name="rsvp_difficult_word_support_title">Reading support</string>
-    <string name="rsvp_difficult_word_support_subtitle">Extra time for words and phrases; English also uses word familiarity.</string>
+    <string name="rsvp_difficult_word_support_subtitle">Give difficult words and phrases more time.</string>
     <string name="rsvp_word_parts_title">Word-part guidance</string>
     <string name="rsvp_word_parts_subtitle">Show selected long English words with a moving highlight. Extra time is controlled separately.</string>
     <string name="rsvp_reading_support_off">Off</string>

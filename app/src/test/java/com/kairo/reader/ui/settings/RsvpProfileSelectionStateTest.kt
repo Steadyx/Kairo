@@ -13,11 +13,13 @@ import org.junit.Test
 
 class RsvpProfileSelectionStateTest {
     @Test
-    fun phraseChunkWordLimitStaysWithinRsvpFriendlyRange() {
-        assertEquals(2, coercePhraseChunkWordLimit(1))
-        assertEquals(2, coercePhraseChunkWordLimit(2))
-        assertEquals(3, coercePhraseChunkWordLimit(3))
-        assertEquals(3, coercePhraseChunkWordLimit(4))
+    fun wordsAtOnceChangesOnlyGroupingAndPreservesThePreviousLimitForSingleWords() {
+        val imported = RsvpProfile.NARRATIVE.defaultConfig().copy(enablePhraseChunking = true, maxWordsPerUnit = 4)
+        val single = imported.withWordsAtOnce(1)
+        assertEquals(imported.copy(enablePhraseChunking = false), single)
+        assertEquals(imported, single.withWordsAtOnce(4))
+        assertEquals(imported.copy(maxWordsPerUnit = 2), single.withWordsAtOnce(2))
+        assertEquals(imported.copy(maxWordsPerUnit = 3), single.withWordsAtOnce(3))
     }
 
     @Test

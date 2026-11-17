@@ -106,7 +106,7 @@ class RsvpSettingsParityTest {
     }
 
     @Test
-    fun readingSupportCommitsWithOnlyTwoEssentialSlidersAndFloorsRemainAdvanced() {
+    fun readingBasicsCommitAndTimingDetailsStayUnderAdvanced() {
         val prefs = mutableStateOf(UserPreferences())
         composeRule.setContent {
             KairoTheme {
@@ -119,12 +119,19 @@ class RsvpSettingsParityTest {
         }
         val resources = composeRule.activity.resources
         val sliders = SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)
-        // The essential sliders are speed and reading support.
-        composeRule.onAllNodes(sliders).assertCountEquals(2)
-        composeRule.onNodeWithText(resources.getString(R.string.rsvp_difficult_word_support_title)).performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodes(sliders).assertCountEquals(3)
+        composeRule.onNodeWithContentDescription(resources.getString(R.string.rsvp_reading_speed_title)).assertExists()
+        composeRule.onNodeWithContentDescription(resources.getString(R.string.rsvp_text_size_title)).assertExists()
         composeRule.onNodeWithContentDescription(resources.getString(R.string.rsvp_difficult_word_support_title))
-            .performSemanticsAction(SemanticsActions.SetProgress) { it(150f) }
+            .performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(150f) }
         composeRule.runOnIdle { assertEquals(1.5, prefs.value.rsvpConfig.difficultWordSupport, 0.0) }
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_up_to_words, 3)).performScrollTo().performClick()
+        composeRule.runOnIdle {
+            assertTrue(prefs.value.rsvpConfig.enablePhraseChunking)
+            assertEquals(3, prefs.value.rsvpConfig.maxWordsPerUnit)
+        }
+        composeRule.onNodeWithText(resources.getString(R.string.rsvp_one_word)).performScrollTo().performClick()
+        composeRule.runOnIdle { assertTrue(!prefs.value.rsvpConfig.enablePhraseChunking) }
         composeRule.onNodeWithText(resources.getString(R.string.rsvp_adaptive_pacing_title)).assertDoesNotExist()
         val screenshot = composeRule.onRoot().captureToImage().asAndroidBitmap()
         val directory = requireNotNull(composeRule.activity.getExternalFilesDir("ui-review"))

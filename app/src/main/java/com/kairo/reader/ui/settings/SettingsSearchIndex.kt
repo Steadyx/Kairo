@@ -35,6 +35,13 @@ enum class SettingsSearchPage(@StringRes val titleRes: Int) {
 internal val settingsSearchEntries = themeSearchEntries + rsvpSearchEntries + readerSearchEntries + bionicSearchEntries +
     focusSearchEntries + infoSearchEntries + languageSearchEntries + updatesSearchEntries + tutorialSearchEntries + resetSearchEntries
 
+internal fun settingsSearchEntryForId(id: String?): SettingsSearchEntry? {
+    if (id == null) return null
+    // Both former phrase controls now open Words at once, including restored navigation entries.
+    val targetId = if (id == "rsvp.rsvp_phrase_chunk_size_title") "rsvp.rsvp_phrase_chunking_title" else id
+    return settingsSearchEntries.find { it.id == targetId }
+}
+
 internal data class SettingsSearchDocument(
     val entry: SettingsSearchEntry,
     val title: String,

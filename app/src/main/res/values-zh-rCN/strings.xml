@@ -120,8 +120,10 @@
     <string name="rsvp_positioning_hint">位置调整模式 - 滑动移动\n点击此处完成</string>
     <string name="rsvp_text_size_title">文字大小</string>
     <string name="rsvp_text_brightness_subtitle">不改变主题的情况下调暗速读文字。</string>
-    <string name="rsvp_quick_tune_title">快速调节</string>
-    <string name="rsvp_quick_tune_subtitle">从这里开始。高级控制在下方。</string>
+    <string name="rsvp_words_at_once_title">每次显示的词数</string>
+    <string name="rsvp_one_word">1 个词</string>
+    <string name="rsvp_up_to_words">最多 %1$d 个词</string>
+    <string name="rsvp_quick_tune_title">基本阅读设置</string>
     <string name="rsvp_min_word_time_title">最短单词时间</string>
     <string name="rsvp_min_word_time_subtitle">任何显示单词的硬性下限。</string>
     <string name="rsvp_long_word_min_title">长词最短时间</string>
@@ -131,7 +133,7 @@
     <string name="rsvp_adaptive_pacing_title">自动节奏</string>
     <string name="rsvp_adaptive_pacing_subtitle">调整分句过渡和句末停顿。阅读辅助独立生效。</string>
     <string name="rsvp_display_title">显示</string>
-    <string name="rsvp_display_subtitle">只影响速读屏幕。</string>
+    <string name="rsvp_display_subtitle">文字亮度、辅助线和字母高亮。</string>
     <string name="rsvp_speed_limits_title">速度限制</string>
     <string name="rsvp_speed_limits_enabled">已启用极限速度</string>
     <string name="rsvp_speed_limits_disabled">极限速度已关闭</string>
@@ -216,7 +218,7 @@
     <string name="settings_title">设置</string>
     <string name="settings_language_title">语言</string>
     <string name="settings_language_system_default">系统默认</string>
-    <string name="settings_rsvp_subtitle">速度、时间、可读性、速读排版</string>
+    <string name="settings_rsvp_subtitle">速度、每次显示的词数和阅读节奏</string>
     <string name="settings_reset_defaults">恢复默认</string>
     <string name="settings_advanced_title">高级设置</string>
     <string name="settings_advanced_subtitle">所有调节项，按部分分组。</string>
@@ -318,8 +320,6 @@
     <string name="rsvp_punctuation_landing_title">标点落点</string>
     <string name="rsvp_punctuation_landing_subtitle">在强标点后添加短暂停留，让停顿和分句转折不显得被截断。</string>
     <string name="rsvp_phrase_chunk_size_title">最大分块词数</string>
-    <string name="rsvp_phrase_chunk_size_subtitle">当文本自然时，将短语分块限制为 2 或 3 个词。</string>
-    <string name="format_words">%1$d 个词</string>
     <string name="rsvp_profile_narrative">叙事</string>
     <string name="rsvp_profile_narrative_description">通过轻柔强调和对话节奏，生动呈现故事</string>
     <string name="rsvp_profile_focus">专注</string>
@@ -373,8 +373,8 @@
     <string name="starting_tutorial_rsvp_gestures_body">在 RSVP 视图中直接使用手势。上下滑动更改 WPM，左右滑动在会话中前后浏览。</string>
     <string name="starting_tutorial_rsvp_exit_title">退出 RSVP 模式</string>
     <string name="starting_tutorial_rsvp_exit_body">要离开 RSVP，请长按屏幕或点按右上角 X。长按应像短暂按下并松开，而不是拖动。</string>
-    <string name="starting_tutorial_rsvp_settings_title">打开高级 RSVP 设置</string>
-    <string name="starting_tutorial_rsvp_settings_body">打开更深入的 RSVP 设置界面，可微调播放引擎的计时、排版、配置和可读性行为。</string>
+    <string name="starting_tutorial_rsvp_settings_title">打开 RSVP 设置</string>
+    <string name="starting_tutorial_rsvp_settings_body">选择每次显示的词数，调整阅读辅助，或预览阅读节奏。</string>
     <string name="starting_tutorial_hint_scrub">左右滑动</string>
     <string name="starting_tutorial_hint_tempo">上下调整 WPM</string>
     <string name="starting_tutorial_hint_hold_exit">长按退出</string>
@@ -395,8 +395,8 @@
     <string name="rsvp_positioning_grid_snap_title">吸附强度</string>
     <string name="rsvp_positioning_grid_snap_subtitle">位置向网格线吸附的强度。</string>
     <string name="rsvp_positioning_grid_snap_value">%1$d％</string>
-    <string name="rsvp_comprehension_title">理解辅助</string>
-    <string name="rsvp_comprehension_subtitle">提供周边上下文、自然短语单元以及更轻松的重读体验。</string>
+    <string name="rsvp_comprehension_title">重读与上下文</string>
+    <string name="rsvp_comprehension_subtitle">显示相邻词语，或在重读短语时放慢速度。</string>
     <string name="rsvp_context_assist_title">上下文辅助</string>
     <string name="rsvp_context_assist_off">关闭</string>
     <string name="rsvp_context_assist_previous">前面的词</string>
@@ -628,7 +628,7 @@
     <string name="rsvp_context_assist_clause_description">主词保持固定，在空间允许时显示当前分句中前后的词。暂停可回顾分句。</string>
     <string name="rsvp_context_assist_off_description">仅显示主要阅读文本。</string>
     <string name="rsvp_difficult_word_support_title">阅读辅助</string>
-    <string name="rsvp_difficult_word_support_subtitle">为单词和短语增加时间；英语还会考虑词语的熟悉程度。</string>
+    <string name="rsvp_difficult_word_support_subtitle">为难词和难读的短语多留一些时间。</string>
     <string name="rsvp_word_parts_title">单词分段提示</string>
     <string name="rsvp_word_parts_subtitle">移动高亮，分段显示部分较长的英语单词。额外时间可单独调整。</string>
     <string name="rsvp_reading_support_off">关闭</string>

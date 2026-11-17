@@ -120,8 +120,10 @@
     <string name="rsvp_positioning_hint">Positionierungsmodus - wische zum Bewegen\nHier tippen, um fertig</string>
     <string name="rsvp_text_size_title">Textgröße</string>
     <string name="rsvp_text_brightness_subtitle">Dimmt das Wort in der Schnellleseansicht, ohne das Thema zu ändern.</string>
-    <string name="rsvp_quick_tune_title">Schnellabstimmung</string>
-    <string name="rsvp_quick_tune_subtitle">Hier starten. Erweiterte Steuerungen sind unten.</string>
+    <string name="rsvp_words_at_once_title">Wörter auf einmal</string>
+    <string name="rsvp_one_word">1 Wort</string>
+    <string name="rsvp_up_to_words">Bis zu %1$d</string>
+    <string name="rsvp_quick_tune_title">Grundeinstellungen</string>
     <string name="rsvp_min_word_time_title">Minimale Wortzeit</string>
     <string name="rsvp_min_word_time_subtitle">Harte Untergrenze für jedes angezeigte Wort.</string>
     <string name="rsvp_long_word_min_title">Minimum für lange Wörter</string>
@@ -131,7 +133,7 @@
     <string name="rsvp_adaptive_pacing_title">Automatischer Rhythmus</string>
     <string name="rsvp_adaptive_pacing_subtitle">Passt Satzübergänge und Satzenden an. Die Leseunterstützung funktioniert unabhängig davon.</string>
     <string name="rsvp_display_title">Anzeige</string>
-    <string name="rsvp_display_subtitle">Beeinflusst nur die Schnellleseansicht.</string>
+    <string name="rsvp_display_subtitle">Texthelligkeit, Hilfslinien und Buchstabenhervorhebung.</string>
     <string name="rsvp_speed_limits_title">Geschwindigkeitsgrenzen</string>
     <string name="rsvp_speed_limits_enabled">Extreme Geschwindigkeiten aktiviert</string>
     <string name="rsvp_speed_limits_disabled">Extreme Geschwindigkeiten aus</string>
@@ -216,7 +218,7 @@
     <string name="settings_title">Einstellungen</string>
     <string name="settings_language_title">Sprache</string>
     <string name="settings_language_system_default">Systemstandard</string>
-    <string name="settings_rsvp_subtitle">Geschwindigkeit, Timing, Lesbarkeit, Schnelllesen-Typografie</string>
+    <string name="settings_rsvp_subtitle">Tempo, Wörter pro Anzeige und Leserhythmus</string>
     <string name="settings_reset_defaults">Auf Standard zurücksetzen</string>
     <string name="settings_advanced_title">Erweiterte Einstellungen</string>
     <string name="settings_advanced_subtitle">Alle Regler, nach Bereichen gruppiert.</string>
@@ -318,8 +320,6 @@
     <string name="rsvp_punctuation_landing_title">Interpunktionslandung</string>
     <string name="rsvp_punctuation_landing_subtitle">Fügt nach starker Interpunktion einen kleinen Haltemoment hinzu, damit Stopps und Satzwendungen nicht abgeschnitten wirken.</string>
     <string name="rsvp_phrase_chunk_size_title">Max. Wörter pro Chunk</string>
-    <string name="rsvp_phrase_chunk_size_subtitle">Begrenzt Phrasen-Chunks auf 2 oder 3 Wörter, wenn der Text natürlich gelesen wird.</string>
-    <string name="format_words">%1$d Wörter</string>
     <string name="rsvp_profile_narrative">Erzählung</string>
     <string name="rsvp_profile_narrative_description">Ausdrucksvolles Erzählen mit sanfter Betonung und Dialogen</string>
     <string name="rsvp_profile_focus">Fokus</string>
@@ -373,8 +373,8 @@
     <string name="starting_tutorial_rsvp_gestures_body">Nutze Gesten direkt in der RSVP-Ansicht. Wische nach oben oder unten, um WPM zu ändern, und nach links oder rechts, um durch die Sitzung zu springen.</string>
     <string name="starting_tutorial_rsvp_exit_title">RSVP-Modus verlassen</string>
     <string name="starting_tutorial_rsvp_exit_body">Um RSVP zu verlassen, halte den Bildschirm länger gedrückt oder tippe oben rechts auf X. Ein langer Druck sollte sich wie ein kurzer Druck mit Loslassen anfühlen, nicht wie ein Ziehen.</string>
-    <string name="starting_tutorial_rsvp_settings_title">Erweiterte RSVP-Einstellungen öffnen</string>
-    <string name="starting_tutorial_rsvp_settings_body">Öffnet den tieferen RSVP-Einstellungsbildschirm, in dem du Timing, Typografie, Profile und Lesbarkeitsverhalten der Wiedergabe feinabstimmen kannst.</string>
+    <string name="starting_tutorial_rsvp_settings_title">RSVP-Einstellungen öffnen</string>
+    <string name="starting_tutorial_rsvp_settings_body">Wähle die Anzahl der Wörter pro Anzeige, passe die Lesehilfe an oder probiere den Leserhythmus aus.</string>
     <string name="starting_tutorial_hint_scrub">Links/rechts wischen</string>
     <string name="starting_tutorial_hint_tempo">Hoch/runter WPM</string>
     <string name="starting_tutorial_hint_hold_exit">Lange halten zum Beenden</string>
@@ -395,8 +395,8 @@
     <string name="rsvp_positioning_grid_snap_title">Einraststärke</string>
     <string name="rsvp_positioning_grid_snap_subtitle">Wie stark die Position zu den Rasterlinien gezogen wird.</string>
     <string name="rsvp_positioning_grid_snap_value">%1$d%%</string>
-    <string name="rsvp_comprehension_title">Textverständnis</string>
-    <string name="rsvp_comprehension_subtitle">Peripherer Kontext, natürliche Phraseneinheiten und leichteres erneutes Lesen.</string>
+    <string name="rsvp_comprehension_title">Erneutes Lesen und Kontext</string>
+    <string name="rsvp_comprehension_subtitle">Wörter im Umfeld anzeigen oder beim Wiederholen langsamer lesen.</string>
     <string name="rsvp_context_assist_title">Kontexthilfe</string>
     <string name="rsvp_context_assist_off">Aus</string>
     <string name="rsvp_context_assist_previous">Vorherige Wörter</string>
@@ -634,7 +634,7 @@
     <string name="rsvp_context_assist_clause_description">Zeigt umgebende Wörter des aktuellen Teilsatzes, soweit Platz ist. Das Hauptwort bleibt fest. Pausiere, um den Teilsatz anzusehen.</string>
     <string name="rsvp_context_assist_off_description">Zeigt nur den Hauptlesetext.</string>
     <string name="rsvp_difficult_word_support_title">Leseunterstützung</string>
-    <string name="rsvp_difficult_word_support_subtitle">Mehr Zeit für Wörter und Phrasen; bei Englisch zählt auch die Vertrautheit mit Wörtern.</string>
+    <string name="rsvp_difficult_word_support_subtitle">Lass dir für schwierige Wörter und Wortgruppen mehr Zeit.</string>
     <string name="rsvp_word_parts_title">Wortteil-Hilfe</string>
     <string name="rsvp_word_parts_subtitle">Hebt Teile ausgewählter langer englischer Wörter nacheinander hervor. Die zusätzliche Zeit wird separat eingestellt.</string>
     <string name="rsvp_reading_support_off">Aus</string>

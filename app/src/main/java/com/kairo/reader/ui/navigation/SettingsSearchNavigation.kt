@@ -7,7 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.kairo.reader.ui.settings.LocalSettingsSearchTarget
 import com.kairo.reader.ui.settings.SettingsSearchPage
-import com.kairo.reader.ui.settings.settingsSearchEntries
+import com.kairo.reader.ui.settings.settingsSearchEntryForId
 
 internal fun NavGraphBuilder.settingsSearchDestination(route: String, content: @Composable () -> Unit) {
     composable(
@@ -19,7 +19,7 @@ internal fun NavGraphBuilder.settingsSearchDestination(route: String, content: @
             }
         ),
     ) { entry ->
-        val target = settingsSearchEntries.find { it.id == entry.arguments?.getString("setting") }
+        val target = settingsSearchEntryForId(entry.arguments?.getString("setting"))
         CompositionLocalProvider(LocalSettingsSearchTarget provides target) { content() }
     }
 }

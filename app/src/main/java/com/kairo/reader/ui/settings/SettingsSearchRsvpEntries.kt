@@ -66,17 +66,10 @@ internal val rsvpSearchEntries = listOf(
     SettingsSearchEntry(
         id = "rsvp.rsvp_phrase_chunking_title",
         page = SettingsSearchPage.RSVP,
-        titleRes = R.string.rsvp_phrase_chunking_title,
+        titleRes = R.string.rsvp_words_at_once_title,
         descriptionRes = R.string.rsvp_phrase_chunking_subtitle,
-        sectionRes = R.string.rsvp_comprehension_title,
-    ),
-    SettingsSearchEntry(
-        id = "rsvp.rsvp_phrase_chunk_size_title",
-        page = SettingsSearchPage.RSVP,
-        titleRes = R.string.rsvp_phrase_chunk_size_title,
-        descriptionRes = R.string.rsvp_phrase_chunk_size_subtitle,
-        sectionRes = R.string.rsvp_comprehension_title,
-        requiresRes = R.string.rsvp_phrase_chunking_title,
+        sectionRes = R.string.rsvp_quick_tune_title,
+        aliases = listOf(R.string.rsvp_phrase_chunking_title, R.string.rsvp_phrase_chunk_size_title),
     ),
     SettingsSearchEntry(
         id = "rsvp.rsvp_regression_pacing_title",
@@ -88,9 +81,10 @@ internal val rsvpSearchEntries = listOf(
     SettingsSearchEntry(
         id = "rsvp.reader_font_size_title",
         page = SettingsSearchPage.RSVP,
-        titleRes = R.string.reader_font_size_title,
+        titleRes = R.string.rsvp_text_size_title,
         descriptionRes = R.string.settings_search_font_size_description,
-        sectionRes = R.string.rsvp_display_title,
+        sectionRes = R.string.rsvp_quick_tune_title,
+        aliases = listOf(R.string.reader_font_size_title),
     ),
     SettingsSearchEntry(
         id = "rsvp.reader_text_brightness_title",

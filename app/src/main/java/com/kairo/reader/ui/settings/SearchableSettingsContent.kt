@@ -28,7 +28,7 @@ internal fun SearchableSettingsContent(
     var query by rememberSaveable { mutableStateOf("") }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val inheritedTarget = LocalSettingsSearchTarget.current
-    val target = selectedId?.let { id -> settingsSearchEntries.find { it.id == id } } ?: inheritedTarget
+    val target = settingsSearchEntryForId(selectedId) ?: inheritedTarget
     BackHandler(query.isNotEmpty()) {
         if (selectedId != null) selectedId = null else query = ""
     }
