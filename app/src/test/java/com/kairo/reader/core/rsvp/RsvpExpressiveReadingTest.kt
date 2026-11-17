@@ -99,9 +99,12 @@ class RsvpExpressiveReadingTest : ComprehensionRsvpTestBase() {
 
     private fun frames(text: String) = engine.generateFrames(tokenize(text), 0, stableConfig, english)
 
-    private fun analyze(text: String) = analyzeExpandedTokens(
-        tokenize(text).mapIndexed { index, token -> ExpandedToken(token, index, index, 0, token.text.length) },
-        stableConfig,
-        RsvpLanguagePolicy.ENGLISH,
-    )
+    private fun analyze(text: String) = tokenize(text).let { tokens ->
+        analyzeExpandedTokens(
+            tokens.mapIndexed { index, token -> ExpandedToken(token, index, index, 0, token.text.length) },
+            tokens,
+            stableConfig,
+            RsvpLanguagePolicy.ENGLISH,
+        )
+    }
 }

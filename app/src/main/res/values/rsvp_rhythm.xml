@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">Replay sentence</string>
+    <string name="rsvp_rhythm_calibration_title">Reading rhythm</string>
+    <string name="rsvp_rhythm_subtitle">Adjust phrase endings, word emphasis and restart easing.</string>
+    <string name="rsvp_rhythm_instructions">Change any setting, then Apply. Preview is optional.</string>
+    <string name="rsvp_rhythm_apply">Apply</string>
+    <string name="rsvp_rhythm_current">Current</string>
+    <string name="rsvp_rhythm_light">Light</string>
+    <string name="rsvp_rhythm_strong">Strong</string>
+    <string name="rsvp_rhythm_subtle">Subtle</string>
+    <string name="rsvp_rhythm_quick">Quick</string>
+    <string name="rsvp_rhythm_gradual">Gradual</string>
+    <string name="rsvp_rhythm_preview">Preview</string>
+    <string name="rsvp_rhythm_preview_caption">English sample at your current speed.</string>
+    <string name="rsvp_rhythm_preview_error">Preview could not start. Tap Preview to retry.</string>
+    <string name="rsvp_rhythm_landings_description">How much each phrase settles before reading continues.</string>
+    <string name="rsvp_rhythm_variation_description">How strongly the rhythm varies between words.</string>
+    <string name="rsvp_rhythm_restart_description">How gently reading starts and resumes.</string>
+    <string name="rsvp_rhythm_stop">Stop preview</string>
+    <string name="rsvp_rhythm_landings">Phrase endings</string>
+    <string name="rsvp_rhythm_variation">Word emphasis</string>
+    <string name="rsvp_rhythm_restart">Restart easing</string>
+    <string name="rsvp_rhythm_sample" translatable="false">The detailed report that the editor revised was accepted. Its main finding was simple, but the evidence needed care. We read the conclusion again before making our decision.</string>
+</resources>

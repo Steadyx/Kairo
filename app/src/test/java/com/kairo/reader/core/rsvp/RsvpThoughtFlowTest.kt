@@ -97,7 +97,7 @@ class RsvpThoughtFlowTest : ComprehensionRsvpTestBase() {
         val split = original.flatMap { entry ->
             listOf(entry.copy(token = entry.token.copy(isSubwordChunk = true)), entry.copy(token = entry.token.copy(isSubwordChunk = true)))
         }.mapIndexed { index, entry -> entry.copy(expandedIndex = index) }
-        fun total(words: List<ExpandedToken>) = RsvpThoughtPlan.analyze(words, stableConfig, RsvpLanguagePolicy.ENGLISH)
+        fun total(words: List<ExpandedToken>) = RsvpThoughtPlan.analyze(words, tokens, stableConfig, RsvpLanguagePolicy.ENGLISH)
             .values.sumOf { it.processingHoldMs + it.integrationHoldMs }
         assertEquals(total(original), total(split), 0.001)
     }
@@ -146,6 +146,7 @@ class RsvpThoughtFlowTest : ComprehensionRsvpTestBase() {
         tokens.mapIndexed { index, token ->
             ExpandedToken(token, index, index, 0, token.text.length)
         },
+        tokens,
         config,
         language
     )

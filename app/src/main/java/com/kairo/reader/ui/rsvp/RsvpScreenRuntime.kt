@@ -61,6 +61,7 @@ internal class RsvpRuntimeState(
     var comprehensionPaceScale by mutableFloatStateOf(1f)
     var stablePhrasesSinceRegression by mutableIntStateOf(0)
     var resumePreparationScale by mutableDoubleStateOf(1.0)
+    var replayRequest by mutableIntStateOf(0)
     var replayPreparationPending = false
     private var pausedAtMs: Long? = null
     var frameIndex by mutableIntStateOf(0)

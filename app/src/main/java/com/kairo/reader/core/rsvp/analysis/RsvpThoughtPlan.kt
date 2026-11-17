@@ -1,6 +1,7 @@
 package com.kairo.reader.core.rsvp.analysis
 
 import com.kairo.reader.core.model.RsvpConfig
+import com.kairo.reader.core.model.Token
 import com.kairo.reader.core.model.TokenType
 import com.kairo.reader.core.rsvp.RsvpLanguagePolicy
 import com.kairo.reader.core.rsvp.engine.ExpandedToken
@@ -21,6 +22,7 @@ internal data class RsvpThoughtCue(
 internal object RsvpThoughtPlan {
     fun analyze(
         expanded: List<ExpandedToken>,
+        source: List<Token>,
         config: RsvpConfig,
         languagePolicy: RsvpLanguagePolicy,
     ): Map<Int, RsvpThoughtCue> {
@@ -28,24 +30,31 @@ internal object RsvpThoughtPlan {
         val words = ArrayList<ExpandedToken>()
         val english = languagePolicy == RsvpLanguagePolicy.ENGLISH
         var previousModals = emptySet<String>()
+        val resolutions = if (english && config.useProsodyPacing && config.difficultWordSupport > 0.0) {
+            RsvpEnglishSyntax.relativeClauseResolutions(source, expanded.firstOrNull()?.originalIndex ?: 0)
+        } else {
+            emptySet()
+        }
 
         fun finish(endExclusive: Int) {
             if (words.isEmpty()) return
             val protected = protectedWords(words, english, previousModals, config.useProsodyPacing)
             val hold = integrationHold(words, config, languagePolicy)
-            val sourceWords = words.distinctBy { it.originalIndex }
-            val processingShare = if (sourceWords.size > 1) PROCESSING_SHARE else 0.0
             val lastChunks = words.associateBy { it.originalIndex }
+            val processingShare = if (lastChunks.size > 1) PROCESSING_SHARE else 0.0
+            val resolutionCount = lastChunks.keys.count { it in resolutions }
+            val processingWordCount = if (resolutionCount > 0) resolutionCount else lastChunks.size
             val start = words.first().originalIndex
             words.forEachIndexed { index, word ->
+                val receivesProcessing = resolutionCount == 0 || word.originalIndex in resolutions
                 cues[word.expandedIndex] = RsvpThoughtCue(
                     startTokenIndex = start,
                     endTokenIndexExclusive = endExclusive,
                     isLastWord = index == words.lastIndex,
                     protectedEmphasis = word.expandedIndex in protected,
                     integrationHoldMs = if (index == words.lastIndex) hold * (1.0 - processingShare) else 0.0,
-                    processingHoldMs = if (lastChunks[word.originalIndex] == word) {
-                        hold * processingShare / sourceWords.size
+                    processingHoldMs = if (lastChunks[word.originalIndex] == word && receivesProcessing) {
+                        hold * processingShare / processingWordCount
                     } else {
                         0.0
                     },

@@ -37,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -143,6 +144,7 @@ private fun RsvpDefaultBottomControls(
             )
             Spacer(modifier = Modifier.height(PAUSE_PREVIEW_BOTTOM_SPACING))
         }
+        RsvpSentenceReplayAction(context)
         RsvpControlsProgress(context)
         Spacer(modifier = Modifier.height(CONTROLS_SPACER))
         RsvpPlaybackControlsRow(
@@ -212,6 +214,7 @@ private fun RsvpCompactBottomControls(
             )
             Spacer(modifier = Modifier.height(PAUSE_PREVIEW_COMPACT_BOTTOM_SPACING))
         }
+        RsvpSentenceReplayAction(context)
         RsvpControlsProgress(context)
         Spacer(modifier = Modifier.height(8.dp))
         Row(
@@ -622,5 +625,12 @@ private fun RsvpPlaybackControlsRow(
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
+    }
+}
+
+@Composable
+private fun RsvpSentenceReplayAction(context: RsvpUiContext) {
+    TextButton(onClick = { replaySentence(context) }) {
+        Text(stringResource(R.string.rsvp_replay_sentence))
     }
 }

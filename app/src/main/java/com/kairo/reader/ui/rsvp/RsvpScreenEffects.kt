@@ -184,13 +184,14 @@ internal fun RsvpPlaybackLoopEffect(
 ) {
     val runtime = context.runtime
     val frames = context.frameState.frames
+    val wordProgress = context.frameState.frameIndexMap.sourceWordProgress
     val latestTempoScale by rememberUpdatedState(context.timing.tempoScale)
     val latestBaseTempoMs by rememberUpdatedState(context.frameState.baseTempoMs)
     val latestConfig by rememberUpdatedState(context.state.profile.config)
 
     val refreshRate = LocalView.current.display?.refreshRate ?: DEFAULT_SEPARATION_REFRESH_RATE
 
-    LaunchedEffect(enabled, runtime.isPlaying, runtime.frameIndex, runtime.completed, frames) {
+    LaunchedEffect(enabled, runtime.isPlaying, runtime.frameIndex, runtime.completed, runtime.replayRequest, frames) {
         if (!enabled) return@LaunchedEffect
         if (!runtime.isPlaying || runtime.completed) return@LaunchedEffect
         if (hasConsumedLoadedFrames(runtime, frames)) return@LaunchedEffect
@@ -220,6 +221,7 @@ internal fun RsvpPlaybackLoopEffect(
                 config,
                 runtime.frameIndex,
                 runtime.rampStartFrameIndex,
+                wordProgress,
                 runtime.resumePreparationScale,
                 initialRampStartIndex = context.frameState.initialRampStartFrameIndex,
             )
@@ -228,6 +230,7 @@ internal fun RsvpPlaybackLoopEffect(
                 config,
                 runtime.frameIndex,
                 runtime.rampStartFrameIndex,
+                wordProgress,
                 runtime.resumePreparationScale,
                 initialRampStartIndex = context.frameState.initialRampStartFrameIndex,
             )

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">Repetir frase</string>
+    <string name="rsvp_rhythm_calibration_title">Ritmo de leitura</string>
+    <string name="rsvp_rhythm_subtitle">Ajuste os finais de frase, a ênfase e a retomada.</string>
+    <string name="rsvp_rhythm_instructions">Altere os ajustes e toque em Aplicar. A prévia é opcional.</string>
+    <string name="rsvp_rhythm_apply">Aplicar</string>
+    <string name="rsvp_rhythm_current">Atual</string>
+    <string name="rsvp_rhythm_light">Leve</string>
+    <string name="rsvp_rhythm_strong">Forte</string>
+    <string name="rsvp_rhythm_subtle">Sutil</string>
+    <string name="rsvp_rhythm_quick">Rápido</string>
+    <string name="rsvp_rhythm_gradual">Gradual</string>
+    <string name="rsvp_rhythm_preview">Prévia</string>
+    <string name="rsvp_rhythm_preview_caption">Texto de exemplo em inglês na sua velocidade atual.</string>
+    <string name="rsvp_rhythm_preview_error">Não foi possível iniciar a prévia. Toque em Prévia para tentar novamente.</string>
+    <string name="rsvp_rhythm_landings_description">Quanto tempo cada frase tem para terminar antes de continuar.</string>
+    <string name="rsvp_rhythm_variation_description">Quanto o ritmo varia entre as palavras.</string>
+    <string name="rsvp_rhythm_restart_description">Com que suavidade a leitura começa e é retomada.</string>
+    <string name="rsvp_rhythm_stop">Parar prévia</string>
+    <string name="rsvp_rhythm_landings">Finais de trechos</string>
+    <string name="rsvp_rhythm_variation">Ênfase nas palavras</string>
+    <string name="rsvp_rhythm_restart">Retomada gradual</string>
+</resources>

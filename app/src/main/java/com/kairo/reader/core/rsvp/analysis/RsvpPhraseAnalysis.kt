@@ -43,6 +43,7 @@ internal data class RsvpTokenAnalysis(
 
 internal fun analyzeExpandedTokens(
     expanded: List<ExpandedToken>,
+    source: List<Token>,
     config: RsvpConfig,
     languagePolicy: RsvpLanguagePolicy = RsvpLanguagePolicy.UNKNOWN,
 ): RsvpTokenAnalysis {
@@ -53,7 +54,7 @@ internal fun analyzeExpandedTokens(
     val asides = HashSet<Int>()
     val pairedDashes = HashSet<Int>()
     val contours = HashMap<Int, PhraseContour>()
-    val thoughtCues = RsvpThoughtPlan.analyze(expanded, config, languagePolicy)
+    val thoughtCues = RsvpThoughtPlan.analyze(expanded, source, config, languagePolicy)
     val breathGroup = ArrayList<ExpandedToken>()
     var previousWord: Token? = null
     var emDashAsideCloseIndex = -1

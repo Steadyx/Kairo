@@ -25,13 +25,19 @@ internal object RsvpPhraseBoundaries {
         if (previous == null || next == null) return false
         if ("$word $next" in PAIRED_CLAUSE_STARTERS) return true
         return when (word) {
-            "that" -> next in SUBJECTS || (next in FINITE_AUXILIARIES && previous !in COMPLEMENT_VERBS)
+            "that" ->
+                next in SUBJECTS ||
+                    RsvpEnglishSyntax.predicateAfterSubject(tokens, index + 1) != null ||
+                    (next in FINITE_AUXILIARIES && previous !in COMPLEMENT_VERBS)
             "who", "whom", "whose", "which" -> previous !in COMPLEMENT_VERBS && previous !in PREPOSITIONS
             in TEMPORAL_STARTERS ->
                 next in SUBJECTS ||
+                    RsvpEnglishSyntax.predicateAfterSubject(tokens, index + 1) != null ||
                     next in VERBAL_PARTICIPLES ||
                     (next.endsWith("ing") && next.length > MIN_PARTICIPLE_LENGTH && afterNext in OBJECT_LEADS)
-            in COORDINATORS -> next in SUBJECTS && tokens.getOrNull(index - 2)?.type == TokenType.WORD
+            in COORDINATORS ->
+                (next in SUBJECTS || RsvpEnglishSyntax.predicateAfterSubject(tokens, index + 1) != null) &&
+                    tokens.getOrNull(index - 2)?.type == TokenType.WORD
             else -> false
         }
     }
