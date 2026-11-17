@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">文を読み直す</string>
+    <string name="rsvp_rhythm_calibration_title">読書リズム</string>
+    <string name="rsvp_rhythm_subtitle">フレーズの終わり、単語の強調、再開時の緩やかさを調整します。</string>
+    <string name="rsvp_rhythm_instructions">設定を変更して「適用」をタップしてください。プレビューは任意です。</string>
+    <string name="rsvp_rhythm_apply">適用</string>
+    <string name="rsvp_rhythm_current">現在</string>
+    <string name="rsvp_rhythm_light">軽め</string>
+    <string name="rsvp_rhythm_strong">強め</string>
+    <string name="rsvp_rhythm_subtle">控えめ</string>
+    <string name="rsvp_rhythm_quick">速く</string>
+    <string name="rsvp_rhythm_gradual">ゆっくり</string>
+    <string name="rsvp_rhythm_preview">プレビュー</string>
+    <string name="rsvp_rhythm_preview_caption">現在の速度で英語のサンプルを表示します。</string>
+    <string name="rsvp_rhythm_preview_error">プレビューを開始できませんでした。「プレビュー」をタップして再試行してください。</string>
+    <string name="rsvp_rhythm_landings_description">次に進む前にフレーズの終わりに置く間の長さ。</string>
+    <string name="rsvp_rhythm_variation_description">単語ごとのリズムの変化の強さ。</string>
+    <string name="rsvp_rhythm_restart_description">読書の開始・再開時にどれくらい緩やかにするか。</string>
+    <string name="rsvp_rhythm_stop">プレビューを停止</string>
+    <string name="rsvp_rhythm_landings">句の終わり</string>
+    <string name="rsvp_rhythm_variation">単語の強調</string>
+    <string name="rsvp_rhythm_restart">再開時の緩やかさ</string>
+</resources>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">Relire la phrase</string>
+    <string name="rsvp_rhythm_calibration_title">Rythme de lecture</string>
+    <string name="rsvp_rhythm_subtitle">Ajustez les fins de phrase, l’accentuation et la reprise.</string>
+    <string name="rsvp_rhythm_instructions">Modifiez les réglages, puis touchez Appliquer. L’aperçu est facultatif.</string>
+    <string name="rsvp_rhythm_apply">Appliquer</string>
+    <string name="rsvp_rhythm_current">Actuel</string>
+    <string name="rsvp_rhythm_light">Léger</string>
+    <string name="rsvp_rhythm_strong">Fort</string>
+    <string name="rsvp_rhythm_subtle">Subtil</string>
+    <string name="rsvp_rhythm_quick">Rapide</string>
+    <string name="rsvp_rhythm_gradual">Progressif</string>
+    <string name="rsvp_rhythm_preview">Aperçu</string>
+    <string name="rsvp_rhythm_preview_caption">Exemple en anglais à votre vitesse actuelle.</string>
+    <string name="rsvp_rhythm_preview_error">Impossible de lancer l’aperçu. Touchez Aperçu pour réessayer.</string>
+    <string name="rsvp_rhythm_landings_description">Le temps laissé à chaque fin de phrase.</string>
+    <string name="rsvp_rhythm_variation_description">L’intensité des variations de rythme entre les mots.</string>
+    <string name="rsvp_rhythm_restart_description">La douceur du démarrage et de la reprise de lecture.</string>
+    <string name="rsvp_rhythm_stop">Arrêter l’aperçu</string>
+    <string name="rsvp_rhythm_landings">Fins de groupes de mots</string>
+    <string name="rsvp_rhythm_variation">Accentuation des mots</string>
+    <string name="rsvp_rhythm_restart">Reprise progressive</string>
+</resources>

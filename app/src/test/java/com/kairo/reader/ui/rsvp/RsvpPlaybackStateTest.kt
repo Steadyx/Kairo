@@ -614,6 +614,52 @@ class RsvpPlaybackStateTest {
         assertFalse(shouldApply)
     }
 
+    @Test
+    fun sentenceReplayPreservesPauseAndRestoresTheSentenceStartInsideASplitWord() {
+        val tokens = listOf(
+            Token("Earlier", TokenType.WORD),
+            Token(".", TokenType.PUNCTUATION),
+            Token("We", TokenType.WORD),
+            Token("read", TokenType.WORD),
+            Token(",", TokenType.PUNCTUATION),
+            Token("carefully", TokenType.WORD),
+        )
+        val frames = listOf(
+            RsvpFrame(listOf(tokens[0], tokens[1]), 100, originalTokenIndex = 0),
+            RsvpFrame(listOf(tokens[2], tokens[3]), 200, originalTokenIndex = 2),
+            RsvpFrame(listOf(tokens[5].copy(isSubwordChunk = true)), 100, originalTokenIndex = 5, resumeCursor = 1),
+            RsvpFrame(listOf(tokens[5].copy(isSubwordChunk = true)), 100, originalTokenIndex = 5, resumeCursor = 2),
+        )
+        val context = createContext(frames = frames, tokens = tokens)
+        context.runtime.isPlaying = false
+        context.runtime.frameIndex = 3
+        context.runtime.currentTempoMsPerWord = 210
+        replaySentence(context)
+        assertEquals(1, context.runtime.frameIndex)
+        assertFalse(context.runtime.isPlaying)
+        assertEquals(210L, context.runtime.currentTempoMsPerWord)
+        assertTrue(context.runtime.replayPreparationPending)
+        assertEquals(1, context.runtime.rampStartFrameIndex)
+        assertTrue(context.runtime.comprehensionPaceScale > 1f)
+    }
+
+    @Test
+    fun replayWhilePlayingRequestsANewExposureAtTheSameSentenceStart() {
+        val token = Token("Hello", TokenType.WORD)
+        val context = createContext(frames = listOf(RsvpFrame(listOf(token), 100)), tokens = listOf(token))
+        context.runtime.isPlaying = true
+        holdAtLoadingFrameBoundary(context)
+        assertTrue(hasConsumedLoadedFrames(context.runtime, context.frameState.frames))
+        repeat(2) {
+            val previousRequest = context.runtime.replayRequest
+            replaySentence(context)
+            assertEquals(0, context.runtime.frameIndex)
+            assertTrue(context.runtime.isPlaying)
+            assertTrue(context.runtime.replayRequest != previousRequest)
+            assertFalse(hasConsumedLoadedFrames(context.runtime, context.frameState.frames))
+        }
+    }
+
     private fun createContext(
         frames: List<RsvpFrame> = emptyList(),
         tokens: List<Token> = listOf(Token(text = "Hello", type = TokenType.WORD)),

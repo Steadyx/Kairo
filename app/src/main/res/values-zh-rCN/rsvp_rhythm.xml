@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rsvp_replay_sentence">重读句子</string>
+    <string name="rsvp_rhythm_calibration_title">阅读节奏</string>
+    <string name="rsvp_rhythm_subtitle">调整短语结尾、词语强调和重新开始时的缓冲。</string>
+    <string name="rsvp_rhythm_instructions">更改设置后点按“应用”。预览是可选的。</string>
+    <string name="rsvp_rhythm_apply">应用</string>
+    <string name="rsvp_rhythm_current">当前</string>
+    <string name="rsvp_rhythm_light">轻微</string>
+    <string name="rsvp_rhythm_strong">明显</string>
+    <string name="rsvp_rhythm_subtle">柔和</string>
+    <string name="rsvp_rhythm_quick">快速</string>
+    <string name="rsvp_rhythm_gradual">渐进</string>
+    <string name="rsvp_rhythm_preview">预览</string>
+    <string name="rsvp_rhythm_preview_caption">以当前速度显示英文示例。</string>
+    <string name="rsvp_rhythm_preview_error">无法开始预览。点按“预览”重试。</string>
+    <string name="rsvp_rhythm_landings_description">每个短语结束后停留多久再继续阅读。</string>
+    <string name="rsvp_rhythm_variation_description">词语之间节奏变化的程度。</string>
+    <string name="rsvp_rhythm_restart_description">开始和恢复阅读时节奏的缓和程度。</string>
+    <string name="rsvp_rhythm_stop">停止预览</string>
+    <string name="rsvp_rhythm_landings">短语结尾</string>
+    <string name="rsvp_rhythm_variation">单词重音</string>
+    <string name="rsvp_rhythm_restart">恢复阅读时的缓冲</string>
+</resources>

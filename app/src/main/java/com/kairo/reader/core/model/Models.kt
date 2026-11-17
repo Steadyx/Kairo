@@ -227,6 +227,7 @@ data class RsvpConfig(
     val orpGuideThickness: Double = 1.0,
     val startDelayMs: Long = 250L,
     val endDelayMs: Long = 350L,
+    /** Source-word ramp lengths; legacy property names remain for saved-profile compatibility. */
     val rampUpFrames: Int = 5,
     val rampDownFrames: Int = 3,
     /**

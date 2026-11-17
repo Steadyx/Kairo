@@ -151,3 +151,46 @@ different operations and are smoke measurements, not a comparison with the old e
 
 Final `qualityGate` and instrumented APK assembly passed: 860 unit tests, no failures,
 errors or skips; formatting and Detekt passed; Android Lint reported no errors or warnings.
+
+## Natural phrasing and rhythm calibration
+
+English clause boundaries now use bounded subject-and-predicate evidence for names
+and determiner-led noun phrases as well as the existing pronoun rules. A nearby
+finite verb is required; ambiguous noun phrases remain neutral. Other language
+policies do not acquire English syntax rules.
+
+For a confidently recognized, unpunctuated relative clause, the existing 40%
+phrase-processing share can move to the main-clause resolution word. The 60%
+landing share, total allowance, recognition floors and punctuation holds remain
+unchanged. This currently covers short, non-nested patterns such as “the report
+that the editor revised was rejected”; uncertain constructions retain the original
+spread. Automatic cadence controls this redistribution, and Reading support Off
+still removes the allowance.
+
+Startup, ending and resume ramps now measure source words rather than display
+frames. Grouped frames average the ramp over their source-word span; split parts
+share one word and blank separation frames consume no ramp progress. Existing
+`rampUpFrames` and `rampDownFrames` preference/profile keys remain for compatibility,
+with their numeric values interpreted as source-word lengths. Pause-duration
+preparation and minimum display times still apply.
+
+Playback controls provide **Replay sentence** alongside phrase replay. It restores
+the current sentence from its first word, respects paragraph/page boundaries and
+the shared punctuation policy, and preserves paused/playing state and selected
+speed. Existing recovery pacing also applies to this deliberate replay.
+
+**Reading rhythm** in RSVP settings puts phrase endings, word emphasis and restart
+easing in one panel. Each has direct choices, including Current to preserve its
+saved setting. Any choice can be changed in any order and Apply is always available;
+there are no required comparisons or preview-completion steps. One optional preview
+uses the real engine, current speed, font and reading-support settings, and explicitly
+labelled English sample text. Changing choices during playback restarts the preview
+with the new combination. Preferences change only after Apply; cancellation changes
+nothing, and backgrounding stops playback.
+The selected rhythm fields use existing preference and custom-profile storage.
+Applying rhythm choices does not overwrite unrelated changes or infer comprehension
+from replay frequency. There is no automatic speed increase or learned model.
+
+These are conservative heuristics and preference controls, not validated gains in
+comprehension. Compare actual presentation time as well as comfort during reading
+trials. Device rendering and subjective naturalness require separate validation.

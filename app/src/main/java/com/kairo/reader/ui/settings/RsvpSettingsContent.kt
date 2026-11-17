@@ -2,6 +2,8 @@ package com.kairo.reader.ui.settings
 
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kairo.reader.R
 import com.kairo.reader.core.rsvp.RsvpEffectivePace
+import com.kairo.reader.core.rsvp.applyRsvpRhythmChoices
 
 @Composable
 fun RsvpSettingsContent(
@@ -60,6 +63,23 @@ fun RsvpSettingsContent(
     Spacer(modifier = Modifier.height(10.dp))
 
     RsvpEssentialSettingsContent(state, actions)
+    var showRhythm by rememberSaveable { mutableStateOf(false) }
+    SettingsNavRow(
+        title = stringResource(R.string.rsvp_rhythm_calibration_title),
+        subtitle = stringResource(R.string.rsvp_rhythm_subtitle),
+        icon = Icons.Default.Tune,
+        onClick = { showRhythm = true },
+    )
+    if (showRhythm) {
+        RsvpRhythmDialog(
+            state = state,
+            onApply = { choices ->
+                actions.onConfigChange { current -> applyRsvpRhythmChoices(current, choices) }
+                showRhythm = false
+            },
+            onDismiss = { showRhythm = false },
+        )
+    }
 
     val searchTarget = LocalSettingsSearchTarget.current
     var showAdvanced by rememberSaveable(searchTarget?.id) { mutableStateOf(searchTarget?.advanced == true) }

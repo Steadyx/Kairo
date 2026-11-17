@@ -4,6 +4,12 @@ import com.kairo.reader.R
 
 internal val rsvpSearchEntries = listOf(
     SettingsSearchEntry(
+        id = "rsvp.rsvp_rhythm_calibration_title",
+        page = SettingsSearchPage.RSVP,
+        titleRes = R.string.rsvp_rhythm_calibration_title,
+        descriptionRes = R.string.rsvp_rhythm_subtitle,
+    ),
+    SettingsSearchEntry(
         id = "rsvp.rsvp_difficult_word_support_title",
         page = SettingsSearchPage.RSVP,
         titleRes = R.string.rsvp_difficult_word_support_title,
